@@ -1,0 +1,8 @@
+{
+  "name": "safety-hook",
+  "version": "1.0.0",
+  "description": "amaze extension example: block rm -rf / via tool_call hook",
+  "amaze": {
+    "extensions": ["./index.ts"]
+  }
+}
