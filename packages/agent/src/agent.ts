@@ -680,6 +680,18 @@ export class Agent {
 		this.#followUpQueue.push(m);
 	}
 
+	snapshotQueues(): { steering: AgentMessage[]; followUp: AgentMessage[] } {
+		return {
+			steering: [...this.#steeringQueue],
+			followUp: [...this.#followUpQueue],
+		};
+	}
+
+	restoreQueues(snapshot: { steering?: AgentMessage[]; followUp?: AgentMessage[] }) {
+		this.#steeringQueue = [...(snapshot.steering ?? [])];
+		this.#followUpQueue = [...(snapshot.followUp ?? [])];
+	}
+
 	clearSteeringQueue() {
 		this.#steeringQueue = [];
 	}

@@ -627,9 +627,10 @@ export function buildSessionContext(
 	// 3. Emit messages after compaction
 	const messages: AgentMessage[] = [];
 
-	const appendMessage = (entry: SessionEntry) => {
+	const appendMessage = (entry: SessionEntry): boolean => {
 		if (entry.type === "message") {
 			messages.push(entry.message);
+			return true;
 		} else if (entry.type === "custom_message") {
 			messages.push(
 				createCustomMessage(
@@ -641,9 +642,12 @@ export function buildSessionContext(
 					entry.attribution,
 				),
 			);
+			return true;
 		} else if (entry.type === "branch_summary" && entry.summary) {
 			messages.push(createBranchSummaryMessage(entry.summary, entry.fromId, entry.timestamp));
+			return true;
 		}
+		return false;
 	};
 
 	if (compaction) {
@@ -659,8 +663,6 @@ export function buildSessionContext(
 				items: remote.replacementHistory as Array<Record<string, unknown>>,
 			};
 		})();
-		const remoteReplacementHistory = providerPayload?.items;
-
 		// Emit summary first
 		messages.push(
 			createCompactionSummaryMessage(
@@ -675,18 +677,23 @@ export function buildSessionContext(
 		// Find compaction index in path
 		const compactionIdx = path.findIndex(e => e.type === "compaction" && e.id === compaction.id);
 
-		if (!remoteReplacementHistory) {
-			// Emit kept messages (before compaction, starting from firstKeptEntryId)
-			let foundFirstKept = false;
-			for (let i = 0; i < compactionIdx; i++) {
-				const entry = path[i];
-				if (entry.id === compaction.firstKeptEntryId) {
-					foundFirstKept = true;
-				}
-				if (foundFirstKept) {
-					appendMessage(entry);
-				}
+		// Emit kept messages (before compaction, starting from firstKeptEntryId).
+		// Remote OpenAI compaction can replay native encrypted history through providerPayload;
+		// raw kept messages are still emitted as a provider-neutral fallback for model switches.
+		// OpenAI-family converters skip exactly this count after replaying the payload.
+		let foundFirstKept = false;
+		let fallbackMessageCount = 0;
+		for (let i = 0; i < compactionIdx; i++) {
+			const entry = path[i];
+			if (entry.id === compaction.firstKeptEntryId) {
+				foundFirstKept = true;
 			}
+			if (foundFirstKept) {
+				if (appendMessage(entry)) fallbackMessageCount++;
+			}
+		}
+		if (providerPayload && fallbackMessageCount > 0) {
+			providerPayload.fallbackMessageCount = fallbackMessageCount;
 		}
 
 		// Emit messages after compaction

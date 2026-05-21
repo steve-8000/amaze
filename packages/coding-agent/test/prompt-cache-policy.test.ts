@@ -42,4 +42,30 @@ describe("prompt cache policy", () => {
 			cacheRetention: "long",
 		});
 	});
+
+	it("promotes subagent retention to long when subagentPrefixReuse is enabled", () => {
+		const settings = Settings.isolated({
+			"prompt.cache.subagentRetention": "short",
+			"prompt.cache.subagentPrefixReuse": true,
+		});
+
+		expect(resolvePromptCachePolicy({ settings, taskDepth: 1 })).toEqual({
+			role: "subagent",
+			projectContextMode: "full",
+			cacheRetention: "long",
+		});
+	});
+
+	it("subagentPrefixReuse does not affect orchestrator retention", () => {
+		const settings = Settings.isolated({
+			"prompt.cache.orchestratorRetention": "short",
+			"prompt.cache.subagentPrefixReuse": true,
+		});
+
+		expect(resolvePromptCachePolicy({ settings })).toEqual({
+			role: "orchestrator",
+			projectContextMode: "compact",
+			cacheRetention: "short",
+		});
+	});
 });

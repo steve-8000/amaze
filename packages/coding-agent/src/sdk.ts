@@ -1189,7 +1189,7 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 						process.stderr.write(`${chalk.gray(`Connecting to MCP servers: ${serverNames.join(", ")}…`)}\n`);
 					}
 				},
-				enableProjectConfig: settings.get("mcp.enableProjectConfig") ?? true,
+				enableProjectConfig: false,
 				// Always filter Exa - we have native integration
 				filterExa: true,
 				// Filter browser MCP servers when builtin browser tool is active
@@ -1855,6 +1855,7 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 			thinkingLevel,
 			sessionManager,
 			settings,
+			role: promptCachePolicy.role,
 			evalKernelOwnerId,
 			// Defined only for top-level sessions (creation is gated above).
 			// AgentSession uses this to decide whether it may dispose the global

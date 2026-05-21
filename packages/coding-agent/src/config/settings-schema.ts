@@ -1114,6 +1114,21 @@ export const SETTINGS_SCHEMA = {
 		},
 	},
 
+	// When true, subagents promote to long-retention regardless of subagentRetention,
+	// because the system prompt + tools + skills prefix is identical to the parent
+	// and likely shared across a fan-out of sibling subagents. This converts the
+	// per-spawn full-prefix write into a one-time write + N cheap reads.
+	"prompt.cache.subagentPrefixReuse": {
+		type: "boolean",
+		default: false,
+		ui: {
+			tab: "context",
+			label: "Subagent Prefix Reuse",
+			description:
+				"Promote subagents to long-retention prompt cache so sibling/sequential fan-out reuses the parent's prefix.",
+		},
+	},
+
 	// Compaction
 	"compaction.enabled": {
 		type: "boolean",
@@ -1216,6 +1231,31 @@ export const SETTINGS_SCHEMA = {
 	"compaction.reserveTokens": { type: "number", default: 16384 },
 
 	"compaction.keepRecentTokens": { type: "number", default: 20000 },
+
+	// Continuous (post-turn) tool-output demotion. Independent of threshold
+	// compaction: ages out stale tool outputs by per-tool TTL after each turn
+	// so context stops accumulating between compaction triggers.
+	"compaction.continuousDemotion.enabled": {
+		type: "boolean",
+		default: false,
+		ui: {
+			tab: "context",
+			label: "Continuous Tool-Output Demotion",
+			description:
+				"After each turn, demote stale tool outputs by per-tool TTL (independent of compaction threshold).",
+		},
+	},
+	"compaction.continuousDemotion.protectTokens": { type: "number", default: 8192 },
+	// F2 (M2) defaults aligned with one Anthropic 5-min cache window so a slow
+	// thinking turn (Opus reviewer ~30–60s) can still compare prior vs current
+	// tool output before demotion kicks in.
+	"compaction.continuousDemotion.bashTtlSeconds": { type: "number", default: 300 },
+	"compaction.continuousDemotion.grepTtlSeconds": { type: "number", default: 900 },
+	"compaction.continuousDemotion.readTtlSeconds": { type: "number", default: 1800 },
+	"compaction.continuousDemotion.readSmallThresholdTokens": { type: "number", default: 2000 },
+	// F4 (H2) throttle: only attempt demotion every Nth turn so the Codex
+	// provider WebSocket isn't torn down on every turn that triggers it.
+	"compaction.continuousDemotion.turnInterval": { type: "number", default: 3 },
 
 	"compaction.autoContinue": { type: "boolean", default: true },
 
@@ -2258,13 +2298,6 @@ export const SETTINGS_SCHEMA = {
 		},
 	},
 
-	// MCP
-	"mcp.enableProjectConfig": {
-		type: "boolean",
-		default: true,
-		ui: { tab: "tools", label: "MCP Project Config", description: "Load .mcp.json/mcp.json from project root" },
-	},
-
 	"mcp.discoveryMode": {
 		type: "boolean",
 		default: false,
@@ -2567,11 +2600,7 @@ export const SETTINGS_SCHEMA = {
 
 	"skills.enableClaudeUser": { type: "boolean", default: true },
 
-	"skills.enableClaudeProject": { type: "boolean", default: true },
-
 	"skills.enablePiUser": { type: "boolean", default: true },
-
-	"skills.enablePiProject": { type: "boolean", default: true },
 
 	"skills.customDirectories": { type: "array", default: [] as string[] },
 
@@ -2586,12 +2615,6 @@ export const SETTINGS_SCHEMA = {
 		ui: { tab: "tasks", label: "Claude User Commands", description: "Load commands from ~/.claude/commands/" },
 	},
 
-	"commands.enableClaudeProject": {
-		type: "boolean",
-		default: true,
-		ui: { tab: "tasks", label: "Claude Project Commands", description: "Load commands from .claude/commands/" },
-	},
-
 	"commands.enableOpencodeUser": {
 		type: "boolean",
 		default: true,
@@ -2600,12 +2623,6 @@ export const SETTINGS_SCHEMA = {
 			label: "OpenCode User Commands",
 			description: "Load commands from ~/.config/opencode/commands/",
 		},
-	},
-
-	"commands.enableOpencodeProject": {
-		type: "boolean",
-		default: true,
-		ui: { tab: "tasks", label: "OpenCode Project Commands", description: "Load commands from .opencode/commands/" },
 	},
 
 	// ────────────────────────────────────────────────────────────────────────
@@ -2996,9 +3013,7 @@ export interface SkillsSettings {
 	enableSkillCommands?: boolean;
 	enableCodexUser?: boolean;
 	enableClaudeUser?: boolean;
-	enableClaudeProject?: boolean;
 	enablePiUser?: boolean;
-	enablePiProject?: boolean;
 	customDirectories?: string[];
 	ignoredSkills?: string[];
 	includeSkills?: string[];

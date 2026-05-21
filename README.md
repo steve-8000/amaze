@@ -50,16 +50,22 @@ The runtime separates a long-lived parent from short-lived workers.
    - only the nearest context file is placed in the system prompt
    - large static context such as workspace tree and skill listing is excluded
    - `task.eager = true` encourages non-trivial work to be delegated instead of making the parent read and edit everything itself
-   - prompt cache retention uses provider/global default; current AI-layer default is long retention
+   - prompt cache retention uses provider/global default; current AI-layer default is long retention where the provider supports it
 3. Subagents get full execution context:
    - project context mode is full
    - root/nearest context, workspace tree, and skill listing are included
+   - subagent-specific prompt content is deliberately appended after `defaultPrompt`, keeping stable system/project context contiguous as the reusable cache prefix
    - `task.eager = false` prevents recursive delegation drift
-   - cache retention is short to avoid long-cache write premium for one-shot workers
+   - cache retention is short by default, but the project profile sets `prompt.cache.subagentPrefixReuse = true` so a fan-out of sibling subagents can amortize one stable prefix write across many cheap reads on providers that honor prompt caching
+   - continuous tool-output demotion (`compaction.continuousDemotion.enabled`) runs after each turn (throttled by `turnInterval`, default every 3rd turn), ageing out stale `bash`/`search`/`find`/large-`read` results by per-tool TTL so context doesn't accumulate between compaction triggers
+
+> **Note on `compaction.strategy: "handoff"`:** the project profile defaults the orchestrator to handoff strategy. When threshold maintenance fires, the orchestrator generates a handoff document and **starts a new session file** (subagents stay on `context-full`). The new session inherits the work via the injected handoff document, but `session_id` changes — anything keyed on session id (IRC routing, external trackers, `/tree` branches in the old file) will not carry over. Set `compaction.strategy` to `context-full` in your local settings if you need in-place compaction.
 4. Provider calls receive the resolved policy:
    - project context mode feeds system prompt construction
-   - cache retention is passed through the Agent into provider request options
+   - cache retention is passed through the Agent into provider request options; it only changes requests for providers that implement it, otherwise it remains a harmless hint
    - `undefined` means provider/global default
+   - public `openai-responses` calls replay context inline/native-history style with `prompt_cache_key` and direct OpenAI-only `prompt_cache_retention` when applicable
+   - `openai-codex-responses` uses WebSocket transport state: after a full request, later compatible turns continue with `previous_response_id` and only the appended input delta
 
 The intended shape is: parent = low-token, long-lived orchestrator; subagents = short-lived, high-context executors. The parent keeps goals, todos, and integration state; workers do detailed file work and yield concise results.
 

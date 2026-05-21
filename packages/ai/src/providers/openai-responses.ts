@@ -23,7 +23,6 @@ import type {
 } from "../types";
 import {
 	createOpenAIResponsesHistoryPayload,
-	getOpenAIResponsesHistoryItems,
 	getOpenAIResponsesHistoryPayload,
 	normalizeSystemPrompts,
 	resolveCacheRetention,
@@ -215,9 +214,12 @@ export const streamOpenAIResponses: StreamFunction<"openai-responses"> = (
 			);
 			const premiumRequestsTotal = copilotPremiumRequests;
 			const providerSessionState = getOpenAIResponsesProviderSessionState(model, options?.providerSessionState);
-			const { params } = buildParams(model, context, options, providerSessionState, baseUrl);
+			let params = buildParams(model, context, options, providerSessionState, baseUrl).params;
 			const idleTimeoutMs = options?.streamIdleTimeoutMs ?? getOpenAIStreamIdleTimeoutMs();
-			options?.onPayload?.(params);
+			const replacementPayload = await options?.onPayload?.(params, model);
+			if (replacementPayload !== undefined) {
+				params = replacementPayload as typeof params;
+			}
 			rawRequestDump = {
 				provider: model.provider,
 				api: output.api,
@@ -484,12 +486,20 @@ function convertConversationMessages(
 	const customCallIds = new Set<string>();
 	const shouldReplayNativeHistory = canReplayOpenAIResponsesNativeHistory(providerSessionState);
 	const transformedMessages = transformMessages(context.messages, model, normalizeResponsesToolCallIdForTransform);
+	let fallbackMessagesToSkip = 0;
 
 	let msgIndex = 0;
 	for (const msg of transformedMessages) {
+		if (fallbackMessagesToSkip > 0) {
+			fallbackMessagesToSkip--;
+			msgIndex++;
+			continue;
+		}
+
 		if (msg.role === "user" || msg.role === "developer") {
 			const providerPayload = (msg as { providerPayload?: AssistantMessage["providerPayload"] }).providerPayload;
-			const historyItems = getOpenAIResponsesHistoryItems(providerPayload, model.provider);
+			const historyPayload = getOpenAIResponsesHistoryPayload(providerPayload, model.provider);
+			const historyItems = historyPayload?.items;
 			const shouldReplayPayloadItems =
 				shouldReplayNativeHistory ||
 				(historyItems?.some(item => {
@@ -502,6 +512,7 @@ function convertConversationMessages(
 				messages.push(...sanitizeOpenAIResponsesHistoryItemsForReplay(historyItems));
 				knownCallIds = collectKnownCallIds(messages);
 				for (const id of collectCustomCallIds(messages)) customCallIds.add(id);
+				fallbackMessagesToSkip = Math.max(0, historyPayload?.fallbackMessageCount ?? 0);
 				msgIndex++;
 				continue;
 			}

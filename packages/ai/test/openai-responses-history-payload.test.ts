@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { getBundledModel } from "@amaze/ai/models";
 import { streamOpenAICodexResponses } from "@amaze/ai/providers/openai-codex-responses";
 import { type OpenAIResponsesOptions, streamOpenAIResponses } from "@amaze/ai/providers/openai-responses";
-import type { Context, Model, ProviderSessionState } from "@amaze/ai/types";
+import type { Context, FetchImpl, Model, ProviderSessionState } from "@amaze/ai/types";
 import { createOpenAIResponsesHistoryPayload, truncateResponseItemId } from "../src/utils";
 
 function createAbortedSignal(): AbortSignal {
@@ -17,6 +17,13 @@ function createCodexToken(accountId: string): string {
 		JSON.stringify({ "https://api.openai.com/auth": { chatgpt_account_id: accountId } }),
 	).toString("base64url");
 	return `${header}.${payload}.signature`;
+}
+function createResponsesSseResponse(events: unknown[]): Response {
+	const payload = `${events.map(event => `data: ${typeof event === "string" ? event : JSON.stringify(event)}`).join("\n\n")}\n\n`;
+	return new Response(payload, {
+		status: 200,
+		headers: { "content-type": "text/event-stream" },
+	});
 }
 
 /**
@@ -138,6 +145,26 @@ const resumedSameProviderWithRemoteCompactionPayloadContext: Context = {
 		{
 			...makeAssistantMessage([], false),
 			content: [{ type: "text", text: "generic assistant that should be preserved" }],
+		},
+		{ role: "user", content: "follow-up user", timestamp: Date.now() },
+	],
+};
+
+const remoteCompactionWithRawFallbackContext: Context = {
+	messages: [
+		{
+			role: "user",
+			content: "summary that should be ignored",
+			providerPayload: {
+				...createOpenAIResponsesHistoryPayload("openai", preservedHistoryItems, false),
+				fallbackMessageCount: 2,
+			},
+			timestamp: Date.now(),
+		},
+		{ role: "user", content: "raw fallback user", timestamp: Date.now() },
+		{
+			...makeAssistantMessage([], false),
+			content: [{ type: "text", text: "raw fallback assistant" }],
 		},
 		{ role: "user", content: "follow-up user", timestamp: Date.now() },
 	],
@@ -322,6 +349,86 @@ describe("OpenAI responses history payload", () => {
 		expect(payload.prompt_cache_key).toBe("session-abc");
 	});
 
+	it("awaits onPayload replacement before sending openai-responses request", async () => {
+		const model = getOpenAIReasoningModel("openai", "gpt-5-mini");
+		const replacementPayload = {
+			model: model.id,
+			input: [{ role: "user", content: [{ type: "input_text", text: "replacement user" }] }],
+			stream: true,
+			metadata: { marker: "replacement-payload" },
+		};
+		let capturedBody: unknown;
+		let hookModel: Model | undefined;
+		let hookPayload: unknown;
+		let hookSettled = false;
+		const fetchImpl: FetchImpl = async (input, init) => {
+			expect(hookSettled).toBe(true);
+			const body =
+				input instanceof Request
+					? await input.clone().text()
+					: typeof init?.body === "string"
+						? init.body
+						: undefined;
+			expect(body).toBeDefined();
+			capturedBody = JSON.parse(body as string);
+			return createResponsesSseResponse([
+				{ type: "response.created", response: { id: "resp_test" } },
+				{
+					type: "response.output_item.added",
+					item: { type: "message", id: "msg_test", role: "assistant", status: "in_progress", content: [] },
+				},
+				{ type: "response.content_part.added", part: { type: "output_text", text: "" } },
+				{ type: "response.output_text.delta", delta: "hi" },
+				{
+					type: "response.output_item.done",
+					item: {
+						type: "message",
+						id: "msg_test",
+						role: "assistant",
+						status: "completed",
+						content: [{ type: "output_text", text: "hi" }],
+					},
+				},
+				{
+					type: "response.completed",
+					response: {
+						id: "resp_test",
+						status: "completed",
+						usage: {
+							input_tokens: 1,
+							output_tokens: 1,
+							total_tokens: 2,
+							input_tokens_details: { cached_tokens: 0 },
+						},
+					},
+				},
+			]);
+		};
+
+		const result = await streamOpenAIResponses(
+			model,
+			{
+				messages: [{ role: "user", content: "original user", timestamp: Date.now() }],
+			},
+			{
+				apiKey: "test-key",
+				fetch: fetchImpl,
+				onPayload: async (payload, seenModel) => {
+					hookPayload = payload;
+					hookModel = seenModel;
+					await Promise.resolve();
+					hookSettled = true;
+					return replacementPayload;
+				},
+			},
+		).result();
+
+		expect(result.stopReason).toBe("stop");
+		expect(hookModel).toBe(model);
+		expect(hookPayload).not.toBe(replacementPayload);
+		expect(capturedBody).toEqual(replacementPayload);
+	});
+
 	it("falls back to system instructions for OpenAI-compatible endpoints without developer-role support", async () => {
 		const model = {
 			...getOpenAIReasoningModel("openai", "gpt-5-mini"),
@@ -419,6 +526,25 @@ describe("OpenAI responses history payload", () => {
 			},
 			{ role: "user", content: [{ type: "input_text", text: "follow-up user" }] },
 		]);
+	});
+
+	it("skips raw fallback messages after replaying remote replacement history", async () => {
+		const model = getOpenAIReasoningModel("openai", "gpt-5-mini");
+		const providerSessionState = new Map<string, ProviderSessionState>();
+		const payload = (await captureResponsesPayload(
+			model,
+			remoteCompactionWithRawFallbackContext,
+			providerSessionState,
+		)) as {
+			input?: unknown[];
+		};
+
+		expect(payload.input).toEqual([
+			...preservedHistoryItems,
+			{ role: "user", content: [{ type: "input_text", text: "follow-up user" }] },
+		]);
+		expect(containsUserInputText(payload.input, "raw fallback user")).toBe(false);
+		expect(containsAssistantOutputText(payload.input, "raw fallback assistant")).toBe(false);
 	});
 
 	it("replays native history after the same-provider session state is warmed", async () => {

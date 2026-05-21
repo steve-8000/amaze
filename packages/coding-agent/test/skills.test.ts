@@ -136,9 +136,7 @@ describe("skills", () => {
 			const { skills } = await loadSkills({
 				enableCodexUser: false,
 				enableClaudeUser: false,
-				enableClaudeProject: false,
 				enablePiUser: false,
-				enablePiProject: false,
 				customDirectories: [fixturesDir],
 			});
 			expect(skills.length).toBeGreaterThan(0);
@@ -150,9 +148,7 @@ describe("skills", () => {
 			const { skills } = await loadSkills({
 				enableCodexUser: false,
 				enableClaudeUser: false,
-				enableClaudeProject: false,
 				enablePiUser: false,
-				enablePiProject: false,
 				customDirectories: [fixturesDir],
 			});
 
@@ -195,9 +191,7 @@ describe("skills", () => {
 			const { skills } = await loadSkills({
 				enableCodexUser: false,
 				enableClaudeUser: false,
-				enableClaudeProject: false,
 				enablePiUser: false,
-				enablePiProject: false,
 				customDirectories: [fixturesDir],
 				ignoredSkills: ["valid-skill"],
 			});
@@ -208,9 +202,7 @@ describe("skills", () => {
 			const { skills } = await loadSkills({
 				enableCodexUser: false,
 				enableClaudeUser: false,
-				enableClaudeProject: false,
 				enablePiUser: false,
-				enablePiProject: false,
 				customDirectories: [fixturesDir],
 				ignoredSkills: ["valid-*"],
 			});
@@ -237,9 +229,7 @@ enabled: false
 				const { skills } = await loadSkills({
 					enableCodexUser: false,
 					enableClaudeUser: false,
-					enableClaudeProject: false,
 					enablePiUser: false,
-					enablePiProject: false,
 					customDirectories: [tempDir],
 				});
 				expect(skills.some(s => s.name === "disabled-skill")).toBe(false);
@@ -252,9 +242,7 @@ enabled: false
 			const { skills } = await loadSkills({
 				enableCodexUser: false,
 				enableClaudeUser: false,
-				enableClaudeProject: false,
 				enablePiUser: false,
-				enablePiProject: false,
 				customDirectories: [fixturesDir],
 				includeSkills: ["valid-*"],
 				ignoredSkills: ["valid-skill"],
@@ -285,17 +273,13 @@ description: Skill loaded from a tilde-expanded custom directory.
 				const { skills: withTilde } = await loadSkills({
 					enableCodexUser: false,
 					enableClaudeUser: false,
-					enableClaudeProject: false,
 					enablePiUser: false,
-					enablePiProject: false,
 					customDirectories: [tildeDir],
 				});
 				const { skills: withoutTilde } = await loadSkills({
 					enableCodexUser: false,
 					enableClaudeUser: false,
-					enableClaudeProject: false,
 					enablePiUser: false,
-					enablePiProject: false,
 					customDirectories: [tempHomeSkillsDir],
 				});
 				expect(withTilde.length).toBe(withoutTilde.length);
@@ -309,9 +293,7 @@ description: Skill loaded from a tilde-expanded custom directory.
 			const { skills } = await loadSkills({
 				enableCodexUser: false,
 				enableClaudeUser: false,
-				enableClaudeProject: false,
 				enablePiUser: false,
-				enablePiProject: false,
 			});
 			expect(skills).toHaveLength(0);
 		});
@@ -321,9 +303,7 @@ description: Skill loaded from a tilde-expanded custom directory.
 			const { skills: allSkills } = await loadSkills({
 				enableCodexUser: false,
 				enableClaudeUser: false,
-				enableClaudeProject: false,
 				enablePiUser: false,
-				enablePiProject: false,
 				customDirectories: [fixturesDir],
 			});
 			expect(allSkills.length).toBeGreaterThan(0);
@@ -332,9 +312,7 @@ description: Skill loaded from a tilde-expanded custom directory.
 			const { skills: filtered } = await loadSkills({
 				enableCodexUser: false,
 				enableClaudeUser: false,
-				enableClaudeProject: false,
 				enablePiUser: false,
-				enablePiProject: false,
 				customDirectories: [fixturesDir],
 				includeSkills: ["valid-skill"],
 			});
@@ -346,9 +324,7 @@ description: Skill loaded from a tilde-expanded custom directory.
 			const { skills } = await loadSkills({
 				enableCodexUser: false,
 				enableClaudeUser: false,
-				enableClaudeProject: false,
 				enablePiUser: false,
-				enablePiProject: false,
 				customDirectories: [fixturesDir],
 				includeSkills: ["valid-*"],
 			});
@@ -360,18 +336,14 @@ description: Skill loaded from a tilde-expanded custom directory.
 			const { skills: withEmpty } = await loadSkills({
 				enableCodexUser: false,
 				enableClaudeUser: false,
-				enableClaudeProject: false,
 				enablePiUser: false,
-				enablePiProject: false,
 				customDirectories: [fixturesDir],
 				includeSkills: [],
 			});
 			const { skills: withoutOption } = await loadSkills({
 				enableCodexUser: false,
 				enableClaudeUser: false,
-				enableClaudeProject: false,
 				enablePiUser: false,
-				enablePiProject: false,
 				customDirectories: [fixturesDir],
 			});
 			expect(withEmpty.length).toBe(withoutOption.length);

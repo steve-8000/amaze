@@ -512,6 +512,8 @@ export interface OpenAIResponsesHistoryPayload {
 	type: "openaiResponsesHistory";
 	provider?: string;
 	dt?: boolean;
+	/** Number of raw fallback messages immediately following this payload in generic LLM context. */
+	fallbackMessageCount?: number;
 	items: Array<Record<string, unknown>>;
 }
 

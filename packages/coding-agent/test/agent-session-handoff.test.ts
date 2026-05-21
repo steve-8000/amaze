@@ -106,6 +106,21 @@ describe("AgentSession handoff", () => {
 		expect(sessionManager.getEntries().filter(entry => entry.type === "compaction")).toHaveLength(0);
 	});
 
+	it("preserves queued follow-up messages across handoff session reset", async () => {
+		const handoffText = "## Goal\nContinue from here";
+		vi.spyOn(compactionModule, "generateHandoff").mockResolvedValue(handoffText);
+
+		await session.followUp("queued after handoff");
+		expect(session.getQueuedMessages().followUp).toEqual(["queued after handoff"]);
+		expect(session.agent.hasQueuedMessages()).toBe(true);
+
+		const result = await session.handoff();
+
+		expect(result?.document).toBe(handoffText);
+		expect(session.getQueuedMessages().followUp).toEqual(["queued after handoff"]);
+		expect(session.agent.hasQueuedMessages()).toBe(true);
+	});
+
 	it("does not run auto maintenance after final yield", async () => {
 		session.settings.set("compaction.strategy", "handoff");
 		session.settings.set("compaction.thresholdPercent", 1);

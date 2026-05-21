@@ -522,9 +522,15 @@ async function buildCodexRequestContext(
 	const accountId = getAccountId(apiKey);
 	const baseUrl = model.baseUrl || CODEX_BASE_URL;
 	const url = resolveCodexResponsesUrl(baseUrl);
-	const promptCacheKey = normalizeOpenAIResponsesPromptCacheKey(options?.sessionId);
-	const transformedBody = await buildTransformedCodexRequestBody(model, context, options);
-	options?.onPayload?.(transformedBody);
+	let transformedBody = await buildTransformedCodexRequestBody(model, context, options);
+	const replacementPayload = await options?.onPayload?.(transformedBody, model);
+	if (replacementPayload !== undefined) {
+		transformedBody = replacementPayload as RequestBody;
+	}
+	const promptCacheKey =
+		typeof transformedBody.prompt_cache_key === "string" && transformedBody.prompt_cache_key.length > 0
+			? transformedBody.prompt_cache_key
+			: undefined;
 
 	const requestHeaders = { ...(model.headers ?? {}), ...(options?.headers ?? {}) };
 	const rawRequestDump: RawHttpRequestDump = {

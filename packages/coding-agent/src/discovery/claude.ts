@@ -255,17 +255,16 @@ async function loadExtensionModules(ctx: LoadContext): Promise<LoadResult<Extens
 
 /**
  * Read the Claude command-loading toggles from settings.
- * Falls back to true (current behavior) when settings are not initialized,
- * e.g. inside discovery unit tests that run without Settings.init().
+ * Project-level commands are intentionally ignored.
  */
 function readClaudeCommandToggles(): { enableUser: boolean; enableProject: boolean } {
 	try {
 		return {
 			enableUser: settings.get("commands.enableClaudeUser") ?? true,
-			enableProject: settings.get("commands.enableClaudeProject") ?? true,
+			enableProject: false,
 		};
 	} catch {
-		return { enableUser: true, enableProject: true };
+		return { enableUser: true, enableProject: false };
 	}
 }
 

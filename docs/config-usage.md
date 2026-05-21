@@ -137,18 +137,18 @@ Legacy migration still supported:
 The runtime settings model is layered:
 
 1. Global settings: `~/.amaze/agent/config.yml`
-2. Project settings: discovered via settings capability (`settings.json` from providers)
-3. Runtime overrides: in-memory, non-persistent
-4. Schema defaults: from `SETTINGS_SCHEMA`
+2. Runtime overrides: in-memory, non-persistent
+3. Schema defaults: from `SETTINGS_SCHEMA`
 
 Effective read path:
 
-`defaults <- global <- project <- overrides`
+`defaults <- global <- overrides`
+
+Project settings are intentionally not loaded into the runtime settings model. Project-level context files (`AGENTS.md`/`SYSTEM.md`) are also ignored; only user-level context files are considered.
 
 Write behavior:
 
 - `settings.set(...)` writes to the **global** layer (`config.yml`) and queues background save.
-- Project settings are read-only from capability discovery.
 
 ## Migration behavior still active
 
@@ -217,7 +217,7 @@ Native provider (`id: native`) reads native config from:
 
 - Slash commands, rules, prompts, instructions, hooks, tools, extensions, extension modules, and settings use a project/user root only when the root directory exists and is non-empty.
 - Skills scan `<ancestor>/.amaze/skills` for each ancestor from the current working directory up to the repo root/home boundary, plus `~/.amaze/agent/skills`, without requiring the root `.amaze` directory itself to be non-empty.
-- `SYSTEM.md` and `AGENTS.md` read user-level files directly and use nearest-ancestor project `.amaze` lookup for project files, but the project `.amaze` directory must be non-empty.
+- `SYSTEM.md` and `AGENTS.md` read user-level files directly. Project-level context files are intentionally ignored.
 
 ### Scope-specific loading
 
@@ -240,14 +240,13 @@ Native provider (`id: native`) reads native config from:
 
 ## Settings subsystem
 
-- `Settings.init()` loads global `config.yml` + discovered project `settings.json` capability items.
-- Only capability items with `level === "project"` are merged into project layer.
+- `Settings.init()` loads global `config.yml`; discovered project `settings.json` capability items are intentionally not merged.
 
 ## Skills subsystem
 
 - `extensibility/skills.ts` loads via `loadCapability(skillCapability.id, { cwd })`.
 - Applies source toggles and filters (`ignoredSkills`, `includeSkills`, custom dirs).
-- Legacy-named toggles still exist (`skills.enablePiUser`, `skills.enablePiProject`) but they gate the native provider (`provider === "native"`).
+- Project-level skill sources are intentionally ignored.
 
 ## Hooks subsystem
 
@@ -286,6 +285,6 @@ Settings capability items are not deduplicated; `Settings.#loadProjectSettings()
 - `ConfigFile` JSON -> YAML migration for YAML-targeted files.
 - Settings migration from `settings.json` and `agent.db` to `config.yml`.
 - Settings key migrations (`queueMode`, `ask.timeout`, flat `theme`, `task.isolation.enabled`, `statusLine.plan_mode`).
-- Legacy setting names `skills.enablePiUser` / `skills.enablePiProject` are still active gates for native skill source.
+- `skills.enablePiUser` remains the active gate for the native user skill source; project skill gates are intentionally absent.
 
 If these compatibility paths are removed in code, update this document immediately; several runtime behaviors still depend on them today.

@@ -34,6 +34,10 @@ describe("Settings", () => {
 		await Bun.write(getConfigPath(), YAML.stringify(settings, null, 2));
 	};
 
+	const writeProjectSettings = async (settings: Record<string, unknown>) => {
+		await Bun.write(path.join(getProjectAgentDir(projectDir), "settings.json"), JSON.stringify(settings));
+	};
+
 	const readSettings = async (): Promise<Record<string, unknown>> => {
 		const file = Bun.file(getConfigPath());
 		if (!(await file.exists())) return {};
@@ -47,6 +51,17 @@ describe("Settings", () => {
 		if (fs.existsSync(testDir)) {
 			fs.rmSync(testDir, { recursive: true });
 		}
+	});
+
+	describe("project settings", () => {
+		it("always ignores project .amaze/settings.json", async () => {
+			await writeSettings({ shellPath: "/bin/global" });
+			await writeProjectSettings({ shellPath: "/bin/project" });
+
+			const settings = await Settings.init({ cwd: projectDir, agentDir });
+
+			expect(settings.get("shellPath")).toBe("/bin/global");
+		});
 	});
 
 	// Tests that SettingsManager merges with DB state on save rather than blindly overwriting.

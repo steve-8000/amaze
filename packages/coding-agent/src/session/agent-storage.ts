@@ -42,6 +42,7 @@ export class AgentStorage {
 	#upsertModelUsageStmt: Statement;
 	#listModelUsageStmt: Statement;
 	#modelUsageCache: string[] | null = null;
+	#insertOptimizationMetricStmt: Statement;
 
 	private constructor(dbPath: string) {
 		this.#ensureDir(dbPath);
@@ -71,6 +72,9 @@ export class AgentStorage {
 		this.#listModelUsageStmt = this.#db.prepare(
 			"SELECT model_key, last_used_at FROM model_usage ORDER BY last_used_at DESC",
 		);
+		this.#insertOptimizationMetricStmt = this.#db.prepare(
+			"INSERT INTO optimization_metrics (session_id, metric, value, meta) VALUES (?, ?, ?, ?)",
+		);
 	}
 
 	/**
@@ -87,6 +91,18 @@ CREATE TABLE IF NOT EXISTS model_usage (
 	model_key TEXT PRIMARY KEY,
 	last_used_at INTEGER NOT NULL DEFAULT (${SQLITE_NOW_EPOCH})
 );
+
+-- Per-event optimization telemetry. Used to validate the impact of context
+-- optimizations (subagent prefix reuse, continuous demotion). Append-only.
+CREATE TABLE IF NOT EXISTS optimization_metrics (
+	ts INTEGER NOT NULL DEFAULT (${SQLITE_NOW_EPOCH}),
+	session_id TEXT,
+	metric TEXT NOT NULL,
+	value REAL NOT NULL DEFAULT 0,
+	meta TEXT
+);
+CREATE INDEX IF NOT EXISTS optimization_metrics_session_ts ON optimization_metrics (session_id, ts);
+CREATE INDEX IF NOT EXISTS optimization_metrics_metric_ts ON optimization_metrics (metric, ts);
 
 CREATE TABLE IF NOT EXISTS schema_version (version INTEGER PRIMARY KEY);
 `);
@@ -283,6 +299,25 @@ FROM model_usage_legacy
 			this.#modelUsageCache = null;
 		} catch (error) {
 			logger.warn("AgentStorage failed to record model usage", { modelKey, error: String(error) });
+		}
+	}
+
+	/**
+	 * Append an optimization-metric event. Best-effort: failures are logged
+	 * and swallowed so telemetry never breaks the hot path. Meta is stored as
+	 * JSON when provided.
+	 */
+	recordOptimizationMetric(
+		sessionId: string | null,
+		metric: string,
+		value: number,
+		meta?: Record<string, unknown>,
+	): void {
+		try {
+			const metaJson = meta ? JSON.stringify(meta) : null;
+			this.#insertOptimizationMetricStmt.run(sessionId, metric, value, metaJson);
+		} catch (error) {
+			logger.warn("AgentStorage failed to record optimization metric", { metric, error: String(error) });
 		}
 	}
 

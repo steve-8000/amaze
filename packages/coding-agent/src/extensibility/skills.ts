@@ -104,9 +104,7 @@ export async function loadSkills(options: LoadSkillsOptions = {}): Promise<LoadS
 		enabled = true,
 		enableCodexUser = true,
 		enableClaudeUser = true,
-		enableClaudeProject = true,
 		enablePiUser = true,
-		enablePiProject = true,
 		customDirectories = [],
 		ignoredSkills = [],
 		includeSkills = [],
@@ -118,16 +116,15 @@ export async function loadSkills(options: LoadSkillsOptions = {}): Promise<LoadS
 		return { skills: [], warnings: [] };
 	}
 
-	const anyBuiltInSkillSourceEnabled =
-		enableCodexUser || enableClaudeUser || enableClaudeProject || enablePiUser || enablePiProject;
+	const anyBuiltInSkillSourceEnabled = enableCodexUser || enableClaudeUser || enablePiUser;
 	// Helper to check if a source is enabled
 	function isSourceEnabled(source: SourceMeta): boolean {
 		const { provider, level } = source;
 		if (provider === "codex" && level === "user") return enableCodexUser;
 		if (provider === "claude" && level === "user") return enableClaudeUser;
-		if (provider === "claude" && level === "project") return enableClaudeProject;
+		if (provider === "claude" && level === "project") return false;
 		if (provider === "native" && level === "user") return enablePiUser;
-		if (provider === "native" && level === "project") return enablePiProject;
+		if (provider === "native" && level === "project") return false;
 		// For other providers (agents, claude-plugins, etc.), treat them as built-in skill sources.
 		return anyBuiltInSkillSourceEnabled;
 	}

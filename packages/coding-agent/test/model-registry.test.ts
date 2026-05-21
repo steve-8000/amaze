@@ -13,9 +13,18 @@ describe("ModelRegistry", () => {
 	let modelsJsonPath: string;
 	let cacheDbPath: string;
 	let authStorage: AuthStorage;
+	let originalOllamaBaseUrl: string | undefined;
+	let originalLlamaCppBaseUrl: string | undefined;
+	let originalLmStudioBaseUrl: string | undefined;
 
 	beforeEach(async () => {
 		resetSettingsForTest();
+		originalOllamaBaseUrl = Bun.env.OLLAMA_BASE_URL;
+		originalLlamaCppBaseUrl = Bun.env.LLAMA_CPP_BASE_URL;
+		originalLmStudioBaseUrl = Bun.env.LM_STUDIO_BASE_URL;
+		delete Bun.env.OLLAMA_BASE_URL;
+		delete Bun.env.LLAMA_CPP_BASE_URL;
+		delete Bun.env.LM_STUDIO_BASE_URL;
 		tempDir = path.join(os.tmpdir(), `pi-test-model-registry-${Snowflake.next()}`);
 		fs.mkdirSync(tempDir, { recursive: true });
 		modelsJsonPath = path.join(tempDir, "models.json");
@@ -25,6 +34,12 @@ describe("ModelRegistry", () => {
 
 	afterEach(() => {
 		resetSettingsForTest();
+		if (originalOllamaBaseUrl === undefined) delete Bun.env.OLLAMA_BASE_URL;
+		else Bun.env.OLLAMA_BASE_URL = originalOllamaBaseUrl;
+		if (originalLlamaCppBaseUrl === undefined) delete Bun.env.LLAMA_CPP_BASE_URL;
+		else Bun.env.LLAMA_CPP_BASE_URL = originalLlamaCppBaseUrl;
+		if (originalLmStudioBaseUrl === undefined) delete Bun.env.LM_STUDIO_BASE_URL;
+		else Bun.env.LM_STUDIO_BASE_URL = originalLmStudioBaseUrl;
 		authStorage.close();
 		if (tempDir && fs.existsSync(tempDir)) {
 			fs.rmSync(tempDir, { recursive: true });

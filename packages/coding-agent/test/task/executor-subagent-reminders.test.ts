@@ -223,7 +223,7 @@ describe("runSubprocess yield reminders", () => {
 		expect(call.settings.get("memory.backend")).toBe("off");
 	});
 
-	it("renders shared task context in subagent system prompt before now", async () => {
+	it("renders shared task context at the end of the subagent system prompt", async () => {
 		let userPrompt = "";
 		const session = createMockSession(({ text, emit }) => {
 			userPrompt = text;
@@ -255,9 +255,9 @@ describe("runSubprocess yield reminders", () => {
 		expect(systemPrompt).toHaveLength(4);
 		expect(systemPrompt?.[0]).toBe("system");
 		expect(systemPrompt?.[1]).toBe("project");
-		expect(systemPrompt?.[2]).toContain("[CONTEXT]\nShared task background\n[/CONTEXT]");
-		expect(systemPrompt?.[2]).toContain("[ROLE]\ntest\n[/ROLE]");
-		expect(systemPrompt?.[3]).toBe("now");
+		expect(systemPrompt?.[2]).toBe("now");
+		expect(systemPrompt?.[3]).toContain("[CONTEXT]\nShared task background\n[/CONTEXT]");
+		expect(systemPrompt?.[3]).toContain("[ROLE]\ntest\n[/ROLE]");
 		expect(userPrompt).not.toContain("[CONTEXT]");
 		expect(userPrompt).not.toContain("Shared task background");
 	});

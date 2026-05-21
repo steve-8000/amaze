@@ -17,6 +17,7 @@ import * as path from "node:path";
 import {
 	getAgentDbPath,
 	getAgentDir,
+	getProjectAgentDir,
 	getProjectDir,
 	isEnoent,
 	logger,
@@ -24,9 +25,7 @@ import {
 	setDefaultTabWidth,
 } from "@amaze/utils";
 import { YAML } from "bun";
-import { type Settings as SettingsCapabilityItem, settingsCapability } from "../capability/settings";
 import type { ModelRole } from "../config/model-registry";
-import { loadCapability } from "../discovery";
 import { isLightTheme, setAutoThemeMapping, setColorBlindMode, setSymbolPreset } from "../modes/theme/theme";
 import { AgentStorage } from "../session/agent-storage";
 import { type EditMode, normalizeEditMode } from "../utils/edit-mode";
@@ -173,13 +172,14 @@ function resolvePathScopedStringArray(settingPath: SettingPath, value: unknown, 
 
 export class Settings {
 	#configPath: string | null;
+	#projectConfigPath: string | null;
 	#cwd: string;
 	#agentDir: string;
 	#storage: AgentStorage | null = null;
 
 	/** Global settings from config.yml */
 	#global: RawSettings = {};
-	/** Project settings from .claude/settings.yml etc */
+	/** Project settings from .amaze/config.yml */
 	#project: RawSettings = {};
 	/** Runtime overrides (not persisted) */
 	#overrides: RawSettings = {};
@@ -200,6 +200,7 @@ export class Settings {
 		this.#cwd = path.normalize(options.cwd ?? getProjectDir());
 		this.#agentDir = path.normalize(options.agentDir ?? getAgentDir());
 		this.#configPath = options.inMemory ? null : path.join(this.#agentDir, "config.yml");
+		this.#projectConfigPath = options.inMemory ? null : path.join(getProjectAgentDir(this.#cwd), "config.yml");
 		this.#persist = !options.inMemory;
 
 		if (options.overrides) {
@@ -345,7 +346,7 @@ export class Settings {
 		});
 		cloned.#storage = this.#storage;
 		cloned.#global = structuredClone(this.#global);
-		cloned.#project = this.#persist ? await cloned.#loadProjectSettings() : structuredClone(this.#project);
+		cloned.#project = cloned.#projectConfigPath ? await cloned.#loadYaml(cloned.#projectConfigPath) : {};
 		cloned.#overrides = structuredClone(this.#overrides);
 		cloned.#rebuildMerged();
 		cloned.#fireAllHooks();
@@ -468,22 +469,14 @@ export class Settings {
 	// ─────────────────────────────────────────────────────────────────────────
 
 	async #load(): Promise<Settings> {
-		// Project settings load (loadCapability scans cwd) is independent of the
-		// persist chain (storage open → legacy migration → global config.yml read),
-		// so kick it off first and await after the persist chain completes. The
-		// persist steps remain sequential: migration may write config.yml, which
-		// #loadYaml then reads; migration's db fallback needs #storage opened.
-		const projectPromise = this.#loadProjectSettings();
-
 		if (this.#persist) {
 			this.#storage = await AgentStorage.open(getAgentDbPath(this.#agentDir));
 			await this.#migrateFromLegacy();
 			this.#global = await this.#loadYaml(this.#configPath!);
+			this.#project = this.#projectConfigPath ? await this.#loadYaml(this.#projectConfigPath) : {};
 		}
 
-		this.#project = await projectPromise;
-
-		// Build merged view (global → project → overrides; project wins over global)
+		// Build merged view (global → project → overrides)
 		this.#rebuildMerged();
 		this.#fireAllHooks();
 		return this;
@@ -500,21 +493,6 @@ export class Settings {
 		} catch (error) {
 			if (isEnoent(error)) return {};
 			logger.warn("Settings: failed to load", { path: filePath, error: String(error) });
-			return {};
-		}
-	}
-
-	async #loadProjectSettings(): Promise<RawSettings> {
-		try {
-			const result = await loadCapability(settingsCapability.id, { cwd: this.#cwd });
-			let merged: RawSettings = {};
-			for (const item of result.items as SettingsCapabilityItem[]) {
-				if (item.level === "project") {
-					merged = this.#deepMerge(merged, item.data as RawSettings);
-				}
-			}
-			return this.#migrateRawSettings(merged);
-		} catch {
 			return {};
 		}
 	}
@@ -760,8 +738,10 @@ export class Settings {
 	// ─────────────────────────────────────────────────────────────────────────
 
 	#rebuildMerged(): void {
-		this.#merged = this.#deepMerge(this.#deepMerge({}, this.#global), this.#project);
-		this.#merged = this.#deepMerge(this.#merged, this.#overrides);
+		this.#merged = this.#deepMerge(
+			this.#deepMerge(this.#deepMerge({}, this.#global), this.#project),
+			this.#overrides,
+		);
 	}
 
 	#fireAllHooks(): void {

@@ -7,7 +7,14 @@
 		"mainContextMode": "compact",
 		"cache": {
 			"orchestratorRetention": "default",
-			"subagentRetention": "short"
+			"subagentRetention": "short",
+			"subagentPrefixReuse": true
+		}
+	},
+	"compaction": {
+		"strategy": "handoff",
+		"continuousDemotion": {
+			"enabled": true
 		}
 	},
 	"theme": {

@@ -57,15 +57,14 @@ describe("SYSTEM.md prompt assembly", () => {
 		}
 	});
 
-	it("prefers project SYSTEM.md over user SYSTEM.md", async () => {
+	it("ignores project SYSTEM.md", async () => {
 		const projectDir = path.join(tempDir, "project");
 		fs.mkdirSync(path.join(projectDir, ".amaze"), { recursive: true });
-		fs.mkdirSync(path.join(tempHomeDir, ".amaze", "agent"), { recursive: true });
-		fs.writeFileSync(path.join(tempHomeDir, ".amaze", "agent", "SYSTEM.md"), "User SYSTEM prompt");
 		fs.writeFileSync(path.join(projectDir, ".amaze", "SYSTEM.md"), "Project SYSTEM prompt");
 
-		await expect(loadSystemPromptFiles({ cwd: projectDir })).resolves.toBe("Project SYSTEM prompt");
+		await expect(loadSystemPromptFiles({ cwd: projectDir })).resolves.toBeNull();
 	});
+
 	it("drops identical explicit context entries even when file names differ", async () => {
 		const farPath = path.join(tempDir, "far", "AGENTS.md");
 		const nearPath = path.join(tempDir, "near", "CLAUDE.md");
@@ -90,7 +89,7 @@ describe("SYSTEM.md prompt assembly", () => {
 		expect(promptText).toContain(`<file path="${nearPath}">`);
 	});
 
-	it("drops identical discovered context entries and keeps the closest copy", async () => {
+	it("skips discovered project AGENTS.md files", async () => {
 		const projectDir = path.join(tempDir, "project");
 		const appDir = path.join(projectDir, "packages", "app");
 		const sharedContent = "Shared context instructions";
@@ -102,8 +101,17 @@ describe("SYSTEM.md prompt assembly", () => {
 		const contextFiles = await loadProjectContextFiles({ cwd: appDir });
 		const discoveredFiles = contextFiles.filter(file => file.path.startsWith(projectDir));
 
-		expect(discoveredFiles).toHaveLength(1);
-		expect(discoveredFiles[0]?.path).toBe(path.join(appDir, "AGENTS.md"));
+		expect(discoveredFiles).toHaveLength(0);
+	});
+
+	it("skips project AGENTS.md when it is the only context file", async () => {
+		const projectDir = path.join(tempDir, "project");
+		fs.mkdirSync(projectDir, { recursive: true });
+		fs.writeFileSync(path.join(projectDir, "AGENTS.md"), "Project context instructions");
+
+		const contextFiles = await loadProjectContextFiles({ cwd: projectDir });
+
+		expect(contextFiles.some(file => file.path === path.join(projectDir, "AGENTS.md"))).toBe(false);
 	});
 
 	it("keeps distinct context entries when their contents differ", async () => {

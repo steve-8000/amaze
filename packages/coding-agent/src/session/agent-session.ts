@@ -45,7 +45,12 @@ import {
 	type SummaryOptions,
 	shouldCompact,
 } from "@amaze/agent-core/compaction";
-import { DEFAULT_PRUNE_CONFIG, pruneToolOutputs } from "@amaze/agent-core/compaction/pruning";
+import {
+	type ContinuousDemotionConfig,
+	DEFAULT_PRUNE_CONFIG,
+	pruneToolOutputs,
+	pruneToolOutputsByAge,
+} from "@amaze/agent-core/compaction/pruning";
 import type {
 	AssistantMessage,
 	Context,
@@ -188,6 +193,7 @@ import {
 	readPendingDisplayTag,
 	SILENT_ABORT_MARKER,
 } from "./messages";
+import { recordOptimizationMetric } from "./optimization-metrics";
 import { formatSessionDumpText } from "./session-dump-format";
 import type {
 	BranchSummaryEntry,
@@ -243,6 +249,13 @@ export interface AgentSessionConfig {
 	agent: Agent;
 	sessionManager: SessionManager;
 	settings: Settings;
+	/**
+	 * Session role for policy resolution. Subagent sessions force
+	 * `compaction.strategy = "context-full"` since they are single-shot and
+	 * handoff to a new session has no value (the parent owns continuation).
+	 * Defaults to `"orchestrator"` when omitted.
+	 */
+	role?: "orchestrator" | "subagent";
 	/** Models to cycle through with Ctrl+P (from --models flag) */
 	scopedModels?: Array<{ model: Model; thinkingLevel?: ThinkingLevel }>;
 	/** Initial session thinking selector. */
@@ -805,6 +818,10 @@ export class AgentSession {
 	 * this undefined and **MUST NOT** dispose the global instance on teardown.
 	 */
 	readonly #ownedAsyncJobManager: AsyncJobManager | undefined;
+	/** Session role used for compaction-strategy resolution. */
+	readonly #role: "orchestrator" | "subagent";
+	/** F1 (H1) overlap guard for continuous demotion. */
+	#demotionInFlight: Promise<void> | undefined;
 	#pendingPythonMessages: PythonExecutionMessage[] = [];
 	#activeEvalExecutions = new Set<Promise<unknown>>();
 	#evalExecutionDisposing = false;
@@ -990,6 +1007,7 @@ export class AgentSession {
 		// Power assertions are taken per turn (see #beginInFlight); nothing acquired here.
 		this.#evalKernelOwnerId = config.evalKernelOwnerId ?? `agent-session:${Snowflake.next()}`;
 		this.#ownedAsyncJobManager = config.ownedAsyncJobManager;
+		this.#role = config.role ?? "orchestrator";
 		this.#scopedModels = config.scopedModels ?? [];
 		this.#thinkingLevel = config.thinkingLevel;
 		this.#promptTemplates = config.promptTemplates ?? [];
@@ -1312,12 +1330,21 @@ export class AgentSession {
 	}
 
 	async #emitSessionEvent(event: AgentSessionEvent): Promise<void> {
+		if (event.type === "agent_start") {
+			this.#turnIndex = 0;
+		}
 		if (event.type === "message_update") {
 			this.#emit(event);
 			void this.#queueExtensionEvent(event);
 			return;
 		}
 		await this.#emitExtensionEvent(event);
+		if (event.type === "turn_end") {
+			this.#turnIndex++;
+			// Continuous tool-output demotion — bounded, gated by setting, no-op when disabled.
+			// Method swallows its own errors; fire-and-forget is intentional here.
+			void this.#runContinuousDemotion();
+		}
 		// Hold the wire-level agent_end until in-flight prompts unwind. Subscribers
 		// (rpc-mode, ACP, Cursor) treat agent_end as the "session is idle" signal;
 		// emitting while #promptInFlightCount > 0 lets a client fire its next
@@ -2526,7 +2553,6 @@ export class AgentSession {
 	async #emitExtensionEvent(event: AgentSessionEvent): Promise<void> {
 		if (!this.#extensionRunner) return;
 		if (event.type === "agent_start") {
-			this.#turnIndex = 0;
 			await this.#extensionRunner.emit({ type: "agent_start" });
 		} else if (event.type === "agent_end") {
 			await this.#extensionRunner.emit({ type: "agent_end", messages: event.messages });
@@ -2545,7 +2571,6 @@ export class AgentSession {
 				toolResults: event.toolResults,
 			};
 			await this.#extensionRunner.emit(hookEvent);
-			this.#turnIndex++;
 		} else if (event.type === "message_start") {
 			const extensionEvent: MessageStartEvent = {
 				type: "message_start",
@@ -5277,6 +5302,99 @@ export class AgentSession {
 		return result;
 	}
 
+	// F7 (H3) telemetry shim — fire-and-forget, never throws into the hot path.
+	#recordOptimizationMetric(metric: string, value: number, meta?: Record<string, unknown>): void {
+		try {
+			recordOptimizationMetric(this.sessionId ?? null, metric, value, meta);
+		} catch (_) {
+			// telemetry must never affect agent behavior
+		}
+	}
+
+	// F3 (L1) floors: protectTokens >= 1024 prevents in-progress turn results
+	// from being stripped; TTLs >= 10s prevents accidental immediate-demotion.
+	#resolveContinuousDemotionConfig(): ContinuousDemotionConfig | undefined {
+		if (!this.settings.get("compaction.continuousDemotion.enabled")) return undefined;
+		const floor = (v: number, min: number): number => (Number.isFinite(v) && v > min ? v : min);
+		const bash = floor(this.settings.get("compaction.continuousDemotion.bashTtlSeconds"), 10);
+		const grep = floor(this.settings.get("compaction.continuousDemotion.grepTtlSeconds"), 10);
+		const read = floor(this.settings.get("compaction.continuousDemotion.readTtlSeconds"), 10);
+		return {
+			ttlSeconds: { bash, grep, search: grep, tree: grep, ls: grep, find: grep, read },
+			protectTokens: floor(this.settings.get("compaction.continuousDemotion.protectTokens"), 1024),
+			protectedTools: ["skill"],
+			readSmallThresholdTokens: Math.max(
+				0,
+				this.settings.get("compaction.continuousDemotion.readSmallThresholdTokens"),
+			),
+		};
+	}
+
+	// F4 (H2) throttle: only attempt demotion every Nth turn to bound Codex
+	// provider session teardown frequency.
+	#shouldAttemptDemotionThisTurn(): boolean {
+		const intervalRaw = this.settings.get("compaction.continuousDemotion.turnInterval");
+		const interval = Number.isFinite(intervalRaw) && intervalRaw > 0 ? Math.floor(intervalRaw) : 1;
+		if (interval <= 1) return true;
+		return this.#turnIndex % interval === 0;
+	}
+
+	// Continuous post-turn demotion. Bounded, idempotent, and skipped while
+	// compaction or streaming is in flight.
+	//
+	// Race protection (F1/H1):
+	//   - #demotionInFlight serializes overlapping invocations.
+	//   - After the rewriteEntries await we re-check isStreaming. The mutation
+	//     on entry.message.content is already visible to agent.state.messages
+	//     (objects shared by reference) and is monotonic — pruneAt guards
+	//     against double-prune — so a partial run leaves the storage and the
+	//     in-memory agent state consistent. The post-await replaceMessages and
+	//     Codex session teardown are skipped if streaming resumed, since both
+	//     would trample new turn state.
+	async #runContinuousDemotion(): Promise<void> {
+		if (this.#demotionInFlight) return;
+		if (!this.#shouldAttemptDemotionThisTurn()) return;
+
+		const work = (async () => {
+			try {
+				const config = this.#resolveContinuousDemotionConfig();
+				if (!config) return;
+				if (this.#compactionAbortController) return;
+				if (this.agent.state.isStreaming) return;
+
+				const branchEntries = this.sessionManager.getBranch();
+				const result = pruneToolOutputsByAge(branchEntries, config);
+				if (result.prunedCount === 0) return;
+
+				await this.sessionManager.rewriteEntries();
+
+				// Race-safety: if a new turn began during rewriteEntries (user typed
+				// fast, auto-continue fired, etc.), do NOT overwrite the streaming
+				// agent's message buffer. The on-disk + in-memory mutation already
+				// took effect; replaceMessages would just resync — skipping it keeps
+				// the new turn's appended deltas intact.
+				if (this.agent.state.isStreaming) return;
+
+				const sessionContext = this.buildDisplaySessionContext();
+				this.agent.replaceMessages(sessionContext.messages);
+				this.#syncTodoPhasesFromBranch();
+				this.#closeCodexProviderSessionsForHistoryRewrite();
+
+				// F7 (H3) telemetry — surface what demotion is actually saving.
+				this.#recordOptimizationMetric("demotion_fire", result.tokensSaved, {
+					prunedCount: result.prunedCount,
+				});
+			} catch (err) {
+				logger.warn("Continuous demotion failed", { error: String(err) });
+			}
+		})();
+
+		this.#demotionInFlight = work.finally(() => {
+			this.#demotionInFlight = undefined;
+		});
+		await this.#demotionInFlight;
+	}
+
 	/**
 	 * Manually compact the session context.
 	 * Aborts current agent operation first.
@@ -5575,17 +5693,22 @@ export class AgentSession {
 			}
 
 			// Start a new session
+			const queuedAgentMessages = this.agent.snapshotQueues();
+			const queuedSteeringMessages = [...this.#steeringMessages];
+			const queuedFollowUpMessages = [...this.#followUpMessages];
+			const queuedPendingNextTurnMessages = [...this.#pendingNextTurnMessages];
 			const previousSessionFile = this.sessionFile;
 			await this.sessionManager.flush();
 			this.#cancelOwnAsyncJobs();
 			await this.sessionManager.newSession(previousSessionFile ? { parentSession: previousSessionFile } : undefined);
 			this.agent.reset();
+			this.agent.restoreQueues(queuedAgentMessages);
 			this.#syncAgentSessionId();
 			this.#rekeyHindsightMemoryForCurrentSessionId();
 			this.#resetHindsightConversationTrackingIfHindsight();
-			this.#steeringMessages = [];
-			this.#followUpMessages = [];
-			this.#pendingNextTurnMessages = [];
+			this.#steeringMessages = queuedSteeringMessages;
+			this.#followUpMessages = queuedFollowUpMessages;
+			this.#pendingNextTurnMessages = queuedPendingNextTurnMessages;
 			this.#scheduledHiddenNextTurnGeneration = undefined;
 			this.#todoReminderCount = 0;
 
@@ -6369,10 +6492,16 @@ export class AgentSession {
 		deferred = false,
 	): Promise<void> {
 		const compactionSettings = this.settings.getGroup("compaction");
-		if (compactionSettings.strategy === "off") return;
+		// Subagents always use context-full: they're single-shot, so handoff to a
+		// new session has no value (the parent owns continuation).
+		const resolvedStrategy: typeof compactionSettings.strategy =
+			this.#role === "subagent" && compactionSettings.strategy === "handoff"
+				? "context-full"
+				: compactionSettings.strategy;
+		if (resolvedStrategy === "off") return;
 		if (reason !== "idle" && !compactionSettings.enabled) return;
 		const generation = this.#promptGeneration;
-		if (!deferred && reason !== "overflow" && reason !== "idle" && compactionSettings.strategy === "handoff") {
+		if (!deferred && reason !== "overflow" && reason !== "idle" && resolvedStrategy === "handoff") {
 			this.#schedulePostPromptTask(
 				async signal => {
 					await Promise.resolve();
@@ -6385,7 +6514,7 @@ export class AgentSession {
 		}
 
 		let action: "context-full" | "handoff" =
-			compactionSettings.strategy === "handoff" && reason !== "overflow" ? "handoff" : "context-full";
+			resolvedStrategy === "handoff" && reason !== "overflow" ? "handoff" : "context-full";
 		await this.#emitSessionEvent({ type: "auto_compaction_start", reason, action });
 		// Abort any older auto-compaction before installing this run's controller.
 		this.#autoCompactionAbortController?.abort();
@@ -6394,7 +6523,7 @@ export class AgentSession {
 		const autoCompactionSignal = autoCompactionAbortController.signal;
 
 		try {
-			if (compactionSettings.strategy === "handoff" && reason !== "overflow") {
+			if (resolvedStrategy === "handoff" && reason !== "overflow") {
 				const handoffFocus = AUTO_HANDOFF_THRESHOLD_FOCUS;
 				const handoffResult = await this.handoff(handoffFocus, {
 					autoTriggered: true,

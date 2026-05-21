@@ -251,17 +251,18 @@ export async function loadProjectContextFiles(
 ): Promise<Array<{ path: string; content: string; depth?: number }>> {
 	const resolvedCwd = options.cwd ?? getProjectDir();
 
-	const result = await loadCapability(contextFileCapability.id, { cwd: resolvedCwd });
+	const result = await loadCapability<ContextFile>(contextFileCapability.id, { cwd: resolvedCwd });
 
-	// Convert ContextFile items and preserve depth info
-	const files = result.items.map(item => {
-		const contextFile = item as ContextFile;
-		return {
-			path: contextFile.path,
-			content: contextFile.content,
-			depth: contextFile.depth,
-		};
-	});
+	const files = result.items
+		.filter(item => item.level !== "project")
+		.map(item => {
+			const contextFile = item as ContextFile;
+			return {
+				path: contextFile.path,
+				content: contextFile.content,
+				depth: contextFile.depth,
+			};
+		});
 
 	// Sort by depth (descending): higher depth (farther from cwd) comes first,
 	// so files closer to cwd appear later and are more prominent
@@ -275,8 +276,8 @@ export async function loadProjectContextFiles(
 }
 
 /**
- * Load the effective system prompt customization from SYSTEM.md.
- * Project-level SYSTEM.md overrides user-level SYSTEM.md.
+ * Load the effective user-level system prompt customization from SYSTEM.md.
+ * Project-level SYSTEM.md is intentionally ignored.
  */
 export async function loadSystemPromptFiles(options: LoadContextFilesOptions = {}): Promise<string | null> {
 	const resolvedCwd = options.cwd ?? getProjectDir();
@@ -284,11 +285,6 @@ export async function loadSystemPromptFiles(options: LoadContextFilesOptions = {
 	const result = await loadCapability<SystemPromptFile>(systemPromptCapability.id, { cwd: resolvedCwd });
 
 	if (result.items.length === 0) return null;
-
-	const projectLevel = result.items.find(item => item.level === "project");
-	if (projectLevel) {
-		return projectLevel.content;
-	}
 
 	const userLevel = result.items.find(item => item.level === "user");
 	return userLevel?.content ?? null;

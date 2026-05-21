@@ -24,6 +24,13 @@ export function resolvePromptCachePolicy(options: {
 	const role: AgentPromptCacheRole = isSubagent ? "subagent" : "orchestrator";
 
 	if (role === "subagent") {
+		// Prefix reuse promotes subagents to long retention: the parent's
+		// system+tools+skills prefix is identical, so a fan-out of sibling
+		// subagents amortizes one long cache write across many cheap reads.
+		const prefixReuse = options.settings.get("prompt.cache.subagentPrefixReuse");
+		if (prefixReuse) {
+			return { role, projectContextMode: "full", cacheRetention: "long" };
+		}
 		return {
 			role,
 			projectContextMode: "full",

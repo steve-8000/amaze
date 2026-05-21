@@ -29,6 +29,7 @@ import { createAgentSession, discoverAuthStorage } from "../sdk";
 import type { AgentSession, AgentSessionEvent } from "../session/agent-session";
 import type { ArtifactManager } from "../session/artifacts";
 import type { AuthStorage } from "../session/auth-storage";
+import { recordOptimizationMetric } from "../session/optimization-metrics";
 import { SessionManager } from "../session/session-manager";
 import { truncateTail } from "../session/streaming-output";
 import type { ContextFileEntry } from "../tools";
@@ -497,6 +498,14 @@ export async function runSubprocess(options: ExecutorOptions): Promise<SingleRes
 		onProgress,
 	} = options;
 	const startTime = Date.now();
+
+	// F7 (H3) telemetry — record every subagent spawn so we can validate A1's
+	// prefix-reuse bet by measuring actual fan-out per session.
+	recordOptimizationMetric(null, "subagent_spawn", 1, {
+		agentName: agent.name,
+		taskDepth: options.taskDepth ?? 0,
+		spawnId: id,
+	});
 
 	// Initialize progress
 	const progress: AgentProgress = {
@@ -1127,9 +1136,7 @@ export async function runSubprocess(options: ExecutorOptions): Promise<SingleRes
 								ircPeers: ircEnabled ? renderIrcPeerRoster(id) : "",
 								ircSelfId: ircEnabled ? id : "",
 							});
-							return defaultPrompt.length === 0
-								? [subagentPrompt]
-								: [...defaultPrompt.slice(0, -1), subagentPrompt, defaultPrompt[defaultPrompt.length - 1]];
+							return defaultPrompt.length === 0 ? [subagentPrompt] : [...defaultPrompt, subagentPrompt];
 						},
 						sessionManager,
 						hasUI: false,
