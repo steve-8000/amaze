@@ -163,6 +163,8 @@ Field-level migrations in `#migrateRawSettings`:
 - `queueMode` -> `steeringMode`
 - `ask.timeout` milliseconds -> seconds when old value looks like ms (`> 1000`)
 - Legacy flat `theme: "..."` -> `theme.dark/theme.light` structure
+- Legacy `memories.enabled` -> `memory.backend` (`true` upgrades to `rockey`, `false` to `off`) when `memory.backend` is not already set
+- Legacy Hindsight `dynamicBankId` / `agentName` fields -> current `hindsight.scoping` / `hindsight.bankId` shape when possible
 
 ---
 

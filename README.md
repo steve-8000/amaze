@@ -4,7 +4,7 @@
 
 **A compact coding-agent runtime for engineers who want the agent to do the work, not narrate the struggle.**
 
-Amaze is configured here as a source-controlled daily driver: Codex writes code, Opus plans and reviews, Grok researches X/Twitter, and a small subagent roster handles bounded parallel work without turning every task into a prompt tax.
+This repository is configured as a source-controlled daily-driver profile for Amaze: a low-token parent orchestrator owns goals, todos, approvals, and integration; bounded subagents do detailed file work; provider prompt caching keeps stable context cheap; Rockey memory preserves durable project/user/failure knowledge.
 
 Built for:
 
@@ -12,83 +12,10 @@ Built for:
 - tool-grounded code changes
 - concise user-facing output
 - reproducible project skills and settings
-- high-context workers under a low-token orchestrator
+- high-context workers under a compact orchestrator
+- completion checks that verify acceptance criteria before declaring done
 
-## Model routing
-
-| Use | Model |
-| --- | --- |
-| Default coding | `openai-codex/gpt-5.5` |
-| Planning | `anthropic/claude-opus-4-7` |
-| Review | `anthropic/claude-opus-4-7` |
-| X/Twitter research | `xai/grok-4.3` |
-
-## Subagents
-
-Active bundled subagents:
-
-| Agent | Purpose |
-| --- | --- |
-| `quick_task` | small mechanical work |
-| `task` | normal delegated implementation |
-| `explore` | read-only codebase scouting |
-| `plan` | architecture and sequencing |
-| `reviewer` | final review |
-| `oracle` | hard debugging / second opinion |
-| `researcher` | xAI X/Twitter research |
-| `visual_qa` | browser and UI validation |
-
-## Prompt cache and memory flow
-
-The runtime separates a long-lived parent from short-lived workers.
-
-1. Session role is detected at creation:
-   - `taskDepth > 0` or `parentTaskPrefix` → subagent
-   - otherwise → top-level orchestrator
-2. The orchestrator stays compact:
-   - `prompt.mainContextMode = compact`
-   - only the nearest context file is placed in the system prompt
-   - large static context such as workspace tree and skill listing is excluded
-   - `task.eager = true` encourages non-trivial work to be delegated instead of making the parent read and edit everything itself
-   - prompt cache retention uses provider/global default; current AI-layer default is long retention where the provider supports it
-3. Subagents get full execution context:
-   - project context mode is full
-   - root/nearest context, workspace tree, and skill listing are included
-   - subagent-specific prompt content is deliberately appended after `defaultPrompt`, keeping stable system/project context contiguous as the reusable cache prefix
-   - `task.eager = false` prevents recursive delegation drift
-   - cache retention is short by default, but the project profile sets `prompt.cache.subagentPrefixReuse = true` so a fan-out of sibling subagents can amortize one stable prefix write across many cheap reads on providers that honor prompt caching
-   - continuous tool-output demotion (`compaction.continuousDemotion.enabled`) runs after each turn (throttled by `turnInterval`, default every 3rd turn), ageing out stale `bash`/`search`/`find`/large-`read` results by per-tool TTL so context doesn't accumulate between compaction triggers
-
-> **Note on `compaction.strategy: "handoff"`:** the project profile defaults the orchestrator to handoff strategy. When threshold maintenance fires, the orchestrator generates a handoff document and **starts a new session file** (subagents stay on `context-full`). The new session inherits the work via the injected handoff document, but `session_id` changes — anything keyed on session id (IRC routing, external trackers, `/tree` branches in the old file) will not carry over. Set `compaction.strategy` to `context-full` in your local settings if you need in-place compaction.
-4. Provider calls receive the resolved policy:
-   - project context mode feeds system prompt construction
-   - cache retention is passed through the Agent into provider request options; it only changes requests for providers that implement it, otherwise it remains a harmless hint
-   - `undefined` means provider/global default
-   - public `openai-responses` calls replay context inline/native-history style with `prompt_cache_key` and direct OpenAI-only `prompt_cache_retention` when applicable
-   - `openai-codex-responses` uses WebSocket transport state: after a full request, later compatible turns continue with `previous_response_id` and only the appended input delta
-
-The intended shape is: parent = low-token, long-lived orchestrator; subagents = short-lived, high-context executors. The parent keeps goals, todos, and integration state; workers do detailed file work and yield concise results.
-
-Reasoning summaries are hidden by default (`hideThinkingBlock = true`). User-facing output should be decisions, evidence, risks, and results — not raw deliberation logs.
-
-
-
-
-## Strengths
-
-- Small agent roster: less prompt overhead and less routing ambiguity.
-- Strong default model split: Codex for coding, Opus for planning/review, Grok for X research.
-- Reproducible project profile: `.amaze/settings.json` and `.amaze/skills/` are source-controlled.
-- Tool-first workflow: file reads, search, LSP, debugging, browser validation, and subagent delegation stay available.
-- Safer local setup: runtime state and credentials stay out of git.
-
-## Tradeoffs
-
-- Fewer specialist agents. UI work uses `task` + `visual_qa`; library research uses normal tools and source reads.
-- Requires configured credentials for OpenAI Codex, Anthropic, and xAI to use the default routing fully.
-- Subagents still cost tokens. Use them for parallelism, review, or isolation, not by habit.
-
-## Project profile
+## Current project profile
 
 Runtime configuration lives in:
 
@@ -97,32 +24,131 @@ Runtime configuration lives in:
 .amaze/skills/
 ```
 
-Local-only state is intentionally ignored:
+Key checked-in defaults:
 
-```text
-agent.db*
-.env
-logs
-sessions
-build outputs
-```
+- `prompt.mainContextMode = "compact"` for the top-level parent.
+- `prompt.cache.orchestratorRetention = "default"`, `prompt.cache.subagentRetention = "short"`, `prompt.cache.subagentPrefixReuse = true`.
+- `compaction.strategy = "handoff"` with continuous tool-output demotion enabled.
+- `memory.backend = "rockey"`.
+- User/project skill import from Codex/Claude is disabled; the project uses the allowlisted `.amaze/skills` set.
+- `task.eager = true` for top-level delegation.
+- Reasoning summaries are hidden by default (`hideThinkingBlock = true`).
 
-## Local install
+Local-only state remains intentionally ignored: `agent.db*`, `.env`, logs, sessions, and build outputs.
+
+## Model routing
+
+| Agent/use | Model | Thinking |
+| --- | --- | --- |
+| Default coding | `openai-codex/gpt-5.5` | provider default |
+| `task` | `openai-codex/gpt-5.5` | `medium` |
+| `quick_task` | `openai-codex/gpt-5.5` | `minimal` |
+| `explore` | `openai-codex/gpt-5.5` | `low` |
+| `plan` | `anthropic/claude-opus-4-7` | `xhigh` |
+| `reviewer` | `anthropic/claude-opus-4-7` | `high` |
+| `oracle` | `openai-codex/gpt-5.5` | `xhigh` |
+| `researcher` | `xai/grok-4.3` | `medium` |
+| `visual_qa` | `openai-codex/gpt-5.5` | `low` |
+
+## Subagents
+
+Bundled subagents available in this profile:
+
+| Agent | Purpose |
+| --- | --- |
+| `quick_task` | Strictly mechanical updates or data collection. |
+| `task` | General-purpose implementation worker. |
+| `explore` | Read-only codebase scouting and compressed handoff context. |
+| `plan` | Architecture and sequencing for non-trivial changes. |
+| `reviewer` | Diff, quality, maintainability, security, and test review. |
+| `oracle` | Read-only second opinion for hard debugging or risky decisions. |
+| `researcher` | xAI-backed X/Twitter investigation only. |
+| `visual_qa` | Browser/UI validation and sandboxed visual QA. |
+
+The top-level parent should stay lean: plan, delegate, integrate, verify, and report. Subagents receive fuller project context and can optionally be spawned with a structured contract that includes scope, acceptance criteria, escalation behavior, and output requirements.
+
+## Goal mode and completion checks
+
+Goal mode is enabled by default. The hidden `goal` tool supports:
+
+- `create` — start an objective with an optional token budget.
+- `get` — inspect active goal state.
+- `update` — revise objective, token budget, design-interview answers, or acceptance criteria.
+- `complete` — run closing audit and finish; `force: true` skips the audit and is counted in telemetry.
+
+Design Interview answers are captured through the normal `ask` tool once per active goal, using keys such as `scope`, `constraints`, `approach`, and `acceptance`. Active goal state is re-rendered into the dynamic prompt tail so it survives compaction and session handoff.
+
+Structured acceptance criteria support deterministic checks:
+
+- `scope-include` / `scope-exclude`
+- `file-exists`
+- `command-exit`
+- `command-output`
+- `lsp-clean`
+- `llm-judged`
+- `manual`
+
+Failed criteria block `goal({ op: "complete" })` unless completion is forced. Manual criteria surface as uncertain so the operator can decide whether to replace them with a deterministic check or force completion.
+
+## Prompt cache and memory flow
+
+The system prompt is split into stable and volatile blocks:
+
+1. **STABLE_CORE**: system contract, static project context, skills list, and session-invariant instructions.
+2. **DYNAMIC_TAIL**: cwd/date, relevant directory context, workspace tree, active goal state, and other per-turn state.
+
+Anthropic requests receive a `systemPromptCacheBreakpointIndex` hint so cache control lands on STABLE_CORE instead of the changing tail. Other providers ignore the hint safely.
+
+Rockey memory is the active local memory backend. It provides:
+
+- `memory` — add/replace/remove durable user, project, memory, or failure entries.
+- `memory_search` — search durable memory by query/scope/category.
+- `session_search` — search prior session anchors without loading full transcripts.
+- `memory://root` artifacts for reading the active memory store through the `read` tool.
+
+Memory is guidance, not authority: current user instructions and repository state override stale memory.
+
+## Built-in tool surface
+
+The runtime exposes boring, inspectable tools first: `read`, `find`, `search`, `bash`, `edit`, `write`, LSP, browser/visual tools, `task`, todos, IRC, memory tools, web search, X Search, CUA computer-use automation, eval/debug, GitHub, AST tools, checkpoints, and internal URL readers.
+
+Hidden/session tools (`goal`, `resolve`, `yield`, `report_finding`, `report_tool_issue`) are injected when the current mode needs them.
+
+## Local development
 
 ```sh
 bun install
-bun --cwd=packages/coding-agent run build
-cp packages/coding-agent/dist/amaze ~/.bun/bin/amaze
+bun run dev
 ```
 
-Then start a new session:
+For a linked local CLI:
 
 ```sh
-amaze
+bun run install:dev
 ```
+
+For a release-style build:
+
+```sh
+bun run build
+```
+
+`@amaze/coding-agent` currently reports version `1.0.0`.
 
 ## Verify
 
 ```sh
-bun check
+bun run check:ts
+bun run test:ts
 ```
+
+Full verification also includes Rust and Python where the local toolchain is available:
+
+```sh
+bun run check
+bun run test
+bun run lint:py
+bun run test:py
+```
+
+`bun run test` requires `cargo nextest` for the Rust lane.

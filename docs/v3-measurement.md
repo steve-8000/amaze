@@ -1,6 +1,6 @@
 # V3 Coordination Layer — Measurement & Prune Thresholds
 
-This doc is the **honest** companion to `v3-prompt-caching.md`. The v3 coordination layer (SubagentContract, Closing Audit, Verifier extensions, LLM judge, Auto revision loop) was shipped on architectural confidence — not on usage data. Until usage data arrives, every primitive in v3 is a **bet**.
+This doc is the **honest** companion to `v2-prompt-caching.md`. The v3 coordination layer (SubagentContract, Closing Audit, Verifier extensions, LLM judge, Auto revision loop) was shipped on architectural confidence — not on usage data. Until usage data arrives, every primitive in v3 is a **bet**.
 
 This document defines:
 1. What we measure (the telemetry surface that's now wired in)
@@ -38,6 +38,33 @@ Events **not yet** instrumented (deliberate — keep surface tight):
 - Per-block cache hit ratio (currently aggregate via `cache_hit_ratio` segment)
 
 ---
+
+## User-facing V3 mechanics
+
+V3 is not only telemetry. The shipped runtime exposes three user-visible coordination surfaces:
+
+1. **Goal lifecycle** through the hidden `goal` tool:
+   - `create` starts an objective and optional token budget.
+   - `get` returns the current goal.
+   - `update` patches objective, token budget, design answers, or structured `acceptance_criteria`.
+   - `complete` runs the closing audit. `force: true` skips the audit and is counted as a forced completion.
+2. **Design Interview capture** through `ask`: the first qualifying ask call for an active goal stores answers such as `scope`, `constraints`, `approach`, and `acceptance` on the goal. The active goal block is then rendered into the dynamic prompt tail on every rebuild.
+3. **Subagent contracts** through `task({ tasks: [{ contract }] })`: contracted subagents receive a rendered contract, have edit/write scope guarded, and are verified against success criteria on completion. Failed criteria trigger one bounded revision attempt in the non-isolated path.
+
+Structured goal and subagent criteria share the same check families:
+
+| Check | Behavior |
+| --- | --- |
+| `scope-include` / `scope-exclude` | Checks changed-file paths against required or forbidden glob sets. |
+| `file-exists` | Requires a path to exist. |
+| `command-exit` | Runs a command and compares exit code. |
+| `command-output` | Runs a command and checks exit code/stdout/stderr patterns plus forbidden output patterns. |
+| `lsp-clean` | Uses LSP diagnostics where a provider is available; otherwise reports uncertain. |
+| `llm-judged` | Reserved for model judgement; reports uncertain until a production judge is wired. |
+| `manual` | Always uncertain; it surfaces a human decision point and does not itself fail the audit. |
+
+A failed deterministic criterion blocks `goal({ op: "complete" })` unless completion is forced. Uncertain criteria are surfaced in the completion report so the operator can replace them with deterministic checks or force completion deliberately.
+
 
 ## Thresholds — when to keep, fix, or prune
 

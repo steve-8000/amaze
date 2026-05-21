@@ -243,6 +243,8 @@ The built-in `x_search` and `x_search_deep` tools can use stored `xai-oauth` / x
 | `AMAZE_X_SEARCH_RETRIES`         | Retry count for X Search requests; defaults to `2`                                 |
 | `AMAZE_X_SEARCH_DEEP_OUTPUT_DIR` | Default output directory for `x_search_deep` file mode (`./x-search-deep-results`) |
 
+See [X Search](./x-search.md) for tool parameters and deep-search output behavior.
+
 ### Anthropic web search auth chain
 
 Anthropic web search uses `findAnthropicAuth()` from `packages/ai/src/utils/anthropic-auth.ts` in this order:
@@ -295,6 +297,8 @@ The built-in `cua` tool exposes CUA computer-use actions for sandbox lifecycle p
 | -------- | ------------------ |
 | `CUA_API_KEY` | Cloud-mode CUA API credential. Treat as a secret; do not log or commit it. |
 | `CUA_TELEMETRY_ENABLED` | Telemetry is forced off by default. Set only when CUA policy explicitly enables telemetry. |
+
+See [CUA Computer Use](./cua.md) for config files, modes, actions, and safety notes.
 
 ---
 

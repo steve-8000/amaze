@@ -239,7 +239,7 @@ Related APIs:
 
 ```ts
 const { session } = await createAgentSession({
-  toolNames: ["read", "grep", "find", "write"],
+  toolNames: ["read", "search", "find", "write"],
   requireYieldTool: true,
 });
 ```
@@ -320,6 +320,18 @@ Use `setToolUIContext(...)` only if your embedder provides UI capabilities that 
 
   Print / script / RPC / ACP invocations (`hasUI=false`) skip the warmup entirely: they don't render the warmup status indicator and typically finish before the language servers would stabilize, so warming them just spends CPU parsing big `initialize` responses concurrently with the LLM stream consumer and jitters perceived latency. Tools that actually need an LSP server still spin one up on demand through `getOrCreateClient()` — only the *startup* warmup is skipped. The returned `lspServers` field in `CreateAgentSessionResult` is therefore `undefined` (not an empty array) whenever the warmup branch was bypassed.
 
+## Prompt cache breakpoint hints
+
+`buildSystemPrompt` may return multiple system prompt blocks plus `systemPromptCacheBreakpointIndex`. `createAgentSession()` threads that hint into the AI `Context` so providers can place cache control on the stable prefix rather than the volatile tail.
+
+Important embedder contract:
+
+- The index is relative to the caller's `systemPrompt` array.
+- Anthropic honors the hint, accounting for provider-prepended system blocks before placing `cache_control`.
+- Non-Anthropic providers ignore the hint; it is an optimization only.
+- Custom prompts (`customPrompt` / `--system-prompt`) intentionally collapse to a single caller-owned prompt and do not auto-inject project context.
+
+
 ## Minimal controlled embed example
 
 ```ts
@@ -345,7 +357,7 @@ const { session } = await createAgentSession({
   modelRegistry,
   settings,
   sessionManager: SessionManager.inMemory(),
-  toolNames: ["read", "grep", "find", "edit", "write"],
+  toolNames: ["read", "search", "find", "edit", "write"],
   enableMCP: false,
   enableLsp: true,
 });

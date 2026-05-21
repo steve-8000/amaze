@@ -150,6 +150,44 @@ Prompt-time guardrail text in `src/prompts/tools/task.md` warns about mismatch b
 
 This is guidance, not hard runtime validation logic in `discoverAgents`.
 
+## Structured subagent contracts
+
+Each task item may include an optional `contract`. Omit it for free-form delegation; include it when the parent needs enforceable scope, explicit acceptance criteria, or a bounded revision loop.
+
+Contract shape:
+
+| Field | Purpose |
+| --- | --- |
+| `role` | Short verb-noun role label for the work. |
+| `parentContractRevision` | Optional parent goal revision baseline. The task tool stamps this from the active parent goal when omitted. |
+| `scope.include` / `scope.exclude` | Globs that define where the subagent may write and what paths are forbidden. |
+| `successCriteria` | Acceptance criteria checked by the parent after the subagent completes. |
+| `escalation.onUncertainty` | `ask-parent` or `block` when criteria cannot be verified deterministically. |
+| `escalation.budgetCap` | Positive integer cap carried in the rendered contract for budget discipline. |
+| `inputArtifact` | Optional artifact URI or path the subagent should consume. |
+| `outputContract.mustProduce` | Optional list of required output artifacts or deliverables. |
+
+Supported `successCriteria[].check.type` values:
+
+- `scope-include` / `scope-exclude`
+- `file-exists`
+- `command-exit`
+- `command-output`
+- `lsp-clean`
+- `llm-judged`
+- `manual`
+
+When a contract is present in the non-isolated task path:
+
+1. The parent stamps the current goal `contractRevision` onto the contract.
+2. The rendered contract is injected into the child subagent's stable system prompt.
+3. Child `edit` and `write` calls are scope-guarded against the contract.
+4. The parent snapshots changed files before/after the attempt and verifies `successCriteria`.
+5. If verification fails, the task is retried once with the failed criteria prepended to the assignment.
+6. The final subagent result is returned; contract verdict metadata is logged for telemetry.
+
+Stale-contract enforcement prevents a child spawned under an older parent revision from writing after the parent goal has pivoted. The parent should spawn a fresh task with a new contract after material scope changes.
+
 ## Command discovery interaction
 
 `src/task/commands.ts` is parallel infrastructure for workflow commands (not agent definitions), but it follows the same overall pattern:

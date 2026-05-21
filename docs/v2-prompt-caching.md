@@ -60,6 +60,9 @@ The provider layer threads this through `Context.systemPromptCacheBreakpointInde
 
 The messages kill-switch (any pre-existing `cache_control` on `params.messages` disables all auto-placement) is preserved unchanged.
 
+Non-Anthropic providers intentionally ignore `systemPromptCacheBreakpointIndex`. The field is an optimization hint, not a semantic requirement; callers must not depend on it for prompt content or ordering.
+
+
 ## Cache TTL economics
 
 Anthropic pricing (1M tokens):
@@ -108,6 +111,8 @@ The goal tool exposes this as `op: "update"`. Use this whenever the user redirec
 ### Subagent contract propagation
 
 `formatCompactContext` (called by `task` when handing off to a subagent) prepends a `## Parent Goal` section containing `renderGoalBlock(parentGoal)` when the parent has an active goal. Subagents do NOT inherit goal mode (no goal state on the child session, no design interview firing on the child) — they just see the parent's contract as context.
+
+If a `task` call includes a structured contract, the rendered `SubagentContract` is also placed in the child subagent's STABLE_CORE. Contracts are stamped with the parent's current goal revision at spawn time; later parent pivots can make the contract stale and block unsafe edits/writes in the child.
 
 ### Subagent token rollup
 

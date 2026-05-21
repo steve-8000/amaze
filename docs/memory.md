@@ -1,95 +1,95 @@
-# Autonomous Memory
+# Memory
 
-When enabled, the agent automatically extracts durable knowledge from past sessions and injects a compact summary into each new session. Over time it builds a project-scoped memory store — technical decisions, recurring workflows, pitfalls — that carries forward without manual effort.
+Amaze has a pluggable memory plane selected by `memory.backend`. Memory is durable context, not authority: the agent must prefer current user instructions and current repository state whenever they conflict with recalled memory.
 
-Disabled by default. Enable via `/settings` or `config.yml`:
+## Backends
 
-```yaml
-memories:
-  enabled: true
-```
+| Backend | Status | Runtime tools | Notes |
+| --- | --- | --- | --- |
+| `off` | Default upstream | none | No memory subsystem runs. |
+| `rockey` | Canonical local backend | `memory`, `memory_search`, `session_search` | SQLite-backed durable user/project/failure memory plus prior-session anchor search. |
+| `local` | Legacy backend | `/memory` slash command, `memory://root` artifacts | Startup extraction/consolidation pipeline that writes markdown summaries and generated skill playbooks. |
+| `hindsight` | Remote backend | `retain`, `recall`, `reflect` | Talks to a Hindsight server or Cloud instance. |
 
-## Usage
-
-### What gets injected
-
-At session start, if a memory summary exists for the current project, it is injected into the system prompt as a **Memory Guidance** block. The agent is instructed to:
-
-- Treat memory as heuristic context — useful for process and prior decisions, not authoritative on current repo state.
-- Cite the memory artifact path when memory changes the plan, and pair it with current-repo evidence before acting.
-- Prefer repo state and user instruction when they conflict with memory; treat conflicting memory as stale.
-
-### Reading memory artifacts
-
-The agent can read memory files directly using `memory://` URLs with the `read` tool:
-
-| URL                                    | Content                             |
-| -------------------------------------- | ----------------------------------- |
-| `memory://root`                        | Compact summary injected at startup |
-| `memory://root/MEMORY.md`              | Full long-term memory document      |
-| `memory://root/skills/<name>/SKILL.md` | A generated skill playbook          |
-
-### `/memory` slash command
-
-| Subcommand            | Effect                                         |
-| --------------------- | ---------------------------------------------- |
-| `view`                | Show the current memory injection payload      |
-| `clear` / `reset`     | Delete all memory data and generated artifacts |
-| `enqueue` / `rebuild` | Force consolidation to run at next startup     |
-
-## How it works
-
-Memories are built by a background pipeline that runs at startup or when manually triggered via slash command.
-
-**Phase 1 — per-session extraction:** For each past session that has changed since it was last processed, a model reads the session history and extracts durable signal: technical decisions, constraints, resolved failures, recurring workflows. Sessions that are too recent, too old, or currently active are skipped. Each extraction produces a raw memory block and a short synopsis for that session.
-
-**Phase 2 — consolidation:** After extraction, a second model pass reads all per-session extractions and produces three outputs written to disk:
-
-- `MEMORY.md` — a curated long-term memory document
-- `memory_summary.md` — the compact text injected at session start
-- `skills/` — reusable procedural playbooks, each in its own subdirectory
-
-Phase 2 uses a lease to prevent double-running when multiple processes start simultaneously. Stale skill directories from prior runs are pruned automatically.
-
-All output is scanned for secrets before being written to disk.
-
-### Extraction behavior
-
-Memory extraction and consolidation behavior is driven by static prompt files in `packages/coding-agent/src/prompts/memories/`.
-
-| File                  | Purpose                                     | Variables                                   |
-| --------------------- | ------------------------------------------- | ------------------------------------------- |
-| `stage_one_system.md` | System prompt for per-session extraction    | —                                           |
-| `stage_one_input.md`  | User-turn template wrapping session content | `{{thread_id}}`, `{{response_items_json}}`  |
-| `consolidation.md`    | Prompt for cross-session consolidation      | `{{raw_memories}}`, `{{rollout_summaries}}` |
-| `read_path.md`        | Memory guidance injected into live sessions | `{{memory_summary}}`                        |
-
-### Model selection
-
-Memory piggybacks on the model role system.
-
-| Phase                   | Role                                                                | Purpose                          |
-| ----------------------- | ------------------------------------------------------------------- | -------------------------------- |
-| Phase 1 (extraction)    | `default`                                                           | Per-session knowledge extraction |
-| Phase 2 (consolidation) | `smol` (falls back to `default`, then current/first registry model) | Cross-session synthesis          |
-
-If the requested memory role is not configured, memory model resolution falls back to the `default` role, then the active session model, then the first model in the registry.
+Legacy `memories.enabled` is accepted only for migration. On first config load, `memories.enabled: true` becomes `memory.backend: rockey`; `false` becomes `off`.
 
 ## Configuration
 
-| Setting                               | Default | Description                                               |
-| ------------------------------------- | ------- | --------------------------------------------------------- |
-| `memories.enabled`                    | `false` | Master switch                                             |
-| `memories.maxRolloutAgeDays`          | `30`    | Sessions older than this are not processed                |
-| `memories.minRolloutIdleHours`        | `12`    | Sessions active more recently than this are skipped       |
-| `memories.maxRolloutsPerStartup`      | `64`    | Cap on sessions processed in a single startup             |
-| `memories.summaryInjectionTokenLimit` | `5000`  | Max tokens of the summary injected into the system prompt |
+Use `/settings` or `~/.amaze/agent/config.yml`:
 
-Additional tuning knobs (concurrency, lease durations, token budgets) are available in config for advanced use.
+```yaml
+memory:
+  backend: rockey
+```
+
+### Rockey settings
+
+| Setting | Default | Purpose |
+| --- | --- | --- |
+| `rockey.autoRecall` | `false` | Inject bounded Rockey search results before each agent turn. |
+| `rockey.autoRecallLimit` | `5` | Max entries considered for automatic recall. |
+| `rockey.correctionDetection` | `true` | Save user corrections as categorized failure memories. |
+| `rockey.staticPromptMaxChars` | `1200` | Max static policy/context characters injected for Rockey. |
+| `rockey.searchResultMaxEntries` | `5` | Default result count for `memory_search`. |
+| `rockey.searchResultMaxChars` | `2400` | Max rendered search result characters. |
+| `rockey.sessionSearchMaxAnchors` | `8` | Max anchors returned by `session_search`. |
+
+### Hindsight settings and env
+
+Set `memory.backend: hindsight` and `hindsight.apiUrl`. Environment variables override settings:
+
+- `HINDSIGHT_API_URL`, `HINDSIGHT_API_TOKEN`
+- `HINDSIGHT_BANK_ID`, `HINDSIGHT_BANK_MISSION`, `HINDSIGHT_SCOPING`
+- `HINDSIGHT_AUTO_RECALL`, `HINDSIGHT_AUTO_RETAIN`
+- `HINDSIGHT_RETAIN_MODE`, `HINDSIGHT_RETAIN_EVERY_N_TURNS`
+- `HINDSIGHT_RECALL_BUDGET`, `HINDSIGHT_RECALL_MAX_TOKENS`, `HINDSIGHT_RECALL_CONTEXT_TURNS`, `HINDSIGHT_RECALL_MAX_QUERY_CHARS`
+- `HINDSIGHT_DEBUG`
+
+## Rockey usage
+
+When `memory.backend = "rockey"`, the tool factory auto-enables:
+
+| Tool | Purpose |
+| --- | --- |
+| `memory` | Add, replace, or remove durable entries in `memory`, `user`, `project`, or `failure` targets. |
+| `memory_search` | Search durable memory by query, scope, and optional category. |
+| `session_search` | Search indexed prior sessions and return bounded anchors for follow-up reads. |
+
+Typical use:
+
+1. Search memory before relying on durable context: `memory_search`.
+2. Read current repo/tool evidence before acting on a memory.
+3. Save durable facts only when they should survive future sessions: user preferences, project conventions, prior decisions, known failures, or reusable workflow knowledge.
+4. Do not save temporary task progress or facts that matter only to the current conversation.
+
+`memory://root` resolves to the active local artifact root when the backend has one. With Rockey it points at the Rockey artifact view; with legacy local memory it points at the markdown summary tree.
+
+## Legacy local memory
+
+`memory.backend = "local"` runs the older autonomous consolidation pipeline. It is useful when you want generated markdown artifacts rather than explicit tool-managed memory.
+
+At startup or when manually triggered, it:
+
+1. Scans eligible past session files.
+2. Extracts durable decisions, constraints, resolved failures, and recurring workflows.
+3. Consolidates output into:
+   - `MEMORY.md`
+   - `memory_summary.md`
+   - generated `skills/<name>/SKILL.md` playbooks
+
+The injected summary appears as memory guidance in the system prompt. Outputs are scanned for secrets before being written.
+
+## `/memory` slash command
+
+The slash command routes to the active backend where supported. Common operations include viewing current memory injection, rebuilding/refreshing local artifacts, clearing local memory, and Hindsight mental-model operations when the Hindsight backend is active.
 
 ## Key files
 
-- `packages/coding-agent/src/memories/index.ts` — pipeline orchestration, injection, slash command handling
-- `packages/coding-agent/src/memories/storage.ts` — SQLite-backed job queue and thread registry
-- `packages/coding-agent/src/prompts/memories/` — memory prompt templates
-- `packages/coding-agent/src/internal-urls/memory-protocol.ts` — `memory://` URL handler
+- `packages/coding-agent/src/memory-backend/resolve.ts` — backend selection.
+- `packages/coding-agent/src/memory-backend/rockey-backend.ts` — Rockey backend lifecycle and prompt hooks.
+- `packages/coding-agent/src/tools/rockey-memory.ts` — `memory` tool.
+- `packages/coding-agent/src/tools/rockey-memory-search.ts` — `memory_search` tool.
+- `packages/coding-agent/src/tools/rockey-session-search.ts` — `session_search` tool.
+- `packages/coding-agent/src/memories/` — legacy local summary pipeline.
+- `packages/coding-agent/src/hindsight/` — Hindsight backend integration.
+- `packages/coding-agent/src/memory-backend/artifact-root.ts` — `memory://root` artifact target selection.
