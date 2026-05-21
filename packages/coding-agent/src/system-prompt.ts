@@ -11,9 +11,13 @@ import { systemPromptCapability } from "./capability/system-prompt";
 import type { SkillsSettings } from "./config/settings";
 import { type ContextFile, loadCapability, type SystemPrompt as SystemPromptFile } from "./discovery";
 import { loadSkills, type Skill } from "./extensibility/skills";
+import { renderGoalBlock } from "./goals/runtime";
+import type { Goal } from "./goals/state";
 import customSystemPromptTemplate from "./prompts/system/custom-system-prompt.md" with { type: "text" };
-import projectPromptTemplate from "./prompts/system/project-prompt.md" with { type: "text" };
+import projectLiveTemplate from "./prompts/system/project-live.md" with { type: "text" };
+import projectStaticTemplate from "./prompts/system/project-static.md" with { type: "text" };
 import systemPromptTemplate from "./prompts/system/system-prompt.md" with { type: "text" };
+import { renderSubagentContract, type SubagentContract } from "./subagent/contract";
 import { shortenPath } from "./tools/render-utils";
 import { AGENTS_MD_LIMIT, buildWorkspaceTree, type WorkspaceTree } from "./workspace-tree";
 
@@ -360,12 +364,33 @@ export interface BuildSystemPromptOptions {
 	workspaceTree?: WorkspaceTree | Promise<WorkspaceTree>;
 	/** How much project context to render into the prompt. */
 	projectContextMode?: ProjectContextMode;
+	/**
+	 * Active Goal (if any) to render into the DYNAMIC_TAIL block. When undefined or null, a stable
+	 * "no goal" sentinel is emitted instead of an empty string — this keeps the prompt structure
+	 * byte-identical across no-goal / has-goal transitions on adjacent turns and avoids cache thrash.
+	 */
+	activeGoal?: Goal | null;
+	/**
+	 * SubagentContract (if any) governing this session. Renders into STABLE_CORE so the role,
+	 * scope, success criteria, and escalation policy live inside the cached prefix and survive
+	 * compaction. Per-session immutable — a fresh contract creates a fresh subagent session.
+	 * The contract is structural: edit/write tool guards reject paths that violate scope, and
+	 * the parent's verifier checks successCriteria after the subagent yields.
+	 */
+	subagentContract?: SubagentContract;
 }
 
 /** Result of building provider-facing system prompt messages. */
 export interface BuildSystemPromptResult {
 	/** Ordered system prompt blocks. Providers should preserve entries as distinct messages/blocks. */
 	systemPrompt: string[];
+	/**
+	 * Index of the last system block that's stable enough to be a cache breakpoint.
+	 * Providers that support multi-block prompt caching (e.g. Anthropic) should place
+	 * cache_control on this block and leave subsequent blocks uncached. When undefined,
+	 * providers fall back to their default placement (typically the last block).
+	 */
+	systemPromptCacheBreakpointIndex?: number;
 }
 
 /** Build the system prompt with tools, guidelines, and context */
@@ -393,6 +418,8 @@ export async function buildSystemPrompt(options: BuildSystemPromptOptions = {}):
 		secretsEnabled = false,
 		workspaceTree: providedWorkspaceTree,
 		projectContextMode = "full",
+		activeGoal,
+		subagentContract,
 	} = options;
 	const resolvedCwd = cwd ?? getProjectDir();
 
@@ -583,13 +610,48 @@ export async function buildSystemPrompt(options: BuildSystemPromptOptions = {}):
 		mcpDiscoveryServerSummaries,
 		eagerTasks,
 		secretsEnabled,
+		// Goal block lives in DYNAMIC_TAIL so it can update per turn without invalidating
+		// the STABLE_CORE cache. `renderGoalBlock` always returns a non-empty string (a
+		// "no goal" sentinel when activeGoal is null/missing) so the prompt structure
+		// stays byte-stable across goal entry/exit transitions.
+		goalBlock: renderGoalBlock(activeGoal ?? null),
+		// SubagentContract presence flag — Handlebars `{{#if subagentContract}}` block in
+		// system-prompt.md uses this to render the contract-aware instruction prose. Without
+		// the field on `data`, the block evaluates false and the prose never reaches the model
+		// even though the XML contract block does. The XML alone tells the model WHAT the
+		// contract is; the prose tells it HOW to interpret + when to yield. Both required.
+		subagentContract: subagentContract ?? null,
 	};
 	const rendered = prompt.render(resolvedCustomPrompt ? customSystemPromptTemplate : systemPromptTemplate, data);
-	const systemPrompt = [rendered];
-	const projectPrompt = resolvedCustomPrompt ? "" : prompt.render(projectPromptTemplate, data).trim();
-	if (projectPrompt) {
-		systemPrompt.push(projectPrompt);
+	// STABLE_CORE = rendered system-prompt.md + session-invariant project context + subagent contract.
+	// DYNAMIC_TAIL = per-turn volatile context (workspace tree, cwd/date, goal/todo blocks).
+	// Caching breakpoint is placed on STABLE_CORE so DYNAMIC_TAIL can churn without
+	// invalidating the prompt cache prefix. See P0.1 variable audit for classification.
+	//
+	// SubagentContract (when set): rendered as a fixed XML block inside STABLE_CORE so the role
+	// and scope boundaries are part of the cached prefix. The contract is per-session immutable;
+	// changes require spawning a fresh subagent session, which is intentional — contracts are
+	// not negotiated mid-flight.
+	//
+	// Custom-prompt path (`--system-prompt`, `options.customPrompt`): the caller is asking
+	// for *exactly* the prompt they provided. We deliberately do NOT auto-inject either
+	// project-static or project-live blocks — silently inserting workspace tree, goal,
+	// or cwd context would surprise users and defeat the "this is my prompt" contract.
+	// Result: a single-block prompt with no cache breakpoint hint; the provider falls
+	// back to default last-block placement, which is correct for a single-block prompt.
+	const projectStatic = resolvedCustomPrompt ? "" : prompt.render(projectStaticTemplate, data).trim();
+	const projectLive = resolvedCustomPrompt ? "" : prompt.render(projectLiveTemplate, data).trim();
+	const contractBlock = !resolvedCustomPrompt && subagentContract ? renderSubagentContract(subagentContract) : "";
+	const stableCoreParts: string[] = [rendered];
+	if (projectStatic) stableCoreParts.push(projectStatic);
+	if (contractBlock) stableCoreParts.push(contractBlock);
+	const stableCore = stableCoreParts.join("\n\n");
+	const systemPrompt: string[] = [stableCore];
+	let systemPromptCacheBreakpointIndex: number | undefined;
+	if (projectLive) {
+		systemPrompt.push(projectLive);
+		systemPromptCacheBreakpointIndex = 0; // cache STABLE_CORE, leave DYNAMIC_TAIL fresh
 	}
 
-	return { systemPrompt };
+	return { systemPrompt, systemPromptCacheBreakpointIndex };
 }

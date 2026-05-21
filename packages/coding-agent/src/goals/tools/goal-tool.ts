@@ -11,13 +11,64 @@ import type { ToolSession } from "../../tools";
 import { formatErrorMessage, TRUNCATE_LENGTHS } from "../../tools/render-utils";
 import { ToolError } from "../../tools/tool-errors";
 import { renderStatusLine, truncateToWidth } from "../../tui";
-import { completionBudgetReport, remainingTokens } from "../runtime";
+import { completionBudgetReport, GoalAcceptanceFailureError, remainingTokens } from "../runtime";
 import type { Goal, GoalStatus, GoalToolDetails } from "../state";
 
+const acceptanceCriterionSchema = z.object({
+	id: z.string(),
+	description: z.string(),
+	check: z.discriminatedUnion("type", [
+		z.object({ type: z.literal("scope-include"), globs: z.array(z.string()) }),
+		z.object({ type: z.literal("scope-exclude"), globs: z.array(z.string()) }),
+		z.object({ type: z.literal("file-exists"), path: z.string() }),
+		z.object({
+			type: z.literal("command-exit"),
+			command: z.string(),
+			expected: z.number().int(),
+			cwd: z.string().optional(),
+			timeoutMs: z.number().int().positive().optional(),
+		}),
+		z.object({
+			type: z.literal("command-output"),
+			command: z.string(),
+			expected: z.number().int().optional(),
+			cwd: z.string().optional(),
+			timeoutMs: z.number().int().positive().optional(),
+			stdoutPattern: z.string().optional(),
+			stderrPattern: z.string().optional(),
+			mustNotMatch: z.array(z.string()).optional(),
+		}),
+		z.object({
+			type: z.literal("lsp-clean"),
+			file: z.string().optional(),
+			maxWarnings: z.number().int().nonnegative().optional(),
+		}),
+		z.object({
+			type: z.literal("llm-judged"),
+			question: z.string(),
+			candidate: z.string(),
+		}),
+		z.object({ type: z.literal("manual"), description: z.string() }),
+	]),
+});
+
 const goalSchema = z.object({
-	op: z.enum(["create", "get", "complete"]).describe("goal operation"),
+	op: z.enum(["create", "get", "update", "complete"]).describe("goal operation"),
 	objective: z.string().describe("goal objective").optional(),
 	token_budget: z.number().int().describe("token budget").optional(),
+	// `update` op: partial patch of design answers (scope/constraints/approach/acceptance, or
+	// any caller-defined keys). Keys with empty-string value are removed from the goal's
+	// designAnswers; other keys are merged into existing answers without clobbering.
+	design_answers: z.record(z.string(), z.string()).describe("design interview answers (partial merge)").optional(),
+	// `update` op: structured acceptance criteria. Pass full list to REPLACE existing
+	// criteria (no merge — id collisions in a merge are too fragile). Empty array clears.
+	acceptance_criteria: z
+		.array(acceptanceCriterionSchema)
+		.describe("structured criteria checked by closing audit verifier (replaces existing)")
+		.optional(),
+	// `complete` op: skip closing audit and force completion. Logged for force-rate
+	// telemetry; high rates indicate criteria mis-calibration.
+	force: z.boolean().describe("force complete, skip closing audit").optional(),
 });
 
 export type GoalToolInput = z.infer<typeof goalSchema>;
@@ -26,6 +77,7 @@ export interface GoalToolResponse {
 	goal: Goal | null;
 	remainingTokens: number | null;
 	completionBudgetReport: string | null;
+	closingAuditNote?: string;
 }
 
 export function buildGoalToolResponse(
@@ -87,9 +139,54 @@ export class GoalTool implements AgentTool<typeof goalSchema, GoalToolDetails> {
 		} else if (params.op === "get") {
 			const state = this.#session.getGoalModeState?.();
 			response = buildGoalToolResponse(state?.enabled ? state.goal : null);
+		} else if (params.op === "update") {
+			const updated = await runtime.updateGoal({
+				objective: params.objective,
+				tokenBudget: params.token_budget,
+				designAnswers: params.design_answers,
+				acceptanceCriteria: params.acceptance_criteria,
+			});
+			if (!updated) {
+				throw new ToolError("Cannot update: no active goal.");
+			}
+			response = buildGoalToolResponse(updated);
 		} else {
-			const completed = await runtime.completeGoalFromTool();
-			response = buildGoalToolResponse(completed, { includeCompletionReport: true });
+			const telemetry = this.#session.getV3Telemetry?.();
+			try {
+				const { goal: completed, verdict } = await runtime.completeGoalFromTool({ force: params.force });
+				response = buildGoalToolResponse(completed, { includeCompletionReport: true });
+				// V3 telemetry: closing audit completion (force vs natural pass). When force=true
+				// the verdict is undefined (verification was skipped); record as forced regardless.
+				telemetry?.recordClosingAudit({
+					passed: !params.force,
+					forced: !!params.force,
+					uncertainCount: verdict?.uncertainCount ?? 0,
+				});
+				// Per-criterion result counts feed the verifier dashboard so operators can see
+				// which check types carry the work and which fail most often. The CriterionResult
+				// itself lacks the check.type, so we look up by id on the completed goal's list.
+				for (const r of verdict?.results ?? []) {
+					const criterion = completed.acceptanceCriteria?.find(c => c.id === r.id);
+					if (criterion) telemetry?.recordVerifierResult(criterion.check.type, r.status);
+				}
+				if (verdict && verdict.uncertainCount > 0) {
+					response = {
+						...response,
+						closingAuditNote: `${verdict.uncertainCount} criterion(s) flagged uncertain (manual review).`,
+					};
+				}
+			} catch (error) {
+				if (error instanceof GoalAcceptanceFailureError) {
+					// Failed closing audit also counts as a completion attempt for force-rate math.
+					telemetry?.recordClosingAudit({
+						passed: false,
+						forced: false,
+						uncertainCount: error.verdict.uncertainCount,
+					});
+					throw new ToolError(error.message);
+				}
+				throw error;
+			}
 		}
 		let text: string;
 		if (response.goal) {
@@ -122,6 +219,8 @@ function describeOp(op: string | undefined): string {
 	switch (op) {
 		case "create":
 			return "set";
+		case "update":
+			return "update";
 		case "complete":
 			return "complete";
 		case "get":

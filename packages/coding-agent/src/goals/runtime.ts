@@ -3,6 +3,73 @@ import goalBudgetLimitPrompt from "../prompts/goals/goal-budget-limit.md" with {
 import goalContinuationPrompt from "../prompts/goals/goal-continuation.md" with { type: "text" };
 import goalModeActivePrompt from "../prompts/goals/goal-mode-active.md" with { type: "text" };
 import type { Goal, GoalBudgetSteering, GoalModeState, GoalRuntimeEvent, GoalTokenUsage } from "./state";
+import {
+	type AcceptanceCriterion,
+	AcceptanceVerifier,
+	summarize,
+	type VerificationContext,
+	type VerificationVerdict,
+} from "./verifier";
+
+/**
+ * Best-effort collection of changed files since the session started, for closing audit
+ * verification context. Falls back gracefully when git is not available or the cwd is not
+ * a repo — closing audit then runs with an empty changedFiles list (scope-* criteria turn
+ * uncertain, file-exists and command-* still work).
+ *
+ * Strategy:
+ *   1. Try `git status --porcelain` — captures all staged/unstaged/untracked. No baseline
+ *      assumption (works whether the user committed mid-session or not).
+ *   2. Strip the porcelain status prefix and de-duplicate paths.
+ *   3. Errors → empty list (don't fail the goal completion just because git isn't there).
+ *
+ * Returns paths relative to the cwd as-given by `git status` — model-visible form.
+ */
+async function collectChangedFilesFromGit(cwd: string): Promise<string[]> {
+	try {
+		const proc = Bun.spawn(["git", "status", "--porcelain=v1", "-z"], {
+			cwd,
+			stdout: "pipe",
+			stderr: "pipe",
+		});
+		const exitCode = await proc.exited;
+		if (exitCode !== 0) return [];
+		const raw = await new Response(proc.stdout).text();
+		// porcelain=v1 -z output: NUL-separated entries; renames are "XY old\0new" (two NULs
+		// in a row consume the rename pair). We don't need rename pairs here — just collect
+		// all paths that appear after a status prefix.
+		const paths = new Set<string>();
+		for (const entry of raw.split("\0")) {
+			if (!entry) continue;
+			// Status prefix is exactly 3 chars: "XY " (X=index, Y=worktree, space).
+			if (entry.length < 4) continue;
+			const path = entry.slice(3);
+			if (path) paths.add(path);
+		}
+		return [...paths];
+	} catch {
+		return [];
+	}
+}
+
+/**
+ * Thrown by `completeGoalFromTool` when the closing audit's verifier surfaces failed
+ * acceptance criteria. Carries the structured verdict so the tool surface can render
+ * evidence to the user (each criterion's id, description, status, evidence). Override
+ * via `force: true` at the call site.
+ */
+export class GoalAcceptanceFailureError extends Error {
+	readonly verdict: VerificationVerdict;
+	constructor(verdict: VerificationVerdict) {
+		const failed = verdict.results.filter(r => r.status === "fail");
+		const summary = failed.map(r => `- [${r.id}] ${r.description}: ${r.evidence}`).join("\n");
+		super(
+			`Closing audit blocked completion: ${verdict.failedCount} of ${verdict.results.length} acceptance criteria failed.\n${summary}\n\nResolve the failing criteria, or retry with force=true to override.`,
+		);
+		this.name = "GoalAcceptanceFailureError";
+		this.verdict = verdict;
+	}
+}
 
 export interface GoalRuntimeHost {
 	getState(): GoalModeState | undefined;
@@ -38,7 +105,19 @@ export interface GoalRuntimeSnapshot {
 export type GoalPromptKind = "active" | "continuation" | "budget-limit";
 
 function cloneGoal(goal: Goal): Goal {
-	return { ...goal };
+	// designAnswers, acceptanceCriteria, scopeGuard are mutated independently of the goal record
+	// (follow-up answer edits, criterion additions, scope adjustments); shallow-spreading
+	// the Goal would share the underlying objects/arrays and let mutations leak across clones.
+	return {
+		...goal,
+		designAnswers: goal.designAnswers ? { ...goal.designAnswers } : undefined,
+		acceptanceCriteria: goal.acceptanceCriteria
+			? goal.acceptanceCriteria.map(c => ({ ...c, check: { ...c.check } as typeof c.check }))
+			: undefined,
+		scopeGuard: goal.scopeGuard
+			? { include: [...goal.scopeGuard.include], exclude: [...goal.scopeGuard.exclude] }
+			: undefined,
+	};
 }
 
 function cloneState(state: GoalModeState): GoalModeState {
@@ -82,6 +161,45 @@ export function escapeXmlText(input: string): string {
 
 export function renderUntrustedObjective(objective: string): string {
 	return `<untrusted_objective>\n${escapeXmlText(objective)}\n</untrusted_objective>`;
+}
+
+/**
+ * Render the goal block injected into the system prompt's DYNAMIC_TAIL.
+ *
+ * Output is **byte-stable** for a given Goal state so prompt cache writes are minimized:
+ * - When goal is null/undefined: emits a fixed sentinel so the prompt cache doesn't thrash
+ *   between "no field" and "empty field".
+ * - When goal exists: emits attributes in fixed order (id, status, budget) and walks
+ *   designAnswers in insertion order (callers MUST insert keys in canonical interview order
+ *   — scope, constraints, approach, acceptance — at write time; this renderer doesn't sort
+ *   so the prompt mirrors the interview semantically).
+ *
+ * Status values `complete` and `dropped` collapse to the empty sentinel — once a goal is
+ * out of scope, its anchor should leave the prompt rather than mislead the model into
+ * thinking constraints from a closed goal still apply.
+ */
+export function renderGoalBlock(goal: Goal | null | undefined): string {
+	if (!goal || goal.status === "complete" || goal.status === "dropped") {
+		return `<goal status="none"/>`;
+	}
+	const budget = goal.tokenBudget === undefined ? "unbounded" : String(goal.tokenBudget);
+	const remaining = remainingValue(goal);
+	const revision = goal.contractRevision ?? 0;
+	// `contract-revision` is part of the attribute set so subagents reading the parent goal
+	// block can compare against the revision baked into their own contract — staleness
+	// detection without a back-channel.
+	const attrs = `id="${escapeXmlText(goal.id)}" status="${goal.status}" budget="${budget}" remaining="${remaining}" contract-revision="${revision}"`;
+	const objectiveLine = `  <objective>${escapeXmlText(goal.objective)}</objective>`;
+	const answerLines: string[] = [];
+	if (goal.designAnswers) {
+		for (const key of Object.keys(goal.designAnswers)) {
+			const value = goal.designAnswers[key];
+			if (value === undefined || value === "") continue;
+			answerLines.push(`  <design key="${escapeXmlText(key)}">${escapeXmlText(value)}</design>`);
+		}
+	}
+	const body = answerLines.length === 0 ? objectiveLine : `${objectiveLine}\n${answerLines.join("\n")}`;
+	return `<goal ${attrs}>\n${body}\n</goal>`;
 }
 
 export function renderTrustedObjective(objective: string): string {
@@ -482,12 +600,52 @@ export class GoalRuntime {
 		});
 	}
 
-	async completeGoalFromTool(): Promise<Goal> {
+	/**
+	 * Complete the goal, optionally enforcing a closing audit against `acceptanceCriteria`.
+	 *
+	 * Phase 1 of the v3 coordination layer: when the goal has structured criteria, the
+	 * verifier runs BEFORE the status flip to `complete`. Any `fail` verdict throws
+	 * `GoalAcceptanceFailureError` carrying per-criterion evidence — closing audit
+	 * actually blocks. `uncertain` criteria surface as info but do NOT block (manual /
+	 * llm-judged items live there until a deterministic backend is wired).
+	 *
+	 * Override paths:
+	 *   - `force: true` skips verification entirely. Tracked via telemetry so operators
+	 *     can monitor "force rate" — high rates indicate criteria are too strict and need
+	 *     calibration. Acceptance for Phase 1 ships ships when force rate < 30%.
+	 *   - Empty / undefined `acceptanceCriteria` is treated as no-op (verifier returns
+	 *     vacuous pass). Goals without criteria preserve pre-v3 behavior.
+	 */
+	async completeGoalFromTool(options?: {
+		force?: boolean;
+		verificationContext?: VerificationContext;
+	}): Promise<{ goal: Goal; verdict?: VerificationVerdict }> {
 		return await this.#withAccounting(async () => {
 			await this.#flushUsageLocked("suppressed");
 			const state = this.#getStateClone();
 			if (!state?.enabled || !state.goal) {
 				throw new Error("cannot complete goal because goal mode is not active");
+			}
+			let verdict: VerificationVerdict | undefined;
+			const criteria = state.goal.acceptanceCriteria;
+			if (criteria && criteria.length > 0 && !options?.force) {
+				// When the caller doesn't supply a verification context, gather changedFiles
+				// from git automatically. This is the production path: the goal tool's
+				// `complete` op fires without explicit context, but scope-* criteria need to
+				// know what changed. Empty list is acceptable — scope criteria with empty
+				// changedFiles return `uncertain`, not `fail`.
+				let ctx: VerificationContext;
+				if (options?.verificationContext) {
+					ctx = options.verificationContext;
+				} else {
+					const cwd = process.cwd();
+					ctx = { cwd, changedFiles: await collectChangedFilesFromGit(cwd) };
+				}
+				const results = await new AcceptanceVerifier().verify(criteria, ctx);
+				verdict = summarize(results);
+				if (verdict.verdict === "fail") {
+					throw new GoalAcceptanceFailureError(verdict);
+				}
 			}
 			state.enabled = false;
 			state.goal.status = "complete";
@@ -498,7 +656,156 @@ export class GoalRuntime {
 			this.#clearActiveAccounting();
 			this.#budgetReportedFor = undefined;
 			await this.#commitState(state, { persist: "goal" });
+			return { goal: state.goal, verdict };
+		});
+	}
+
+	/**
+	 * Roll external token usage into the active goal's budget without going through the
+	 * per-turn flush machinery (which is wired to the orchestrator's own API calls).
+	 *
+	 * Use case: the parent delegates via `task` to subagent(s). Subagents make their own
+	 * API calls under their own session, so the parent's flush never sees that work —
+	 * yet the parent's goal budget MUST account for it, otherwise budget enforcement is
+	 * a fiction. The task tool computes the cost-relevant delta (input + cacheWrite +
+	 * output, excluding cacheRead per `goalTokenDelta` convention) and pushes it here.
+	 *
+	 * Triggers the budget-limit steer at the threshold just like an orchestrator-side
+	 * flush would. No-op when no goal is active or delta ≤ 0.
+	 */
+	async addExternalUsage(delta: number): Promise<void> {
+		if (!Number.isFinite(delta) || delta <= 0) return;
+		await this.#withAccounting(async () => {
+			const state = this.#getStateClone();
+			if (!state?.enabled || !state.goal) return;
+			state.goal.tokensUsed += Math.round(delta);
+			state.goal.updatedAt = this.#now();
+			if (state.goal.tokenBudget !== undefined && state.goal.tokensUsed >= state.goal.tokenBudget) {
+				state.goal.status = "budget-limited";
+			}
+			await this.#commitState(state, { persist: "goal" });
+			if (state.goal.status === "budget-limited") {
+				await this.#sendBudgetLimitSteer(state.goal);
+			}
+		});
+	}
+
+	/**
+	 * Pivot: merge partial updates into the active goal mid-flight.
+	 *
+	 * Supports three independent updates: revise the objective, change the token budget,
+	 * and patch design answers (merged into existing, NOT replaced — call with `{scope: "new"}`
+	 * to overwrite only scope while keeping constraints/approach/acceptance untouched).
+	 *
+	 * This is the mid-goal pivot path. Goal status is preserved (active/paused/...); use
+	 * `dropGoal`/`completeGoalFromTool` for terminal transitions. The mutation flows through
+	 * `#commitState({persist: "goal"})` which emits `goal_updated` and persists, so the next
+	 * prompt rebuild sees the new state.
+	 *
+	 * Returns the new goal, or undefined when no goal is active.
+	 */
+	async updateGoal(patch: {
+		objective?: string;
+		tokenBudget?: number | null;
+		designAnswers?: Record<string, string>;
+		/**
+		 * Acceptance criteria patch. Two modes:
+		 *   - Pass an array → REPLACES the criteria list wholesale (closing audit checks exactly these).
+		 *   - Pass `null` → clears the criteria (closing audit becomes a no-op).
+		 *   - Omit → leaves existing criteria untouched.
+		 * Replace-rather-than-merge: criteria are identified by `id`, and partial merges
+		 * would require a fragile per-id diff. Callers MUST send the full intended list.
+		 */
+		acceptanceCriteria?: AcceptanceCriterion[] | null;
+		/**
+		 * Goal-level scope guard. Replace semantics like acceptanceCriteria. `null` clears.
+		 * Bumps `contractRevision` because the tool-layer behavior changes — subagents may
+		 * need to re-check whether their cached contract still aligns with parent intent.
+		 */
+		scopeGuard?: { include: string[]; exclude: string[] } | null;
+	}): Promise<Goal | undefined> {
+		return await this.#withAccounting(async () => {
+			const state = this.#getStateClone();
+			if (!state?.enabled || !state.goal) return undefined;
+			if (patch.objective !== undefined) {
+				const objective = patch.objective.trim();
+				if (objective) state.goal.objective = objective;
+			}
+			if (patch.tokenBudget !== undefined) {
+				if (patch.tokenBudget === null) {
+					state.goal.tokenBudget = undefined;
+				} else if (Number.isInteger(patch.tokenBudget) && patch.tokenBudget > 0) {
+					state.goal.tokenBudget = patch.tokenBudget;
+				}
+			}
+			if (patch.designAnswers) {
+				const merged = { ...(state.goal.designAnswers ?? {}) };
+				for (const [key, value] of Object.entries(patch.designAnswers)) {
+					if (value === "" || value == null) {
+						delete merged[key];
+					} else {
+						merged[key] = value;
+					}
+				}
+				state.goal.designAnswers = Object.keys(merged).length > 0 ? merged : undefined;
+			}
+			if (patch.acceptanceCriteria !== undefined) {
+				state.goal.acceptanceCriteria =
+					patch.acceptanceCriteria === null || patch.acceptanceCriteria.length === 0
+						? undefined
+						: patch.acceptanceCriteria.map(c => ({ ...c, check: { ...c.check } as typeof c.check }));
+			}
+			if (patch.scopeGuard !== undefined) {
+				state.goal.scopeGuard =
+					patch.scopeGuard === null
+						? undefined
+						: {
+								include: [...patch.scopeGuard.include],
+								exclude: [...patch.scopeGuard.exclude],
+							};
+			}
+			// Bump contractRevision when any contract-surface field mutated. Subagents detect
+			// this via the rendered goal block in DYNAMIC_TAIL and (Phase 3.1/3.3) refuse to
+			// trust their cached contract block when its revision lags behind.
+			// objective alone does NOT bump revision — it's prose, not contract surface.
+			const contractRelevantChanged =
+				patch.designAnswers !== undefined ||
+				patch.acceptanceCriteria !== undefined ||
+				patch.scopeGuard !== undefined;
+			if (contractRelevantChanged) {
+				state.goal.contractRevision = (state.goal.contractRevision ?? 0) + 1;
+			}
+			state.goal.updatedAt = this.#now();
+			await this.#commitState(state, { persist: "goal" });
 			return state.goal;
+		});
+	}
+
+	/**
+	 * Capture Design Interview answers into the active goal, one shot only.
+	 *
+	 * Called when the `ask` tool completes against an active goal that has not yet
+	 * recorded designAnswers. The first such call wins — subsequent calls are no-ops
+	 * so the interview cannot accidentally overwrite a captured contract. Lifecycle:
+	 *
+	 *   1. user creates goal (designAnswers undefined)
+	 *   2. agent runs Design Interview via `ask` → results arrive here
+	 *   3. captureDesignAnswers writes them onto the goal and persists
+	 *   4. next prompt rebuild renders the answers into DYNAMIC_TAIL
+	 *
+	 * No-ops when: no active goal, goal already has designAnswers, or answers is empty.
+	 * Returns true iff answers were captured.
+	 */
+	async captureDesignAnswers(answers: Record<string, string>): Promise<boolean> {
+		if (Object.keys(answers).length === 0) return false;
+		return await this.#withAccounting(async () => {
+			const state = this.#getStateClone();
+			if (!state?.enabled || !state.goal) return false;
+			if (state.goal.designAnswers && Object.keys(state.goal.designAnswers).length > 0) return false;
+			state.goal.designAnswers = { ...answers };
+			state.goal.updatedAt = this.#now();
+			await this.#commitState(state, { persist: "goal" });
+			return true;
 		});
 	}
 

@@ -664,6 +664,14 @@ export interface Tool<TParameters extends TSchema = TSchema> {
 
 export interface Context {
 	systemPrompt?: string[];
+	/**
+	 * Hint for providers that support multi-block prompt caching (e.g. Anthropic): index of
+	 * the last `systemPrompt` block that is stable enough to be a cache breakpoint. The provider
+	 * places its cache_control on this block and leaves blocks at higher indices uncached so
+	 * volatile per-turn content can change without invalidating the cache prefix. When
+	 * undefined, providers fall back to caching the last block (existing behavior).
+	 */
+	systemPromptCacheBreakpointIndex?: number;
 	messages: Message[];
 	tools?: Tool[];
 }

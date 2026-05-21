@@ -17,7 +17,7 @@ import * as os from "node:os";
 import path from "node:path";
 import type { AgentTool, AgentToolResult, AgentToolUpdateCallback } from "@amaze/agent-core";
 import type { Usage } from "@amaze/ai";
-import { $env, prompt, Snowflake } from "@amaze/utils";
+import { $env, logger, prompt, Snowflake } from "@amaze/utils";
 import type { ToolSession } from "..";
 import { AsyncJobManager } from "../async";
 import { resolveAgentModelPatterns } from "../config/model-resolver";
@@ -27,6 +27,8 @@ import planModeSubagentPrompt from "../prompts/system/plan-mode-subagent.md" wit
 import subagentUserPromptTemplate from "../prompts/system/subagent-user-prompt.md" with { type: "text" };
 import taskDescriptionTemplate from "../prompts/tools/task.md" with { type: "text" };
 import taskSummaryTemplate from "../prompts/tools/task-summary.md" with { type: "text" };
+import { stampContractRevision } from "../subagent/contract";
+import { executeContractedTask, snapshotGitChangedFiles } from "../subagent/task-revision-loop";
 import { parseThinkingLevel } from "../thinking";
 import { formatBytes, formatDuration } from "../tools/render-utils";
 import {
@@ -876,11 +878,22 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 
 			const runTask = async (task: (typeof tasksWithUniqueIds)[number], index: number) => {
 				if (!isIsolated) {
-					return runSubprocess({
+					// Stamp the parent goal's current contractRevision onto the contract at spawn
+					// time so the subagent's baseline matches "what parent knew at this moment".
+					// Future parent pivots that bump revision past this baseline will be detected
+					// as stale by `enforceContractFreshness`.
+					const parentGoalRev = this.session.getGoalModeState?.()?.goal?.contractRevision;
+					const stampedContract = task.contract ? stampContractRevision(task.contract, parentGoalRev) : undefined;
+					// V3 telemetry: record every subagent spawn, with/without contract. This is the
+					// contract adoption signal — if `withContract` stays at 0% across many sessions,
+					// nobody is using the contract layer and it becomes a prune candidate.
+					this.session.getV3Telemetry?.()?.recordSubagentSpawn(!!stampedContract);
+					// Build the runSubprocess options shape once so both single-pass and
+					// revision-loop paths use identical settings except for the assignment text.
+					const baseSubprocessOptions = {
 						cwd: this.session.cwd,
 						agent,
-						task: renderSubagentUserPrompt(task.assignment, simpleMode),
-						assignment: task.assignment.trim(),
+						contract: stampedContract,
 						context: sharedContext,
 						description: task.description,
 						index,
@@ -897,7 +910,7 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 						enableLsp: false,
 						signal,
 						eventBus: this.session.eventBus,
-						onProgress: progress => {
+						onProgress: (progress: AgentProgress) => {
 							progressMap.set(index, {
 								...structuredClone(progress),
 							});
@@ -915,6 +928,68 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 						parentArtifactManager,
 						parentHindsightSessionState: this.session.getHindsightSessionState?.(),
 						parentTelemetry: this.session.getTelemetry?.(),
+					};
+
+					// Contract-driven path: wrap runSubprocess in the verifier-retry loop. When the
+					// first attempt fails contract.successCriteria, runRevisionLoop reinvokes with
+					// the failure list prepended to the assignment. The final SingleResult is what
+					// the aggregation pipeline downstream consumes — the verdict is surfaced via
+					// `logger.info("subagent.contract.verdict", …)` so telemetry consumers can
+					// observe it.
+					if (stampedContract) {
+						const cwdBefore = new Set(await snapshotGitChangedFiles(this.session.cwd));
+						let lastSingleResult: SingleResult | undefined;
+						const baseAssignment = task.assignment.trim();
+						const outcome = await executeContractedTask({
+							contract: stampedContract,
+							baseAssignment,
+							runOnce: async ({ composedAssignment }) => {
+								const result = await runSubprocess({
+									...baseSubprocessOptions,
+									task: renderSubagentUserPrompt(composedAssignment, simpleMode),
+									assignment: composedAssignment,
+								});
+								lastSingleResult = result;
+								const cwdAfter = await snapshotGitChangedFiles(this.session.cwd);
+								// Files the subagent ACTUALLY changed during this attempt:
+								//   - paths now dirty that were NOT dirty before the task started, OR
+								//   - paths dirty in BOTH snapshots whose mtime advanced during the attempt
+								// We can't cheaply detect the second case via git porcelain (porcelain doesn't
+								// expose mtimes), so we approximate with set-difference. The original code
+								// used `|| true` which made the filter a no-op — every pre-existing dirty
+								// file was attributed to this attempt, poisoning scope-* verifier signals.
+								// New behavior: pre-existing dirty files are excluded from the attempt's
+								// changedFiles, which is the correct attribution for scope verification
+								// (files dirty BEFORE the subagent ran are not its concern).
+								const changedFiles = cwdAfter.filter(p => !cwdBefore.has(p));
+								return {
+									output: result.output ?? "",
+									exitCode: result.exitCode ?? 0,
+									aborted: result.aborted ?? false,
+									changedFiles,
+									cwd: this.session.cwd,
+								};
+							},
+						});
+						logger.info("subagent.contract.verdict", {
+							taskId: task.id,
+							role: stampedContract.role,
+							verdict: outcome.finalVerdict.verdict,
+							passed: outcome.finalVerdict.passedCount,
+							failed: outcome.finalVerdict.failedCount,
+							uncertain: outcome.finalVerdict.uncertainCount,
+							attempts: outcome.attempts.length,
+						});
+						if (!lastSingleResult) {
+							throw new Error("contracted task produced no result");
+						}
+						return lastSingleResult;
+					}
+
+					return runSubprocess({
+						...baseSubprocessOptions,
+						task: renderSubagentUserPrompt(task.assignment, simpleMode),
+						assignment: task.assignment.trim(),
 					});
 				}
 
@@ -935,6 +1010,7 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 						agent,
 						task: renderSubagentUserPrompt(task.assignment, simpleMode),
 						assignment: task.assignment.trim(),
+						contract: task.contract,
 						context: sharedContext,
 						description: task.description,
 						index,
@@ -1089,6 +1165,23 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 				if (result.usage) {
 					addUsageTotals(aggregatedUsage, result.usage);
 					hasAggregatedUsage = true;
+				}
+			}
+
+			// Subagent usage rollup into parent goal: subagents run under their own session
+			// and never trigger the parent's per-turn flush. Without this hop, a 5-task fan-out
+			// that burns 30K tokens wouldn't dent the parent's goal budget — making budget
+			// enforcement meaningless under delegation. Uses goalTokenDelta semantics
+			// (input + cacheWrite + output, cacheRead excluded as it's reused prefix).
+			if (hasAggregatedUsage) {
+				const goalRuntime = this.session.getGoalRuntime?.();
+				const goalState = this.session.getGoalModeState?.();
+				if (goalRuntime && goalState?.enabled && goalState.goal) {
+					const delta =
+						(aggregatedUsage.input ?? 0) + (aggregatedUsage.cacheWrite ?? 0) + (aggregatedUsage.output ?? 0);
+					if (delta > 0) {
+						await goalRuntime.addExternalUsage(delta);
+					}
 				}
 			}
 

@@ -132,7 +132,7 @@ import { ExtensionToolWrapper } from "../extensibility/extensions/wrapper";
 import type { HookCommandContext } from "../extensibility/hooks/types";
 import type { Skill, SkillWarning } from "../extensibility/skills";
 import { expandSlashCommand, type FileSlashCommand } from "../extensibility/slash-commands";
-import { escapeXmlText, GoalRuntime } from "../goals/runtime";
+import { escapeXmlText, GoalRuntime, renderGoalBlock } from "../goals/runtime";
 import type { Goal, GoalModeState } from "../goals/state";
 import type { HindsightSessionState } from "../hindsight/state";
 import { type LocalProtocolOptions, resolveLocalUrlToPath } from "../internal-urls";
@@ -204,6 +204,7 @@ import type {
 } from "./session-manager";
 import { getLatestCompactionEntry } from "./session-manager";
 import { ToolChoiceQueue } from "./tool-choice-queue";
+import { V3SessionExtension } from "./v3-session-extension";
 
 /** Session-specific events that extend the core AgentEvent */
 export type AgentSessionEvent =
@@ -290,7 +291,10 @@ export interface AgentSessionConfig {
 	/** Current session message-to-LLM conversion pipeline */
 	convertToLlm?: (messages: AgentMessage[]) => Message[] | Promise<Message[]>;
 	/** System prompt builder that can consider tool availability. Returns ordered provider-facing blocks. */
-	rebuildSystemPrompt?: (toolNames: string[], tools: Map<string, AgentTool>) => Promise<{ systemPrompt: string[] }>;
+	rebuildSystemPrompt?: (
+		toolNames: string[],
+		tools: Map<string, AgentTool>,
+	) => Promise<{ systemPrompt: string[]; systemPromptCacheBreakpointIndex?: number }>;
 	/** Rebuild the SSH tool from current capability discovery results. */
 	reloadSshTool?: () => Promise<AgentTool | null>;
 	requestedToolNames?: ReadonlySet<string>;
@@ -776,6 +780,13 @@ export class AgentSession {
 	#goalModeState: GoalModeState | undefined;
 	#goalRuntime: GoalRuntime;
 	#goalTurnCounter = 0;
+	/**
+	 * V3 coordination state — extracted from this monolith into its own class to keep
+	 * AgentSession's surface from growing. Owns the V3Telemetry aggregator and the
+	 * cache-thrash detection counters. AgentSession delegates per-turn hooks here
+	 * instead of carrying the state directly.
+	 */
+	readonly #v3 = new V3SessionExtension();
 	#planReferenceSent = false;
 	#planReferencePath = "local://PLAN.md";
 	#clientBridge: ClientBridge | undefined;
@@ -860,7 +871,10 @@ export class AgentSession {
 	#onSseEvent: SimpleStreamOptions["onSseEvent"] | undefined;
 	#convertToLlm: (messages: AgentMessage[]) => Message[] | Promise<Message[]>;
 	#rebuildSystemPrompt:
-		| ((toolNames: string[], tools: Map<string, AgentTool>) => Promise<{ systemPrompt: string[] }>)
+		| ((
+				toolNames: string[],
+				tools: Map<string, AgentTool>,
+		  ) => Promise<{ systemPrompt: string[]; systemPromptCacheBreakpointIndex?: number }>)
 		| undefined;
 	#getMcpServerInstructions: (() => Map<string, string> | undefined) | undefined;
 	#reloadSshTool: (() => Promise<AgentTool | null>) | undefined;
@@ -1449,6 +1463,9 @@ export class AgentSession {
 				cacheRead: usage.cacheRead,
 				cacheWrite: usage.cacheWrite,
 			});
+			// Cache thrash detection now lives in V3SessionExtension — AgentSession just
+			// threads the snapshot. Keeps this monolith from carrying yet more state.
+			this.#v3.onTurnStart({ cacheRead: usage.cacheRead, cacheWrite: usage.cacheWrite });
 		}
 
 		await this.#emitSessionEvent(displayEvent);
@@ -3291,7 +3308,7 @@ export class AgentSession {
 			if (signature !== this.#lastAppliedToolSignature) {
 				const built = await this.#rebuildSystemPrompt(validToolNames, this.#toolRegistry);
 				this.#baseSystemPrompt = built.systemPrompt;
-				this.agent.setSystemPrompt(this.#baseSystemPrompt);
+				this.agent.setSystemPrompt(this.#baseSystemPrompt, built.systemPromptCacheBreakpointIndex);
 				this.#lastAppliedToolSignature = signature;
 			}
 		}
@@ -3374,7 +3391,10 @@ export class AgentSession {
 		const activeToolNames = this.getActiveToolNames();
 		const built = await this.#rebuildSystemPrompt(activeToolNames, this.#toolRegistry);
 		this.#baseSystemPrompt = built.systemPrompt;
-		this.agent.setSystemPrompt(this.#baseSystemPrompt);
+		// Thread the cache breakpoint hint so STABLE_CORE/DYNAMIC_TAIL split survives rebuilds
+		// triggered through this path. Without it, frequent refreshes silently fall back to
+		// the provider's default last-block placement and the v2 cache layout collapses.
+		this.agent.setSystemPrompt(this.#baseSystemPrompt, built.systemPromptCacheBreakpointIndex);
 		// Refresh the cached signature so a subsequent `#applyActiveToolsByName` with
 		// the same tool set does not re-rebuild on top of the explicit refresh we
 		// just performed (and conversely, a different set forces a fresh rebuild).
@@ -3472,7 +3492,21 @@ export class AgentSession {
 			instructionsSegment = entries.join("\u0006");
 		}
 		const date = new Date().toISOString().slice(0, 10);
-		return `${nameSegment}\u0003${descriptionSegment}\u0005${registrySegment}\u0007${instructionsSegment}|${date}`;
+		// Goal state is rendered into the system prompt's DYNAMIC_TAIL via `renderGoalBlock`.
+		// Include the identifying triple (id|status|designAnswers keys) in the signature so a
+		// goal lifecycle transition (create / complete / drop) or new design answers invalidate
+		// the prompt cache prefix at the next rebuild — otherwise the agent would continue with
+		// a stale goal anchor until some unrelated tool change happened to flip the signature.
+		// Token counters (tokensUsed) are deliberately excluded: they change every turn and
+		// would thrash the signature, defeating the cache. The block renders tokens through
+		// the budget/remaining attributes, which are accepted as DYNAMIC_TAIL churn.
+		let goalSegment = "";
+		const goalState = this.getGoalModeState();
+		if (goalState?.goal) {
+			const answers = goalState.goal.designAnswers ? Object.keys(goalState.goal.designAnswers).sort().join(",") : "";
+			goalSegment = `${goalState.goal.id}|${goalState.goal.status}|${answers}`;
+		}
+		return `${nameSegment}\u0003${descriptionSegment}\u0005${registrySegment}\u0007${instructionsSegment}|${date}|${goalSegment}`;
 	}
 
 	/**
@@ -3708,6 +3742,22 @@ export class AgentSession {
 
 	get goalRuntime(): GoalRuntime {
 		return this.#goalRuntime;
+	}
+
+	/**
+	 * V3 coordination telemetry aggregator for this session. Producers (ask tool, goal
+	 * tool, task tool) call `record*` methods directly. Consumers (debug command, session
+	 * dispose, external dashboards) call `getStats()` or `formatV3TelemetrySummary()`.
+	 *
+	 * Per-session in-memory; not persisted across CLI restarts by design — we want to
+	 * observe live sessions, not aggregate noise across unrelated runs.
+	 */
+	get v3Telemetry() {
+		return this.#v3.telemetry;
+	}
+
+	formatV3TelemetrySummary(): string {
+		return this.#v3.formatSummary();
 	}
 
 	markPlanReferenceSent(): void {
@@ -8692,6 +8742,19 @@ export class AgentSession {
 			"This is a summary of the parent conversation. Read this if you need additional context about what was discussed or decided.",
 		);
 		lines.push("");
+
+		// Propagate the parent's active goal (with captured Design Interview answers) into the
+		// subagent's context so its work respects the same scope/constraints/acceptance contract.
+		// Subagents don't inherit goal *mode* (no shared token budget, no design interview firing
+		// on the child), but they MUST see the constraint surface — otherwise the parent and
+		// child can drift on what "done" means.
+		const goalState = this.getGoalModeState();
+		if (goalState?.enabled && goalState.goal && goalState.goal.status === "active") {
+			lines.push("## Parent Goal");
+			lines.push("");
+			lines.push(renderGoalBlock(goalState.goal));
+			lines.push("");
+		}
 
 		for (const msg of this.messages) {
 			if (msg.role === "user" || msg.role === "developer") {

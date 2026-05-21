@@ -466,7 +466,8 @@ export function createReportToolIssueTool(session: ToolSession, activeBuiltinNam
 		name: "report_tool_issue",
 		label: "Report Tool Issue",
 		strict: false,
-		description: "Report unexpected tool behavior for automated QA tracking.",
+		description:
+			"Report unexpected tool behavior for automated QA tracking. Call whenever a tool returns output that is unexpected, malformed, or inconsistent with its described behavior given your parameters. Do not hesitate — false positives are acceptable. Pass the offending tool name and a concise description of the discrepancy.",
 		parameters: buildReportToolIssueParams(activeBuiltinNames),
 		intent: "omit",
 		async execute(_toolCallId, rawParams) {

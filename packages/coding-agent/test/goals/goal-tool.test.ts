@@ -76,7 +76,7 @@ describe("GoalTool", () => {
 		});
 		const runtime = {
 			createGoal: vi.fn(async () => createGoalState),
-			completeGoalFromTool: vi.fn(async () => completedGoal),
+			completeGoalFromTool: vi.fn(async () => ({ goal: completedGoal })),
 		};
 		const getGoalModeState = vi.fn(() => getGoalState);
 		const tool = new GoalTool(

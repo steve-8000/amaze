@@ -448,6 +448,59 @@ const cacheWriteSegment: StatusLineSegment = {
 	},
 };
 
+/**
+ * Cache health indicator — `cacheRead / (cacheRead + cacheWrite)` as a percentage.
+ *
+ * A high ratio (>90%) means the STABLE_CORE block is hitting the cache consistently; the prompt
+ * prefix is stable enough to reuse turn-to-turn. A persistently low ratio (or 0%) suggests
+ * cache thrash — STABLE_CORE bytes are changing every turn, defeating the prompt-cache layout.
+ * Hidden until at least one write or read has been observed so it doesn't clutter cold-start UIs.
+ */
+const cacheHitRatioSegment: StatusLineSegment = {
+	id: "cache_hit_ratio",
+	render(ctx) {
+		const { cacheRead, cacheWrite } = ctx.usageStats;
+		const denominator = cacheRead + cacheWrite;
+		if (denominator === 0) return { content: "", visible: false };
+		const ratio = cacheRead / denominator;
+		const pct = Math.round(ratio * 100);
+		// Color signal: ≥80% healthy, 30–79% mixed, <30% likely thrash.
+		const color: ThemeColor = pct >= 80 ? "statusLineSpend" : pct >= 30 ? "statusLineOutput" : "warning";
+		return { content: theme.fg(color, `${theme.icon.cache}${pct}%`), visible: true };
+	},
+};
+
+/**
+ * Goal budget warning — surfaces approaching budget exhaustion BEFORE the hard limit fires.
+ *
+ * Three states:
+ *   - <50% used: hidden (no clutter when there's plenty of runway)
+ *   - 50%–79% used: amber chip "Goal 50%" so operator sees pace
+ *   - ≥80% used: warning chip "Goal 80%! 1.2K left" so operator can decide to scope down,
+ *     bump budget via `goal({op:"update",token_budget:N})`, or wrap up before the hard cap
+ *     forces a budget-limited steer
+ *
+ * Without this segment the operator only learns about budget pressure at 100% via the steer
+ * message — too late to make scoping decisions. Pre-warnings ARE the budget-control loop.
+ */
+const goalBudgetWarningSegment: StatusLineSegment = {
+	id: "goal_budget_warning",
+	render(ctx) {
+		const goal = ctx.session.getGoalModeState()?.goal;
+		if (!goal || goal.tokenBudget === undefined || goal.tokenBudget <= 0) {
+			return { content: "", visible: false };
+		}
+		const used = Math.max(0, goal.tokensUsed);
+		const ratio = used / goal.tokenBudget;
+		if (ratio < 0.5) return { content: "", visible: false };
+		const pct = Math.min(100, Math.round(ratio * 100));
+		const remaining = Math.max(0, goal.tokenBudget - used);
+		const color: ThemeColor = ratio >= 0.8 ? "warning" : "statusLineOutput";
+		const label = ratio >= 0.8 ? `Goal ${pct}%! ${formatNumber(remaining)} left` : `Goal ${pct}%`;
+		return { content: theme.fg(color, label), visible: true };
+	},
+};
+
 const sessionNameSegment: StatusLineSegment = {
 	id: "session_name",
 	render(ctx) {
@@ -485,6 +538,8 @@ export const SEGMENTS: Record<StatusLineSegmentId, StatusLineSegment> = {
 	hostname: hostnameSegment,
 	cache_read: cacheReadSegment,
 	cache_write: cacheWriteSegment,
+	cache_hit_ratio: cacheHitRatioSegment,
+	goal_budget_warning: goalBudgetWarningSegment,
 	session_name: sessionNameSegment,
 };
 

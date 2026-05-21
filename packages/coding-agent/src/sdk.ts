@@ -240,6 +240,13 @@ export interface CreateAgentSessionOptions {
 	agentRegistry?: AgentRegistry;
 	/** Parent task ID prefix for nested artifact naming (e.g., "6-Extensions") */
 	parentTaskPrefix?: string;
+	/**
+	 * Structured SubagentContract governing this session. When provided, the session's
+	 * STABLE_CORE includes a `<subagent-contract>` block (cached prefix), the ToolSession
+	 * reports the contract via `getSubagentContract`, and tool guards (write/edit) enforce
+	 * scope structurally. Set by the task executor when spawning a subagent under contract.
+	 */
+	subagentContract?: import("./subagent/contract").SubagentContract;
 
 	/** Session manager. Default: session stored under the configured agentDir sessions root */
 	sessionManager?: SessionManager;
@@ -1105,6 +1112,11 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 			getPlanModeState: () => session?.getPlanModeState(),
 			getGoalModeState: () => session?.getGoalModeState(),
 			getGoalRuntime: () => session?.goalRuntime,
+			// SubagentContract is per-session immutable: set at createAgentSession time, never
+			// mutated after. Tool guards (write/edit) read it on every mutation; system-prompt
+			// builder reads it once per rebuild.
+			getSubagentContract: options.subagentContract ? () => options.subagentContract : undefined,
+			getV3Telemetry: () => session?.v3Telemetry,
 			getClientBridge: () => session?.clientBridge,
 			getCompactContext: () => session.formatCompactContext(),
 			getTodoPhases: () => session.getTodoPhases(),
@@ -1548,6 +1560,12 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 				}
 				appendPrompt = parts.join("\n\n");
 			}
+			// Surface the active goal (if any) into the system prompt's DYNAMIC_TAIL so the model
+			// re-sees the contract every turn — survives compaction. `renderGoalBlock` collapses
+			// complete/dropped goals to a stable sentinel automatically, so this also handles
+			// lifecycle transitions: next rebuild after `completeGoalFromTool`/`dropGoal` emits
+			// the empty sentinel and the goal anchor disappears from attention.
+			const activeGoal = session?.getGoalModeState()?.goal ?? null;
 			const defaultPrompt = await buildSystemPromptInternal({
 				cwd,
 				skills,
@@ -1566,6 +1584,8 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 				secretsEnabled,
 				workspaceTree: workspaceTreePromise,
 				projectContextMode: promptCachePolicy.projectContextMode,
+				activeGoal,
+				subagentContract: options.subagentContract,
 			});
 
 			if (options.systemPrompt === undefined) {

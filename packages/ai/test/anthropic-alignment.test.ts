@@ -6,6 +6,7 @@ import * as tls from "node:tls";
 import { Effort } from "@amaze/ai";
 import {
 	applyClaudeToolPrefix,
+	applyPromptCaching,
 	buildAnthropicClientOptions,
 	buildAnthropicHeaders,
 	buildAnthropicSystemBlocks,
@@ -141,6 +142,152 @@ describe("Anthropic request fingerprint alignment", () => {
 			{ type: "text", text: "stable system" },
 			{ type: "text", text: "stable durable context", cache_control: { type: "ephemeral", ttl: "1h" } },
 		]);
+	});
+
+	it("honors systemPromptCacheBreakpointIndex by caching the named block, not the last", async () => {
+		// End-to-end exercise of the [STABLE_CORE, DYNAMIC_TAIL] layout: caller signals that
+		// systemPrompt[0] (STABLE_CORE) is the cacheable stable prefix. The dynamic tail at
+		// systemPrompt[1] MUST remain free of cache_control so churn there doesn't invalidate
+		// the cache hit on STABLE_CORE.
+		const payload = (await captureAnthropicPayload(
+			ANTHROPIC_MODEL,
+			{
+				systemPrompt: ["STABLE_CORE", "DYNAMIC_TAIL changes per turn"],
+				systemPromptCacheBreakpointIndex: 0,
+				messages: [{ role: "user", content: "anything", timestamp: Date.now() }],
+			},
+			{ isOAuth: false },
+		)) as { system?: Array<{ type: string; text?: string; cache_control?: unknown }> };
+
+		expect(payload.system).toEqual([
+			{ type: "text", text: "STABLE_CORE", cache_control: { type: "ephemeral", ttl: "1h" } },
+			{ type: "text", text: "DYNAMIC_TAIL changes per turn" },
+		]);
+	});
+
+	it("resolves systemPromptCacheBreakpointIndex against caller's array even with prepended OAuth blocks", async () => {
+		// Under OAuth, buildAnthropicSystemBlocks prepends billing-header + claudeCodeSystemInstruction
+		// blocks. The caller's breakpoint index is 0-based against THEIR array — the builder must
+		// translate that to the actual emitted index. Otherwise cache_control would land on the wrong
+		// block (probably the billing header) and the v2 [STABLE_CORE, DYNAMIC_TAIL] design falls apart.
+		const payload = (await captureAnthropicPayload(
+			ANTHROPIC_MODEL,
+			{
+				systemPrompt: ["STABLE_CORE bytes", "DYNAMIC_TAIL bytes"],
+				systemPromptCacheBreakpointIndex: 0,
+				messages: [{ role: "user", content: "anything", timestamp: Date.now() }],
+			},
+			{ isOAuth: true },
+		)) as { system?: Array<{ type: string; text?: string; cache_control?: unknown }> };
+
+		const blocks = payload.system ?? [];
+		// First N blocks are the OAuth preamble (billing header + Claude Code instruction).
+		// We don't assert their exact text — just that STABLE_CORE/DYNAMIC_TAIL trail them in order
+		// and that the breakpoint landed on STABLE_CORE, not the preamble and not DYNAMIC_TAIL.
+		const stableIdx = blocks.findIndex(b => b.text === "STABLE_CORE bytes");
+		const dynamicIdx = blocks.findIndex(b => b.text === "DYNAMIC_TAIL bytes");
+		expect(stableIdx).toBeGreaterThan(-1);
+		expect(dynamicIdx).toBe(stableIdx + 1);
+		expect(blocks[stableIdx]?.cache_control).toEqual({ type: "ephemeral", ttl: "1h" });
+		expect(blocks[dynamicIdx]?.cache_control).toBeUndefined();
+		// Preamble blocks (anything before STABLE_CORE) MUST NOT carry cache_control either —
+		// the auto-placement should have noticed system already has a breakpoint and stayed out.
+		for (let i = 0; i < stableIdx; i++) {
+			expect(blocks[i]?.cache_control).toBeUndefined();
+		}
+	});
+
+	it("skips auto-placement on system blocks when an externally-set cache_control is already present", () => {
+		// External caller (e.g. buildSystemPrompt) tags STABLE_CORE with cache_control directly,
+		// expecting the dynamic tail (last block) to stay uncached. applyPromptCaching MUST honor that
+		// and refrain from clobbering the tail with an auto breakpoint.
+		const params = {
+			model: "claude-sonnet-4-6",
+			max_tokens: 64,
+			stream: true as const,
+			messages: [{ role: "user" as const, content: "anything" }],
+			system: [
+				{ type: "text" as const, text: "STABLE_CORE", cache_control: { type: "ephemeral" as const } },
+				{ type: "text" as const, text: "DYNAMIC_TAIL" },
+			],
+			tools: [],
+		};
+
+		applyPromptCaching(params as unknown as Parameters<typeof applyPromptCaching>[0], { type: "ephemeral" });
+
+		expect(params.system[0]).toEqual({
+			type: "text",
+			text: "STABLE_CORE",
+			cache_control: { type: "ephemeral" },
+		});
+		expect(params.system[1]).toEqual({ type: "text", text: "DYNAMIC_TAIL" });
+	});
+
+	it("skips auto-placement on tools when an externally-set cache_control is already present", () => {
+		const params = {
+			model: "claude-sonnet-4-6",
+			max_tokens: 64,
+			stream: true as const,
+			messages: [{ role: "user" as const, content: "anything" }],
+			tools: [
+				{ name: "tool_a", description: "a", input_schema: { type: "object" as const } },
+				{
+					name: "tool_b",
+					description: "b",
+					input_schema: { type: "object" as const },
+					cache_control: { type: "ephemeral" as const },
+				},
+			],
+		};
+
+		applyPromptCaching(params as unknown as Parameters<typeof applyPromptCaching>[0], { type: "ephemeral" });
+
+		// tool_a stays plain — the pre-set breakpoint on tool_b satisfies the section.
+		expect(params.tools[0]).toEqual({
+			name: "tool_a",
+			description: "a",
+			input_schema: { type: "object" },
+		});
+		expect(params.tools[1]).toEqual({
+			name: "tool_b",
+			description: "b",
+			input_schema: { type: "object" },
+			cache_control: { type: "ephemeral" },
+		});
+	});
+
+	it("counts pre-set cache_control breakpoints against the 4-cap", () => {
+		// Pre-set 4 breakpoints (1 tool + 3 system). Auto-placement must add zero more,
+		// otherwise we'd exceed Anthropic's hard limit and be rejected upstream.
+		const params = {
+			model: "claude-sonnet-4-6",
+			max_tokens: 64,
+			stream: true as const,
+			messages: [
+				{ role: "user" as const, content: "first" },
+				{ role: "assistant" as const, content: "ok" },
+				{ role: "user" as const, content: "second" },
+			],
+			system: [
+				{ type: "text" as const, text: "S1", cache_control: { type: "ephemeral" as const } },
+				{ type: "text" as const, text: "S2", cache_control: { type: "ephemeral" as const } },
+				{ type: "text" as const, text: "S3", cache_control: { type: "ephemeral" as const } },
+			],
+			tools: [
+				{
+					name: "t",
+					description: "t",
+					input_schema: { type: "object" as const },
+					cache_control: { type: "ephemeral" as const },
+				},
+			],
+		};
+
+		applyPromptCaching(params as unknown as Parameters<typeof applyPromptCaching>[0], { type: "ephemeral" });
+
+		// No auto breakpoints added: messages stay as string content (no array wrap).
+		expect(typeof params.messages[0].content).toBe("string");
+		expect(typeof params.messages[2].content).toBe("string");
 	});
 
 	it("uses Bearer auth for non-Anthropic API bases with api-key credentials", () => {

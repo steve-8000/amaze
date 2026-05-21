@@ -222,9 +222,9 @@ describe("system Handlebars prompt templates", () => {
 		expect(rendered).toContain("Pass large context through `local://` artifacts");
 	});
 
-	test("buildSystemPrompt keeps system and project as separate ordered blocks with date context in project", async () => {
+	test("buildSystemPrompt emits [STABLE_CORE, DYNAMIC_TAIL] with breakpoint hint on STABLE_CORE", async () => {
 		await withTempDir(async dir => {
-			const { systemPrompt } = await buildSystemPrompt({
+			const { systemPrompt, systemPromptCacheBreakpointIndex } = await buildSystemPrompt({
 				cwd: dir,
 				contextFiles: [],
 				skills: [],
@@ -240,13 +240,180 @@ describe("system Handlebars prompt templates", () => {
 			});
 
 			expect(systemPrompt).toHaveLength(2);
+			// STABLE_CORE: session-invariant. Contains the harness contract AND project-static
+			// (workstation, context files, critical rules) — anything that doesn't change per turn.
 			expect(systemPrompt[0]).toContain("[CONTRACT]");
+			expect(systemPrompt[0]).toContain("[PROJECT-STATIC]");
+			expect(systemPrompt[0]).toContain("<workstation>");
 			expect(systemPrompt[0]).not.toContain("current working directory");
-			expect(systemPrompt[1]).toContain("<workstation>");
+			expect(systemPrompt[0]).not.toContain("<workspace-tree>");
+			// DYNAMIC_TAIL: per-turn volatile context (workspace tree, date, cwd, goal/todo).
+			expect(systemPrompt[1]).toContain("[PROJECT-LIVE]");
 			expect(systemPrompt[1]).toContain("<workspace-tree>");
 			expect(systemPrompt[1]).toContain("Today is ");
 			expect(systemPrompt[1]).toContain(`current working directory is '${dir}'.`);
 			expect(systemPrompt[1].indexOf("</workspace-tree>")).toBeLessThan(systemPrompt[1].indexOf("Today is "));
+			// Goal block: emits stable "no goal" sentinel even when no goal is active so the
+			// prompt structure is identical between no-goal and has-goal turns (cache stability).
+			expect(systemPrompt[1]).toContain(`<goal status="none"/>`);
+			// Cache hint: STABLE_CORE (index 0) is the cacheable prefix; DYNAMIC_TAIL stays fresh.
+			expect(systemPromptCacheBreakpointIndex).toBe(0);
+		});
+	});
+
+	test("buildSystemPrompt injects subagent contract into STABLE_CORE (Phase 2.1)", async () => {
+		// Contract MUST land in the cached prefix so compaction can't drop the role/scope
+		// boundary mid-session. The dynamic tail stays as before (goal block, workspace tree).
+		await withTempDir(async dir => {
+			const { systemPrompt, systemPromptCacheBreakpointIndex } = await buildSystemPrompt({
+				cwd: dir,
+				contextFiles: [],
+				skills: [],
+				rules: [],
+				toolNames: ["read", "edit", "write"],
+				subagentContract: {
+					role: "refactor-applier",
+					scope: { include: ["src/**"], exclude: ["**/CHANGELOG.md"] },
+					successCriteria: [
+						{
+							id: "tests-pass",
+							description: "all tests green",
+							check: { type: "command-exit", command: "bun test", expected: 0 },
+						},
+					],
+					escalation: { onUncertainty: "ask-parent", budgetCap: 50000 },
+				},
+				workspaceTree: {
+					rootPath: dir,
+					rendered: ".\n  - src/",
+					truncated: false,
+					totalLines: 2,
+					agentsMdFiles: [],
+				},
+			});
+
+			expect(systemPrompt).toHaveLength(2);
+			// Contract lands inside STABLE_CORE (index 0), not DYNAMIC_TAIL.
+			expect(systemPrompt[0]).toContain("<subagent-contract");
+			expect(systemPrompt[0]).toContain(`role="refactor-applier"`);
+			expect(systemPrompt[0]).toContain("<include>src/**</include>");
+			expect(systemPrompt[0]).toContain("<exclude>**/CHANGELOG.md</exclude>");
+			expect(systemPrompt[0]).toContain(`<criterion id="tests-pass"`);
+			// DYNAMIC_TAIL stays uncached and contract-free.
+			expect(systemPrompt[1]).not.toContain("<subagent-contract");
+			// Breakpoint still on STABLE_CORE.
+			expect(systemPromptCacheBreakpointIndex).toBe(0);
+		});
+	});
+
+	test("buildSystemPrompt is byte-stable for identical subagent contracts (cache hit prerequisite)", async () => {
+		// Two calls with identical contracts MUST produce byte-identical STABLE_CORE.
+		// Drift here = cache thrash on the subagent's session.
+		await withTempDir(async dir => {
+			const contract = {
+				role: "test-writer",
+				scope: { include: ["test/**"], exclude: [] },
+				successCriteria: [
+					{
+						id: "coverage",
+						description: "new test added",
+						check: { type: "file-exists" as const, path: "test/new.test.ts" },
+					},
+				],
+				escalation: { onUncertainty: "ask-parent" as const, budgetCap: 25000 },
+			};
+			const optsA = {
+				cwd: dir,
+				contextFiles: [],
+				skills: [],
+				rules: [],
+				toolNames: ["read", "edit"],
+				subagentContract: contract,
+			};
+			const a = await buildSystemPrompt(optsA);
+			const b = await buildSystemPrompt(optsA);
+			// STABLE_CORE byte-identical = same cache prefix = cache hit.
+			expect(a.systemPrompt[0]).toBe(b.systemPrompt[0]);
+		});
+	});
+
+	test("buildSystemPrompt with customPrompt collapses to single block (no auto-injected dynamic tail)", async () => {
+		// Custom-prompt callers (--system-prompt) get EXACTLY the prompt they provided. The harness
+		// MUST NOT silently inject workspace tree, goal, or cwd context — that would surprise users
+		// and break the "this is my prompt" contract. Result: single block, no cache breakpoint hint.
+		await withTempDir(async dir => {
+			const { systemPrompt, systemPromptCacheBreakpointIndex } = await buildSystemPrompt({
+				cwd: dir,
+				contextFiles: [],
+				skills: [],
+				rules: [],
+				toolNames: ["read"],
+				customPrompt: "Operate as a code reviewer. Be terse.",
+				workspaceTree: {
+					rootPath: dir,
+					rendered: ".\n  - src/        1m",
+					truncated: false,
+					totalLines: 2,
+					agentsMdFiles: [],
+				},
+				activeGoal: {
+					id: "g-x",
+					objective: "Anything",
+					status: "active",
+					tokensUsed: 0,
+					timeUsedSeconds: 0,
+					createdAt: 0,
+					updatedAt: 0,
+				},
+			});
+
+			expect(systemPrompt).toHaveLength(1);
+			// Custom prompt fully replaces the default template; no PROJECT-STATIC or PROJECT-LIVE wrappers.
+			expect(systemPrompt[0]).not.toContain("[PROJECT-STATIC]");
+			expect(systemPrompt[0]).not.toContain("[PROJECT-LIVE]");
+			expect(systemPrompt[0]).not.toContain("<workstation>");
+			expect(systemPrompt[0]).not.toContain("<workspace-tree>");
+			expect(systemPrompt[0]).not.toContain(`<goal id="g-x"`);
+			expect(systemPrompt[0]).not.toContain(`<goal status="none"/>`);
+			// No breakpoint hint: single-block prompt, provider's default last-block placement is correct.
+			expect(systemPromptCacheBreakpointIndex).toBeUndefined();
+		});
+	});
+
+	test("buildSystemPrompt renders active goal block with design answers into DYNAMIC_TAIL", async () => {
+		await withTempDir(async dir => {
+			const { systemPrompt } = await buildSystemPrompt({
+				cwd: dir,
+				contextFiles: [],
+				skills: [],
+				rules: [],
+				toolNames: ["read"],
+				activeGoal: {
+					id: "g-test",
+					objective: "Wire goal block",
+					status: "active",
+					tokenBudget: 5000,
+					tokensUsed: 0,
+					timeUsedSeconds: 0,
+					createdAt: 0,
+					updatedAt: 0,
+					designAnswers: {
+						scope: "files A, B",
+						acceptance: "tests pass",
+					},
+				},
+			});
+
+			// Active goal renders into DYNAMIC_TAIL (systemPrompt[1]), NOT into STABLE_CORE.
+			// This is essential: goal changes per turn (tokensUsed, status, answer edits) and
+			// putting it in STABLE_CORE would invalidate the cache prefix on every update.
+			expect(systemPrompt[0]).not.toContain(`<goal id="g-test"`);
+			expect(systemPrompt[1]).toContain(
+				`<goal id="g-test" status="active" budget="5000" remaining="5000" contract-revision="0">`,
+			);
+			expect(systemPrompt[1]).toContain(`<objective>Wire goal block</objective>`);
+			expect(systemPrompt[1]).toContain(`<design key="scope">files A, B</design>`);
+			expect(systemPrompt[1]).toContain(`<design key="acceptance">tests pass</design>`);
 		});
 	});
 	test("buildSystemPrompt renders workspace tree after directory context in project prompt", async () => {
@@ -422,9 +589,11 @@ describe("system Handlebars prompt templates", () => {
 			toolNames: ["read"],
 		});
 
-		const projectPrompt = systemPrompt[1] ?? "";
+		// In the v2 layout, <workstation> lives in STABLE_CORE (systemPrompt[0]) alongside the
+		// harness contract — it's session-invariant, so it belongs in the cached prefix.
+		const stableCore = systemPrompt[0] ?? "";
 
-		const workstation = /<workstation>\n(?<content>[\s\S]*?)\n<\/workstation>/u.exec(projectPrompt)?.groups?.content;
+		const workstation = /<workstation>\n(?<content>[\s\S]*?)\n<\/workstation>/u.exec(stableCore)?.groups?.content;
 		expect(workstation).toContain("OS:");
 		expect(workstation).not.toContain("CPU:");
 	});

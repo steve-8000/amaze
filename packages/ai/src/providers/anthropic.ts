@@ -1451,13 +1451,27 @@ type SystemBlockOptions = {
 	extraInstructions?: string[];
 	billingPayload?: unknown;
 	cacheControl?: AnthropicCacheControl;
+	/**
+	 * Index into the caller-provided `systemPrompt` array (NOT into the final blocks array) at which
+	 * `cacheControl` should be placed. The function resolves this against any prepended billing /
+	 * Claude Code instruction / extra-instruction blocks to find the right output index. When set
+	 * alongside `cacheControl`, this overrides the default "cache the last block" placement so that
+	 * subsequent blocks (e.g. a dynamic tail) stay uncached.
+	 */
+	cacheBreakpointIndex?: number;
 };
 
 export function buildAnthropicSystemBlocks(
 	systemPrompt: readonly string[] | undefined,
 	options: SystemBlockOptions = {},
 ): AnthropicSystemBlock[] | undefined {
-	const { includeClaudeCodeInstruction = false, extraInstructions = [], billingPayload, cacheControl } = options;
+	const {
+		includeClaudeCodeInstruction = false,
+		extraInstructions = [],
+		billingPayload,
+		cacheControl,
+		cacheBreakpointIndex,
+	} = options;
 	const blocks: AnthropicSystemBlock[] = [];
 	const sanitizedPrompts = normalizeSystemPrompts(systemPrompt);
 	const trimmedInstructions = extraInstructions.map(instruction => instruction.trim()).filter(Boolean);
@@ -1481,16 +1495,26 @@ export function buildAnthropicSystemBlocks(
 		blocks.push({ type: "text", text: instruction });
 	}
 
+	// Track where the caller's systemPrompt entries begin in `blocks` so the cacheBreakpointIndex
+	// (which is caller-array-relative) can be resolved to the actual emitted block.
+	const callerPromptOffset = blocks.length;
 	for (const systemPrompt of sanitizedPrompts) {
 		blocks.push({ type: "text", text: systemPrompt });
 	}
 
-	// Attach cache_control to the LAST emitted block only. Anthropic breakpoints are cumulative
-	// prefix cuts, so a single trailing breakpoint covers every preceding block; spreading
-	// cache_control across N blocks wastes slots against the 4-breakpoint cap.
-	const lastIndex = blocks.length - 1;
-	if (cacheControl && lastIndex >= 0) {
-		blocks[lastIndex] = { ...blocks[lastIndex], cache_control: cacheControl };
+	// Cache placement: when the caller specified a stable breakpoint index against THEIR array,
+	// place cache_control there and leave subsequent blocks (the dynamic tail) untouched.
+	// Otherwise fall back to caching the last emitted block — Anthropic breakpoints are cumulative
+	// prefix cuts, so a single trailing breakpoint covers every preceding block.
+	if (cacheControl) {
+		let targetIndex = blocks.length - 1;
+		if (cacheBreakpointIndex !== undefined && sanitizedPrompts.length > 0) {
+			const clamped = Math.max(0, Math.min(cacheBreakpointIndex, sanitizedPrompts.length - 1));
+			targetIndex = callerPromptOffset + clamped;
+		}
+		if (targetIndex >= 0) {
+			blocks[targetIndex] = { ...blocks[targetIndex], cache_control: cacheControl };
+		}
 	}
 
 	return blocks.length > 0 ? blocks : undefined;
@@ -1665,10 +1689,20 @@ function applyCacheControlToLastTextBlock(
 	applyCacheControlToLastBlock(blocks, cacheControl);
 }
 
-function applyPromptCaching(params: MessageCreateParamsStreaming, cacheControl?: AnthropicCacheControl): void {
+function countCacheBreakpointsInBlocks(blocks: unknown): number {
+	if (!Array.isArray(blocks)) return 0;
+	let count = 0;
+	for (const block of blocks as Array<CacheControlBlock>) {
+		if (block?.cache_control != null) count++;
+	}
+	return count;
+}
+
+export function applyPromptCaching(params: MessageCreateParamsStreaming, cacheControl?: AnthropicCacheControl): void {
 	if (!cacheControl) return;
 
-	// Skip if cache_control breakpoints were already placed externally on messages.
+	// Messages kill switch: if any message content block was externally tagged with cache_control,
+	// the caller has taken full responsibility for caching — do nothing.
 	for (const message of params.messages) {
 		if (Array.isArray(message.content)) {
 			if ((message.content as Array<ContentBlockParam & CacheControlBlock>).some(b => b.cache_control != null))
@@ -1677,16 +1711,24 @@ function applyPromptCaching(params: MessageCreateParamsStreaming, cacheControl?:
 	}
 
 	const MAX_CACHE_BREAKPOINTS = 4;
-	let cacheBreakpointsUsed = 0;
 
-	if (params.tools && params.tools.length > 0) {
+	// Per-section opt-out: when tools or system blocks already carry externally-set cache_control
+	// (e.g. system-prompt.ts placing a breakpoint on STABLE_CORE while leaving DYNAMIC_TAIL uncached),
+	// skip auto-placement for THAT section and count its pre-set breakpoints against the 4-cap.
+	const toolsPresetCount = countCacheBreakpointsInBlocks(params.tools);
+	const systemPresetCount = countCacheBreakpointsInBlocks(params.system);
+	let cacheBreakpointsUsed = toolsPresetCount + systemPresetCount;
+
+	if (cacheBreakpointsUsed >= MAX_CACHE_BREAKPOINTS) return;
+
+	if (params.tools && params.tools.length > 0 && toolsPresetCount === 0) {
 		applyCacheControlToLastBlock(params.tools as Array<CacheControlBlock>, cacheControl);
 		cacheBreakpointsUsed++;
 	}
 
 	if (cacheBreakpointsUsed >= MAX_CACHE_BREAKPOINTS) return;
 
-	if (params.system && Array.isArray(params.system) && params.system.length > 0) {
+	if (params.system && Array.isArray(params.system) && params.system.length > 0 && systemPresetCount === 0) {
 		applyCacheControlToLastBlock(params.system, cacheControl);
 		cacheBreakpointsUsed++;
 	}
@@ -1994,6 +2036,11 @@ function buildParams(
 	const systemBlocks = buildAnthropicSystemBlocks(context.systemPrompt, {
 		includeClaudeCodeInstruction: shouldInjectClaudeCodeInstruction,
 		billingPayload,
+		// Pre-place cache_control on the stable block so applyPromptCaching does not auto-add one
+		// on the volatile dynamic tail. buildAnthropicSystemBlocks knows the prepended block
+		// offset (billing/instruction/extras), so it resolves the hint against the final array.
+		cacheBreakpointIndex: context.systemPromptCacheBreakpointIndex,
+		cacheControl: context.systemPromptCacheBreakpointIndex !== undefined ? cacheControl : undefined,
 	});
 	if (systemBlocks) {
 		params.system = systemBlocks;

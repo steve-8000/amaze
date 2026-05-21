@@ -319,6 +319,13 @@ export type AgentMessage = Message | CustomAgentMessages[keyof CustomAgentMessag
  */
 export interface AgentState {
 	systemPrompt: string[];
+	/**
+	 * Cache breakpoint hint for providers that support multi-block prompt caching.
+	 * Index into `systemPrompt` of the last block that is stable enough to be cached;
+	 * subsequent blocks are treated as volatile per-turn content. Undefined means use
+	 * provider-default placement (typically the last block).
+	 */
+	systemPromptCacheBreakpointIndex?: number;
 	model: Model;
 	thinkingLevel?: Effort;
 	tools: AgentTool<any>[];
@@ -418,6 +425,8 @@ export interface AgentTool<TParameters extends TSchema = TSchema, TDetails = any
 // AgentContext is like Context but uses AgentTool
 export interface AgentContext {
 	systemPrompt: string[];
+	/** See `AgentState.systemPromptCacheBreakpointIndex`. */
+	systemPromptCacheBreakpointIndex?: number;
 	messages: AgentMessage[];
 	tools?: AgentTool<any>[];
 }

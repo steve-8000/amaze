@@ -81,6 +81,8 @@ export type StatusLineSegmentId =
 	| "hostname"
 	| "cache_read"
 	| "cache_write"
+	| "cache_hit_ratio"
+	| "goal_budget_warning"
 	| "session_name";
 
 /** Submenu choice metadata. */

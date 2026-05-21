@@ -14,6 +14,7 @@ import { createLspWritethrough, type FileDiagnosticsResult, type WritethroughCal
 import { getLanguageFromPath, highlightCode, type Theme } from "../modes/theme/theme";
 import writeDescription from "../prompts/tools/write.md" with { type: "text" };
 import type { ToolSession } from "../sdk";
+import { enforceContractScope, enforceGoalScope } from "../subagent/contract";
 import { Ellipsis, Hasher, type RenderCache, renderStatusLine, truncateToWidth } from "../tui";
 import { resolveFileDisplayMode } from "../utils/file-display-mode";
 import { parseArchivePathCandidates } from "./archive-reader";
@@ -658,6 +659,23 @@ export class WriteTool implements AgentTool<typeof writeSchema, WriteToolDetails
 		context?: AgentToolContext,
 	): Promise<AgentToolResult<WriteToolDetails>> {
 		return untilAborted(signal, async () => {
+			// SubagentContract scope guard: structural enforcement of file-mutation boundaries.
+			// Runs before any other path resolution so a contract violation surfaces immediately
+			// with a clear reason, regardless of where the path would have ended up. Prompt-level
+			// rules about "stay in scope" are belt-and-suspenders; this is the actual gate.
+			const contract = this.session.getSubagentContract?.();
+			enforceContractScope(contract, path, msg => {
+				throw new ToolError(msg);
+			});
+			// Goal-level scope guard (fallback when no SubagentContract is active). This catches
+			// the parent's own drift — without it a model running directly under a goal could
+			// quietly edit unrelated files. The two guards layer: contract is the inner, more
+			// specific gate; goal scope is the outer fence.
+			if (!contract) {
+				enforceGoalScope(this.session.getGoalModeState?.()?.goal?.scopeGuard, path, msg => {
+					throw new ToolError(msg);
+				});
+			}
 			// Strip hashline display prefixes (LINE+ID|) if the model copied them from read output
 			const { text: cleanContent, stripped } = stripWriteContent(this.session, content);
 			const internalRouter = InternalUrlRouter.instance();

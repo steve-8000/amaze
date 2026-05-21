@@ -20,7 +20,9 @@ import applyPatchDescription from "../prompts/tools/apply-patch.md" with { type:
 import hashlineDescription from "../prompts/tools/hashline.md" with { type: "text" };
 import patchDescription from "../prompts/tools/patch.md" with { type: "text" };
 import replaceDescription from "../prompts/tools/replace.md" with { type: "text" };
+import { enforceContractScope, enforceGoalScope } from "../subagent/contract";
 import type { ToolSession } from "../tools";
+import { ToolError } from "../tools/tool-errors";
 import { VimTool, vimSchema } from "../tools/vim";
 import { type EditMode, normalizeEditMode, resolveEditMode } from "../utils/edit-mode";
 import type { VimToolDetails } from "../vim/types";
@@ -345,6 +347,22 @@ export class EditTool implements AgentTool<TInput> {
 		onUpdate?: AgentToolUpdateCallback<EditToolResultDetails, TInput>,
 		context?: AgentToolContext,
 	): Promise<AgentToolResult<EditToolResultDetails, TInput>> {
+		// SubagentContract scope guard: runs before mode dispatch so every edit mode (patch,
+		// apply-patch, hashline, replace, vim) inherits the boundary check. `params.path`
+		// is the common field across all edit modes per the union type.
+		const pathField = (params as { path?: string }).path;
+		if (typeof pathField === "string" && pathField.length > 0) {
+			const contract = this.session.getSubagentContract?.();
+			enforceContractScope(contract, pathField, (msg: string) => {
+				throw new ToolError(msg);
+			});
+			// Goal-level fallback when no contract is active — parent drift detection.
+			if (!contract) {
+				enforceGoalScope(this.session.getGoalModeState?.()?.goal?.scopeGuard, pathField, (msg: string) => {
+					throw new ToolError(msg);
+				});
+			}
+		}
 		const modeDefinition = this.#getModeDefinition();
 		return modeDefinition.execute(this, params, signal, getLspBatchRequest(context?.toolCall), onUpdate);
 	}

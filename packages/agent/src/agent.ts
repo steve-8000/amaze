@@ -604,8 +604,9 @@ export class Agent {
 	}
 
 	// State mutators
-	setSystemPrompt(v: string[]) {
+	setSystemPrompt(v: string[], cacheBreakpointIndex?: number) {
 		this.#state.systemPrompt = v;
+		this.#state.systemPromptCacheBreakpointIndex = cacheBreakpointIndex;
 	}
 
 	setModel(m: Model) {
@@ -944,6 +945,7 @@ export class Agent {
 					await Bun.sleep(0);
 				}
 				context.systemPrompt = this.#state.systemPrompt;
+				context.systemPromptCacheBreakpointIndex = this.#state.systemPromptCacheBreakpointIndex;
 				context.tools = this.#state.tools;
 			},
 			cursorExecHandlers: this.#cursorExecHandlers,

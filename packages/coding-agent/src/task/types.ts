@@ -59,11 +59,73 @@ export interface SubagentLifecyclePayload {
 
 const assignmentDescription = "per-task instructions; self-contained";
 
+// Zod mirror of `SubagentContract` (defined structurally in `../subagent/contract.ts`).
+// Duplicated here rather than imported to avoid a circular dependency between task/ and
+// subagent/; the structural shape is what matters and is independently asserted by the
+// subagent contract tests.
+const subagentContractCheckSchema = z.discriminatedUnion("type", [
+	z.object({ type: z.literal("scope-include"), globs: z.array(z.string()) }),
+	z.object({ type: z.literal("scope-exclude"), globs: z.array(z.string()) }),
+	z.object({ type: z.literal("file-exists"), path: z.string() }),
+	z.object({
+		type: z.literal("command-exit"),
+		command: z.string(),
+		expected: z.number().int(),
+		cwd: z.string().optional(),
+		timeoutMs: z.number().int().positive().optional(),
+	}),
+	z.object({
+		type: z.literal("command-output"),
+		command: z.string(),
+		expected: z.number().int().optional(),
+		cwd: z.string().optional(),
+		timeoutMs: z.number().int().positive().optional(),
+		stdoutPattern: z.string().optional(),
+		stderrPattern: z.string().optional(),
+		mustNotMatch: z.array(z.string()).optional(),
+	}),
+	z.object({
+		type: z.literal("lsp-clean"),
+		file: z.string().optional(),
+		maxWarnings: z.number().int().nonnegative().optional(),
+	}),
+	z.object({ type: z.literal("llm-judged"), question: z.string(), candidate: z.string() }),
+	z.object({ type: z.literal("manual"), description: z.string() }),
+]);
+
+const subagentAcceptanceCriterionSchema = z.object({
+	id: z.string(),
+	description: z.string(),
+	check: subagentContractCheckSchema,
+});
+
+export const subagentContractSchema = z.object({
+	role: z.string().describe("verb-noun role label, e.g. refactor-applier"),
+	parentContractRevision: z.number().int().nonnegative().optional(),
+	scope: z.object({
+		include: z.array(z.string()),
+		exclude: z.array(z.string()),
+	}),
+	successCriteria: z.array(subagentAcceptanceCriterionSchema),
+	escalation: z.object({
+		onUncertainty: z.enum(["ask-parent", "block"]),
+		budgetCap: z.number().int().positive(),
+	}),
+	inputArtifact: z.string().optional(),
+	outputContract: z.object({ mustProduce: z.array(z.string()) }).optional(),
+});
+
 const createTaskItemSchema = (_contextEnabled: boolean) =>
 	z.object({
 		id: z.string().max(48).describe("camelcase identifier"),
 		description: z.string().describe("ui label, not seen by subagent"),
 		assignment: z.string().describe(assignmentDescription),
+		// Optional structured SubagentContract. When set, the spawned subagent:
+		//   - receives the contract block in its STABLE_CORE system prompt
+		//   - has its edit/write tools structurally blocked from out-of-scope paths
+		//   - is verified by the parent against contract.successCriteria on completion
+		// Omit for free-form task delegation (legacy behavior preserved).
+		contract: subagentContractSchema.optional().describe("structured contract — scope, criteria, escalation"),
 	});
 
 /** Single task item for parallel execution (default shape with context enabled). */

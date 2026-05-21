@@ -16,6 +16,7 @@ import type { ArtifactManager } from "../session/artifacts";
 import type { ClientBridge } from "../session/client-bridge";
 import type { CustomMessage } from "../session/messages";
 import type { ToolChoiceQueue } from "../session/tool-choice-queue";
+import type { SubagentContract } from "../subagent/contract";
 import { TaskTool } from "../task";
 import type { AgentOutputManager } from "../task/output-manager";
 import type { DiscoverableTool, DiscoverableToolSearchIndex } from "../tool-discovery/tool-index";
@@ -194,6 +195,19 @@ export interface ToolSession {
 	getGoalModeState?: () => GoalModeState | undefined;
 	/** Goal runtime for the active agent session. */
 	getGoalRuntime?: () => GoalRuntime | undefined;
+	/**
+	 * SubagentContract governing this session, if any. Set by the task executor when this
+	 * session is spawned as a subagent under a structured contract. Tools (edit, write)
+	 * check scope against this before performing file mutations — out-of-scope paths fail
+	 * at the tool layer regardless of what the model's prompt says.
+	 */
+	getSubagentContract?: () => SubagentContract | undefined;
+	/**
+	 * Accessor for the session's V3 coordination telemetry aggregator. Tools (ask, goal,
+	 * task) call its `record*` methods directly. Optional — tools should no-op gracefully
+	 * when undefined to preserve test/standalone tool usage.
+	 */
+	getV3Telemetry?: () => import("../goals/telemetry").V3Telemetry | undefined;
 	/** Bridge to the connected client (e.g. ACP editor host). Tools should route fs/terminal/permission requests through this when available. */
 	getClientBridge?: () => ClientBridge | undefined;
 	/** Get compact conversation context for subagents (excludes tool results, system prompts) */

@@ -32,6 +32,7 @@ import type { AuthStorage } from "../session/auth-storage";
 import { recordOptimizationMetric } from "../session/optimization-metrics";
 import { SessionManager } from "../session/session-manager";
 import { truncateTail } from "../session/streaming-output";
+import type { SubagentContract } from "../subagent/contract";
 import type { ContextFileEntry } from "../tools";
 import { jtdToJsonSchema, normalizeSchema } from "../tools/jtd-to-json-schema";
 import { ToolAbortError } from "../tools/tool-errors";
@@ -191,6 +192,16 @@ export interface ExecutorOptions {
 	 * transition explicitly.
 	 */
 	parentTelemetry?: AgentTelemetryConfig;
+	/**
+	 * Structured contract governing this subagent. When present, the spawned session
+	 * receives the contract block in its STABLE_CORE prompt (via buildSystemPrompt's
+	 * `subagentContract` option), its ToolSession reports it via `getSubagentContract`
+	 * for tool-layer scope guards, and the parent verifies `contract.successCriteria`
+	 * against the subagent's reported changedFiles at completion.
+	 *
+	 * Omitting it preserves the legacy free-form delegation behavior.
+	 */
+	contract?: SubagentContract;
 }
 
 function parseStringifiedJson(value: unknown): unknown {
@@ -1153,6 +1164,7 @@ export async function runSubprocess(options: ExecutorOptions): Promise<SingleRes
 						customTools: mcpProxyTools.length > 0 ? mcpProxyTools : undefined,
 						localProtocolOptions: options.localProtocolOptions,
 						telemetry: subagentTelemetry,
+						subagentContract: options.contract,
 					}),
 				);
 
