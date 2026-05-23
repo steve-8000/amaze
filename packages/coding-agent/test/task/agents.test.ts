@@ -22,7 +22,9 @@ describe("bundled agents", () => {
 
 		expect(xResearcher.tools?.filter(tool => tool !== "yield")).toEqual(["x_search", "x_search_deep"]);
 		expect(xResearcher.description).toContain("SocialSignalCards");
+		expect(xResearcher.description).toContain("verbatimAvailable");
 		expect(xResearcher.systemPrompt).toContain("canonical dedicated xAI X/Twitter research agent");
+		expect(xResearcher.systemPrompt).toContain("verbatimAvailable: false");
 	});
 
 	it("registers source_scout with web source tools", () => {
