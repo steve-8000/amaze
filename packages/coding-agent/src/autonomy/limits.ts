@@ -1,4 +1,5 @@
 import type { LearningProposal } from "../learning";
+import { AMAZE_SETTINGS_PATH, DEFAULT_AUTONOMY_FORBIDDEN_SCOPES } from "./guardrails";
 import type { Objective } from "./types";
 
 export interface ProposalHistory {
@@ -16,12 +17,7 @@ export interface ProposalLimitDecision {
 	reason?: string;
 }
 
-export const DEFAULT_FORBIDDEN_SCOPES = [
-	".git/**",
-	".amaze/settings.json",
-	"AGENTS.md",
-	"packages/coding-agent/src/learning/**",
-];
+export { DEFAULT_AUTONOMY_FORBIDDEN_SCOPES as DEFAULT_FORBIDDEN_SCOPES } from "./guardrails";
 
 export function shouldEmitProposal(
 	objective: Objective,
@@ -46,7 +42,7 @@ export function shouldEmitProposal(
 		};
 	}
 
-	const scopes = opts.forbiddenScopes ?? objective.guardrails.forbiddenScopes ?? DEFAULT_FORBIDDEN_SCOPES;
+	const scopes = opts.forbiddenScopes ?? objective.guardrails.forbiddenScopes ?? DEFAULT_AUTONOMY_FORBIDDEN_SCOPES;
 	const forbiddenPath = candidateTargetPaths(candidate).find(targetPath =>
 		scopes.some(pattern => globMatches(pattern, targetPath)),
 	);
@@ -58,8 +54,12 @@ export function shouldEmitProposal(
 }
 
 function candidateTargetPaths(candidate: LearningProposal): string[] {
-	if (candidate.type !== "settings") return [];
-	return Object.keys(candidate.patch);
+	if (candidate.type === "settings") {
+		return [AMAZE_SETTINGS_PATH, ...Object.keys(candidate.patch).map(key => `settings:${key}`)];
+	}
+	if (candidate.type === "rule") return [".amaze/rules/**"];
+	if (candidate.type === "skill") return [`.amaze/skills/${candidate.name}.md`];
+	return [];
 }
 
 function globMatches(pattern: string, value: string): boolean {

@@ -99,6 +99,19 @@ export async function runProposalsApplyCommand(args: ProposalApplyArgs): Promise
 	}
 }
 
+export async function runProposalsRollbackCommand(args: ProposalIdArgs): Promise<void> {
+	const { rollbackProposal } = await import("../learning/apply");
+	const store = new ProposalStore(args.db);
+	const db = new Database(store.dbPath, { create: true, strict: true });
+	try {
+		await rollbackProposal({ store, db, proposalId: args.id });
+		process.stdout.write(`rolled-back ${args.id}\n`);
+	} finally {
+		db.close();
+		store.close();
+	}
+}
+
 export async function runProposalsDiffCommand(args: ProposalIdArgs): Promise<void> {
 	withStore(args.db, store => {
 		const proposal = requireProposal(store, args.id);

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { DEFAULT_AUTONOMY_FORBIDDEN_SCOPES } from "../../src/autonomy/guardrails";
 import { shouldEmitProposal } from "../../src/autonomy/limits";
 import type { Objective } from "../../src/autonomy/types";
 import type { LearningProposal } from "../../src/learning";
@@ -43,7 +44,89 @@ describe("shouldEmitProposal", () => {
 
 	it("denies when a settings patch targets a forbidden path", () => {
 		const forbidden = { ...candidate, patch: { "packages/coding-agent/src/learning/store.ts": true } };
-		expect(shouldEmitProposal(objective, forbidden, { todayCount: 0, usedTokens: 0 }).allow).toBe(false);
+		expect(
+			shouldEmitProposal(
+				objective,
+				forbidden,
+				{ todayCount: 0, usedTokens: 0 },
+				{
+					forbiddenScopes: ["settings:packages/coding-agent/src/learning/store.ts"],
+				},
+			).allow,
+		).toBe(false);
+	});
+
+	it("denies a settings proposal under default guardrails because .amaze/settings.json is forbidden", () => {
+		const guardedObjective: Objective = {
+			...objective,
+			guardrails: {
+				...objective.guardrails,
+				forbiddenScopes: [...DEFAULT_AUTONOMY_FORBIDDEN_SCOPES],
+			},
+		};
+		const settingsProposal: LearningProposal = {
+			...candidate,
+			patch: { "goal.uncertainPolicy": "block-manual" },
+			rollback: { "goal.uncertainPolicy": "ask" },
+		};
+
+		const result = shouldEmitProposal(guardedObjective, settingsProposal, { todayCount: 0, usedTokens: 0 });
+
+		expect(result.allow).toBe(false);
+		expect(result.reason).toContain(".amaze/settings.json");
+	});
+
+	it("denies a rule proposal when .amaze/rules/** is forbidden", () => {
+		const guardedObjective: Objective = {
+			...objective,
+			guardrails: {
+				...objective.guardrails,
+				forbiddenScopes: [".amaze/rules/**"],
+			},
+		};
+		const ruleProposal: LearningProposal = {
+			id: "p-rule",
+			createdAt: 1,
+			status: "pending",
+			gate: "human-required",
+			evidence: { sessionIds: [], eventRefs: [], ruleFindings: [], sampleN: 0 },
+			provenance: { source: "reflection" },
+			type: "rule",
+			ruleMarkdown: "# x",
+			replaySessions: [],
+			expectedImpact: "x",
+		};
+
+		const result = shouldEmitProposal(guardedObjective, ruleProposal, { todayCount: 0, usedTokens: 0 });
+
+		expect(result.allow).toBe(false);
+		expect(result.reason).toContain(".amaze/rules/**");
+	});
+
+	it("denies a skill proposal whose target file path matches the forbidden scope", () => {
+		const guardedObjective: Objective = {
+			...objective,
+			guardrails: {
+				...objective.guardrails,
+				forbiddenScopes: [".amaze/skills/foo.md"],
+			},
+		};
+		const skillProposal: LearningProposal = {
+			id: "p-skill",
+			createdAt: 1,
+			status: "pending",
+			gate: "human-required",
+			evidence: { sessionIds: [], eventRefs: [], ruleFindings: [], sampleN: 0 },
+			provenance: { source: "reflection" },
+			type: "skill",
+			name: "foo",
+			sourceMemoryIds: [],
+			bodyMarkdown: "x",
+		};
+
+		const result = shouldEmitProposal(guardedObjective, skillProposal, { todayCount: 0, usedTokens: 0 });
+
+		expect(result.allow).toBe(false);
 	});
 
 	it("allows candidates within limits", () => {

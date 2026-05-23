@@ -47,7 +47,6 @@ export async function runObjectiveCreateCommand(args: ObjectiveCreateArgs): Prom
 				{ metric: args.metric, target: args.target, direction: args.direction, deadline: args.deadline },
 			],
 			budget: {},
-			guardrails: { requireHumanForApply: true, maxAutoSubgoalsPerDay: 1, forbiddenScopes: [] },
 		});
 		process.stdout.write(`${formatObjective(objective)}\n`);
 	});
@@ -96,7 +95,7 @@ export async function runObjectiveCancelCommand(args: ObjectiveIdArgs): Promise<
 export async function runObjectiveSetEnabledCommand(enabled: boolean): Promise<void> {
 	try {
 		const settings = await Settings.init();
-		settings.set("autonomy.enabled" as never, enabled as never);
+		settings.set("autonomy.enabled", enabled);
 		await settings.flush();
 		process.stdout.write(`autonomy.enabled=${enabled}\n`);
 	} catch (error) {

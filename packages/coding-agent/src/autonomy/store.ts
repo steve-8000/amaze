@@ -3,17 +3,12 @@ import { randomBytes } from "node:crypto";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { normalizeObjectiveGuardrails } from "./guardrails";
 import type { NewObjective, Objective, ObjectiveEvent, ObjectiveStatus } from "./types";
 
 const DEFAULT_DB_PATH = path.join(os.homedir(), ".amaze", "autonomy", "objectives.db");
 
 const VALID_STATUSES = new Set<ObjectiveStatus>(["active", "paused", "completed", "cancelled"]);
-
-const DEFAULT_GUARDRAILS = {
-	requireHumanForApply: true,
-	maxAutoSubgoalsPerDay: 1,
-	forbiddenScopes: [] as string[],
-};
 
 type ObjectiveRow = {
 	id: string;
@@ -57,7 +52,7 @@ export class ObjectiveStore {
 		const objective: Objective = {
 			...input,
 			id: input.id ?? generateObjectiveId(now),
-			guardrails: { ...DEFAULT_GUARDRAILS, ...input.guardrails },
+			guardrails: normalizeObjectiveGuardrails(input.guardrails),
 			status: input.status ?? "active",
 		};
 		assertObjectiveStatus(objective.status);

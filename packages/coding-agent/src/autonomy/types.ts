@@ -35,4 +35,8 @@ export interface ObjectiveEvent {
 	payload: Record<string, unknown>;
 }
 
-export type NewObjective = Omit<Objective, "id" | "status"> & { id?: string; status?: ObjectiveStatus };
+export type NewObjective = Omit<Objective, "id" | "status" | "guardrails"> & {
+	id?: string;
+	status?: ObjectiveStatus;
+	guardrails?: Partial<ObjectiveGuardrails>;
+};

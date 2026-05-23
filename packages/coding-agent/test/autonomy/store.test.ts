@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { type NewObjective, ObjectiveStore } from "../../src/autonomy";
+import { DEFAULT_AUTONOMY_FORBIDDEN_SCOPES } from "../../src/autonomy/guardrails";
 
 const stores: ObjectiveStore[] = [];
 
@@ -34,7 +35,16 @@ describe("ObjectiveStore", () => {
 		const store = createStore();
 		const created = store.create(objective({ id: "objective-1" }));
 
-		expect(created).toEqual({ ...objective({ id: "objective-1" }), id: "objective-1", status: "active" });
+		expect(created).toEqual({
+			...objective({ id: "objective-1" }),
+			id: "objective-1",
+			guardrails: {
+				requireHumanForApply: true,
+				maxAutoSubgoalsPerDay: 1,
+				forbiddenScopes: [...DEFAULT_AUTONOMY_FORBIDDEN_SCOPES],
+			},
+			status: "active",
+		});
 		expect(store.get("objective-1")).toEqual(created);
 		expect(store.list()).toEqual([created]);
 
@@ -53,5 +63,24 @@ describe("ObjectiveStore", () => {
 		expect(event.kind).toBe("note");
 		expect(event.payload).toEqual({ ok: true });
 		expect(store.listEvents(created.id).map(item => item.kind)).toEqual(["created", "note"]);
+	});
+
+	test("applies default forbidden scopes when guardrails are omitted", () => {
+		const store = createStore();
+		const created = store.create(objective({ guardrails: {} }));
+
+		expect(created.guardrails.forbiddenScopes).toEqual(
+			expect.arrayContaining([...DEFAULT_AUTONOMY_FORBIDDEN_SCOPES]),
+		);
+	});
+
+	test("merges custom forbidden scopes with defaults", () => {
+		const store = createStore();
+		const created = store.create(objective({ guardrails: { forbiddenScopes: ["custom/**"] } }));
+
+		expect(created.guardrails.forbiddenScopes).toEqual(
+			expect.arrayContaining([...DEFAULT_AUTONOMY_FORBIDDEN_SCOPES, "custom/**"]),
+		);
+		expect(new Set(created.guardrails.forbiddenScopes).size).toBe(created.guardrails.forbiddenScopes.length);
 	});
 });
