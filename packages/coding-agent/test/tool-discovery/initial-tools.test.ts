@@ -13,7 +13,7 @@ import {
 	SshTool,
 } from "../../src/tools/index";
 
-function createAllToolsSettings(memoryBackend: "hindsight" | "rockey"): Settings {
+function createAllToolsSettings(memoryBackend: "hindsight" | "rockey" | "nexus"): Settings {
 	return Settings.isolated({
 		"astGrep.enabled": true,
 		"astEdit.enabled": true,
@@ -50,7 +50,7 @@ const toolSession: ToolSession = {
 
 async function getToolMetadata(): Promise<Map<string, { loadMode?: string; summary?: string }>> {
 	const metadata = new Map<string, { loadMode?: string; summary?: string }>();
-	for (const settings of [createAllToolsSettings("hindsight"), createAllToolsSettings("rockey")]) {
+	for (const settings of [createAllToolsSettings("hindsight"), createAllToolsSettings("rockey"), createAllToolsSettings("nexus")]) {
 		const tools = await createTools({ ...toolSession, settings }, Object.keys(BUILTIN_TOOLS));
 		for (const tool of tools) {
 			metadata.set(tool.name, { loadMode: tool.loadMode, summary: tool.summary });
