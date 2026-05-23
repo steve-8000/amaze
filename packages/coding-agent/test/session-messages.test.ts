@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import type { AgentMessage } from "@amaze/agent-core";
 import type { Message } from "@amaze/ai";
 import { inferCopilotInitiator } from "@amaze/ai/providers/github-copilot-headers";
-import { convertToLlm } from "@amaze/coding-agent/session/messages";
+import { convertToLlm, MEMORY_ACTIVITY_MESSAGE_TYPE } from "@amaze/coding-agent/session/messages";
 
 function expectAttribution(message: Message | undefined, expected: "user" | "agent" | undefined): void {
 	expect(message).toBeDefined();
@@ -91,5 +91,20 @@ describe("convertToLlm custom message mapping", () => {
 		expect(converted[0]?.role).toBe("user");
 		expectAttribution(converted[0], "user");
 		expect(inferCopilotInitiator(converted)).toBe("user");
+	});
+
+	it("keeps UI-only memory activity messages out of LLM context", () => {
+		const messages: AgentMessage[] = [
+			{
+				role: "custom",
+				customType: MEMORY_ACTIVITY_MESSAGE_TYPE,
+				content: "Indexed 12 files",
+				display: true,
+				attribution: "agent",
+				timestamp: Date.now(),
+			},
+		];
+
+		expect(convertToLlm(messages)).toEqual([]);
 	});
 });

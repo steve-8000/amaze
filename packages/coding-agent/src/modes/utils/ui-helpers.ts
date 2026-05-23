@@ -22,6 +22,7 @@ import type { CompactionQueuedMessage, InteractiveModeContext } from "../../mode
 import {
 	type CustomMessage,
 	isSilentAbort,
+	MEMORY_ACTIVITY_MESSAGE_TYPE,
 	SKILL_PROMPT_MESSAGE_TYPE,
 	type SkillPromptDetails,
 } from "../../session/messages";
@@ -34,6 +35,36 @@ type QueuedMessages = {
 	steering: string[];
 	followUp: string[];
 };
+
+function renderMemoryActivityMessage(
+	message: CustomMessage<{ title?: string; items?: Array<{ status?: "info" | "success" | "warning"; text: string }> }>,
+): Component[] {
+	const title = message.details?.title?.trim() || "Memory";
+	const items = Array.isArray(message.details?.items) ? message.details?.items ?? [] : [];
+	const header = new Text(theme.fg("accent", `[${title}]`), 1, 0);
+	const components: Component[] = [header];
+	for (const item of items) {
+		const icon =
+			item.status === "success"
+				? theme.fg("success", "✓")
+				: item.status === "warning"
+					? theme.fg("warning", "!")
+					: theme.fg("dim", "•");
+		components.push(new Text(`  ${icon} ${theme.fg("muted", item.text)}`, 0, 0));
+	}
+	if (items.length === 0) {
+		const content =
+			typeof message.content === "string"
+				? message.content.trim()
+				: message.content
+						.filter((block): block is TextBlock => block.type === "text")
+						.map(block => block.text)
+						.join("\n")
+						.trim();
+		if (content) components.push(new Text(`  ${theme.fg("muted", content)}`, 0, 0));
+	}
+	return components;
+}
 
 export class UiHelpers {
 	constructor(private ctx: InteractiveModeContext) {}
@@ -86,7 +117,7 @@ export class UiHelpers {
 				if (message.output) {
 					component.appendOutput(message.output);
 				}
-				component.setComplete(message.exitCode, message.cancelled, {
+				component.setComplete(message.exitCode ?? undefined, message.cancelled ?? false, {
 					truncation: message.meta?.truncation,
 				});
 				this.ctx.chatContainer.addChild(component);
@@ -97,7 +128,7 @@ export class UiHelpers {
 				if (message.output) {
 					component.appendOutput(message.output);
 				}
-				component.setComplete(message.exitCode, message.cancelled, {
+				component.setComplete(message.exitCode ?? undefined, message.cancelled ?? false, {
 					truncation: message.meta?.truncation,
 				});
 				this.ctx.chatContainer.addChild(component);
@@ -128,6 +159,13 @@ export class UiHelpers {
 							.filter(Boolean)
 							.join(" ");
 						this.ctx.chatContainer.addChild(new Text(line, 1, 0));
+						break;
+					}
+					if (message.customType === MEMORY_ACTIVITY_MESSAGE_TYPE) {
+						const components = renderMemoryActivityMessage(
+							message as CustomMessage<{ title?: string; items?: Array<{ status?: "info" | "success" | "warning"; text: string }> }>,
+						);
+						for (const component of components) this.ctx.chatContainer.addChild(component);
 						break;
 					}
 					if (message.customType === SKILL_PROMPT_MESSAGE_TYPE) {

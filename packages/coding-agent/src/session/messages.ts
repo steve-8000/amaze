@@ -31,6 +31,8 @@ import type { OutputMeta } from "../tools/output-meta";
 import { formatOutputNotice } from "../tools/output-meta";
 
 export const SKILL_PROMPT_MESSAGE_TYPE = "skill-prompt";
+export const MEMORY_ACTIVITY_MESSAGE_TYPE = "memory-activity";
+const CONTEXT_FREE_CUSTOM_MESSAGE_TYPES = new Set<string>([MEMORY_ACTIVITY_MESSAGE_TYPE]);
 
 export interface SkillPromptDetails {
 	name: string;
@@ -76,6 +78,10 @@ export function readPendingDisplayTag(details: unknown): string | undefined {
 	return typeof candidate === "string" ? candidate : undefined;
 }
 
+export function isContextFreeCustomMessageType(customType: string): boolean {
+	return CONTEXT_FREE_CUSTOM_MESSAGE_TYPES.has(customType);
+}
+
 /** Explicit allowlist of `details` field names that are AgentSession-internal
  *  transient bookkeeping and MUST be removed before SessionManager persists
  *  the CustomMessageEntry to disk. Scoped intentionally narrow: only fields
@@ -109,47 +115,36 @@ function getPrunedToolResultContent(message: ToolResultMessage): (TextContent | 
 	if (message.prunedAt === undefined) {
 		return message.content;
 	}
-	const textBlocks = message.content.filter((content): content is TextContent => content.type === "text");
-	const text = textBlocks.map(block => block.text).join("") || "[Output truncated]";
-	return [{ type: "text", text }];
+	return message.content.map(item => {
+		if (item.type !== "text") return item;
+		return { ...item, text: item.text.slice(0, message.prunedAt!) };
+	});
 }
 
-/**
- * Message type for bash executions via the ! command.
- */
 export interface BashExecutionMessage {
 	role: "bashExecution";
 	command: string;
-	output: string;
-	exitCode: number | undefined;
-	cancelled: boolean;
-	truncated: boolean;
+	output?: string;
+	exitCode?: number | null;
+	cancelled?: boolean;
+	truncated?: boolean;
+	excludeFromContext?: boolean;
 	meta?: OutputMeta;
 	timestamp: number;
-	/** If true, this message is excluded from LLM context (!! prefix) */
-	excludeFromContext?: boolean;
 }
 
-/**
- * Message type for user-initiated Python executions via the $ command.
- * Shares the same kernel session as eval's Python backend.
- */
 export interface PythonExecutionMessage {
 	role: "pythonExecution";
 	code: string;
-	output: string;
-	exitCode: number | undefined;
-	cancelled: boolean;
-	truncated: boolean;
+	output?: string;
+	exitCode?: number | null;
+	cancelled?: boolean;
+	truncated?: boolean;
+	excludeFromContext?: boolean;
 	meta?: OutputMeta;
 	timestamp: number;
-	/** If true, this message is excluded from LLM context ($$ prefix) */
-	excludeFromContext?: boolean;
 }
 
-/**
- * Message type for extension-injected messages via sendMessage().
- */
 export interface CustomMessage<T = unknown> {
 	role: "custom";
 	customType: string;
@@ -292,12 +287,10 @@ export function createCustomMessage(
 }
 
 /**
- * Transform AgentMessages (including custom types) to LLM-compatible Messages.
+ * Convert CustomMessages to user messages for the LLM context.
  *
- * This is used by:
- * - Agent's transormToLlm option (for prompt calls and queued messages)
- * - Compaction's generateSummary (for summarization)
- * - Custom extensions and tools
+ * Design choice: custom/hook messages are injected as `user` role because they
+ * represent external context or control messages, not assistant completions.
  */
 export function convertToLlm(messages: AgentMessage[]): Message[] {
 	return messages
@@ -325,6 +318,7 @@ export function convertToLlm(messages: AgentMessage[]): Message[] {
 					};
 				case "custom":
 				case "hookMessage": {
+					if (isContextFreeCustomMessageType(m.customType)) return undefined;
 					const content = typeof m.content === "string" ? [{ type: "text" as const, text: m.content }] : m.content;
 					const role = "user";
 					const attribution = m.attribution;
@@ -340,11 +334,11 @@ export function convertToLlm(messages: AgentMessage[]): Message[] {
 						role: "user",
 						content: [
 							{
-								type: "text" as const,
+								type: "text",
 								text: renderBranchSummaryContext(m.summary),
 							},
 						],
-						attribution: "agent",
+						attribution: "user",
 						timestamp: m.timestamp,
 					};
 				case "compactionSummary":
@@ -352,52 +346,32 @@ export function convertToLlm(messages: AgentMessage[]): Message[] {
 						role: "user",
 						content: [
 							{
-								type: "text" as const,
+								type: "text",
 								text: renderCompactionSummaryContext(m.summary),
 							},
 						],
-						attribution: "agent",
-						providerPayload: m.providerPayload,
-						timestamp: m.timestamp,
-					};
-				case "fileMention": {
-					const fileContents = m.files
-						.map(file => {
-							const inner = file.content ? `\n${file.content}\n` : "\n";
-							return `<file path="${file.path}">${inner}</file>`;
-						})
-						.join("\n\n");
-					const content: (TextContent | ImageContent)[] = [
-						{ type: "text" as const, text: `<system-reminder>\n${fileContents}\n</system-reminder>` },
-					];
-					for (const file of m.files) {
-						if (file.image) {
-							content.push(file.image);
-						}
-					}
-					return {
-						role: "user",
-						content,
 						attribution: "user",
 						timestamp: m.timestamp,
 					};
-				}
-				case "user":
-					return { ...m, attribution: m.attribution ?? "user" };
-				case "developer":
-					return { ...m, attribution: m.attribution ?? "agent" };
-				case "assistant":
-					return m;
-				case "toolResult":
+				case "fileMention":
 					return {
-						...m,
-						content: getPrunedToolResultContent(m as ToolResultMessage),
-						attribution: m.attribution ?? "agent",
+						role: "user",
+						content: [
+							{
+								type: "text",
+								text: m.files
+									.map(file => `File: ${file.path}\n\`\`\`\n${file.content}\n\`\`\``)
+									.join("\n\n"),
+							},
+						],
+						attribution: "user",
+						timestamp: m.timestamp,
 					};
+				case "assistant":
+					return sanitizeRehydratedOpenAIResponsesAssistantMessage(m);
 				default:
-					m satisfies never;
-					return undefined;
+					return m as Message;
 			}
 		})
-		.filter(m => m !== undefined);
+		.filter(Boolean) as Message[];
 }

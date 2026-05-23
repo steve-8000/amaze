@@ -13,6 +13,7 @@ import { runNexusOnlineConsolidation, runNexusPipeline } from "../nexus/pipeline
 import { resolveNexusProjectScope } from "../nexus/scope";
 import { getNexusRoot, NexusStore } from "../nexus/store";
 import type { NexusMemoryEntry } from "../nexus/types";
+import { MEMORY_ACTIVITY_MESSAGE_TYPE } from "../session/messages";
 import type { MemoryBackend, MemoryBackendStartOptions } from "./types";
 
 const states = new WeakMap<object, { imported: boolean }>();
@@ -35,7 +36,7 @@ export const nexusBackend: MemoryBackend = {
 				});
 				states.set(session, { imported: true });
 			}
-			await runStartupMaintenance(store, settings, config, options.agentDir, session.sessionManager.getCwd());
+			await runStartupMaintenance(store, settings, config, options.agentDir, session.sessionManager.getCwd(), session);
 		} catch (error) {
 			logger.debug("Nexus startup failed; continuing without blocking agent loop", { error: String(error) });
 		} finally {
@@ -143,16 +144,18 @@ export const nexusBackend: MemoryBackend = {
 		try {
 			store.clear();
 			await store.renderArtifacts();
+			await emitMemoryActivity(session, { title: "Memory", items: [{ status: "success", text: "Cleared persisted Nexus memory state." }] });
 		} finally {
 			store.close();
 		}
 	},
 
-	async enqueue(agentDir: string, cwd: string): Promise<void> {
+	async enqueue(agentDir: string, cwd: string, session?: MemoryBackendStartOptions["session"]): Promise<void> {
 		const store = new NexusStore({ agentDir, cwd });
 		try {
 			store.runSelfHealing();
 			await store.renderArtifacts();
+			await emitMemoryActivity(session, { title: "Memory", items: [{ status: "success", text: "Ran Nexus memory maintenance and refreshed artifacts." }] });
 		} finally {
 			store.close();
 		}
@@ -180,7 +183,8 @@ export const nexusBackend: MemoryBackend = {
 			try {
 				const llmClient = createNexusLlmClient(config);
 				const embeddingClient = createNexusEmbeddingClient(config);
-				await runNexusOnlineConsolidation(store, session.settings, sourceRecordId, messages, { llmClient, embeddingClient });
+				const result = await runNexusOnlineConsolidation(store, session.settings, sourceRecordId, messages, { llmClient, embeddingClient });
+				await emitMemoryActivity(session, describeOnlineConsolidation(result));
 			} catch (error) {
 				logger.debug("Nexus online consolidation failed", { error: String(error) });
 			} finally {
@@ -196,6 +200,7 @@ async function runStartupMaintenance(
 	config: ReturnType<typeof loadNexusConfig>,
 	agentDir: string,
 	cwd: string,
+	session?: MemoryBackendStartOptions["session"],
 ): Promise<void> {
 	const llmClient = createNexusLlmClient(config);
 	const embeddingClient = createNexusEmbeddingClient(config);
@@ -210,16 +215,17 @@ async function runStartupMaintenance(
 	});
 	if (config.healingEnabled) store.runSelfHealing();
 	await store.renderArtifacts();
-	await runKnowledgeMaintenance(agentDir, cwd, config);
+	const knowledgeStats = await runKnowledgeMaintenance(agentDir, cwd, config);
 	await persistNexusDoctorResult(settings, cwd);
+	await emitMemoryActivity(session, describeStartupMaintenance(pipelineResult, knowledgeStats));
 }
 
 async function runKnowledgeMaintenance(
 	agentDir: string,
 	cwd: string,
 	config: ReturnType<typeof loadNexusConfig>,
-): Promise<void> {
-	if (!config.knowledgeEnabled) return;
+): Promise<Awaited<ReturnType<typeof indexNexusRepository>> | null> {
+	if (!config.knowledgeEnabled) return null;
 	const repoRoot = resolveNexusProjectScope(cwd).repoRoot ?? cwd;
 	const statePath = `${getNexusRoot(agentDir)}/knowledge-maintenance.json`;
 	const previousState = await Bun.file(statePath)
@@ -230,7 +236,7 @@ async function runKnowledgeMaintenance(
 		previousState?.repoRoot === repoRoot
 		&& Number.isFinite(indexedAtMs)
 		&& Date.now() - indexedAtMs < config.knowledgeMaintenanceMinIntervalMs;
-	if (withinInterval) return;
+	if (withinInterval) return null;
 	const stats = await indexNexusRepository({
 		agentDir,
 		cwd,
@@ -242,6 +248,62 @@ async function runKnowledgeMaintenance(
 		statePath,
 		`${JSON.stringify({ repoRoot, indexedAt: new Date().toISOString(), stats }, null, 2)}\n`,
 	);
+	return stats;
+}
+
+async function emitMemoryActivity(
+	session: MemoryBackendStartOptions["session"] | undefined,
+	payload: { title: string; items: Array<{ status?: "info" | "success" | "warning"; text: string }> } | null,
+): Promise<void> {
+	if (!session || !payload || payload.items.length === 0) return;
+	const content = payload.items.map(item => `- ${item.text}`).join("\n");
+	try {
+		await session.sendCustomMessage(
+			{
+				customType: MEMORY_ACTIVITY_MESSAGE_TYPE,
+				content,
+				display: true,
+				details: payload,
+				attribution: "agent",
+			},
+			{ triggerTurn: false },
+		);
+	} catch (error) {
+		logger.debug("Failed to emit Nexus memory activity log", { error: String(error) });
+	}
+}
+
+function describeStartupMaintenance(
+	pipelineResult: Awaited<ReturnType<typeof runNexusPipeline>>,
+	knowledgeStats: Awaited<ReturnType<typeof runKnowledgeMaintenance>>,
+): { title: string; items: Array<{ status?: "info" | "success" | "warning"; text: string }> } | null {
+	const items: Array<{ status?: "info" | "success" | "warning"; text: string }> = [];
+	if (pipelineResult.importedSources > 0 || pipelineResult.createdEntries > 0) {
+		items.push({
+			status: "success",
+			text: `Startup consolidation imported ${pipelineResult.importedSources} source(s) and created ${pipelineResult.createdEntries} memory entr${pipelineResult.createdEntries === 1 ? "y" : "ies"}.`,
+		});
+	}
+	if (knowledgeStats) {
+		items.push({
+			status: "info",
+			text: `Repository knowledge indexed ${knowledgeStats.indexedFiles} file(s), skipped ${knowledgeStats.unchangedFiles} unchanged file(s), and pruned ${knowledgeStats.prunedFiles} stale file(s).`,
+		});
+	}
+	return items.length > 0 ? { title: "Memory", items } : null;
+}
+
+function describeOnlineConsolidation(
+	result: Awaited<ReturnType<typeof runNexusOnlineConsolidation>>,
+): { title: string; items: Array<{ status?: "info" | "success" | "warning"; text: string }> } | null {
+	const items: Array<{ status?: "info" | "success" | "warning"; text: string }> = [];
+	if (result.createdEntries > 0) {
+		items.push({ status: "success", text: `Captured ${result.createdEntries} new memory entr${result.createdEntries === 1 ? "y" : "ies"} from the completed turn.` });
+	}
+	if (result.embeddings > 0) {
+		items.push({ status: "info", text: `Backfilled ${result.embeddings} memory embedding${result.embeddings === 1 ? "" : "s"} for retrieval.` });
+	}
+	return items.length > 0 ? { title: "Memory", items } : null;
 }
 
 function recallKnowledgeEntries(

@@ -47,6 +47,7 @@ import {
 	createCustomMessage,
 	type FileMentionMessage,
 	type HookMessage,
+	isContextFreeCustomMessageType,
 	type PythonExecutionMessage,
 	sanitizeRehydratedOpenAIResponsesAssistantMessage,
 	stripInternalDetailsFields,
@@ -632,6 +633,9 @@ export function buildSessionContext(
 			messages.push(entry.message);
 			return true;
 		} else if (entry.type === "custom_message") {
+			if (isContextFreeCustomMessageType(entry.customType)) {
+				return false;
+			}
 			messages.push(
 				createCustomMessage(
 					entry.customType,

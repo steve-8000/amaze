@@ -8,6 +8,7 @@ import {
 	type SessionMessageEntry,
 	type ThinkingLevelChangeEntry,
 } from "@amaze/coding-agent/session/session-manager";
+import { MEMORY_ACTIVITY_MESSAGE_TYPE } from "@amaze/coding-agent/session/messages";
 
 function msg(id: string, parentId: string | null, role: "user" | "assistant", text: string): SessionMessageEntry {
 	const base = { type: "message" as const, id, parentId, timestamp: "2025-01-01T00:00:00Z" };
@@ -114,6 +115,22 @@ describe("buildSessionContext", () => {
 			expect(customMessage?.role).toBe("custom");
 			if (customMessage?.role !== "custom") throw new Error("Expected custom message");
 			expect(customMessage.attribution).toBeUndefined();
+		});
+		it("omits UI-only memory activity entries from rebuilt session context", () => {
+			const entries: SessionEntry[] = [
+				{
+					type: "custom_message",
+					id: "1",
+					parentId: null,
+					timestamp: "2025-01-01T00:00:00Z",
+					customType: MEMORY_ACTIVITY_MESSAGE_TYPE,
+					content: "Indexed 12 files",
+					display: true,
+					attribution: "agent",
+				},
+			];
+			const ctx = buildSessionContext(entries);
+			expect(ctx.messages).toEqual([]);
 		});
 		it("simple conversation", () => {
 			const entries: SessionEntry[] = [
