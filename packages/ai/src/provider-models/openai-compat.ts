@@ -1462,6 +1462,15 @@ export interface VllmModelManagerConfig {
 	baseUrl?: string;
 }
 
+/** Read AMAZE_VLLM_CONTEXT_CAP; returns positive integer or undefined. */
+function readVllmContextCap(): number | undefined {
+	const raw = process.env.AMAZE_VLLM_CONTEXT_CAP;
+	if (!raw) return undefined;
+	const n = Number(raw);
+	if (!Number.isFinite(n) || n <= 0) return undefined;
+	return Math.floor(n);
+}
+
 export function vllmModelManagerOptions(config?: VllmModelManagerConfig): ModelManagerOptions<"openai-completions"> {
 	const apiKey = config?.apiKey;
 	const baseUrl = config?.baseUrl ?? "http://127.0.0.1:8000/v1";
@@ -1482,9 +1491,13 @@ export function vllmModelManagerOptions(config?: VllmModelManagerConfig): ModelM
 						string,
 						unknown
 					>;
+					const rawContext = toPositiveNumber(entry.max_model_len, model.contextWindow);
+					const cap = readVllmContextCap();
+					const effectiveContext =
+						cap != null ? (rawContext != null ? Math.min(rawContext, cap) : cap) : rawContext;
 					return {
 						...model,
-						contextWindow: toPositiveNumber(entry.max_model_len, model.contextWindow),
+						contextWindow: effectiveContext,
 						compat: {
 							...existingCompat,
 							extraBody: {
