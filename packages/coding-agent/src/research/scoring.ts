@@ -27,8 +27,8 @@ export function scoreComplementarity(brief: ResearchBrief, evidence: EvidenceCar
 				),
 			)
 		: 0;
-	// First cut: contradiction detection requires claim-level comparison by a future reviewer pass.
-	const contradictionPenalty = 0;
+	const contradictionCount = countContradictionPairs(evidence);
+	const contradictionPenalty = Math.min(0.3, contradictionCount * 0.05);
 	const stalenessPenalty = evidence.length ? mean(evidence.map(card => Math.max(0, 1 - card.recency) * 0.25)) : 0;
 	const socialShare = evidence.length ? evidence.filter(card => card.lane === "social").length / evidence.length : 0;
 	const socialOverweightPenalty =
@@ -59,4 +59,90 @@ function mean(values: number[]): number {
 
 function clamp01(value: number): number {
 	return Math.min(1, Math.max(0, value));
+}
+
+type CueBucket = "defer" | "adopt" | "exists" | "missing" | "allow" | "block";
+
+const OPPOSITE_CUES: Array<[CueBucket, CueBucket]> = [
+	["defer", "adopt"],
+	["exists", "missing"],
+	["allow", "block"],
+];
+
+const CUE_WORDS: Record<CueBucket, string[]> = {
+	defer: ["defer", "deferred", "rejected", "not yet"],
+	adopt: ["adopt", "adopted", "enable", "ship now"],
+	exists: ["exists", "implemented"],
+	missing: ["missing", "not implemented", "no production"],
+	allow: ["allow"],
+	block: ["block", "blocked"],
+};
+
+const STOPWORDS = new Set([
+	"about",
+	"after",
+	"again",
+	"being",
+	"could",
+	"every",
+	"from",
+	"have",
+	"into",
+	"should",
+	"their",
+	"there",
+	"these",
+	"those",
+	"with",
+	"would",
+]);
+
+export function countContradictionPairs(evidence: EvidenceCard[]): number {
+	let count = 0;
+	for (let leftIndex = 0; leftIndex < evidence.length; leftIndex += 1) {
+		for (let rightIndex = leftIndex + 1; rightIndex < evidence.length; rightIndex += 1) {
+			const left = evidence[leftIndex];
+			const right = evidence[rightIndex];
+			if (!left || !right || left.id === right.id) continue;
+			if (cardsContradict(left, right)) count += 1;
+		}
+	}
+	return count;
+}
+
+export function evidenceContradictsAny(card: EvidenceCard, evidence: EvidenceCard[]): boolean {
+	return evidence.some(other => other.id !== card.id && cardsContradict(card, other));
+}
+
+function cardsContradict(left: EvidenceCard, right: EvidenceCard): boolean {
+	for (const leftClaim of left.claims) {
+		for (const rightClaim of right.claims) {
+			if (claimsContradict(leftClaim, rightClaim)) return true;
+		}
+	}
+	return false;
+}
+
+function claimsContradict(left: string, right: string): boolean {
+	const leftNormalized = left.toLowerCase();
+	const rightNormalized = right.toLowerCase();
+	const sharedTokens = claimTokens(leftNormalized).filter(token => claimTokens(rightNormalized).includes(token));
+	if (sharedTokens.length === 0) return false;
+	const leftBuckets = cueBuckets(leftNormalized);
+	const rightBuckets = cueBuckets(rightNormalized);
+	return OPPOSITE_CUES.some(
+		([a, b]) => (leftBuckets.has(a) && rightBuckets.has(b)) || (leftBuckets.has(b) && rightBuckets.has(a)),
+	);
+}
+
+function cueBuckets(claim: string): Set<CueBucket> {
+	const buckets = new Set<CueBucket>();
+	for (const [bucket, cues] of Object.entries(CUE_WORDS) as Array<[CueBucket, string[]]>) {
+		if (cues.some(cue => claim.includes(cue))) buckets.add(bucket);
+	}
+	return buckets;
+}
+
+function claimTokens(claim: string): string[] {
+	return claim.split(/[^a-z0-9]+/).filter(token => token.length >= 5 && !STOPWORDS.has(token));
 }

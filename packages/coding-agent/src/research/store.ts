@@ -3,6 +3,9 @@ import { randomBytes } from "node:crypto";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import type { MissionEventBus } from "../mission/event-bus";
+import { MissionStore } from "../mission/store";
+import type { Mission } from "../mission/types";
 import {
 	CONFIDENCE_LEVELS,
 	type ConfidenceLevel,
@@ -67,8 +70,9 @@ type DecisionRecordRow = {
 export class ResearchStore {
 	readonly dbPath: string;
 	readonly #db: Database;
+	#missionEventBus: MissionEventBus | undefined;
 
-	constructor(dbPath = DEFAULT_DB_PATH) {
+	constructor(dbPath = DEFAULT_DB_PATH, missionEventBus?: MissionEventBus) {
 		this.dbPath = dbPath;
 		if (dbPath !== ":memory:") {
 			fs.mkdirSync(path.dirname(dbPath), { recursive: true });
@@ -76,6 +80,7 @@ export class ResearchStore {
 		this.#db = new Database(dbPath, { create: true, strict: true });
 		this.#db.run("PRAGMA busy_timeout = 3000");
 		this.#db.run("PRAGMA foreign_keys = ON");
+		this.#missionEventBus = missionEventBus;
 		this.#init();
 	}
 
@@ -112,6 +117,15 @@ export class ResearchStore {
 				brief.createdAt,
 				brief.updatedAt,
 			);
+		const mission = this.#createMissionForBrief(brief);
+		this.#missionEventBus?.emit({
+			type: "research.brief.created",
+			missionId: mission.id,
+			briefId: brief.id,
+			objectiveId: brief.objectiveId,
+			lanes: brief.lanes,
+			ts: brief.createdAt,
+		});
 		return brief;
 	}
 
@@ -167,6 +181,18 @@ export class ResearchStore {
 				evidence.recency,
 				evidence.reproducibility,
 			);
+		const mission = this.getMissionForBrief(evidence.briefId);
+		if (mission) {
+			this.#missionEventBus?.emit({
+				type: "research.evidence.added",
+				missionId: mission.id,
+				briefId: evidence.briefId,
+				evidenceId: evidence.id,
+				lane: evidence.lane,
+				grade: evidence.grade,
+				ts: evidence.capturedAt,
+			});
+		}
 		return evidence;
 	}
 
@@ -175,6 +201,15 @@ export class ResearchStore {
 			.query("SELECT * FROM evidence_cards WHERE brief_id = ? ORDER BY captured_at ASC, id ASC")
 			.all(briefId) as EvidenceCardRow[];
 		return rows.map(rowToEvidence);
+	}
+
+	getMissionForBrief(briefId: string): Mission | undefined {
+		const missions = new MissionStore(this.dbPath);
+		try {
+			return missions.listMissions({ briefId })[0];
+		} finally {
+			missions.close();
+		}
 	}
 
 	recordDecision(input: NewDecisionRecord): DecisionRecord {
@@ -205,6 +240,27 @@ export class ResearchStore {
 				JSON.stringify(decision.nextActions),
 				decision.createdAt,
 			);
+		const mission = this.getMissionForBrief(decision.briefId);
+		if (mission) {
+			const missions = new MissionStore(this.dbPath);
+			try {
+				missions.updateMission(mission.id, {
+					decisionId: decision.id,
+					state: "deciding",
+					confidence: decision.confidence,
+				});
+				this.#missionEventBus?.emit({
+					type: "decision.recorded",
+					missionId: mission.id,
+					briefId: decision.briefId,
+					decisionId: decision.id,
+					confidence: decision.confidence,
+					ts: decision.createdAt,
+				});
+			} finally {
+				missions.close();
+			}
+		}
 		return decision;
 	}
 
@@ -220,6 +276,24 @@ export class ResearchStore {
 			.query("SELECT * FROM decision_records WHERE brief_id = ? ORDER BY created_at ASC, id ASC")
 			.all(briefId) as DecisionRecordRow[];
 		return rows.map(rowToDecision);
+	}
+
+	#createMissionForBrief(brief: ResearchBrief): Mission {
+		const missions = new MissionStore(this.dbPath);
+		try {
+			return missions.createMission({
+				title: brief.question,
+				objectiveId: brief.objectiveId,
+				briefId: brief.id,
+				decisionId: null,
+				riskLevel: brief.riskLevel,
+				state: "researching",
+				confidence: null,
+				snapshotRef: null,
+			});
+		} finally {
+			missions.close();
+		}
 	}
 
 	#init(): void {

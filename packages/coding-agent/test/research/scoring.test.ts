@@ -78,6 +78,16 @@ describe("scoreComplementarity", () => {
 		expect(score.stalenessPenalty).toBeCloseTo(0.25);
 	});
 
+	test("detects deterministic contradiction pairs and applies penalty", () => {
+		const score = scoreComplementarity(brief({ lanes: ["repo", "source"] }), [
+			card({ id: "left", lane: "repo", claims: ["mission control snapshot exists and is implemented"] }),
+			card({ id: "right", lane: "source", claims: ["mission control snapshot missing with no production path"] }),
+		]);
+
+		expect(score.contradictionPenalty).toBe(0.05);
+		expect(score.total).toBeLessThan(1);
+	});
+
 	test("total clamps at 1", () => {
 		const score = scoreComplementarity(brief({ lanes: ["repo"] }), [
 			card({ directness: 10, specificity: 10, recency: 10, reproducibility: 10 }),

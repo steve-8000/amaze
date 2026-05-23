@@ -40,7 +40,10 @@ export class EventController {
 	#ircExpiryTimers = new Map<string, NodeJS.Timeout>();
 	#handlers: AgentSessionEventHandlers;
 
-	constructor(private ctx: InteractiveModeContext) {
+	constructor(
+		private ctx: InteractiveModeContext,
+		private readonly onMissionChange?: () => void,
+	) {
 		this.#handlers = {
 			agent_start: e => this.#handleAgentStart(e),
 			agent_end: e => this.#handleAgentEnd(e),
@@ -548,6 +551,7 @@ export class EventController {
 				`Todo update failed${textContent ? `: ${textContent}` : ". Progress may be stale until todo_write succeeds."}`,
 			);
 		}
+		this.onMissionChange?.();
 		if (event.toolName === "resolve" && !event.isError) {
 			const details = event.result.details as ResolveToolDetails | undefined;
 			if (details?.sourceToolName === "plan_approval" && details.action === "apply") {

@@ -40,6 +40,7 @@ const commands: CommandEntry[] = [
 	{ name: "grep", load: () => import("./commands/grep").then(m => m.default) },
 	{ name: "grievances", load: () => import("./commands/grievances").then(m => m.default) },
 	{ name: "memory", load: () => import("./commands/memory").then(m => m.default) },
+	{ name: "mission", load: () => import("./commands/mission").then(m => m.default) },
 	{ name: "doctor", load: () => import("./commands/doctor").then(m => m.default) },
 	{ name: "evolve", load: () => import("./commands/evolve").then(m => m.default) },
 	{ name: "metrics", load: () => import("./commands/metrics").then(m => m.default) },

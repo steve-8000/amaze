@@ -82,6 +82,7 @@ import type { EvalExecutionComponent } from "./components/eval-execution";
 import type { HookEditorComponent } from "./components/hook-editor";
 import type { HookInputComponent } from "./components/hook-input";
 import type { HookSelectorComponent } from "./components/hook-selector";
+import { MissionControlView } from "./components/mission-control-view";
 import { StatusLineComponent } from "./components/status-line";
 import type { ToolExecutionHandle } from "./components/tool-execution";
 import { WelcomeComponent, type LspServerInfo as WelcomeLspServerInfo } from "./components/welcome";
@@ -194,6 +195,7 @@ export class InteractiveMode implements InteractiveModeContext {
 	hookWidgetContainerAbove: Container;
 	hookWidgetContainerBelow: Container;
 	statusLine: StatusLineComponent;
+	missionControlView: MissionControlView;
 
 	isInitialized = false;
 	isBackgrounded = false;
@@ -350,6 +352,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		this.editorContainer.addChild(this.editor);
 		this.statusLine = new StatusLineComponent(session);
 		this.statusLine.setAutoCompactEnabled(session.autoCompactionEnabled);
+		this.missionControlView = new MissionControlView();
 
 		this.hideThinkingBlock = settings.get("hideThinkingBlock");
 
@@ -384,7 +387,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		this.#uiHelpers = new UiHelpers(this);
 		this.#btwController = new BtwController(this);
 		this.#extensionUiController = new ExtensionUiController(this);
-		this.#eventController = new EventController(this);
+		this.#eventController = new EventController(this, () => this.refreshMissionControl());
 		this.#commandController = new CommandController(this);
 		this.#todoCommandController = new TodoCommandController(this);
 		this.#selectorController = new SelectorController(this);
@@ -474,6 +477,7 @@ export class InteractiveMode implements InteractiveModeContext {
 				this.ui.addChild(new DynamicBorder());
 			}
 		}
+		this.ui.addChild(this.missionControlView);
 
 		this.ui.addChild(this.chatContainer);
 		this.ui.addChild(this.pendingMessagesContainer);
@@ -496,6 +500,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		this.#observerRegistry.setMainSession(this.sessionManager.getSessionFile() ?? undefined);
 		this.#observerRegistry.onChange(() => {
 			this.statusLine.setSubagentCount(this.#observerRegistry.getActiveSubagentCount());
+			this.refreshMissionControl();
 			this.ui.requestRender();
 		});
 
@@ -907,6 +912,11 @@ export class InteractiveMode implements InteractiveModeContext {
 		this.chatContainer.clear();
 		const context = this.session.buildDisplaySessionContext();
 		this.renderSessionContext(context);
+		this.refreshMissionControl();
+	}
+
+	refreshMissionControl(): void {
+		this.missionControlView?.refresh();
 	}
 
 	#renderTodoHudLine(todo: TodoItem, prefix: string): string {
@@ -2123,6 +2133,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		this.#observerRegistry.dispose();
 		this.#eventController.dispose();
 		this.statusLine.dispose();
+		this.missionControlView?.dispose();
 		if (this.#resizeHandler) {
 			process.stdout.removeListener("resize", this.#resizeHandler);
 			this.#resizeHandler = undefined;
