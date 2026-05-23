@@ -58,7 +58,7 @@ function candidateTargetPaths(candidate: LearningProposal): string[] {
 		return [AMAZE_SETTINGS_PATH, ...Object.keys(candidate.patch).map(key => `settings:${key}`)];
 	}
 	if (candidate.type === "rule") return [".amaze/rules/**"];
-	if (candidate.type === "skill") return [`.amaze/skills/${candidate.name}.md`];
+	if (candidate.type === "skill") return [`.amaze/skills/${candidate.name}/SKILL.md`];
 	return [];
 }
 

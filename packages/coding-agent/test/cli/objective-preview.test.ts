@@ -71,7 +71,9 @@ describe("objective preview CLI", () => {
 
 		expect(result.exitCode).toBe(0);
 		expect(result.stderr).toBe("");
-		const proposal = JSON.parse(result.stdout);
+		const parsed = JSON.parse(result.stdout);
+		const proposal = parsed.proposal;
+		expect(parsed.limitDecision.allow).toBe(true);
 		expect(proposal).toMatchObject({
 			type: "rule",
 			status: "pending",
@@ -142,7 +144,9 @@ describe("objective preview CLI", () => {
 
 		expect(result.exitCode).toBe(0);
 		expect(result.stderr).toBe("");
-		expect(JSON.parse(result.stdout)).toMatchObject({ type: "rule", evidence: { sessionIds: [] } });
+		const parsed = JSON.parse(result.stdout);
+		expect(parsed.proposal).toMatchObject({ type: "rule", evidence: { sessionIds: [] } });
+		expect(parsed.limitDecision.allow).toBe(true);
 	});
 });
 

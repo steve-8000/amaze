@@ -108,7 +108,7 @@ describe("shouldEmitProposal", () => {
 			...objective,
 			guardrails: {
 				...objective.guardrails,
-				forbiddenScopes: [".amaze/skills/foo.md"],
+				forbiddenScopes: [".amaze/skills/foo/SKILL.md"],
 			},
 		};
 		const skillProposal: LearningProposal = {
@@ -127,6 +127,33 @@ describe("shouldEmitProposal", () => {
 		const result = shouldEmitProposal(guardedObjective, skillProposal, { todayCount: 0, usedTokens: 0 });
 
 		expect(result.allow).toBe(false);
+	});
+
+	it("denies a skill proposal when the broader .amaze/skills/** scope is forbidden", () => {
+		const guardedObjective: Objective = {
+			...objective,
+			guardrails: {
+				...objective.guardrails,
+				forbiddenScopes: [".amaze/skills/**"],
+			},
+		};
+		const skillProposal: LearningProposal = {
+			id: "p-skill",
+			createdAt: 1,
+			status: "pending",
+			gate: "human-required",
+			evidence: { sessionIds: [], eventRefs: [], ruleFindings: [], sampleN: 0 },
+			provenance: { source: "reflection" },
+			type: "skill",
+			name: "foo",
+			sourceMemoryIds: [],
+			bodyMarkdown: "x",
+		};
+
+		const result = shouldEmitProposal(guardedObjective, skillProposal, { todayCount: 0, usedTokens: 0 });
+
+		expect(result.allow).toBe(false);
+		expect(result.reason).toContain(".amaze/skills/");
 	});
 
 	it("allows candidates within limits", () => {

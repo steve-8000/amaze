@@ -4,7 +4,7 @@
 import { Args, Command, Flags } from "@amaze/utils/cli";
 import { isProposalStatus, isProposalType } from "../cli/proposals";
 
-const ACTIONS = ["list", "show", "approve", "reject", "apply", "diff"] as const;
+const ACTIONS = ["list", "show", "approve", "reject", "apply", "rollback", "diff"] as const;
 type ProposalsAction = (typeof ACTIONS)[number];
 
 export default class Proposals extends Command {
@@ -72,6 +72,12 @@ export default class Proposals extends Command {
 				skillsDir: flags.skillsDir,
 				rulesDir: flags.rulesDir,
 			});
+			return;
+		}
+
+		if (action === "rollback") {
+			const { runProposalsRollbackCommand } = await import("../cli/proposals");
+			await runProposalsRollbackCommand({ db: flags.db, id: args.id });
 			return;
 		}
 

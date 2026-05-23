@@ -29,7 +29,13 @@ async function runCli(root: string, args: string[]): Promise<{ stdout: string; s
 		cwd: repoRoot,
 		stdout: "pipe",
 		stderr: "pipe",
-		env: { ...process.env, HOME: root, AMAZE_NO_TITLE: "1", NO_COLOR: "1" },
+		env: {
+			...process.env,
+			HOME: root,
+			AMAZE_CODING_AGENT_DIR: path.join(root, "agent"),
+			AMAZE_NO_TITLE: "1",
+			NO_COLOR: "1",
+		},
 	});
 	const [stdout, stderr, exitCode] = await Promise.all([
 		readStream(proc.stdout as ReadableStream<Uint8Array>),
@@ -102,5 +108,49 @@ describe("evolve CLI", () => {
 
 		expect(result.exitCode).not.toBe(0);
 		expect(`${result.stderr}\n${result.stdout}`).toMatch(/objective|id/);
+	});
+
+	it("evolve preview annotates settings proposal guardrail status", async () => {
+		cleanupRoot = await fs.mkdtemp(path.join(os.tmpdir(), "amaze-evolve-cli-"));
+		const objectivesDb = path.join(cleanupRoot, "objectives.db");
+		const metricsPath = path.join(cleanupRoot, "metrics.json");
+		await fs.mkdir(path.join(cleanupRoot, "agent"), { recursive: true });
+		await fs.writeFile(path.join(cleanupRoot, "agent", "config.yml"), "goal:\n  uncertainPolicy: allow\n");
+
+		const createResult = await runCli(cleanupRoot, [
+			"objective",
+			"create",
+			"--db",
+			objectivesDb,
+			"--title",
+			"Reduce force complete rate",
+			"--metric",
+			"goal.forceCompleteRate",
+			"--target",
+			"0.1",
+			"--direction",
+			"down",
+		]);
+		expect(createResult.exitCode).toBe(0);
+		expect(createResult.stderr).toBe("");
+		const objectiveId = createResult.stdout.split("\t")[0];
+		await fs.writeFile(metricsPath, JSON.stringify({ "goal.forceCompleteRate": 0.5 }));
+
+		const result = await runCli(cleanupRoot, [
+			"evolve",
+			"preview",
+			"--db",
+			objectivesDb,
+			"--objective",
+			objectiveId,
+			"--metrics",
+			metricsPath,
+		]);
+
+		expect(result.exitCode).toBe(0);
+		expect(result.stderr).toBe("");
+		expect(result.stdout).toContain("guardrail:");
+		expect(result.stdout).toContain("blocked");
+		expect(result.stdout).toContain(".amaze/settings.json");
 	});
 });

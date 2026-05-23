@@ -2,6 +2,7 @@ import * as fs from "node:fs/promises";
 import { homedir } from "node:os";
 import * as path from "node:path";
 import { type Objective, type ObjectiveStatus, ObjectiveStore } from "../autonomy";
+import { type ProposalLimitDecision, shouldEmitProposal } from "../autonomy/limits";
 import { planFromMetrics } from "../autonomy/planner";
 import { Settings } from "../config/settings";
 import { computeMetric, registerDefaultMetrics, registeredMetrics } from "../metrics";
@@ -75,13 +76,14 @@ export async function runObjectivePreviewCommand(args: ObjectivePreviewArgs): Pr
 		process.stdout.write(`no remediation needed for objective ${args.id}\n`);
 		return;
 	}
+	const limitDecision = shouldEmitProposal(objective, proposal, { todayCount: 0, usedTokens: 0 });
 
 	if (args.json) {
-		process.stdout.write(`${JSON.stringify(proposal, null, 2)}\n`);
+		process.stdout.write(`${JSON.stringify({ proposal, limitDecision }, null, 2)}\n`);
 		return;
 	}
 
-	process.stdout.write(`${formatProposalPreview(objective, metrics, proposal)}\n`);
+	process.stdout.write(`${formatProposalPreview(objective, metrics, proposal, limitDecision)}\n`);
 }
 
 export async function runObjectivePauseCommand(args: ObjectiveIdArgs): Promise<void> {
@@ -198,6 +200,7 @@ function formatProposalPreview(
 	objective: Objective,
 	metrics: Record<string, number>,
 	proposal: NonNullable<ReturnType<typeof planFromMetrics>>,
+	limitDecision: ProposalLimitDecision,
 ): string {
 	const mismatch = objective.metricTargets.find(target => {
 		const value = metrics[target.metric];
@@ -238,6 +241,11 @@ function formatProposalPreview(
 		lines.push(
 			`mismatch: ${mismatch.metric}=${metrics[mismatch.metric]} target ${mismatch.direction} ${mismatch.target}`,
 		);
+	}
+	if (limitDecision.allow) {
+		lines.push("guardrail: allowed");
+	} else {
+		lines.push("guardrail: blocked", `reason: ${limitDecision.reason}`);
 	}
 	return lines.join("\n");
 }
