@@ -10,8 +10,7 @@ import todoReadDescription from "../prompts/tools/todo-read.md" with { type: "te
 import todoWriteDescription from "../prompts/tools/todo-write.md" with { type: "text" };
 import type { ToolSession } from "../sdk";
 import type { SessionEntry } from "../session/session-manager";
-import { renderStatusLine, renderTreeList } from "../tui";
-import { PREVIEW_LIMITS } from "./render-utils";
+import { renderStatusLine } from "../tui";
 
 // =============================================================================
 // Types
@@ -476,8 +475,8 @@ function formatSummary(phases: TodoPhase[], errors: string[]): string {
 							? "✗"
 							: "○";
 			const noteCount = task.notes?.length ?? 0;
-			const noteMarker = noteCount > 0 ? ` (+${noteCount} note${noteCount === 1 ? "" : "s"})` : "";
-			lines.push(`    ${sym} ${task.content}${noteMarker}`);
+			const notesSuffix = noteCount > 0 ? ` (+${noteCount} note${noteCount === 1 ? "" : "s"})` : "";
+			lines.push(`    ${sym} ${task.content}${notesSuffix}`);
 			if (task.status === "in_progress" && task.notes && task.notes.length > 0) {
 				for (let j = 0; j < task.notes.length; j++) {
 					if (j > 0) lines.push("        ---");
@@ -570,28 +569,6 @@ type TodoWriteRenderArgs = {
 		items?: string[];
 	}>;
 };
-
-const SUP_DIGITS: Record<string, string> = {
-	"0": "\u2070",
-	"1": "\u00b9",
-	"2": "\u00b2",
-	"3": "\u00b3",
-	"4": "\u2074",
-	"5": "\u2075",
-	"6": "\u2076",
-	"7": "\u2077",
-	"8": "\u2078",
-	"9": "\u2079",
-};
-
-function toSuperscript(n: number): string {
-	return n
-		.toString()
-		.split("")
-		.map(d => SUP_DIGITS[d] ?? d)
-		.join("");
-}
-
 // =============================================================================
 // Phase numbering (display-only)
 // =============================================================================
@@ -630,27 +607,6 @@ export function phaseRomanNumeral(oneBasedIndex: number): string {
 export function formatPhaseDisplayName(name: string, oneBasedIndex: number): string {
 	return `${phaseRomanNumeral(oneBasedIndex)}. ${name}`;
 }
-
-function noteMarker(count: number, uiTheme: Theme): string {
-	if (count <= 0) return "";
-	return uiTheme.fg("dim", chalk.italic(` \u207a${toSuperscript(count)}`));
-}
-
-function formatTodoLine(item: TodoItem, uiTheme: Theme, prefix: string): string {
-	const checkbox = uiTheme.checkbox;
-	const marker = noteMarker(item.notes?.length ?? 0, uiTheme);
-	switch (item.status) {
-		case "completed":
-			return uiTheme.fg("success", `${prefix}${checkbox.checked} ${chalk.strikethrough(item.content)}`) + marker;
-		case "in_progress":
-			return uiTheme.fg("accent", `${prefix}${checkbox.unchecked} ${item.content}`) + marker;
-		case "abandoned":
-			return uiTheme.fg("error", `${prefix}${checkbox.unchecked} ${chalk.strikethrough(item.content)}`) + marker;
-		default:
-			return uiTheme.fg("dim", `${prefix}${checkbox.unchecked} ${item.content}`) + marker;
-	}
-}
-
 function renderNoteAttachments(phases: TodoPhase[], uiTheme: Theme): string[] {
 	const lines: string[] = [];
 	for (const phase of phases) {
@@ -674,40 +630,24 @@ function renderNoteAttachments(phases: TodoPhase[], uiTheme: Theme): string[] {
 function renderTodoResult(
 	title: string,
 	result: { content: Array<{ type: string; text?: string }>; details?: TodoWriteToolDetails },
-	options: RenderResultOptions,
+	_options: RenderResultOptions,
 	uiTheme: Theme,
 ): Component {
 	const phases = (result.details?.phases ?? []).filter(phase => phase.tasks.length > 0);
 	const allTasks = phases.flatMap(phase => phase.tasks);
-	const header = renderStatusLine({ icon: "success", title, meta: [`${allTasks.length} tasks`] }, uiTheme);
 	if (allTasks.length === 0) {
+		const header = renderStatusLine({ icon: "success", title, meta: ["empty"] }, uiTheme);
 		const fallback = result.content?.find(content => content.type === "text")?.text ?? "No todos";
 		return new Text(`${header}\n${uiTheme.fg("dim", fallback)}`, 0, 0);
 	}
-
-	const { expanded } = options;
-	const lines: string[] = [header];
-	for (let p = 0; p < phases.length; p++) {
-		const phase = phases[p];
-		if (phases.length > 1) {
-			lines.push(uiTheme.fg("accent", chalk.bold(`  ${formatPhaseDisplayName(phase.name, p + 1)}`)));
-		}
-		const treeLines = renderTreeList(
-			{
-				items: phase.tasks,
-				expanded,
-				maxCollapsed: PREVIEW_LIMITS.COLLAPSED_ITEMS,
-				itemType: "todo",
-				renderItem: todo => formatTodoLine(todo, uiTheme, ""),
-			},
-			uiTheme,
-		);
-		for (const line of treeLines) {
-			lines.push(`  ${line}`);
-		}
+	const doneCount = allTasks.filter(task => task.status === "completed").length;
+	const meta = [`${allTasks.length} task${allTasks.length === 1 ? "" : "s"}`, `${doneCount} done`];
+	const header = renderStatusLine({ icon: "success", title, meta }, uiTheme);
+	const noteLines = renderNoteAttachments(phases, uiTheme);
+	if (noteLines.length === 0) {
+		return new Text(header, 0, 0);
 	}
-	lines.push(...renderNoteAttachments(phases, uiTheme));
-	return new Text(lines.join("\n"), 0, 0);
+	return new Text([header, ...noteLines].join("\n"), 0, 0);
 }
 
 export const todoReadToolRenderer = {

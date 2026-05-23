@@ -87,7 +87,6 @@ export interface InteractiveModeContext {
 	isBackgrounded: boolean;
 	isBashMode: boolean;
 	toolOutputExpanded: boolean;
-	todoExpanded: boolean;
 	planModeEnabled: boolean;
 	goalModeEnabled: boolean;
 	goalModePaused: boolean;
@@ -197,7 +196,6 @@ export interface InteractiveModeContext {
 	rebuildChatFromMessages(): void;
 	setTodos(todos: TodoItem[] | TodoPhase[]): void;
 	reloadTodos(): Promise<void>;
-	toggleTodoExpansion(): void;
 
 	// Command handling
 	handleExportCommand(text: string): Promise<void>;

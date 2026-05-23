@@ -143,7 +143,6 @@ function createContext(): {
 		updatePendingMessagesDisplay: vi.fn(),
 		updateEditorBorderColor: vi.fn(),
 		showDebugSelector: vi.fn(),
-		toggleTodoExpansion: vi.fn(),
 		handleHotkeysCommand: vi.fn(),
 		handleSTTToggle: vi.fn(),
 		handleBtwEscape,

@@ -122,7 +122,7 @@ const EDITOR_MAX_HEIGHT_MAX = 18;
 const EDITOR_RESERVED_ROWS = 12;
 const EDITOR_FALLBACK_ROWS = 24;
 
-const HUD_NOTE_SUP_DIGITS: Record<string, string> = {
+const HUD_NOTE_SUPERSCRIPT_DIGITS: Record<string, string> = {
 	"0": "\u2070",
 	"1": "\u00b9",
 	"2": "\u00b2",
@@ -139,7 +139,7 @@ function formatHudNoteMarker(count: number): string {
 	if (count <= 0) return "";
 	const sub = String(count)
 		.split("")
-		.map(d => HUD_NOTE_SUP_DIGITS[d] ?? d)
+		.map(d => HUD_NOTE_SUPERSCRIPT_DIGITS[d] ?? d)
 		.join("");
 	return theme.fg("dim", chalk.italic(` \u207a${sub}`));
 }
@@ -199,7 +199,6 @@ export class InteractiveMode implements InteractiveModeContext {
 	isBackgrounded = false;
 	isBashMode = false;
 	toolOutputExpanded = false;
-	todoExpanded = false;
 	planModeEnabled = false;
 	planModePaused = false;
 	goalModeEnabled = false;
@@ -910,7 +909,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		this.renderSessionContext(context);
 	}
 
-	#formatTodoLine(todo: TodoItem, prefix: string): string {
+	#renderTodoHudLine(todo: TodoItem, prefix: string): string {
 		const checkbox = theme.checkbox;
 		const marker = formatHudNoteMarker(todo.notes?.length ?? 0);
 		switch (todo.status) {
@@ -925,43 +924,15 @@ export class InteractiveMode implements InteractiveModeContext {
 		}
 	}
 
-	#getActivePhase(phases: TodoPhase[]): TodoPhase | undefined {
-		const nonEmpty = phases.filter(phase => phase.tasks.length > 0);
-		const active = nonEmpty.find(phase =>
-			phase.tasks.some(task => task.status === "pending" || task.status === "in_progress"),
-		);
-		return active ?? nonEmpty[nonEmpty.length - 1];
-	}
-
 	#buildTodoBodyLines(phases: TodoPhase[]): string[] {
 		const indent = "  ";
 		const hook = theme.tree.hook;
 		const lines: string[] = [];
-
-		if (!this.todoExpanded) {
-			const activeIdx = phases.indexOf(this.#getActivePhase(phases) ?? phases[0]);
-			const activePhase = phases[activeIdx];
-			if (!activePhase) return lines;
-			lines.push(
-				`${indent}${theme.fg("accent", `${hook} ${formatPhaseDisplayName(activePhase.name, activeIdx + 1)}`)}`,
-			);
-			const visibleTasks = activePhase.tasks.slice(0, 5);
-			visibleTasks.forEach((todo, index) => {
-				const prefix = `${indent}${index === 0 ? hook : " "} `;
-				lines.push(this.#formatTodoLine(todo, prefix));
-			});
-			if (visibleTasks.length < activePhase.tasks.length) {
-				const remaining = activePhase.tasks.length - visibleTasks.length;
-				lines.push(theme.fg("muted", `${indent}  ${hook} +${remaining} more`));
-			}
-			return lines;
-		}
-
 		phases.forEach((phase, phaseIndex) => {
 			lines.push(`${indent}${theme.fg("accent", `${hook} ${formatPhaseDisplayName(phase.name, phaseIndex + 1)}`)}`);
 			phase.tasks.forEach((todo, index) => {
 				const prefix = `${indent}${index === 0 ? hook : " "} `;
-				lines.push(this.#formatTodoLine(todo, prefix));
+				lines.push(this.#renderTodoHudLine(todo, prefix));
 			});
 		});
 		return lines;
@@ -2768,12 +2739,6 @@ export class InteractiveMode implements InteractiveModeContext {
 
 	toggleThinkingBlockVisibility(): void {
 		this.#inputController.toggleThinkingBlockVisibility();
-	}
-
-	toggleTodoExpansion(): void {
-		this.todoExpanded = !this.todoExpanded;
-		this.#renderTodoList();
-		this.ui.requestRender();
 	}
 
 	setTodos(todos: TodoItem[] | TodoPhase[]): void {
