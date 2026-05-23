@@ -42,7 +42,7 @@ describe("local subagent override config", () => {
 							agentModelOverrides: {
 								explore: "openai/gpt-5.4",
 								oracle: "openai/gpt-5.5",
-								researcher: "xai/grok-4-fast-non-reasoning",
+								x_researcher: "xai/grok-4-fast-non-reasoning",
 							},
 							agentThinkingOverrides: {
 								explore: "low",
@@ -63,7 +63,7 @@ describe("local subagent override config", () => {
 
 			expect(modelOverrides.explore).toBe("openai/gpt-5.4");
 			expect(modelOverrides.oracle).toBe("openai/gpt-5.5");
-			expect(modelOverrides.researcher).toBe("xai/grok-4-fast-non-reasoning");
+			expect(modelOverrides.x_researcher).toBe("xai/grok-4-fast-non-reasoning");
 			expect(resolveAgentThinkingLevelOverride("explore", settings, ThinkingLevel.Medium)).toBe(ThinkingLevel.Low);
 			expect(resolveAgentThinkingLevelOverride("oracle", settings, ThinkingLevel.High)).toBe(ThinkingLevel.XHigh);
 			expect(thinkingOverrides.quick_task).toBe("minimal");

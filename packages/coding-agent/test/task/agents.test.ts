@@ -10,27 +10,10 @@ describe("bundled agents", () => {
 		const agents = loadBundledAgents();
 		const names = agents.map(agent => agent.name);
 
-		expect(agents).toHaveLength(11);
-		expect(names.filter(name => name === "researcher")).toHaveLength(1);
+		expect(agents).toHaveLength(10);
 		expect(names.filter(name => name === "x_researcher")).toHaveLength(1);
 		expect(names.filter(name => name === "source_scout")).toHaveLength(1);
 		expect(names.filter(name => name === "memory_scout")).toHaveLength(1);
-	});
-
-	it("registers the deprecated researcher alias", () => {
-		const researcher = getBundledAgent("researcher");
-		if (!researcher) throw new Error("Expected bundled researcher agent");
-
-		expect(researcher.description).toStartWith("[DEPRECATED alias for x_researcher]");
-		expect(researcher.tools?.filter(tool => tool !== "yield")).toEqual(["x_search", "x_search_deep"]);
-		expect(researcher.tools).not.toContain("web_search");
-		expect(researcher.tools).not.toContain("browser");
-		expect(researcher.tools).not.toContain("read");
-		expect(researcher.model).toEqual(["xai/grok-4.3"]);
-		expect(researcher.systemPrompt).toContain("Deprecated alias");
-		expect(researcher.systemPrompt).toContain("X/Twitter only");
-		expect(researcher.systemPrompt).toContain("x_search");
-		expect(researcher.systemPrompt).not.toContain("web_search");
 	});
 
 	it("registers the canonical x_researcher agent", () => {

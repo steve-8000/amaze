@@ -54,20 +54,24 @@
 			"plan": "anthropic/claude-opus-4-7",
 			"reviewer": "anthropic/claude-opus-4-7",
 			"oracle": "openai-codex/gpt-5.5",
-			"researcher": "xai/grok-4.3",
 			"visual_qa": "openai-codex/gpt-5.5",
 			"task": "openai-codex/gpt-5.5",
-			"quick_task": "openai-codex/gpt-5.5"
+			"quick_task": "openai-codex/gpt-5.5",
+			"x_researcher": "xai/grok-4.3",
+			"source_scout": "openai-codex/gpt-5.3-codex-spark",
+			"memory_scout": "vllm/roy-llm"
 		},
 		"agentThinkingOverrides": {
 			"explore": "low",
 			"plan": "xhigh",
 			"reviewer": "high",
 			"oracle": "xhigh",
-			"researcher": "medium",
 			"visual_qa": "low",
 			"task": "medium",
-			"quick_task": "minimal"
+			"quick_task": "minimal",
+			"x_researcher": "medium",
+			"source_scout": "low",
+			"memory_scout": "low"
 		}
 	}
 }

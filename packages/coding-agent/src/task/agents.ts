@@ -12,7 +12,6 @@ import agentFrontmatterTemplate from "../prompts/agents/frontmatter.md" with { t
 import memoryScoutMd from "../prompts/agents/memory-scout.md" with { type: "text" };
 import oracleMd from "../prompts/agents/oracle.md" with { type: "text" };
 import planMd from "../prompts/agents/plan.md" with { type: "text" };
-import researcherMd from "../prompts/agents/researcher.md" with { type: "text" };
 import reviewerMd from "../prompts/agents/reviewer.md" with { type: "text" };
 import sourceScoutMd from "../prompts/agents/source-scout.md" with { type: "text" };
 import taskMd from "../prompts/agents/task.md" with { type: "text" };
@@ -48,7 +47,6 @@ const EMBEDDED_AGENT_DEFS: EmbeddedAgentDef[] = [
 	{ fileName: "plan.md", template: planMd },
 	{ fileName: "reviewer.md", template: reviewerMd },
 	{ fileName: "oracle.md", template: oracleMd },
-	{ fileName: "researcher.md", template: researcherMd },
 	{ fileName: "x-researcher.md", template: xResearcherMd },
 	{ fileName: "visual-qa.md", template: visualQaMd },
 	{ fileName: "source-scout.md", template: sourceScoutMd },
