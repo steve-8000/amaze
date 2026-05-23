@@ -9,12 +9,15 @@ import { parseAgentFields } from "../discovery/helpers";
 import exploreMd from "../prompts/agents/explore.md" with { type: "text" };
 // Embed agent markdown files at build time
 import agentFrontmatterTemplate from "../prompts/agents/frontmatter.md" with { type: "text" };
+import memoryScoutMd from "../prompts/agents/memory-scout.md" with { type: "text" };
 import oracleMd from "../prompts/agents/oracle.md" with { type: "text" };
 import planMd from "../prompts/agents/plan.md" with { type: "text" };
 import researcherMd from "../prompts/agents/researcher.md" with { type: "text" };
 import reviewerMd from "../prompts/agents/reviewer.md" with { type: "text" };
+import sourceScoutMd from "../prompts/agents/source-scout.md" with { type: "text" };
 import taskMd from "../prompts/agents/task.md" with { type: "text" };
 import visualQaMd from "../prompts/agents/visual-qa.md" with { type: "text" };
+import xResearcherMd from "../prompts/agents/x-researcher.md" with { type: "text" };
 
 import type { AgentDefinition, AgentSource } from "./types";
 
@@ -46,7 +49,10 @@ const EMBEDDED_AGENT_DEFS: EmbeddedAgentDef[] = [
 	{ fileName: "reviewer.md", template: reviewerMd },
 	{ fileName: "oracle.md", template: oracleMd },
 	{ fileName: "researcher.md", template: researcherMd },
+	{ fileName: "x-researcher.md", template: xResearcherMd },
 	{ fileName: "visual-qa.md", template: visualQaMd },
+	{ fileName: "source-scout.md", template: sourceScoutMd },
+	{ fileName: "memory-scout.md", template: memoryScoutMd },
 	{
 		fileName: "task.md",
 		frontmatter: {

@@ -1,0 +1,346 @@
+import { Database } from "bun:sqlite";
+import { randomBytes } from "node:crypto";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
+import {
+	CONFIDENCE_LEVELS,
+	type ConfidenceLevel,
+	type DecisionRecord,
+	EVIDENCE_GRADES,
+	type EvidenceCard,
+	type EvidenceGrade,
+	type NewDecisionRecord,
+	type NewEvidenceCard,
+	type NewResearchBrief,
+	RESEARCH_LANES,
+	type ResearchBrief,
+	type ResearchLane,
+} from "./types";
+
+export const DEFAULT_DB_PATH = path.join(os.homedir(), ".amaze", "autonomy", "autonomy.db");
+
+const VALID_LANES = new Set<ResearchLane>(RESEARCH_LANES);
+const VALID_GRADES = new Set<EvidenceGrade>(EVIDENCE_GRADES);
+const VALID_CONFIDENCE = new Set<ConfidenceLevel>(CONFIDENCE_LEVELS);
+
+type ResearchBriefRow = {
+	id: string;
+	objective_id: string | null;
+	question: string;
+	lanes: string;
+	required_evidence: string;
+	disallowed_evidence: string;
+	risk_level: ResearchBrief["riskLevel"];
+	stop_criteria: string;
+	created_at: number;
+	updated_at: number;
+};
+
+type EvidenceCardRow = {
+	id: string;
+	brief_id: string;
+	lane: ResearchLane;
+	grade: EvidenceGrade;
+	source_ref: string;
+	excerpt: string;
+	claims: string;
+	captured_at: number;
+	directness: number;
+	specificity: number;
+	recency: number;
+	reproducibility: number;
+};
+
+type DecisionRecordRow = {
+	id: string;
+	brief_id: string;
+	hypothesis: string;
+	rationale: string;
+	confidence: ConfidenceLevel;
+	evidence_refs: string;
+	rejected_options: string;
+	next_actions: string;
+	created_at: number;
+};
+
+export class ResearchStore {
+	readonly dbPath: string;
+	readonly #db: Database;
+
+	constructor(dbPath = DEFAULT_DB_PATH) {
+		this.dbPath = dbPath;
+		if (dbPath !== ":memory:") {
+			fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+		}
+		this.#db = new Database(dbPath, { create: true, strict: true });
+		this.#db.run("PRAGMA busy_timeout = 3000");
+		this.#db.run("PRAGMA foreign_keys = ON");
+		this.#init();
+	}
+
+	close(): void {
+		this.#db.close();
+	}
+
+	createBrief(input: NewResearchBrief): ResearchBrief {
+		for (const lane of input.lanes) {
+			assertResearchLane(lane);
+		}
+		const now = Date.now();
+		const brief: ResearchBrief = {
+			...input,
+			id: input.id ?? generateId("research", now),
+			createdAt: now,
+			updatedAt: now,
+		};
+		this.#db
+			.query(
+				`INSERT INTO research_briefs
+					(id, objective_id, question, lanes, required_evidence, disallowed_evidence, risk_level, stop_criteria, created_at, updated_at)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			)
+			.run(
+				brief.id,
+				brief.objectiveId,
+				brief.question,
+				JSON.stringify(brief.lanes),
+				JSON.stringify(brief.requiredEvidence),
+				JSON.stringify(brief.disallowedEvidence),
+				brief.riskLevel,
+				JSON.stringify(brief.stopCriteria),
+				brief.createdAt,
+				brief.updatedAt,
+			);
+		return brief;
+	}
+
+	getBrief(id: string): ResearchBrief | undefined {
+		const row = this.#db.query("SELECT * FROM research_briefs WHERE id = ?").get(id) as ResearchBriefRow | null;
+		return row ? rowToBrief(row) : undefined;
+	}
+
+	listBriefs(opts: { objectiveId?: string } = {}): ResearchBrief[] {
+		const rows = opts.objectiveId
+			? (this.#db
+					.query("SELECT * FROM research_briefs WHERE objective_id = ? ORDER BY created_at DESC, id DESC")
+					.all(opts.objectiveId) as ResearchBriefRow[])
+			: (this.#db
+					.query("SELECT * FROM research_briefs ORDER BY created_at DESC, id DESC")
+					.all() as ResearchBriefRow[]);
+		return rows.map(rowToBrief);
+	}
+
+	addEvidence(input: NewEvidenceCard): EvidenceCard {
+		if (!this.getBrief(input.briefId)) {
+			throw new Error(`Research brief not found: ${input.briefId}`);
+		}
+		assertResearchLane(input.lane);
+		assertEvidenceGrade(input.grade);
+		const now = Date.now();
+		const evidence: EvidenceCard = {
+			...input,
+			id: input.id ?? generateId("ev", now),
+			capturedAt: input.capturedAt ?? now,
+			directness: clamp01(input.directness),
+			specificity: clamp01(input.specificity),
+			recency: clamp01(input.recency),
+			reproducibility: clamp01(input.reproducibility),
+		};
+		this.#db
+			.query(
+				`INSERT INTO evidence_cards
+					(id, brief_id, lane, grade, source_ref, excerpt, claims, captured_at, directness, specificity, recency, reproducibility)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			)
+			.run(
+				evidence.id,
+				evidence.briefId,
+				evidence.lane,
+				evidence.grade,
+				evidence.sourceRef,
+				evidence.excerpt,
+				JSON.stringify(evidence.claims),
+				evidence.capturedAt,
+				evidence.directness,
+				evidence.specificity,
+				evidence.recency,
+				evidence.reproducibility,
+			);
+		return evidence;
+	}
+
+	listEvidence(briefId: string): EvidenceCard[] {
+		const rows = this.#db
+			.query("SELECT * FROM evidence_cards WHERE brief_id = ? ORDER BY captured_at ASC, id ASC")
+			.all(briefId) as EvidenceCardRow[];
+		return rows.map(rowToEvidence);
+	}
+
+	recordDecision(input: NewDecisionRecord): DecisionRecord {
+		if (!this.getBrief(input.briefId)) {
+			throw new Error(`Research brief not found: ${input.briefId}`);
+		}
+		assertConfidence(input.confidence);
+		const now = Date.now();
+		const decision: DecisionRecord = {
+			...input,
+			id: input.id ?? generateId("dec", now),
+			createdAt: now,
+		};
+		this.#db
+			.query(
+				`INSERT INTO decision_records
+					(id, brief_id, hypothesis, rationale, confidence, evidence_refs, rejected_options, next_actions, created_at)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			)
+			.run(
+				decision.id,
+				decision.briefId,
+				decision.hypothesis,
+				decision.rationale,
+				decision.confidence,
+				JSON.stringify(decision.evidenceRefs),
+				JSON.stringify(decision.rejectedOptions),
+				JSON.stringify(decision.nextActions),
+				decision.createdAt,
+			);
+		return decision;
+	}
+
+	getDecision(briefId: string): DecisionRecord | undefined {
+		const row = this.#db
+			.query("SELECT * FROM decision_records WHERE brief_id = ? ORDER BY created_at DESC, id DESC LIMIT 1")
+			.get(briefId) as DecisionRecordRow | null;
+		return row ? rowToDecision(row) : undefined;
+	}
+
+	listDecisions(briefId: string): DecisionRecord[] {
+		const rows = this.#db
+			.query("SELECT * FROM decision_records WHERE brief_id = ? ORDER BY created_at ASC, id ASC")
+			.all(briefId) as DecisionRecordRow[];
+		return rows.map(rowToDecision);
+	}
+
+	#init(): void {
+		this.#db.exec(`
+			CREATE TABLE IF NOT EXISTS research_briefs (
+				id TEXT PRIMARY KEY,
+				objective_id TEXT,
+				question TEXT NOT NULL,
+				lanes TEXT NOT NULL,
+				required_evidence TEXT NOT NULL,
+				disallowed_evidence TEXT NOT NULL,
+				risk_level TEXT NOT NULL,
+				stop_criteria TEXT NOT NULL,
+				created_at INTEGER NOT NULL,
+				updated_at INTEGER NOT NULL
+			);
+			CREATE INDEX IF NOT EXISTS research_briefs_objective_idx ON research_briefs(objective_id);
+
+			CREATE TABLE IF NOT EXISTS evidence_cards (
+				id TEXT PRIMARY KEY,
+				brief_id TEXT NOT NULL,
+				lane TEXT NOT NULL,
+				grade TEXT NOT NULL,
+				source_ref TEXT NOT NULL,
+				excerpt TEXT NOT NULL,
+				claims TEXT NOT NULL,
+				captured_at INTEGER NOT NULL,
+				directness REAL NOT NULL,
+				specificity REAL NOT NULL,
+				recency REAL NOT NULL,
+				reproducibility REAL NOT NULL,
+				FOREIGN KEY (brief_id) REFERENCES research_briefs(id) ON DELETE CASCADE
+			);
+			CREATE INDEX IF NOT EXISTS evidence_cards_brief_idx ON evidence_cards(brief_id);
+			CREATE INDEX IF NOT EXISTS evidence_cards_lane_idx ON evidence_cards(brief_id, lane);
+
+			CREATE TABLE IF NOT EXISTS decision_records (
+				id TEXT PRIMARY KEY,
+				brief_id TEXT NOT NULL,
+				hypothesis TEXT NOT NULL,
+				rationale TEXT NOT NULL,
+				confidence TEXT NOT NULL,
+				evidence_refs TEXT NOT NULL,
+				rejected_options TEXT NOT NULL,
+				next_actions TEXT NOT NULL,
+				created_at INTEGER NOT NULL,
+				FOREIGN KEY (brief_id) REFERENCES research_briefs(id) ON DELETE CASCADE
+			);
+			CREATE INDEX IF NOT EXISTS decision_records_brief_idx ON decision_records(brief_id);
+		`);
+	}
+}
+
+function generateId(prefix: string, now: number): string {
+	return `${prefix}-${now}-${randomBytes(4).toString("hex")}`;
+}
+
+function assertResearchLane(lane: ResearchLane): void {
+	if (!VALID_LANES.has(lane)) {
+		throw new Error(`Invalid research lane: ${lane}`);
+	}
+}
+
+function assertEvidenceGrade(grade: EvidenceGrade): void {
+	if (!VALID_GRADES.has(grade)) {
+		throw new Error(`Invalid evidence grade: ${grade}`);
+	}
+}
+
+function assertConfidence(confidence: ConfidenceLevel): void {
+	if (!VALID_CONFIDENCE.has(confidence)) {
+		throw new Error(`Invalid decision confidence: ${confidence}`);
+	}
+}
+
+function clamp01(value: number): number {
+	return Math.min(1, Math.max(0, value));
+}
+
+function rowToBrief(row: ResearchBriefRow): ResearchBrief {
+	return {
+		id: row.id,
+		objectiveId: row.objective_id,
+		question: row.question,
+		lanes: JSON.parse(row.lanes) as ResearchLane[],
+		requiredEvidence: JSON.parse(row.required_evidence) as string[],
+		disallowedEvidence: JSON.parse(row.disallowed_evidence) as string[],
+		riskLevel: row.risk_level,
+		stopCriteria: JSON.parse(row.stop_criteria) as string[],
+		createdAt: row.created_at,
+		updatedAt: row.updated_at,
+	};
+}
+
+function rowToEvidence(row: EvidenceCardRow): EvidenceCard {
+	return {
+		id: row.id,
+		briefId: row.brief_id,
+		lane: row.lane,
+		grade: row.grade,
+		sourceRef: row.source_ref,
+		excerpt: row.excerpt,
+		claims: JSON.parse(row.claims) as string[],
+		capturedAt: row.captured_at,
+		directness: row.directness,
+		specificity: row.specificity,
+		recency: row.recency,
+		reproducibility: row.reproducibility,
+	};
+}
+
+function rowToDecision(row: DecisionRecordRow): DecisionRecord {
+	return {
+		id: row.id,
+		briefId: row.brief_id,
+		hypothesis: row.hypothesis,
+		rationale: row.rationale,
+		confidence: row.confidence,
+		evidenceRefs: JSON.parse(row.evidence_refs) as string[],
+		rejectedOptions: JSON.parse(row.rejected_options) as Array<{ id: string; reason: string }>,
+		nextActions: JSON.parse(row.next_actions) as string[],
+		createdAt: row.created_at,
+	};
+}
