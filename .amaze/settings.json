@@ -58,7 +58,7 @@
 			"task": "openai-codex/gpt-5.5",
 			"quick_task": "openai-codex/gpt-5.5",
 			"x_researcher": "xai/grok-4.3",
-			"source_scout": "openai-codex/gpt-5.3-codex-spark",
+			"source_scout": "vllm/roy-llm",
 			"memory_scout": "vllm/roy-llm"
 		},
 		"agentThinkingOverrides": {
