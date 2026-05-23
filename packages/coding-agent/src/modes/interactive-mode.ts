@@ -48,7 +48,12 @@ import {
 	resolvePlanTitle,
 	validatePlanContentForApproval,
 } from "../plan-mode/approved-plan";
-import { parsePlanModeState } from "../plan-mode/state";
+import {
+	type PlanModeState,
+	parsePlanModeState,
+	planGoalBindingFromGoal,
+	planGoalDriftReason,
+} from "../plan-mode/state";
 import planModeApprovedPrompt from "../prompts/system/plan-mode-approved.md" with { type: "text" };
 import planModeCompactInstructionsPrompt from "../prompts/system/plan-mode-compact-instructions.md" with {
 	type: "text",
@@ -142,6 +147,7 @@ function formatHudNoteMarker(count: number): string {
 type GoalSubcommand = "set" | "show" | "pause" | "resume" | "drop" | "budget";
 
 const GOAL_SUBCOMMANDS = new Set<GoalSubcommand>(["set", "show", "pause", "resume", "drop", "budget"]);
+const GOAL_TEXT_ONLY_CONTINUATION_LIMIT = 2;
 
 function parseGoalSubcommand(args: string): { sub: GoalSubcommand | undefined; rest: string } {
 	const trimmed = args.trim();
@@ -250,6 +256,7 @@ export class InteractiveMode implements InteractiveModeContext {
 	#goalContinuationTimer: NodeJS.Timeout | undefined;
 	#goalTurnHadToolCalls = false;
 	#goalContinuationTurnInFlight = false;
+	#goalTextOnlyContinuationCount = 0;
 	#goalSuppressNextContinuation = false;
 	#planModePreviousModelState: { model: Model; thinkingLevel?: ThinkingLevel } | undefined;
 	#pendingModelSwitch: { model: Model; thinkingLevel?: ThinkingLevel } | undefined;
@@ -380,6 +387,11 @@ export class InteractiveMode implements InteractiveModeContext {
 		this.#todoCommandController = new TodoCommandController(this);
 		this.#selectorController = new SelectorController(this);
 		this.#inputController = new InputController(this);
+		this.#eventBusUnsubscribers.push(
+			this.session.subscribe(event => {
+				void this.#handleGoalSessionEvent(event);
+			}),
+		);
 		this.#observerRegistry = new SessionObserverRegistry();
 	}
 
@@ -520,11 +532,6 @@ export class InteractiveMode implements InteractiveModeContext {
 		// Subscribe to agent events
 		this.#subscribeToAgent();
 
-		this.#eventBusUnsubscribers.push(
-			this.session.subscribe(event => {
-				void this.#handleGoalSessionEvent(event);
-			}),
-		);
 		// Set up theme file watcher
 		onThemeChange(() => {
 			clearRenderCache();
@@ -620,8 +627,6 @@ export class InteractiveMode implements InteractiveModeContext {
 		if ((this.pendingImages?.length ?? 0) > 0) return;
 		const state = this.session.getGoalModeState();
 		if (!state?.enabled || state.goal.status !== "active") return;
-		const prompt = this.session.goalRuntime.buildContinuationPrompt();
-		if (!prompt) return;
 		this.#goalContinuationTimer = setTimeout(() => {
 			this.#goalContinuationTimer = undefined;
 			if (!this.onInputCallback) return;
@@ -631,6 +636,8 @@ export class InteractiveMode implements InteractiveModeContext {
 			if ((this.pendingImages?.length ?? 0) > 0) return;
 			const latestState = this.session.getGoalModeState();
 			if (!latestState?.enabled || latestState.goal.status !== "active") return;
+			const prompt = this.session.goalRuntime.buildContinuationPrompt();
+			if (!prompt) return;
 			this.#goalContinuationTurnInFlight = true;
 			this.onInputCallback(
 				this.startPendingSubmission({
@@ -1010,6 +1017,7 @@ export class InteractiveMode implements InteractiveModeContext {
 
 	#resetGoalContinuationSuppression(): void {
 		this.#goalSuppressNextContinuation = false;
+		this.#goalTextOnlyContinuationCount = 0;
 	}
 
 	#getPausedGoalState(): GoalModeState | undefined {
@@ -1024,7 +1032,9 @@ export class InteractiveMode implements InteractiveModeContext {
 		const state = this.session.getGoalModeState();
 		if (!state?.goal) return null;
 		if (!state.enabled || this.goalModePaused || state.goal.status === "paused") {
-			return "Resume or drop the paused goal before entering plan mode.";
+			return state.goal.status === "blocked"
+				? "Resume or drop the blocked goal before entering plan mode."
+				: "Resume or drop the paused goal before entering plan mode.";
 		}
 		if (state.goal.status === "budget-limited") {
 			return "Raise or clear the exhausted goal budget before entering plan mode.";
@@ -1052,6 +1062,7 @@ export class InteractiveMode implements InteractiveModeContext {
 				value.status !== "paused" &&
 				value.status !== "budget-limited" &&
 				value.status !== "complete" &&
+				value.status !== "blocked" &&
 				value.status !== "dropped") ||
 			typeof tokensUsed !== "number" ||
 			!Number.isSafeInteger(tokensUsed) ||
@@ -1086,6 +1097,48 @@ export class InteractiveMode implements InteractiveModeContext {
 		};
 	}
 
+	#currentActiveGoalForPlan(): Goal | undefined {
+		const state = this.session.getGoalModeState();
+		return state?.enabled && state.goal.status === "active" ? state.goal : undefined;
+	}
+
+	#planModePersistenceData(
+		planState: Pick<
+			PlanModeState,
+			"planFilePath" | "workflow" | "goalId" | "goalObjective" | "goalTokenBudget" | "goalContractRevision"
+		>,
+	): Record<string, unknown> {
+		const data: Record<string, unknown> = {
+			planFilePath: planState.planFilePath,
+		};
+		if (planState.workflow) {
+			data.workflow = planState.workflow;
+		}
+		if (planState.goalId) {
+			data.goalId = planState.goalId;
+			if (planState.goalObjective !== undefined) data.goalObjective = planState.goalObjective;
+			if (planState.goalTokenBudget !== undefined) data.goalTokenBudget = planState.goalTokenBudget;
+			if (planState.goalContractRevision !== undefined) data.goalContractRevision = planState.goalContractRevision;
+		}
+		const linkedGoal = this.session.getGoalModeState()?.goal;
+		if (linkedGoal) {
+			data.goal = linkedGoal;
+		}
+		return data;
+	}
+	#planStaleApprovalMessage(
+		planState:
+			| Pick<PlanModeState, "goalId" | "goalObjective" | "goalTokenBudget" | "goalContractRevision">
+			| undefined,
+	): string | undefined {
+		const goal = this.session.getGoalModeState()?.goal;
+		const reason = planState
+			? planGoalDriftReason(planState, goal, { allowedGoalStatuses: ["active", "paused"] })
+			: undefined;
+		return reason
+			? `Cannot approve stale plan: ${reason}. Update the plan against the current goal contract and request approval again.`
+			: undefined;
+	}
 	async #handleGoalSessionEvent(event: AgentSessionEvent): Promise<void> {
 		if (event.type === "agent_start") {
 			this.#goalTurnHadToolCalls = false;
@@ -1120,7 +1173,14 @@ export class InteractiveMode implements InteractiveModeContext {
 			return;
 		}
 		if (this.#goalContinuationTurnInFlight) {
-			this.#goalSuppressNextContinuation = !this.#goalTurnHadToolCalls;
+			if (this.#goalTurnHadToolCalls) {
+				this.#goalTextOnlyContinuationCount = 0;
+				this.#goalSuppressNextContinuation = false;
+			} else {
+				this.#goalTextOnlyContinuationCount += 1;
+				this.#goalSuppressNextContinuation =
+					this.#goalTextOnlyContinuationCount >= GOAL_TEXT_ONLY_CONTINUATION_LIMIT;
+			}
 			this.#goalContinuationTurnInFlight = false;
 		}
 		if (this.session.getGoalModeState()?.mode === "exiting") {
@@ -1216,19 +1276,38 @@ export class InteractiveMode implements InteractiveModeContext {
 				this.sessionManager.appendModeChange("none");
 				return;
 			}
+			let restoredGoal: Goal | undefined;
 			if (goalEnabled) {
 				const goal = this.#goalFromModeData(sessionContext.modeData);
 				if (goal?.status === "active") {
 					this.session.setGoalModeState({ enabled: true, mode: "active", goal });
 					this.goalModeEnabled = true;
 					this.goalModePaused = false;
+					restoredGoal = goal;
 				}
+			}
+			const drift = planGoalDriftReason(planState, restoredGoal);
+			if (drift) {
+				this.sessionManager.appendModeChange("none");
+				this.showWarning(`Skipped restoring stale plan mode: ${drift}. Re-enter /plan under the current goal.`);
+				return;
 			}
 			await this.#enterPlanMode({ planFilePath: planState.planFilePath, workflow: planState.workflow });
 		} else if (sessionContext.mode === "plan_paused") {
 			const planState = parsePlanModeState(sessionContext.modeData, { enabled: false });
-			this.planModePlanFilePath = planState?.planFilePath;
-			this.planModePaused = planState !== undefined;
+			if (!planState) {
+				this.sessionManager.appendModeChange("none");
+				return;
+			}
+			const goal = goalEnabled ? this.#goalFromModeData(sessionContext.modeData) : undefined;
+			const drift = planGoalDriftReason(planState, goal?.status === "active" ? goal : undefined);
+			if (drift) {
+				this.sessionManager.appendModeChange("none");
+				this.showWarning(`Skipped restoring stale paused plan: ${drift}. Re-enter /plan under the current goal.`);
+				return;
+			}
+			this.planModePlanFilePath = planState.planFilePath;
+			this.planModePaused = true;
 			this.#planModeHasEntered = true;
 			this.#updatePlanModeStatus();
 		}
@@ -1248,24 +1327,25 @@ export class InteractiveMode implements InteractiveModeContext {
 
 		const planFilePath = options?.planFilePath ?? (await this.#getPlanFilePath());
 		const previousTools = this.session.getActiveToolNames();
-		const linkedGoal = this.session.getGoalModeState()?.enabled ? this.session.getGoalModeState()?.goal : undefined;
+		const linkedGoal = this.#currentActiveGoalForPlan();
 		const basePlanTools = linkedGoal ? previousTools.filter(name => name !== "goal") : previousTools;
 		const hasResolveTool = this.session.getToolByName("resolve") !== undefined;
 		const planTools = hasResolveTool ? [...basePlanTools, "resolve"] : basePlanTools;
 		const uniquePlanTools = [...new Set(planTools)];
+		const nextPlanState: PlanModeState = {
+			enabled: true,
+			planFilePath,
+			workflow: options?.workflow ?? "parallel",
+			reentry: this.#planModeHasEntered,
+			...planGoalBindingFromGoal(linkedGoal),
+		};
 
 		this.#planModePreviousTools = previousTools;
 		this.planModePlanFilePath = planFilePath;
 		this.planModeEnabled = true;
 
 		await this.session.setActiveToolsByName(uniquePlanTools);
-		this.session.setPlanModeState({
-			enabled: true,
-			planFilePath,
-			workflow: options?.workflow ?? "parallel",
-			reentry: this.#planModeHasEntered,
-			goalId: linkedGoal?.id,
-		});
+		this.session.setPlanModeState(nextPlanState);
 		this.session.setStandingResolveHandler?.(input => this.#runPlanApprovalResolve(input));
 		if (this.session.isStreaming) {
 			await this.session.sendPlanModeContext({ deliverAs: "steer" });
@@ -1273,7 +1353,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		this.#planModeHasEntered = true;
 		await this.#applyPlanModeModel();
 		this.#updatePlanModeStatus();
-		this.sessionManager.appendModeChange("plan", linkedGoal ? { planFilePath, goal: linkedGoal } : { planFilePath });
+		this.sessionManager.appendModeChange("plan", this.#planModePersistenceData(nextPlanState));
 		this.showStatus(`Plan mode enabled. Plan file: ${planFilePath}`);
 	}
 
@@ -1289,6 +1369,10 @@ export class InteractiveMode implements InteractiveModeContext {
 				const state = this.session.getPlanModeState?.();
 				if (!state?.enabled) {
 					throw new ToolError("Plan mode is not active.");
+				}
+				const staleMessage = this.#planStaleApprovalMessage(state);
+				if (staleMessage) {
+					throw new ToolError(staleMessage);
 				}
 				const planFilePath = state.planFilePath;
 				const planContent = await this.#readPlanFile(planFilePath);
@@ -1353,6 +1437,14 @@ export class InteractiveMode implements InteractiveModeContext {
 			}
 		}
 		this.session.setStandingResolveHandler?.(null);
+		const persistedPlanState =
+			this.session.getPlanModeState() ??
+			(this.planModePlanFilePath
+				? ({
+						enabled: true,
+						planFilePath: this.planModePlanFilePath,
+					} satisfies PlanModeState)
+				: undefined);
 		this.session.setPlanModeState(undefined);
 		this.planModeEnabled = false;
 		this.planModePaused = options?.paused ?? false;
@@ -1361,7 +1453,10 @@ export class InteractiveMode implements InteractiveModeContext {
 		this.#planModePreviousModelState = undefined;
 		this.#updatePlanModeStatus();
 		const paused = options?.paused ?? false;
-		this.sessionManager.appendModeChange(paused ? "plan_paused" : "none");
+		this.sessionManager.appendModeChange(
+			paused ? "plan_paused" : "none",
+			paused && persistedPlanState ? this.#planModePersistenceData(persistedPlanState) : undefined,
+		);
 		if (!options?.silent) {
 			this.showStatus(paused ? "Plan mode paused." : "Plan mode disabled.");
 		}
@@ -1913,11 +2008,17 @@ export class InteractiveMode implements InteractiveModeContext {
 		}
 
 		// Abort the agent to prevent it from continuing (e.g., re-submitting the
-		// plan) while the popup is showing. The event listener fires asynchronously
-		// (agent's #emit is fire-and-forget), so without this the model sees
-		// "Plan ready for approval." and immediately re-invokes `resolve` in a loop.
-		await this.session.abort();
+		// plan) while the popup is showing. This is internal review control flow,
+		// not a user-visible interruption of goal execution, so it must not pause
+		// the linked goal.
+		await this.session.abort({ goalReason: "internal" });
 
+		const currentPlanState = this.session.getPlanModeState?.();
+		const staleMessage = this.#planStaleApprovalMessage(currentPlanState);
+		if (staleMessage) {
+			this.showError(staleMessage);
+			return;
+		}
 		const planFilePath = details.planFilePath || this.planModePlanFilePath || (await this.#getPlanFilePath());
 		this.planModePlanFilePath = planFilePath;
 		const planContent = await this.#readPlanFile(planFilePath);
@@ -1943,6 +2044,11 @@ export class InteractiveMode implements InteractiveModeContext {
 		) {
 			const finalPlanFilePath = details.finalPlanFilePath || planFilePath;
 			try {
+				const latestPlanStaleMessage = this.#planStaleApprovalMessage(this.session.getPlanModeState?.());
+				if (latestPlanStaleMessage) {
+					this.showError(latestPlanStaleMessage);
+					return;
+				}
 				const latestPlanContent = await this.#readPlanFile(planFilePath);
 				if (!latestPlanContent) {
 					this.showError(`Plan file not found at ${planFilePath}`);

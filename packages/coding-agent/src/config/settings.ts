@@ -636,16 +636,28 @@ export class Settings {
 		// Map legacy `memories.enabled` boolean to the explicit `memory.backend`
 		// enum if the latter hasn't been set yet. Idempotent: subsequent
 		// migrations are no-ops once memory.backend is materialised. Legacy local
-		// memory now upgrades to Rockey, which is the canonical built-in local
+		// memory now upgrades to Nexus, which is the canonical built-in local
 		// memory plane.
 		const memoryBackendObj = raw.memory as Record<string, unknown> | undefined;
 		const memoryBackendSet = memoryBackendObj && typeof memoryBackendObj.backend === "string";
 		const memoriesObj = raw.memories as Record<string, unknown> | undefined;
 		if (!memoryBackendSet && memoriesObj && typeof memoriesObj.enabled === "boolean") {
-			const next = memoriesObj.enabled ? "rockey" : "off";
+			const next = memoriesObj.enabled ? "nexus" : "off";
 			const memoryRoot = (memoryBackendObj ?? {}) as Record<string, unknown>;
 			memoryRoot.backend = next;
 			raw.memory = memoryRoot;
+		}
+
+		// Canonical cutover: persisted legacy backends now migrate to Nexus. Their
+		// data is still imported by Nexus as migration sources, but they are no
+		// longer treated as canonical runtime writers in normal config loads.
+		const migratedMemoryBackend = (raw.memory as Record<string, unknown> | undefined)?.backend;
+		if (
+			migratedMemoryBackend === "rockey" ||
+			migratedMemoryBackend === "local" ||
+			migratedMemoryBackend === "hindsight"
+		) {
+			(raw.memory as Record<string, unknown>).backend = "nexus";
 		}
 
 		// hindsight: dynamicBankId/agentName -> scoping enum + bankId

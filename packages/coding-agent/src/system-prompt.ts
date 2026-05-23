@@ -354,8 +354,6 @@ export interface BuildSystemPromptOptions {
 	mcpDiscoveryMode?: boolean;
 	/** Discoverable MCP server summaries to advertise when discovery mode is active. */
 	mcpDiscoveryServerSummaries?: string[];
-	/** Encourage the agent to delegate via tasks unless changes are trivial. */
-	eagerTasks?: boolean;
 	/** Rules with alwaysApply=true — their full content is injected into the prompt. */
 	alwaysApplyRules?: AlwaysApplyRule[];
 	/** Whether secret obfuscation is active. When true, explains the redaction format in the prompt. */
@@ -414,7 +412,6 @@ export async function buildSystemPrompt(options: BuildSystemPromptOptions = {}):
 		intentField,
 		mcpDiscoveryMode = false,
 		mcpDiscoveryServerSummaries = [],
-		eagerTasks = true,
 		secretsEnabled = false,
 		workspaceTree: providedWorkspaceTree,
 		projectContextMode = "full",
@@ -608,7 +605,6 @@ export async function buildSystemPrompt(options: BuildSystemPromptOptions = {}):
 		mcpDiscoveryMode,
 		hasMCPDiscoveryServers: mcpDiscoveryServerSummaries.length > 0,
 		mcpDiscoveryServerSummaries,
-		eagerTasks,
 		secretsEnabled,
 		// Goal block lives in DYNAMIC_TAIL so it can update per turn without invalidating
 		// the STABLE_CORE cache. `renderGoalBlock` always returns a non-empty string (a

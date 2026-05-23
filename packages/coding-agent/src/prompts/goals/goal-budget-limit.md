@@ -13,4 +13,4 @@ Budget:
 
 The runtime marked the goal as budget-limited. Do not start new substantive work for this goal. Wrap up this turn soon: summarize useful progress, identify remaining work or blockers, and leave the user with a clear next step.
 
-Budget exhaustion is not completion. Do not call `goal({op:"complete"})` unless the current repo state proves the goal is actually complete.
+Budget exhaustion is not completion. Do not call `goal({op:"complete", goal_id:"..."})` unless the current repo state proves the goal is actually complete.

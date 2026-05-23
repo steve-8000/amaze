@@ -6,13 +6,13 @@
  * state they create in `start()` and tear it down on `clear()`.
  */
 
-import type { AgentMessage } from "@amaze/agent-core";
+import type { AgentEvent, AgentMessage } from "@amaze/agent-core";
 import type { ModelRegistry } from "../config/model-registry";
 import type { Settings } from "../config/settings";
 import type { HindsightSessionState } from "../hindsight/state";
 import type { AgentSession } from "../session/agent-session";
 
-export type MemoryBackendId = "off" | "local" | "rockey" | "hindsight";
+export type MemoryBackendId = "off" | "local" | "rockey" | "hindsight" | "nexus";
 
 export interface MemoryBackendStartOptions {
 	session: AgentSession;
@@ -76,4 +76,11 @@ export interface MemoryBackend {
 		settings: Settings,
 		session?: AgentSession,
 	): Promise<string | undefined>;
+
+	/**
+	 * Optional fire-and-forget hook invoked after a turn boundary. Backends use
+	 * this for online consolidation so memory can learn during a session instead
+	 * of waiting for the next startup scan.
+	 */
+	onTurnEnd?(session: AgentSession, event: AgentEvent): void | Promise<void>;
 }

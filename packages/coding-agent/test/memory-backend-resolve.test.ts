@@ -11,10 +11,10 @@ describe("resolveMemoryBackend", () => {
 		resetSettingsForTest();
 	});
 
-	it("returns the hindsight backend when memory.backend is hindsight, regardless of legacy memories.enabled", () => {
-		const a = Settings.isolated({ "memory.backend": "hindsight", "memories.enabled": false });
-		const b = Settings.isolated({ "memory.backend": "hindsight", "memories.enabled": true });
-		expect(resolveMemoryBackend(a).id).toBe("hindsight");
-		expect(resolveMemoryBackend(b).id).toBe("hindsight");
+	it("returns the configured backend regardless of legacy memories.enabled", () => {
+		const hindsight = Settings.isolated({ "memory.backend": "hindsight", "memories.enabled": false });
+		const nexus = Settings.isolated({ "memory.backend": "nexus", "memories.enabled": true });
+		expect(resolveMemoryBackend(hindsight).id).toBe("hindsight");
+		expect(resolveMemoryBackend(nexus).id).toBe("nexus");
 	});
 });

@@ -1,6 +1,7 @@
 import type { AgentTelemetryConfig, AgentTool } from "@amaze/agent-core";
 import type { ToolChoice } from "@amaze/ai";
 import { $env, $flag, logger } from "@amaze/utils";
+import { resolveMemoryBackend } from "../memory-backend";
 import type { PromptTemplate } from "../config/prompt-templates";
 import type { Settings } from "../config/settings";
 import { EditTool } from "../edit";
@@ -32,6 +33,10 @@ import { CalculatorTool } from "./calculator";
 import { type CheckpointState, CheckpointTool, RewindTool } from "./checkpoint";
 import { CuaTool } from "./cua";
 import { DebugTool } from "./debug";
+import { CodeCallersTool } from "./code-callers";
+import { CodeCalleesTool } from "./code-callees";
+import { CodeDefTool } from "./code-def";
+import { CodeRefsTool } from "./code-refs";
 import { EvalTool } from "./eval";
 import { FindTool } from "./find";
 import { GithubTool } from "./gh";
@@ -43,11 +48,13 @@ import { IrcTool } from "./irc";
 import { JobTool } from "./job";
 import { wrapToolWithMetaNotice } from "./output-meta";
 import { ReadTool } from "./read";
+import { RepoSearchTool } from "./repo-search";
 import { RecipeTool } from "./recipe";
 import { RenderMermaidTool } from "./render-mermaid";
 import { createReportToolIssueTool, isAutoQaEnabled } from "./report-tool-issue";
 import { ResolveTool } from "./resolve";
 import { reportFindingTool } from "./review";
+import { NexusMemoryExplainTool } from "./nexus-memory-explain";
 import { RockeyMemoryTool } from "./rockey-memory";
 import { RockeyMemorySearchTool } from "./rockey-memory-search";
 import { RockeySessionSearchTool } from "./rockey-session-search";
@@ -77,6 +84,10 @@ export * from "./browser";
 export * from "./calculator";
 export * from "./checkpoint";
 export * from "./cua";
+export * from "./code-callers";
+export * from "./code-callees";
+export * from "./code-def";
+export * from "./code-refs";
 export * from "./debug";
 export * from "./eval";
 export * from "./find";
@@ -89,6 +100,7 @@ export * from "./inspect-image";
 export * from "./irc";
 export * from "./job";
 export * from "./read";
+export * from "./repo-search";
 export * from "./recipe";
 export * from "./render-mermaid";
 export * from "./report-tool-issue";
@@ -348,6 +360,12 @@ export const BUILTIN_TOOLS: Record<string, ToolFactory> = {
 	memory: RockeyMemoryTool.createIf,
 	memory_search: RockeyMemorySearchTool.createIf,
 	session_search: RockeySessionSearchTool.createIf,
+	memory_explain: NexusMemoryExplainTool.createIf,
+	repo_search: RepoSearchTool.createIf,
+	code_callers: CodeCallersTool.createIf,
+	code_callees: CodeCalleesTool.createIf,
+	code_def: CodeDefTool.createIf,
+	code_refs: CodeRefsTool.createIf,
 	retain: HindsightRetainTool.createIf,
 	recall: HindsightRecallTool.createIf,
 	reflect: HindsightReflectTool.createIf,
@@ -415,6 +433,7 @@ export async function createTools(session: ToolSession, toolNames?: string[]): P
 		requestedTools = [...requestedTools, "goal"];
 	}
 	const backends = resolveEvalBackends(session);
+	const activeMemoryBackendId = resolveMemoryBackend(session.settings).id;
 	const allowPython = backends.python;
 	const allowJs = backends.js;
 	const skipPythonPreflight = session.skipPythonPreflight === true;
@@ -466,13 +485,18 @@ export async function createTools(session: ToolSession, toolNames?: string[]): P
 		) {
 			requestedTools.push("recipe");
 		}
-		if (session.settings.get("memory.backend") === "hindsight") {
+		if (activeMemoryBackendId === "hindsight") {
 			for (const name of ["recall", "retain", "reflect"]) {
 				if (!requestedTools.includes(name)) requestedTools.push(name);
 			}
 		}
-		if (session.settings.get("memory.backend") === "rockey") {
-			for (const name of ["memory", "memory_search", "session_search"]) {
+		if (["rockey", "nexus"].includes(session.settings.get("memory.backend") ?? "")) {
+			for (const name of ["memory", "memory_search", "session_search", "memory_explain"]) {
+				if (!requestedTools.includes(name)) requestedTools.push(name);
+			}
+		}
+		if (activeMemoryBackendId === "nexus") {
+			for (const name of ["repo_search", "code_def", "code_refs"]) {
 				if (!requestedTools.includes(name)) requestedTools.push(name);
 			}
 		}
@@ -518,10 +542,13 @@ export async function createTools(session: ToolSession, toolNames?: string[]): P
 		}
 		if (name === "recipe") return session.settings.get("recipe.enabled");
 		if (name === "retain" || name === "recall" || name === "reflect") {
-			return session.settings.get("memory.backend") === "hindsight";
+			return activeMemoryBackendId === "hindsight";
 		}
-		if (name === "memory" || name === "memory_search" || name === "session_search") {
-			return session.settings.get("memory.backend") === "rockey";
+		if (name === "memory" || name === "memory_search" || name === "session_search" || name === "memory_explain") {
+			return name === "memory_explain" ? activeMemoryBackendId === "nexus" : ["rockey", "nexus"].includes(session.settings.get("memory.backend") ?? "");
+		}
+		if (name === "repo_search" || name === "code_def" || name === "code_refs") {
+			return activeMemoryBackendId === "nexus";
 		}
 		if (name === "task") {
 			const maxDepth = session.settings.get("task.maxRecursionDepth") ?? 2;

@@ -139,7 +139,7 @@ describe("runSubprocess yield reminders", () => {
 		expect(createAgentSessionSpy).toHaveBeenCalledTimes(1);
 	});
 
-	it("disables eager task orchestration inside subagents", async () => {
+	it("disables goal and todo orchestration inside subagents", async () => {
 		const session = createMockSession(({ emit }) => {
 			emit({
 				type: "tool_execution_end",
@@ -157,14 +157,17 @@ describe("runSubprocess yield reminders", () => {
 
 		await runSubprocess({
 			...baseOptions,
-			id: "subagent-task-eager-off",
+			id: "subagent-orchestration-off",
 			settings: parentSettings,
 		});
 
-		expect(parentSettings.get("task.eager")).toBe(true);
+		expect(parentSettings.get("goal.enabled")).toBe(true);
+		expect(parentSettings.get("todo.enabled")).toBe(true);
 		const call = createAgentSessionSpy.mock.calls[0]?.[0];
 		if (!call?.settings) throw new Error("Expected subagent settings");
-		expect(call.settings.get("task.eager")).toBe(false);
+		expect(call.settings.get("goal.enabled")).toBe(false);
+		expect(call.settings.get("todo.enabled")).toBe(false);
+		expect(call.settings.get("todo.eager")).toBe(false);
 	});
 
 	it("disables tool discovery inside subagents so generic workers keep the full tool set", async () => {

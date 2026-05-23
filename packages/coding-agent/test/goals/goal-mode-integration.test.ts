@@ -1,11 +1,12 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@amaze/agent-core";
+import { Agent, type AgentEvent } from "@amaze/agent-core";
 import { ModelRegistry } from "@amaze/coding-agent/config/model-registry";
 import { resetSettingsForTest, Settings } from "@amaze/coding-agent/config/settings";
 import { GoalTool } from "@amaze/coding-agent/goals/tools/goal-tool";
 import { InteractiveMode } from "@amaze/coding-agent/modes/interactive-mode";
 import { initTheme } from "@amaze/coding-agent/modes/theme/theme";
+import type { SubmittedUserInput } from "@amaze/coding-agent/modes/types";
 import { AgentSession } from "@amaze/coding-agent/session/agent-session";
 import { AuthStorage } from "@amaze/coding-agent/session/auth-storage";
 import { SessionManager } from "@amaze/coding-agent/session/session-manager";
@@ -97,6 +98,25 @@ async function toolNamesFor(harness: GoalHarness): Promise<string[]> {
 	return (await createTools(harness.toolSession, harness.session.getActiveToolNames())).map(tool => tool.name);
 }
 
+async function flushMicrotasks(): Promise<void> {
+	for (let i = 0; i < 20; i++) {
+		await Promise.resolve();
+	}
+}
+
+async function emitAgentEvent(harness: GoalHarness, event: AgentEvent): Promise<void> {
+	harness.session.agent.emitExternalEvent(event);
+	await flushMicrotasks();
+}
+
+async function collectGoalContinuation(harness: GoalHarness): Promise<SubmittedUserInput[]> {
+	const resolved: SubmittedUserInput[] = [];
+	void harness.mode.getUserInput().then(input => resolved.push(input));
+	vi.advanceTimersByTime(800);
+	await flushMicrotasks();
+	return resolved;
+}
+
 describe("InteractiveMode goal mode integration", () => {
 	let harness: GoalHarness;
 
@@ -109,6 +129,7 @@ describe("InteractiveMode goal mode integration", () => {
 	});
 
 	afterEach(async () => {
+		vi.useRealTimers();
 		vi.restoreAllMocks();
 		await harness.cleanup();
 	});
@@ -143,13 +164,21 @@ describe("InteractiveMode goal mode integration", () => {
 
 	it("enters goal-linked plan mode while preserving the active goal", async () => {
 		await harness.mode.handleGoalModeCommand("Ship the release");
-		const goalId = harness.session.getGoalModeState()?.goal.id;
+		const goal = harness.session.getGoalModeState()?.goal;
+		const goalId = goal?.id;
 
 		await harness.mode.handlePlanModeCommand();
 
 		expect(harness.mode.planModeEnabled).toBe(true);
 		expect(harness.mode.goalModeEnabled).toBe(true);
-		expect(harness.session.getPlanModeState()?.goalId).toBe(goalId);
+		expect(harness.session.getPlanModeState()).toEqual(
+			expect.objectContaining({
+				goalId,
+				goalObjective: "Ship the release",
+				goalTokenBudget: null,
+				goalContractRevision: goal?.contractRevision ?? 0,
+			}),
+		);
 		expect(harness.session.getGoalModeState()?.enabled).toBe(true);
 		expect(await toolNamesFor(harness)).not.toContain("goal");
 	});
@@ -251,6 +280,64 @@ describe("InteractiveMode goal mode integration", () => {
 		expect(harness.session.getGoalModeState()?.goal.tokenBudget).toBeUndefined();
 	});
 
+	it("builds the automatic continuation prompt from the latest goal state", async () => {
+		vi.useFakeTimers();
+		await harness.mode.handleGoalModeCommand("Original objective");
+
+		const resolved: SubmittedUserInput[] = [];
+		void harness.mode.getUserInput().then(input => resolved.push(input));
+		await harness.session.goalRuntime.updateGoal({ objective: "Updated objective" });
+		vi.advanceTimersByTime(800);
+		await flushMicrotasks();
+
+		expect(resolved).toHaveLength(1);
+		expect(resolved[0].customType).toBe("goal-continuation");
+		expect(resolved[0].text).toContain("Updated objective");
+		expect(resolved[0].text).not.toContain("Original objective");
+		harness.mode.finishPendingSubmission(resolved[0]);
+	});
+
+	it("allows one text-only automatic goal continuation before suppressing the loop", async () => {
+		vi.useFakeTimers();
+		await harness.mode.handleGoalModeCommand("Ship the release");
+
+		const first = await collectGoalContinuation(harness);
+		expect(first).toHaveLength(1);
+		expect(first[0].customType).toBe("goal-continuation");
+
+		harness.mode.markPendingSubmissionStarted(first[0]);
+		await emitAgentEvent(harness, { type: "agent_start" });
+		await emitAgentEvent(harness, { type: "agent_end", messages: [] });
+		harness.mode.finishPendingSubmission(first[0]);
+
+		const second = await collectGoalContinuation(harness);
+		expect(second).toHaveLength(1);
+		expect(second[0].customType).toBe("goal-continuation");
+		harness.mode.finishPendingSubmission(second[0]);
+	});
+
+	it("suppresses automatic goal continuation after two consecutive text-only continuations", async () => {
+		vi.useFakeTimers();
+		await harness.mode.handleGoalModeCommand("Ship the release");
+
+		const first = await collectGoalContinuation(harness);
+		expect(first).toHaveLength(1);
+		harness.mode.markPendingSubmissionStarted(first[0]);
+		await emitAgentEvent(harness, { type: "agent_start" });
+		await emitAgentEvent(harness, { type: "agent_end", messages: [] });
+		harness.mode.finishPendingSubmission(first[0]);
+
+		const second = await collectGoalContinuation(harness);
+		expect(second).toHaveLength(1);
+		harness.mode.markPendingSubmissionStarted(second[0]);
+		await emitAgentEvent(harness, { type: "agent_start" });
+		await emitAgentEvent(harness, { type: "agent_end", messages: [] });
+		harness.mode.finishPendingSubmission(second[0]);
+
+		const third = await collectGoalContinuation(harness);
+		expect(third).toHaveLength(0);
+	});
+
 	it("returns the completion report from the goal tool and exits goal mode before the next turn rebuild", async () => {
 		await harness.mode.handleGoalModeCommand("Ship the release");
 		await harness.mode.handleGoalModeCommand("budget 50");
@@ -261,8 +348,10 @@ describe("InteractiveMode goal mode integration", () => {
 		if (!goalTool) {
 			throw new Error("Expected goal tool to be active");
 		}
+		const goalId = harness.session.getGoalModeState()?.goal.id;
+		if (!goalId) throw new Error("Expected active goal id");
 
-		const result = await goalTool.execute("call-1", { op: "complete" });
+		const result = await goalTool.execute("call-1", { op: "complete", goal_id: goalId });
 		const completionText = JSON.stringify(result.content);
 
 		expect(result.details?.completionBudgetReport).toBe(

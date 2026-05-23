@@ -128,6 +128,10 @@ function renderGoalMode(ctx: SegmentContext, mode: { enabled: boolean; paused: b
 			icon = theme.symbol("status.warning");
 			color = "warning";
 			break;
+		case "blocked":
+			icon = theme.symbol("status.warning");
+			color = "warning";
+			break;
 		case "dropped":
 			icon = theme.symbol("status.aborted");
 			color = "dim";
@@ -477,7 +481,7 @@ const cacheHitRatioSegment: StatusLineSegment = {
  *   - <50% used: hidden (no clutter when there's plenty of runway)
  *   - 50%–79% used: amber chip "Goal 50%" so operator sees pace
  *   - ≥80% used: warning chip "Goal 80%! 1.2K left" so operator can decide to scope down,
- *     bump budget via `goal({op:"update",token_budget:N})`, or wrap up before the hard cap
+ *     adjust the budget with `/goal budget`, or wrap up before the hard cap
  *     forces a budget-limited steer
  *
  * Without this segment the operator only learns about budget pressure at 100% via the steer

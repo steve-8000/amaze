@@ -1,9 +1,102 @@
+import type { Goal } from "../goals/state";
+
 export interface PlanModeState {
 	enabled: boolean;
 	planFilePath: string;
 	workflow?: "parallel" | "iterative";
 	reentry?: boolean;
 	goalId?: string;
+	goalObjective?: string;
+	goalTokenBudget?: number | null;
+	goalContractRevision?: number;
+}
+
+export function planGoalBindingFromGoal(
+	goal: Goal | undefined,
+): Pick<PlanModeState, "goalId" | "goalObjective" | "goalTokenBudget" | "goalContractRevision"> {
+	if (!goal) return {};
+	return {
+		goalId: goal.id,
+		goalObjective: goal.objective,
+		goalTokenBudget: goal.tokenBudget ?? null,
+		goalContractRevision: goal.contractRevision ?? 0,
+	};
+}
+
+export function planGoalDriftReason(
+	planState: Pick<PlanModeState, "goalId" | "goalObjective" | "goalTokenBudget" | "goalContractRevision">,
+	goal: Goal | undefined,
+	options?: { allowedGoalStatuses?: Goal["status"][] },
+): string | undefined {
+	if (!planState.goalId) return undefined;
+	const allowedStatuses = options?.allowedGoalStatuses ?? ["active"];
+	if (!goal || !allowedStatuses.includes(goal.status)) {
+		return "linked goal is no longer active";
+	}
+	if (goal.id !== planState.goalId) {
+		return "linked goal changed";
+	}
+	if (planState.goalObjective !== undefined && goal.objective !== planState.goalObjective) {
+		return "linked goal objective changed";
+	}
+	if (planState.goalTokenBudget !== undefined && (goal.tokenBudget ?? null) !== planState.goalTokenBudget) {
+		return "linked goal budget changed";
+	}
+	const currentRevision = goal.contractRevision ?? 0;
+	if (planState.goalContractRevision !== undefined && currentRevision !== planState.goalContractRevision) {
+		return `linked goal contract changed (revision ${planState.goalContractRevision} → ${currentRevision})`;
+	}
+	return undefined;
+}
+
+function parseGoalId(raw: Record<string, unknown>): string | undefined {
+	if (typeof raw.goalId === "string") return raw.goalId;
+	const goal = raw.goal;
+	return goal && typeof goal === "object" && "id" in goal && typeof (goal as { id?: unknown }).id === "string"
+		? (goal as { id: string }).id
+		: undefined;
+}
+
+function parseGoalObjective(raw: Record<string, unknown>): string | undefined {
+	if (typeof raw.goalObjective === "string") return raw.goalObjective;
+	const goal = raw.goal;
+	return goal &&
+		typeof goal === "object" &&
+		"objective" in goal &&
+		typeof (goal as { objective?: unknown }).objective === "string"
+		? (goal as { objective: string }).objective
+		: undefined;
+}
+
+function parseGoalTokenBudgetValue(value: unknown): number | null | undefined {
+	if (value === null) return null;
+	if (value === undefined) return undefined;
+	if (typeof value !== "number" || !Number.isSafeInteger(value) || value <= 0) return undefined;
+	return value;
+}
+
+function parseGoalTokenBudget(raw: Record<string, unknown>, goalId: string | undefined): number | null | undefined {
+	const explicit = parseGoalTokenBudgetValue(raw.goalTokenBudget);
+	if (explicit !== undefined) return explicit;
+	const goal = raw.goal;
+	const snapshot =
+		goal && typeof goal === "object" && "tokenBudget" in goal
+			? parseGoalTokenBudgetValue((goal as { tokenBudget?: unknown }).tokenBudget)
+			: undefined;
+	if (snapshot !== undefined) return snapshot;
+	return goalId ? null : undefined;
+}
+
+function parseGoalContractRevision(raw: Record<string, unknown>, goalId: string | undefined): number | undefined {
+	const explicit = raw.goalContractRevision;
+	if (typeof explicit === "number" && Number.isSafeInteger(explicit) && explicit >= 0) return explicit;
+	const goal = raw.goal;
+	const snapshot =
+		goal && typeof goal === "object" && "contractRevision" in goal
+			? (goal as { contractRevision?: unknown }).contractRevision
+			: undefined;
+	if (typeof snapshot === "number" && Number.isSafeInteger(snapshot) && snapshot >= 0) return snapshot;
+	return goalId ? 0 : undefined;
 }
 
 export function parsePlanModeState(
@@ -18,11 +111,7 @@ export function parsePlanModeState(
 	const workflow = raw.workflow;
 	if (workflow !== undefined && workflow !== "parallel" && workflow !== "iterative") return undefined;
 
-	const goal = raw.goal;
-	const goalId =
-		goal && typeof goal === "object" && "id" in goal && typeof (goal as { id?: unknown }).id === "string"
-			? (goal as { id: string }).id
-			: undefined;
+	const goalId = parseGoalId(raw);
 
 	return {
 		enabled: options?.enabled ?? true,
@@ -30,5 +119,8 @@ export function parsePlanModeState(
 		workflow,
 		reentry: options?.reentry,
 		goalId,
+		goalObjective: parseGoalObjective(raw),
+		goalTokenBudget: parseGoalTokenBudget(raw, goalId),
+		goalContractRevision: parseGoalContractRevision(raw, goalId),
 	};
 }

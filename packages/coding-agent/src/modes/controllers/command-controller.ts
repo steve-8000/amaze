@@ -45,6 +45,7 @@ import {
 	runRockeySessionReindex,
 	runRockeySessionSearch,
 } from "../../rockey/ops";
+import { renderNexusStats, runNexusDoctorLive, runNexusExplain, runNexusSearch } from "../../nexus/commands";
 import type { AsyncJobSnapshotItem } from "../../session/agent-session";
 import type { AuthStorage } from "../../session/auth-storage";
 import type { NewSessionOptions } from "../../session/session-manager";
@@ -621,15 +622,27 @@ export class CommandController {
 		}
 
 		if (action === "stats") {
-			if (backend.id !== "rockey") return this.ctx.showError("Rockey backend is not active for this session.");
+			if (backend.id === "nexus") {
+				showMarkdownPanel(this.ctx, "Nexus Stats", renderNexusStats(agentDir, this.ctx.sessionManager.getCwd()));
+				return;
+			}
+			if (backend.id !== "rockey") return this.ctx.showError("Memory backend does not provide stats for this session.");
 			showMarkdownPanel(this.ctx, "Rockey Stats", renderRockeyStats(agentDir, this.ctx.sessionManager.getCwd()));
 			return;
 		}
 
 		if (action === "search") {
-			if (backend.id !== "rockey") return this.ctx.showError("Rockey backend is not active for this session.");
 			const query = argumentText.slice("search".length).trim();
 			if (!query) return this.ctx.showError("Usage: /memory search <query>");
+			if (backend.id === "nexus") {
+				showMarkdownPanel(
+					this.ctx,
+					"Nexus Memory Search",
+					runNexusSearch(agentDir, this.ctx.sessionManager.getCwd(), this.ctx.settings, query),
+				);
+				return;
+			}
+			if (backend.id !== "rockey") return this.ctx.showError("Memory backend does not provide search for this session.");
 			showMarkdownPanel(
 				this.ctx,
 				"Rockey Memory Search",
@@ -639,14 +652,24 @@ export class CommandController {
 		}
 
 		if (action === "session-search") {
-			if (backend.id !== "rockey") return this.ctx.showError("Rockey backend is not active for this session.");
 			const query = argumentText.slice("session-search".length).trim();
 			if (!query) return this.ctx.showError("Usage: /memory session-search <query>");
+			if (backend.id !== "rockey" && backend.id !== "nexus") {
+				return this.ctx.showError("Memory backend does not provide session-search for this session.");
+			}
 			showMarkdownPanel(
 				this.ctx,
 				"Rockey Session Search",
 				runRockeySessionSearch(agentDir, this.ctx.sessionManager.getCwd(), this.ctx.settings, query),
 			);
+			return;
+		}
+
+		if (action === "explain") {
+			const id = argumentText.slice("explain".length).trim();
+			if (!id) return this.ctx.showError("Usage: /memory explain <id>");
+			if (backend.id !== "nexus") return this.ctx.showError("Nexus backend is not active for this session.");
+			showMarkdownPanel(this.ctx, "Nexus Memory Explanation", runNexusExplain(agentDir, this.ctx.sessionManager.getCwd(), id));
 			return;
 		}
 
@@ -661,7 +684,11 @@ export class CommandController {
 		}
 
 		if (action === "doctor") {
-			if (backend.id !== "rockey") return this.ctx.showError("Rockey backend is not active for this session.");
+			if (backend.id === "nexus") {
+				showMarkdownPanel(this.ctx, "Nexus Doctor", await runNexusDoctorLive(this.ctx.settings, this.ctx.sessionManager.getCwd()));
+				return;
+			}
+			if (backend.id !== "rockey") return this.ctx.showError("Memory backend does not provide doctor for this session.");
 			const sub = argumentText.slice("doctor".length).trim();
 			if (sub === "history") {
 				showMarkdownPanel(this.ctx, "Rockey Doctor History", renderRockeyDoctorHistory(agentDir));
@@ -693,7 +720,7 @@ export class CommandController {
 		}
 
 		this.ctx.showError(
-			"Usage: /memory <view|clear|reset|enqueue|rebuild|stats|search|session-search|import|doctor|reindex-sessions|mm ...>",
+			"Usage: /memory <view|clear|reset|enqueue|rebuild|stats|search|session-search|explain|import|doctor|reindex-sessions|mm ...>",
 		);
 	}
 

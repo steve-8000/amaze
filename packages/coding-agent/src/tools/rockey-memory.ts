@@ -1,6 +1,8 @@
 import type { AgentTool, AgentToolResult } from "@amaze/agent-core";
 import * as z from "zod/v4";
 import memoryDescription from "../prompts/tools/rockey-memory.md" with { type: "text" };
+import { resolveMemoryBackend } from "../memory-backend";
+import { NexusStore } from "../nexus/store";
 import { normalizeRockeyCategory } from "../rockey/state";
 import { RockeyStore } from "../rockey/store";
 import { resolveRockeyToolCwd } from "../rockey/tool-session";
@@ -25,23 +27,24 @@ export class RockeyMemoryTool implements AgentTool<typeof rockeyMemorySchema> {
 	readonly parameters = rockeyMemorySchema;
 	readonly strict = true;
 	readonly loadMode = "discoverable";
-	readonly summary = "Save durable facts in Rockey memory";
+	readonly summary = "Save durable facts in Rockey-compatible memory";
 
 	constructor(readonly session: ToolSession) {}
 
 	static createIf(session: ToolSession): RockeyMemoryTool | null {
-		if (session.settings.get("memory.backend") !== "rockey") return null;
+		const backend = session.settings.get("memory.backend");
+		if (backend !== "rockey" && backend !== "nexus") return null;
 		return new RockeyMemoryTool(session);
 	}
 
 	async execute(_id: string, params: RockeyMemoryParams): Promise<AgentToolResult> {
-		const store = new RockeyStore({
-			agentDir: this.session.settings.getAgentDir(),
-			cwd: resolveRockeyToolCwd(this.session),
-		});
+		const store = this.#createStore();
 		try {
 			const target = params.target as RockeyMemoryTarget;
-			const result = this.#executeWithStore(store, target, params);
+			const result =
+				store instanceof NexusStore
+					? this.#executeWithNexusStore(store, target, params)
+					: this.#executeWithRockeyStore(store, target, params);
 			if (result.success) await store.renderArtifacts();
 			return {
 				content: [{ type: "text", text: JSON.stringify(result) }],
@@ -52,7 +55,35 @@ export class RockeyMemoryTool implements AgentTool<typeof rockeyMemorySchema> {
 		}
 	}
 
-	#executeWithStore(store: RockeyStore, target: RockeyMemoryTarget, params: RockeyMemoryParams) {
+	#createStore(): RockeyStore | NexusStore {
+		const cwd = resolveRockeyToolCwd(this.session);
+		if (resolveMemoryBackend(this.session.settings).id === "nexus") {
+			return new NexusStore({ agentDir: this.session.settings.getAgentDir(), cwd });
+		}
+		return new RockeyStore({ agentDir: this.session.settings.getAgentDir(), cwd });
+	}
+
+	#executeWithRockeyStore(store: RockeyStore, target: RockeyMemoryTarget, params: RockeyMemoryParams) {
+		switch (params.action) {
+			case "add":
+				if (!params.content) return { success: false, error: "content is required for add." };
+				return store.add({
+					target,
+					content: params.content,
+					category: normalizeRockeyCategory(params.category),
+					failureReason: params.failure_reason,
+				});
+			case "replace":
+				if (!params.old_text) return { success: false, error: "old_text is required for replace." };
+				if (!params.content) return { success: false, error: "content is required for replace." };
+				return store.replace({ target, oldText: params.old_text, content: params.content });
+			case "remove":
+				if (!params.old_text) return { success: false, error: "old_text is required for remove." };
+				return store.remove({ target, oldText: params.old_text });
+		}
+	}
+
+	#executeWithNexusStore(store: NexusStore, target: RockeyMemoryTarget, params: RockeyMemoryParams) {
 		switch (params.action) {
 			case "add":
 				if (!params.content) return { success: false, error: "content is required for add." };

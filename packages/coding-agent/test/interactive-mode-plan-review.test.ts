@@ -117,6 +117,56 @@ describe("InteractiveMode plan review rendering", () => {
 		expect(secondPreview!.render(120).join("\n")).toContain("Second plan");
 	});
 
+	it("rejects approval when the linked goal objective changed after planning began", async () => {
+		const planFilePath = "local://PLAN.md";
+		const resolvedPlanPath = resolveLocalUrlToPath(planFilePath, {
+			getArtifactsDir: () => session.sessionManager.getArtifactsDir(),
+			getSessionId: () => session.sessionManager.getSessionId(),
+		});
+		await Bun.write(resolvedPlanPath, "# Plan\n\nStale plan.");
+		const baseGoal = {
+			id: "goal-1",
+			objective: "Original objective",
+			status: "active" as const,
+			tokenBudget: undefined,
+			tokensUsed: 0,
+			timeUsedSeconds: 0,
+			createdAt: 0,
+			updatedAt: 0,
+			contractRevision: 0,
+		};
+		session.setGoalModeState({ enabled: true, mode: "active", goal: baseGoal });
+		session.setPlanModeState({
+			enabled: true,
+			planFilePath,
+			goalId: baseGoal.id,
+			goalObjective: baseGoal.objective,
+			goalTokenBudget: null,
+			goalContractRevision: 0,
+		});
+		mode.planModeEnabled = true;
+		mode.planModePlanFilePath = planFilePath;
+		session.setGoalModeState({
+			enabled: true,
+			mode: "active",
+			goal: { ...baseGoal, objective: "Updated objective", updatedAt: 1 },
+		});
+		const showError = vi.spyOn(mode, "showError");
+		const selector = vi.spyOn(mode, "showHookSelector");
+
+		await mode.handlePlanApproval({
+			planFilePath,
+			planExists: true,
+			title: "PLAN",
+			finalPlanFilePath: "local://PLAN.md",
+		});
+
+		expect(showError).toHaveBeenCalledWith(
+			"Cannot approve stale plan: linked goal objective changed. Update the plan against the current goal contract and request approval again.",
+		);
+		expect(selector).not.toHaveBeenCalled();
+	});
+
 	it("offers approve-and-keep-context as a distinct plan approval path", async () => {
 		const planFilePath = "local://PLAN.md";
 		const resolvedPlanPath = resolveLocalUrlToPath(planFilePath, {

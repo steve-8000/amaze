@@ -14,62 +14,24 @@ import { renderStatusLine, truncateToWidth } from "../../tui";
 import { completionBudgetReport, GoalAcceptanceFailureError, remainingTokens } from "../runtime";
 import type { Goal, GoalStatus, GoalToolDetails } from "../state";
 
-const acceptanceCriterionSchema = z.object({
-	id: z.string(),
-	description: z.string(),
-	check: z.discriminatedUnion("type", [
-		z.object({ type: z.literal("scope-include"), globs: z.array(z.string()) }),
-		z.object({ type: z.literal("scope-exclude"), globs: z.array(z.string()) }),
-		z.object({ type: z.literal("file-exists"), path: z.string() }),
-		z.object({
-			type: z.literal("command-exit"),
-			command: z.string(),
-			expected: z.number().int(),
-			cwd: z.string().optional(),
-			timeoutMs: z.number().int().positive().optional(),
-		}),
-		z.object({
-			type: z.literal("command-output"),
-			command: z.string(),
-			expected: z.number().int().optional(),
-			cwd: z.string().optional(),
-			timeoutMs: z.number().int().positive().optional(),
-			stdoutPattern: z.string().optional(),
-			stderrPattern: z.string().optional(),
-			mustNotMatch: z.array(z.string()).optional(),
-		}),
-		z.object({
-			type: z.literal("lsp-clean"),
-			file: z.string().optional(),
-			maxWarnings: z.number().int().nonnegative().optional(),
-		}),
-		z.object({
-			type: z.literal("llm-judged"),
-			question: z.string(),
-			candidate: z.string(),
-		}),
-		z.object({ type: z.literal("manual"), description: z.string() }),
-	]),
-});
-
-const goalSchema = z.object({
-	op: z.enum(["create", "get", "update", "complete"]).describe("goal operation"),
-	objective: z.string().describe("goal objective").optional(),
-	token_budget: z.number().int().describe("token budget").optional(),
-	// `update` op: partial patch of design answers (scope/constraints/approach/acceptance, or
-	// any caller-defined keys). Keys with empty-string value are removed from the goal's
-	// designAnswers; other keys are merged into existing answers without clobbering.
-	design_answers: z.record(z.string(), z.string()).describe("design interview answers (partial merge)").optional(),
-	// `update` op: structured acceptance criteria. Pass full list to REPLACE existing
-	// criteria (no merge — id collisions in a merge are too fragile). Empty array clears.
-	acceptance_criteria: z
-		.array(acceptanceCriterionSchema)
-		.describe("structured criteria checked by closing audit verifier (replaces existing)")
-		.optional(),
-	// `complete` op: skip closing audit and force completion. Logged for force-rate
-	// telemetry; high rates indicate criteria mis-calibration.
-	force: z.boolean().describe("force complete, skip closing audit").optional(),
-});
+const goalSchema = z
+	.object({
+		op: z.enum(["get", "complete", "block"]).describe("Goal operation to perform."),
+		goal_id: z
+			.string()
+			.min(1, "goal_id must not be empty.")
+			.optional()
+			.describe("The current goal id from the rendered <goal> block or goal({op:'get'})."),
+	})
+	.superRefine((params, ctx) => {
+		if ((params.op === "complete" || params.op === "block") && params.goal_id === undefined) {
+			ctx.addIssue({
+				code: "custom",
+				message: "goal_id is required for complete and block operations.",
+				path: ["goal_id"],
+			});
+		}
+	});
 
 export type GoalToolInput = z.infer<typeof goalSchema>;
 
@@ -93,18 +55,6 @@ export function buildGoalToolResponse(
 				? completionBudgetReport(resolvedGoal)
 				: null,
 	};
-}
-
-function validateCreateParams(params: GoalToolInput): { objective: string; tokenBudget?: number } {
-	const objective = params.objective?.trim();
-	if (!objective) {
-		throw new ToolError("objective is required when op=create");
-	}
-	const tokenBudget = params.token_budget;
-	if (tokenBudget !== undefined && (!Number.isInteger(tokenBudget) || tokenBudget <= 0)) {
-		throw new ToolError("token_budget must be a positive integer when provided");
-	}
-	return { objective, tokenBudget };
 }
 
 export class GoalTool implements AgentTool<typeof goalSchema, GoalToolDetails> {
@@ -133,33 +83,24 @@ export class GoalTool implements AgentTool<typeof goalSchema, GoalToolDetails> {
 		}
 
 		let response: GoalToolResponse;
-		if (params.op === "create") {
-			const created = await runtime.createGoal(validateCreateParams(params));
-			response = buildGoalToolResponse(created.goal);
-		} else if (params.op === "get") {
+		if (params.op === "get") {
 			const state = this.#session.getGoalModeState?.();
 			response = buildGoalToolResponse(state?.enabled ? state.goal : null);
-		} else if (params.op === "update") {
-			const updated = await runtime.updateGoal({
-				objective: params.objective,
-				tokenBudget: params.token_budget,
-				designAnswers: params.design_answers,
-				acceptanceCriteria: params.acceptance_criteria,
-			});
-			if (!updated) {
-				throw new ToolError("Cannot update: no active goal.");
-			}
-			response = buildGoalToolResponse(updated);
-		} else {
+		} else if (params.op === "block") {
+			const goalId = requireMutationGoalId(params);
+			const blocked = await runtime.blockGoalFromTool({ expectedGoalId: goalId });
+			response = buildGoalToolResponse(blocked);
+		} else if (params.op === "complete") {
+			const goalId = requireMutationGoalId(params);
 			const telemetry = this.#session.getV3Telemetry?.();
 			try {
-				const { goal: completed, verdict } = await runtime.completeGoalFromTool({ force: params.force });
+				const { goal: completed, verdict } = await runtime.completeGoalFromTool({
+					expectedGoalId: goalId,
+				});
 				response = buildGoalToolResponse(completed, { includeCompletionReport: true });
-				// V3 telemetry: closing audit completion (force vs natural pass). When force=true
-				// the verdict is undefined (verification was skipped); record as forced regardless.
 				telemetry?.recordClosingAudit({
-					passed: !params.force,
-					forced: !!params.force,
+					passed: true,
+					forced: false,
 					uncertainCount: verdict?.uncertainCount ?? 0,
 				});
 				// Per-criterion result counts feed the verifier dashboard so operators can see
@@ -187,6 +128,8 @@ export class GoalTool implements AgentTool<typeof goalSchema, GoalToolDetails> {
 				}
 				throw error;
 			}
+		} else {
+			throw new ToolError(`Unsupported goal operation: ${(params as { op?: unknown }).op ?? "unknown"}`);
 		}
 		let text: string;
 		if (response.goal) {
@@ -215,12 +158,20 @@ export class GoalTool implements AgentTool<typeof goalSchema, GoalToolDetails> {
 	}
 }
 
+function requireMutationGoalId(params: GoalToolInput): string {
+	if (params.op !== "complete" && params.op !== "block") {
+		throw new ToolError(`Unsupported goal operation: ${(params as { op?: unknown }).op ?? "unknown"}`);
+	}
+	if (typeof params.goal_id !== "string" || params.goal_id.length === 0) {
+		throw new ToolError(`goal_id is required for ${params.op} operations.`);
+	}
+	return params.goal_id;
+}
+
 function describeOp(op: string | undefined): string {
 	switch (op) {
-		case "create":
-			return "set";
-		case "update":
-			return "update";
+		case "block":
+			return "block";
 		case "complete":
 			return "complete";
 		case "get":
@@ -236,6 +187,8 @@ function goalBadgeColor(status: GoalStatus): ThemeColor {
 			return "success";
 		case "budget-limited":
 			return "warning";
+		case "blocked":
+			return "warning";
 		case "paused":
 		case "dropped":
 			return "muted";
@@ -246,22 +199,12 @@ function goalBadgeColor(status: GoalStatus): ThemeColor {
 
 interface GoalRenderArgs {
 	op?: GoalToolInput["op"];
-	objective?: string;
-	token_budget?: number;
 }
 
 export const goalToolRenderer = {
 	renderCall(args: GoalRenderArgs, _options: RenderResultOptions, uiTheme: Theme): Component {
 		const description = describeOp(args.op);
 		const meta: string[] = [];
-		const trimmedObjective = args.objective?.trim();
-		if (args.op === "create" && trimmedObjective) {
-			const objective = truncateToWidth(trimmedObjective, TRUNCATE_LENGTHS.TITLE);
-			meta.push(uiTheme.italic(uiTheme.fg("muted", `"${objective}"`)));
-		}
-		if (args.op === "create" && args.token_budget !== undefined) {
-			meta.push(`budget ${formatNumber(args.token_budget)}`);
-		}
 		const text = renderStatusLine({ icon: "pending", title: "Goal", description, meta }, uiTheme);
 		return new Text(text, 0, 0);
 	},

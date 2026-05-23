@@ -1102,7 +1102,7 @@ export const SETTINGS_SCHEMA = {
 			tab: "context",
 			label: "Subagent Prompt Cache",
 			description:
-				"Prompt-cache retention for delegated task subagents. Short avoids 1h cache-write premiums on ephemeral task workers.",
+				"Prompt-cache retention for delegated task subagents. Short avoids 1h cache-write premiums on ephemeral task workers; prompt.cache.subagentPrefixReuse=true promotes retention to long.",
 			options: [
 				{ value: "short", label: "Short", description: "Use 5-minute cache entries for task-local reuse" },
 				{ value: "none", label: "None", description: "Disable provider prompt caching for subagents" },
@@ -1359,34 +1359,71 @@ export const SETTINGS_SCHEMA = {
 
 	"memories.summaryInjectionTokenLimit": { type: "number", default: 5000 },
 
-	// Memory backend selector — picks between legacy local memories pipeline,
-	// Rockey canonical local memory, Hindsight remote memory, or off. Legacy
-	// `memories.enabled` now maps to Rockey; see config/settings.ts migration
-	// for details.
+	// Memory backend selector — picks the canonical Nexus local memory plane or
+	// off. Legacy `local`, `rockey`, and `hindsight` values remain accepted in
+	// the enum for migration compatibility, but normal config loads upgrade them
+	// to Nexus in config/settings.ts.
 	"memory.backend": {
 		type: "enum",
-		values: ["off", "local", "rockey", "hindsight"] as const,
+		values: ["off", "local", "rockey", "hindsight", "nexus"] as const,
 		default: "off",
 		ui: {
 			tab: "memory",
 			label: "Memory Backend",
-			description: "Off, legacy local summary pipeline, Rockey canonical local memory, or Hindsight remote memory",
+			description: "Off or Nexus canonical local memory. Legacy backends are imported as migration sources and no longer offered in the UI.",
 			options: [
 				{ value: "off", label: "Off", description: "No memory subsystem runs" },
 				{
-					value: "local",
-					label: "Local (Legacy)",
-					description: "Legacy rollout summarisation pipeline (memory_summary.md)",
-				},
-				{ value: "hindsight", label: "Hindsight", description: "Vectorize Hindsight remote memory service" },
-				{
-					value: "rockey",
-					label: "Rockey",
-					description: "Core local SQLite memory with explicit write/search tools",
+					value: "nexus",
+					label: "Nexus",
+					description: "Canonical temporal local memory with migration, healing, and optional AI enhancement",
 				},
 			],
 		},
 	},
+
+	"nexus.autoRecall": { type: "boolean", default: false },
+	"nexus.autoRecallLimit": { type: "number", default: 5 },
+	"nexus.staticPromptMaxChars": { type: "number", default: 5000 },
+	"nexus.knowledge.enabled": { type: "boolean", default: true },
+	"nexus.knowledge.autoRecall": { type: "boolean", default: false },
+	"nexus.knowledge.autoRecallLimit": { type: "number", default: 5 },
+	"nexus.knowledge.promptMaxChars": { type: "number", default: 5000 },
+	"nexus.knowledge.maxIndexedFiles": { type: "number", default: 2000 },
+	"nexus.knowledge.maxFileBytes": { type: "number", default: 262144 },
+	"nexus.searchResultMaxEntries": { type: "number", default: 5 },
+	"nexus.searchResultMaxChars": { type: "number", default: 2400 },
+	"nexus.searchEntryMaxChars": { type: "number", default: 480 },
+	"nexus.sessionSearchMaxAnchors": { type: "number", default: 8 },
+	"nexus.pipeline.enabled": { type: "boolean", default: true },
+	"nexus.migration.rockey": { type: "boolean", default: true },
+	"nexus.migration.local": { type: "boolean", default: true },
+	"nexus.migration.hindsight": { type: "boolean", default: true },
+	"nexus.healing.enabled": { type: "boolean", default: true },
+	"nexus.healing.autoApplySafeRepairs": { type: "boolean", default: true },
+	"nexus.dream.enabled": { type: "boolean", default: false },
+	"nexus.dream.hypothesesOnly": { type: "boolean", default: true },
+	"nexus.onlineConsolidation.enabled": { type: "boolean", default: true },
+	"nexus.hypothesisVerification.enabled": { type: "boolean", default: true },
+	"nexus.conceptualSkills.enabled": { type: "boolean", default: true },
+	"nexus.fallback.deterministicConsolidation": { type: "boolean", default: true },
+	"nexus.llm.enabled": { type: "boolean", default: false },
+	"nexus.llm.provider": { type: "string", default: "disabled" },
+	"nexus.llm.baseUrl": { type: "string", default: undefined },
+	"nexus.llm.model": { type: "string", default: undefined },
+	"nexus.embeddings.enabled": { type: "boolean", default: false },
+	"nexus.embeddings.provider": { type: "string", default: "disabled" },
+	"nexus.embeddings.baseUrl": { type: "string", default: undefined },
+	"nexus.embeddings.model": { type: "string", default: undefined },
+	"nexus.vector.enabled": { type: "boolean", default: false },
+	"nexus.vector.provider": { type: "string", default: "disabled" },
+	"nexus.reranker.enabled": { type: "boolean", default: false },
+	"nexus.reranker.provider": { type: "string", default: "disabled" },
+	"nexus.maxLlmCalls": { type: "number", default: 6 },
+	"nexus.maxEmbedCalls": { type: "number", default: 64 },
+	"nexus.maxRolloutsPerRun": { type: "number", default: 8 },
+	"nexus.llm.extractionTemperature": { type: "number", default: 0 },
+	"nexus.llm.reflectionTemperature": { type: "number", default: 0 },
 
 	"rockey.autoRecall": {
 		type: "boolean",
@@ -2460,16 +2497,6 @@ export const SETTINGS_SCHEMA = {
 				{ value: "generic", label: "Generic", description: "Static commit message" },
 				{ value: "ai", label: "AI", description: "AI-generated commit message from diff" },
 			],
-		},
-	},
-
-	"task.eager": {
-		type: "boolean",
-		default: true,
-		ui: {
-			tab: "tasks",
-			label: "Prefer Task Delegation",
-			description: "Encourage the agent to delegate work to subagents unless changes are trivial",
 		},
 	},
 

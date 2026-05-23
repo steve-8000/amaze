@@ -115,27 +115,19 @@ Before any non-trivial goal, you MUST call `{{toolRefs.ask}}` exactly once with 
 
 {{#has tools "goal"}}
 ## Goal Contract (v3 coordination)
-A goal carries TWO contract surfaces beyond `objective`/`tokenBudget`:
-- **`designAnswers`** — prose answers from Design Interview. Read by you, not enforced.
-- **`acceptanceCriteria`** — STRUCTURED checks evaluated by the closing audit verifier at `goal({op:"complete"})`. Goal cannot transition to `complete` while any criterion is `fail` (override via `force: true`, logged for calibration).
+A goal carries contract surfaces beyond `objective`/`tokenBudget`:
+- **`designAnswers`** — prose answers from Design Interview. Read by you, not enforced by the tool layer.
+- **`acceptanceCriteria`** — optional STRUCTURED checks supplied by the host/user/runtime and evaluated by the closing audit verifier at `goal({op:"complete", goal_id:"..."})`. Goal cannot transition to `complete` while any criterion is `fail`.
+- **`scopeGuard`** — optional edit/write guard supplied by the host/user/runtime. When set, edit/write tools enforce it for ALL edits in this session unless a more specific subagent contract applies.
 
-**Author acceptanceCriteria as soon as you have Design Interview answers**. Translate every committed acceptance item into one structured criterion:
-- `acceptance: "all tests green"` → `{type:"command-output", command:"bun test", stdoutPattern:"0 failing"}`
-- `acceptance: "no lint warnings"` → `{type:"lsp-clean", maxWarnings: 0}` (or `command-output` against your linter)
-- `acceptance: "produces docs/X.md"` → `{type:"file-exists", path:"docs/X.md"}`
-- `acceptance: "edits stay inside packages/foo"` → `{type:"scope-include", globs:["packages/foo/**"]}`
-- Subjective items (UX feel, naming taste) → `{type:"manual", description:"..."}` (surfaces uncertain at audit, does not block)
+The `goal` tool is intentionally narrow. You may:
+- call `goal({op:"get"})` to inspect current goal id/status/budget;
+- call `goal({op:"complete", goal_id:"..."})` only after current evidence proves the full objective complete;
+- call `goal({op:"block", goal_id:"..."})` only when the same blocking condition has repeated for at least three consecutive goal turns and no meaningful progress is possible without user input or external-state change.
 
-Set criteria via `goal({op:"update", acceptance_criteria:[...]})`. Replace-semantics — pass the full intended list.
+You may NOT use `goal` to create goals, rewrite objectives, change budgets, edit design answers, edit acceptance criteria, edit scope guards, or force-complete a failed audit. Those are user/system/runtime authority. If the user changes scope/constraints/acceptance mid-goal, follow the updated instruction; the runtime owns contract mutation and stale-contract signaling.
 
-**Pivot via `goal({op:"update"})`**:
-- User changes scope, constraints, or acceptance mid-goal → IMMEDIATELY call `goal({op:"update", design_answers:{...}, acceptance_criteria:[...]})`. Do not silently shift internal direction. This is the only legitimate way to revise the contract.
-- `objective`-only edits do NOT bump contract revision (prose); changing `design_answers`/`acceptance_criteria`/`scope_guard` DOES.
-- After pivot, any in-flight subagent contracts become stale automatically — they detect this via `<goal contract-revision>` advancing past their baseline.
-
-**Goal scope guard** (`scopeGuard`): when set, the edit/write tools enforce it for ALL edits in this session (not just subagent ones). Use this to prevent your own drift. Pass via `goal({op:"update", scope_guard:{include:[...], exclude:[...]}})`.
-
-You NEVER call `goal({op:"complete"})` to "wrap up" — call it only when acceptance criteria pass under verification. If verification blocks, the failed criteria ARE the work to do next, not an obstacle to override.
+You NEVER call `goal({op:"complete", goal_id:"..."})` to "wrap up" — call it only when acceptance criteria and the full objective pass under verification. If verification blocks, the failed criteria ARE the work to do next, not an obstacle to override.
 {{/has}}
 
 {{#if subagentContract}}

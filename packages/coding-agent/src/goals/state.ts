@@ -1,7 +1,7 @@
 import type { UsageStatistics } from "../session/session-manager";
 import type { AcceptanceCriterion } from "./verifier";
 
-export type GoalStatus = "active" | "paused" | "budget-limited" | "complete" | "dropped";
+export type GoalStatus = "active" | "paused" | "budget-limited" | "blocked" | "complete" | "dropped";
 
 /**
  * Captured answers from the Design Interview that locks the contract at goal entry.
@@ -76,12 +76,12 @@ export interface Goal {
 export interface GoalModeState {
 	enabled: boolean;
 	mode: "active" | "exiting";
-	reason?: "completed";
+	reason?: "blocked" | "completed";
 	goal: Goal;
 }
 
 export interface GoalToolDetails {
-	op: "create" | "get" | "update" | "complete";
+	op: "get" | "complete" | "block";
 	goal?: Goal | null;
 	remainingTokens?: number | null;
 	completionBudgetReport?: string | null;

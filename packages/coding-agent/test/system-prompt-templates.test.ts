@@ -206,13 +206,12 @@ describe("system Handlebars prompt templates", () => {
 		expect(rendered).toContain("call `search_tool_bm25` to discover and activate it");
 	});
 
-	test("system-prompt ties eager task orchestration to parent todo state", async () => {
+	test("system-prompt renders parent orchestration guidance", async () => {
 		const templatePath = path.join(systemPromptsDir, "system-prompt.md");
 		const template = await Bun.file(templatePath).text();
 
 		const rendered = prompt.render(template, {
 			...baseRenderContext,
-			eagerTasks: true,
 		});
 
 		expect(rendered).toContain("You are the orchestrator for non-trivial work.");

@@ -1494,7 +1494,6 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 		});
 
 		const repeatToolDescriptions = settings.get("repeatToolDescriptions");
-		const eagerTasks = settings.get("task.eager");
 		const promptCachePolicy = resolvePromptCachePolicy({
 			settings,
 			taskDepth,
@@ -1580,7 +1579,6 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 				intentField,
 				mcpDiscoveryMode: hasDiscoverableTools,
 				mcpDiscoveryServerSummaries: discoverableToolSummary.servers.map(formatDiscoverableMCPToolServerSummary),
-				eagerTasks,
 				secretsEnabled,
 				workspaceTree: workspaceTreePromise,
 				projectContextMode: promptCachePolicy.projectContextMode,
@@ -2015,9 +2013,10 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 			}
 		}
 
-		logger.time("startMemoryStartupTask", () =>
+		const memoryBackend = resolveMemoryBackend(settings);
+		await logger.time("startMemoryStartupTask", () =>
 			Promise.resolve(
-				resolveMemoryBackend(settings).start({
+				memoryBackend.start({
 					session,
 					settings,
 					modelRegistry,
@@ -2027,6 +2026,11 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 				}),
 			),
 		);
+		if (memoryBackend.id !== "off") {
+			await session.refreshBaseSystemPrompt().catch(error => {
+				logger.debug("Memory startup prompt refresh failed", { backend: memoryBackend.id, error: String(error) });
+			});
+		}
 
 		// Wire MCP manager callbacks to session for reactive tool updates.
 		// Skip when reusing a parent's manager — the parent owns the callbacks.

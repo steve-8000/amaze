@@ -399,7 +399,7 @@ export function enforceGoalScope(
 	const verdict = checkScope(adapted, filePath);
 	if (!verdict.allowed) {
 		throwError(
-			`Goal scope violation: ${verdict.reason.replace("(role: goal-scope)", "(goal-level guard)")} If this edit is intentional, update the goal's scopeGuard via \`goal({op:"update",scopeGuard:...})\` before retrying.`,
+			`Goal scope violation: ${verdict.reason.replace("(role: goal-scope)", "(goal-level guard)")} If this edit is intentional, ask the user or host runtime to revise the goal scope before retrying.`,
 		);
 	}
 }

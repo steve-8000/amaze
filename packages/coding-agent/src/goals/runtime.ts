@@ -55,8 +55,7 @@ async function collectChangedFilesFromGit(cwd: string): Promise<string[]> {
 /**
  * Thrown by `completeGoalFromTool` when the closing audit's verifier surfaces failed
  * acceptance criteria. Carries the structured verdict so the tool surface can render
- * evidence to the user (each criterion's id, description, status, evidence). Override
- * via `force: true` at the call site.
+ * evidence to the user (each criterion's id, description, status, evidence).
  */
 export class GoalAcceptanceFailureError extends Error {
 	readonly verdict: VerificationVerdict;
@@ -64,7 +63,7 @@ export class GoalAcceptanceFailureError extends Error {
 		const failed = verdict.results.filter(r => r.status === "fail");
 		const summary = failed.map(r => `- [${r.id}] ${r.description}: ${r.evidence}`).join("\n");
 		super(
-			`Closing audit blocked completion: ${verdict.failedCount} of ${verdict.results.length} acceptance criteria failed.\n${summary}\n\nResolve the failing criteria, or retry with force=true to override.`,
+			`Closing audit blocked completion: ${verdict.failedCount} of ${verdict.results.length} acceptance criteria failed.\n${summary}\n\nResolve the failing criteria before marking the goal complete.`,
 		);
 		this.name = "GoalAcceptanceFailureError";
 		this.verdict = verdict;
@@ -424,8 +423,10 @@ export class GoalRuntime {
 	async onThreadResumed(): Promise<GoalModeState | undefined> {
 		const state = this.#getStateClone();
 		if (!state) return undefined;
-		if (state.goal.status === "active") {
-			state.enabled = false;
+		if (!state.enabled && state.goal.status === "active") {
+			// Older/broken session logs can contain an inactive mode wrapper around an
+			// active goal. Normalize that inconsistent shape, but do not pause a
+			// legitimately active goal just because the thread was restored.
 			state.goal.status = "paused";
 			state.goal.updatedAt = this.#now();
 			this.#clearActiveAccounting();
@@ -617,6 +618,7 @@ export class GoalRuntime {
 	 *     vacuous pass). Goals without criteria preserve pre-v3 behavior.
 	 */
 	async completeGoalFromTool(options?: {
+		expectedGoalId?: string;
 		force?: boolean;
 		verificationContext?: VerificationContext;
 	}): Promise<{ goal: Goal; verdict?: VerificationVerdict }> {
@@ -625,6 +627,9 @@ export class GoalRuntime {
 			const state = this.#getStateClone();
 			if (!state?.enabled || !state.goal) {
 				throw new Error("cannot complete goal because goal mode is not active");
+			}
+			if (options?.expectedGoalId && state.goal.id !== options.expectedGoalId) {
+				throw new Error("stale goal completion rejected because the active goal changed");
 			}
 			let verdict: VerificationVerdict | undefined;
 			const criteria = state.goal.acceptanceCriteria;
@@ -657,6 +662,28 @@ export class GoalRuntime {
 			this.#budgetReportedFor = undefined;
 			await this.#commitState(state, { persist: "goal" });
 			return { goal: state.goal, verdict };
+		});
+	}
+
+	async blockGoalFromTool(options?: { expectedGoalId?: string }): Promise<Goal> {
+		return await this.#withAccounting(async () => {
+			await this.#flushUsageLocked("suppressed");
+			const state = this.#getStateClone();
+			if (!state?.enabled || !state.goal) {
+				throw new Error("cannot block goal because goal mode is not active");
+			}
+			if (options?.expectedGoalId && state.goal.id !== options.expectedGoalId) {
+				throw new Error("stale goal block rejected because the active goal changed");
+			}
+			state.enabled = false;
+			state.goal.status = "blocked";
+			state.goal.updatedAt = this.#now();
+			state.mode = "active";
+			state.reason = "blocked";
+			this.#clearActiveAccounting();
+			this.#budgetReportedFor = undefined;
+			await this.#commitState(state, { persist: "goal_paused" });
+			return state.goal;
 		});
 	}
 

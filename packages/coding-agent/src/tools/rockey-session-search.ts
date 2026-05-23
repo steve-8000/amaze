@@ -1,6 +1,7 @@
 import type { AgentTool, AgentToolResult } from "@amaze/agent-core";
 import * as z from "zod/v4";
 import description from "../prompts/tools/rockey-session-search.md" with { type: "text" };
+import { resolveMemoryBackend } from "../memory-backend";
 import { searchRockeySessionAnchors } from "../rockey/session-search";
 import { resolveRockeyToolCwd } from "../rockey/tool-session";
 import type { ToolSession } from ".";
@@ -27,7 +28,8 @@ export class RockeySessionSearchTool implements AgentTool<typeof rockeySessionSe
 	constructor(private readonly session: ToolSession) {}
 
 	static createIf(session: ToolSession): RockeySessionSearchTool | null {
-		if (session.settings.get("memory.backend") !== "rockey") return null;
+		const backend = session.settings.get("memory.backend");
+		if (backend !== "rockey" && backend !== "nexus") return null;
 		return new RockeySessionSearchTool(session);
 	}
 

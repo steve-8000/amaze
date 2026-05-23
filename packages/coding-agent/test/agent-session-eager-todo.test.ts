@@ -261,6 +261,28 @@ describe("AgentSession eager todo enforcement", () => {
 		});
 	});
 
+	it("skips eager todo enforcement for trivial conversational openings", async () => {
+		await session.prompt("hello");
+
+		expect(observedCalls).toHaveLength(1);
+		expect(observedCalls[0]?.toolChoice).toBeUndefined();
+		expect(observedCalls[0]?.messageTexts).toEqual(["hello"]);
+	});
+
+	it("skips eager todo enforcement for two-word greetings", async () => {
+		await session.prompt("good morning");
+
+		expect(observedCalls).toHaveLength(1);
+		expect(observedCalls[0]?.toolChoice).toBeUndefined();
+	});
+
+	it("still enforces eager todo for short substantive imperatives", async () => {
+		await session.prompt("fix the bug");
+
+		expect(observedCalls).toHaveLength(1);
+		expect(observedCalls[0]?.toolChoice).toBe("todo_write");
+	});
+
 	it("skips eager todo enforcement for subsequent user messages", async () => {
 		// First prompt: eager todo fires
 		await session.prompt("refactor the parser module");

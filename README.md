@@ -27,11 +27,10 @@ Runtime configuration lives in:
 Key checked-in defaults:
 
 - `prompt.mainContextMode = "compact"` for the top-level parent.
-- `prompt.cache.orchestratorRetention = "default"`, `prompt.cache.subagentRetention = "short"`, `prompt.cache.subagentPrefixReuse = true`.
-- `compaction.strategy = "handoff"` with continuous tool-output demotion enabled.
+- `prompt.cache.orchestratorRetention = "default"`, `prompt.cache.subagentPrefixReuse = true`.
+- `compaction.enabled = false` and `compaction.strategy = "off"` with continuous tool-output demotion enabled.
 - `memory.backend = "rockey"`.
 - User/project skill import from Codex/Claude is disabled; the project uses the allowlisted `.amaze/skills` set.
-- `task.eager = true` for top-level delegation.
 - Reasoning summaries are hidden by default (`hideThinkingBlock = true`).
 
 Local-only state remains intentionally ignored: `agent.db*`, `.env`, logs, sessions, and build outputs.

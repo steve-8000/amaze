@@ -483,8 +483,10 @@ function createSubagentSettings(baseSettings: Settings): Settings {
 		...snapshot,
 		"async.enabled": false,
 		"bash.autoBackground.enabled": false,
-		"task.eager": false,
+		"goal.enabled": false,
 		"memory.backend": "off",
+		"todo.enabled": false,
+		"todo.eager": false,
 		"tools.discoveryMode": "off",
 	});
 }

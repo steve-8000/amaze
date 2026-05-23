@@ -132,7 +132,7 @@ import { ExtensionToolWrapper } from "../extensibility/extensions/wrapper";
 import type { HookCommandContext } from "../extensibility/hooks/types";
 import type { Skill, SkillWarning } from "../extensibility/skills";
 import { expandSlashCommand, type FileSlashCommand } from "../extensibility/slash-commands";
-import { escapeXmlText, GoalRuntime, renderGoalBlock } from "../goals/runtime";
+import { GoalRuntime, renderGoalBlock } from "../goals/runtime";
 import type { Goal, GoalModeState } from "../goals/state";
 import type { HindsightSessionState } from "../hindsight/state";
 import { type LocalProtocolOptions, resolveLocalUrlToPath } from "../internal-urls";
@@ -146,7 +146,7 @@ import {
 } from "../mcp/discoverable-tool-metadata";
 import { resolveMemoryBackend } from "../memory-backend";
 import { getCurrentThemeName, theme } from "../modes/theme/theme";
-import type { PlanModeState } from "../plan-mode/state";
+import { type PlanModeState, planGoalDriftReason } from "../plan-mode/state";
 import autoContinuePrompt from "../prompts/system/auto-continue.md" with { type: "text" };
 import eagerTodoPrompt from "../prompts/system/eager-todo.md" with { type: "text" };
 import ircIncomingTemplate from "../prompts/system/irc-incoming.md" with { type: "text" };
@@ -579,6 +579,26 @@ function createHandoffContext(document: string): string {
 function createHandoffFileName(date = new Date()): string {
 	const fileTimestamp = date.toISOString().replace(/[:.]/g, "-");
 	return `handoff-${fileTimestamp}.md`;
+}
+
+/**
+ * Detects short conversational openings ("hi", "hello", "thanks", greetings in
+ * other languages, etc.) where forcing an eager todo init is incoherent. The
+ * heuristic is intentionally conservative: only short, single-line messages
+ * with no code-like markers qualify. Anything longer, multi-line, or containing
+ * paths/code/URLs falls through to the normal eager-todo path.
+ */
+function isTrivialConversationalTurn(trimmed: string): boolean {
+	if (trimmed.length === 0) return true;
+	// Conservative cap: substantive work requests are almost always longer than this.
+	if (trimmed.length > 24) return false;
+	if (/[\n`/\\]/.test(trimmed)) return false;
+	if (/https?:/i.test(trimmed)) return false;
+	// 3+ word requests can already be a real imperative ("fix the bug").
+	// Restrict to 1–2 word utterances, which are overwhelmingly greetings or acks.
+	const wordCount = trimmed.split(/\s+/).length;
+	if (wordCount > 2) return false;
+	return true;
 }
 
 // ============================================================================
@@ -1479,6 +1499,14 @@ export class AgentSession {
 		// TTSR: Increment message count on turn end (for repeat-after-gap tracking)
 		if (event.type === "turn_end" && this.#ttsrManager) {
 			this.#ttsrManager.incrementMessageCount();
+		}
+		if (event.type === "turn_end") {
+			const backend = resolveMemoryBackend(this.settings);
+			if (backend.onTurnEnd) {
+				void Promise.resolve(backend.onTurnEnd(this, event)).catch(error => {
+					logger.debug("Memory backend onTurnEnd failed", { backend: backend.id, error: String(error) });
+				});
+			}
 		}
 		// Finalize the tool-choice queue's in-flight yield after tools have executed.
 		// This must happen at turn_end (not message_end) because onInvoked handlers
@@ -3450,8 +3478,8 @@ export class AgentSession {
 	 *
 	 * Inputs NOT covered: tool input schemas; memory instructions read from disk;
 	 * and SDK-init-time closure constants in `sdk.ts` (`repeatToolDescriptions`,
-	 * `eagerTasks`, `intentField`, `mcpDiscoveryEnabled`, `secretsEnabled`,
-	 * prompt-cache project-context policy). The closure-captured ones cannot
+	 * `intentField`, `mcpDiscoveryEnabled`, `secretsEnabled`, prompt-cache
+	 * project-context policy). The closure-captured ones cannot
 	 * change at runtime regardless of skip behavior.
 	 * For everything else, callers must explicitly call `refreshBaseSystemPrompt()`
 	 * after side-effecting changes; see e.g. the memory hooks and
@@ -3915,6 +3943,7 @@ export class AgentSession {
 				: sessionPlanUrl;
 
 		const planExists = fs.existsSync(resolvedPlanPath);
+		const activeGoal = this.#goalModeState?.enabled ? this.#goalModeState.goal : undefined;
 		const content = prompt.render(planModeActivePrompt, {
 			planFilePath: displayPlanPath,
 			planExists,
@@ -3923,7 +3952,8 @@ export class AgentSession {
 			editToolName: "edit",
 			reentry: state.reentry ?? false,
 			iterative: state.workflow === "iterative",
-			goalObjective: this.#goalModeState?.enabled ? escapeXmlText(this.#goalModeState.goal.objective) : undefined,
+			goalBlock: activeGoal ? renderGoalBlock(activeGoal) : undefined,
+			goalPlanStaleReason: planGoalDriftReason(state, activeGoal),
 		});
 
 		return {
@@ -5993,8 +6023,18 @@ export class AgentSession {
 			return undefined;
 		}
 
-		const trimmedPromptText = promptText.trimEnd();
+		const trimmedPromptText = promptText.trim();
 		if (trimmedPromptText.endsWith("?") || trimmedPromptText.endsWith("!")) {
+			return undefined;
+		}
+
+		// Skip eager todo for trivial conversational turns (greetings, acknowledgments,
+		// short chit-chat). Forcing init on these turns is incoherent — there is no
+		// substantive work to enumerate — and smaller models will obediently call
+		// todo_write with empty items, hitting the schema's min(1) constraint and
+		// failing validation. Heuristic: short single-line message with no code/path
+		// markers and no newlines.
+		if (isTrivialConversationalTurn(trimmedPromptText)) {
 			return undefined;
 		}
 

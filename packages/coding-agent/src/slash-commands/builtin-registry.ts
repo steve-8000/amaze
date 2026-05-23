@@ -20,6 +20,7 @@ import {
 	MarketplaceManager,
 } from "../extensibility/plugins/marketplace";
 import { resolveMemoryBackend } from "../memory-backend";
+import { runNexusDoctorLive, runNexusExplain, runNexusSearch, renderNexusStats } from "../nexus/commands";
 import type { InteractiveModeContext } from "../modes/types";
 import {
 	renderRockeyDoctorHistory,
@@ -913,24 +914,40 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 					return commandConsumed();
 				}
 				case "stats": {
-					if (backend.id !== "rockey") return usage("Rockey backend is not active for this session.", runtime);
+					if (backend.id === "nexus") {
+						await runtime.output(renderNexusStats(runtime.settings.getAgentDir(), runtime.cwd));
+						return commandConsumed();
+					}
+					if (backend.id !== "rockey") return usage("Memory backend does not provide stats for this session.", runtime);
 					await runtime.output(renderRockeyStats(runtime.settings.getAgentDir(), runtime.cwd));
 					return commandConsumed();
 				}
 				case "search": {
-					if (backend.id !== "rockey") return usage("Rockey backend is not active for this session.", runtime);
 					if (!rest) return usage("Usage: /memory search <query>", runtime);
+					if (backend.id === "nexus") {
+						await runtime.output(runNexusSearch(runtime.settings.getAgentDir(), runtime.cwd, runtime.settings, rest));
+						return commandConsumed();
+					}
+					if (backend.id !== "rockey") return usage("Memory backend does not provide search for this session.", runtime);
 					await runtime.output(
 						runRockeySearch(runtime.settings.getAgentDir(), runtime.cwd, runtime.settings, rest),
 					);
 					return commandConsumed();
 				}
 				case "session-search": {
-					if (backend.id !== "rockey") return usage("Rockey backend is not active for this session.", runtime);
 					if (!rest) return usage("Usage: /memory session-search <query>", runtime);
+					if (backend.id !== "rockey" && backend.id !== "nexus") {
+						return usage("Memory backend does not provide session-search for this session.", runtime);
+					}
 					await runtime.output(
 						runRockeySessionSearch(runtime.settings.getAgentDir(), runtime.cwd, runtime.settings, rest),
 					);
+					return commandConsumed();
+				}
+				case "explain": {
+					if (!rest) return usage("Usage: /memory explain <id>", runtime);
+					if (backend.id !== "nexus") return usage("Nexus backend is not active for this session.", runtime);
+					await runtime.output(runNexusExplain(runtime.settings.getAgentDir(), runtime.cwd, rest));
 					return commandConsumed();
 				}
 				case "import": {
@@ -939,7 +956,11 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 					return commandConsumed();
 				}
 				case "doctor": {
-					if (backend.id !== "rockey") return usage("Rockey backend is not active for this session.", runtime);
+					if (backend.id === "nexus") {
+						await runtime.output(await runNexusDoctorLive(runtime.settings, runtime.cwd));
+						return commandConsumed();
+					}
+					if (backend.id !== "rockey") return usage("Memory backend does not provide doctor for this session.", runtime);
 					if (rest === "history") {
 						await runtime.output(renderRockeyDoctorHistory(runtime.settings.getAgentDir()));
 						return commandConsumed();
@@ -961,7 +982,7 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 					);
 				default:
 					return usage(
-						"Usage: /memory <view|clear|reset|enqueue|rebuild|stats|search|session-search|import|doctor|reindex-sessions>",
+						"Usage: /memory <view|clear|reset|enqueue|rebuild|stats|search|session-search|explain|import|doctor|reindex-sessions>",
 						runtime,
 					);
 			}

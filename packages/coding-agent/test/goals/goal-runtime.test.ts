@@ -190,9 +190,23 @@ describe("goal runtime", () => {
 		expect(harness.persists.at(-1)?.mode).toBe("goal_paused");
 	});
 
-	it("auto-pauses active goals when a thread resumes", async () => {
+	it("preserves active goals when a thread resumes", async () => {
 		const harness = createHarness({
 			state: { enabled: true, mode: "active", goal: createGoal() },
+		});
+
+		const resumed = await harness.runtime.onThreadResumed();
+		expect(resumed?.enabled).toBe(true);
+		expect(resumed?.goal.status).toBe("active");
+		expect(harness.getState()?.enabled).toBe(true);
+		expect(harness.getState()?.goal.status).toBe("active");
+		expect(harness.persists).toHaveLength(0);
+		expect(harness.events.at(-1)?.type).toBe("goal_updated");
+	});
+
+	it("normalizes inactive active-goal wrappers when a thread resumes", async () => {
+		const harness = createHarness({
+			state: { enabled: false, mode: "active", goal: createGoal({ status: "active" }) },
 		});
 
 		const resumed = await harness.runtime.onThreadResumed();
@@ -307,6 +321,42 @@ describe("goal runtime", () => {
 		expect(state?.mode).toBe("exiting");
 		expect(state?.reason).toBe("completed");
 		expect(state?.goal.status).toBe("complete");
+	});
+
+	it("completeGoalFromTool rejects stale expected goal ids", async () => {
+		const harness = createHarness({
+			state: {
+				enabled: true,
+				mode: "active",
+				goal: createGoal({ id: "goal-current" }),
+			},
+		});
+
+		await expect(harness.runtime.completeGoalFromTool({ expectedGoalId: "goal-old" })).rejects.toThrow(
+			"stale goal completion rejected because the active goal changed",
+		);
+		expect(harness.getState()?.enabled).toBe(true);
+		expect(harness.getState()?.goal.status).toBe("active");
+	});
+
+	it("blockGoalFromTool clears enabled and flips status to blocked", async () => {
+		const harness = createHarness({
+			state: {
+				enabled: true,
+				mode: "active",
+				goal: createGoal({ id: "goal-current", tokenBudget: 100, tokensUsed: 42 }),
+			},
+		});
+
+		const blocked = await harness.runtime.blockGoalFromTool({ expectedGoalId: "goal-current" });
+
+		expect(blocked.status).toBe("blocked");
+		const state = harness.getState();
+		expect(state?.enabled).toBe(false);
+		expect(state?.mode).toBe("active");
+		expect(state?.reason).toBe("blocked");
+		expect(state?.goal.status).toBe("blocked");
+		expect(harness.persists.at(-1)?.mode).toBe("goal_paused");
 	});
 
 	it("dropGoal emits goal_updated with the dropped goal and clears persisted state", async () => {
