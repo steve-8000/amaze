@@ -152,5 +152,5 @@ describe("nexusBackend", () => {
 		} as any;
 		await nexusBackend.start({ session, settings, modelRegistry: {} as any, agentDir, taskDepth: 0 });
 		expect(emitted.some(message => message.customType === "memory-activity" && message.display)).toBe(true);
-		expect(emitted.some(message => message.content.includes("indexed"))).toBe(true);
+		expect(emitted.some(message => /indexed/i.test(message.content))).toBe(true);
 	});

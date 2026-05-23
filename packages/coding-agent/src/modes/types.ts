@@ -123,7 +123,9 @@ export interface InteractiveModeContext {
 	hookEditor: HookEditorComponent | undefined;
 	lastStatusSpacer: Spacer | undefined;
 	lastStatusText: Text | undefined;
+	lastMemorySpacer: Spacer | undefined;
 	fileSlashCommands: Set<string>;
+	lastMemoryText: Text | undefined;
 	skillCommands: Map<string, string>;
 	oauthManualInput: OAuthManualInputManager;
 	todoPhases: TodoPhase[];

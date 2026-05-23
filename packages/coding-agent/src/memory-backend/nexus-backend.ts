@@ -19,6 +19,9 @@ import type { MemoryBackend, MemoryBackendStartOptions } from "./types";
 
 const sessionReindexStarted = new Set<string>();
 interface ConsolidationCacheEntry { lastAt: number; lastHash: string; }
+interface MemoryActivityItem { status?: "info" | "success" | "warning"; text: string; }
+interface MemoryActivitySection { label: "Indexing" | "Consolidation" | "Writeback" | "Maintenance"; items: MemoryActivityItem[]; }
+interface MemoryActivityPayload { title: string; sections: MemoryActivitySection[]; }
 const consolidationCache = new Map<string, ConsolidationCacheEntry>();
 
 
@@ -152,7 +155,10 @@ export const nexusBackend: MemoryBackend = {
 		try {
 			store.clear();
 			await store.renderArtifacts();
-			await emitMemoryActivity(session, { title: "Memory", items: [{ status: "success", text: "Cleared persisted Nexus memory state." }] });
+			await emitMemoryActivity(session, {
+				title: "Memory",
+				sections: [{ label: "Maintenance", items: [{ status: "success", text: "Cleared persisted Nexus memory state." }] }],
+			});
 		} finally {
 			store.close();
 		}
@@ -164,7 +170,10 @@ export const nexusBackend: MemoryBackend = {
 		try {
 			store.runSelfHealing();
 			await store.renderArtifacts();
-			await emitMemoryActivity(session, { title: "Memory", items: [{ status: "success", text: "Ran Nexus memory maintenance and refreshed artifacts." }] });
+			await emitMemoryActivity(session, {
+				title: "Memory",
+				sections: [{ label: "Maintenance", items: [{ status: "success", text: "Ran Nexus memory maintenance and refreshed artifacts." }] }],
+			});
 		} finally {
 			store.close();
 		}
@@ -286,10 +295,10 @@ async function runKnowledgeMaintenance(
 
 async function emitMemoryActivity(
 	session: MemoryBackendStartOptions["session"] | undefined,
-	payload: { title: string; items: Array<{ status?: "info" | "success" | "warning"; text: string }> } | null,
+	payload: MemoryActivityPayload | null,
 ): Promise<void> {
-	if (!session || !payload || payload.items.length === 0) return;
-	const content = payload.items.map(item => `- ${item.text}`).join("\n");
+	if (!session || !payload || payload.sections.every(section => section.items.length === 0)) return;
+	const content = payload.sections.flatMap(section => section.items.map(item => `${section.label}: ${item.text}`)).join("\n");
 	try {
 		await session.sendCustomMessage(
 			{
@@ -309,34 +318,41 @@ async function emitMemoryActivity(
 function describeStartupMaintenance(
 	pipelineResult: Awaited<ReturnType<typeof runNexusPipeline>>,
 	knowledgeStats: Awaited<ReturnType<typeof runKnowledgeMaintenance>>,
-): { title: string; items: Array<{ status?: "info" | "success" | "warning"; text: string }> } | null {
-	const items: Array<{ status?: "info" | "success" | "warning"; text: string }> = [];
+): MemoryActivityPayload | null {
+	const sections: MemoryActivitySection[] = [];
+	const consolidationItems: MemoryActivityItem[] = [];
 	if (pipelineResult.importedSources > 0 || pipelineResult.createdEntries > 0) {
-		items.push({
+		consolidationItems.push({
 			status: "success",
 			text: `Startup consolidation imported ${pipelineResult.importedSources} source(s) and created ${pipelineResult.createdEntries} memory entr${pipelineResult.createdEntries === 1 ? "y" : "ies"}.`,
 		});
 	}
+	if (consolidationItems.length > 0) sections.push({ label: "Consolidation", items: consolidationItems });
 	if (knowledgeStats) {
-		items.push({
-			status: "info",
-			text: `Repository knowledge indexed ${knowledgeStats.indexedFiles} file(s), skipped ${knowledgeStats.unchangedFiles} unchanged file(s), and pruned ${knowledgeStats.prunedFiles} stale file(s).`,
+		sections.push({
+			label: "Indexing",
+			items: [
+				{
+					status: "info",
+					text: `Indexed ${knowledgeStats.indexedFiles} file(s), skipped ${knowledgeStats.unchangedFiles} unchanged file(s), and pruned ${knowledgeStats.prunedFiles} stale file(s).`,
+				},
+			],
 		});
 	}
-	return items.length > 0 ? { title: "Memory", items } : null;
+	return sections.length > 0 ? { title: "Memory", sections } : null;
 }
 
 function describeOnlineConsolidation(
 	result: Awaited<ReturnType<typeof runNexusOnlineConsolidation>>,
-): { title: string; items: Array<{ status?: "info" | "success" | "warning"; text: string }> } | null {
-	const items: Array<{ status?: "info" | "success" | "warning"; text: string }> = [];
+): MemoryActivityPayload | null {
+	const items: MemoryActivityItem[] = [];
 	if (result.createdEntries > 0) {
 		items.push({ status: "success", text: `Captured ${result.createdEntries} new memory entr${result.createdEntries === 1 ? "y" : "ies"} from the completed turn.` });
 	}
 	if (result.embeddings > 0) {
 		items.push({ status: "info", text: `Backfilled ${result.embeddings} memory embedding${result.embeddings === 1 ? "" : "s"} for retrieval.` });
 	}
-	return items.length > 0 ? { title: "Memory", items } : null;
+	return items.length > 0 ? { title: "Memory", sections: [{ label: "Consolidation", items }] } : null;
 }
 
 function recallKnowledgeEntries(

@@ -99,13 +99,15 @@ describe("InteractiveMode.showStatus", () => {
 		expect(ctx.optimisticUserMessageSignature).toBe("hello\u00001");
 	});
 
-	test("renders live memory activity as a dedicated chat block", () => {
+	test("renders and coalesces live memory activity as a structured chat block", () => {
 		const ctx = {
 			chatContainer: new Container(),
 			ui: { requestRender: vi.fn() },
 			isBackgrounded: false,
 			lastStatusSpacer: undefined,
 			lastStatusText: undefined,
+			lastMemorySpacer: undefined,
+			lastMemoryText: undefined,
 			pendingTools: new Map(),
 			session: { extensionRunner: undefined },
 			toolOutputExpanded: false,
@@ -119,18 +121,55 @@ describe("InteractiveMode.showStatus", () => {
 			display: true,
 			details: {
 				title: "Memory",
-				items: [
-					{ status: "success", text: "Indexed 12 files." },
-					{ status: "info", text: "Captured 2 new memory entries." },
+				sections: [
+					{
+						label: "Indexing",
+						items: [
+							{ status: "success", text: "Indexed 12 files." },
+							{ status: "info", text: "Skipped 3 unchanged files." },
+						],
+					},
 				],
 			},
 			attribution: "agent",
 			timestamp: Date.now(),
 		});
 
-		const rendered = renderContainer(ctx.chatContainer);
+		expect(ctx.chatContainer.children).toHaveLength(2);
+		let rendered = renderContainer(ctx.chatContainer);
 		expect(rendered).toContain("[Memory]");
+		expect(rendered).toContain("Indexing");
 		expect(rendered).toContain("Indexed 12 files.");
+		expect(rendered).toContain("Skipped 3 unchanged files.");
+
+		helpers.addMessageToChat({
+			role: "custom",
+			customType: MEMORY_ACTIVITY_MESSAGE_TYPE,
+			content: "Captured new memory entries",
+			display: true,
+			details: {
+				title: "Memory",
+				sections: [
+					{
+						label: "Consolidation",
+						items: [{ status: "success", text: "Captured 2 new memory entries." }],
+					},
+					{
+						label: "Writeback",
+						items: [{ status: "info", text: "No durable writeback performed." }],
+					},
+				],
+			},
+			attribution: "agent",
+			timestamp: Date.now(),
+		});
+
+		expect(ctx.chatContainer.children).toHaveLength(2);
+		rendered = renderContainer(ctx.chatContainer);
+		expect(rendered).toContain("Consolidation");
 		expect(rendered).toContain("Captured 2 new memory entries.");
+		expect(rendered).toContain("Writeback");
+		expect(rendered).toContain("No durable writeback performed.");
+		expect(rendered).not.toContain("Skipped 3 unchanged files.");
 	});
 });

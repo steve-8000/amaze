@@ -31,39 +31,53 @@ import { formatBytes, formatDuration } from "../../tools/render-utils";
 
 type TextBlock = { type: "text"; text: string };
 
+type MemoryActivityItem = { status?: "info" | "success" | "warning"; text: string };
+type MemoryActivitySection = { label?: string; items?: MemoryActivityItem[] };
+type MemoryActivityDetails = { title?: string; items?: MemoryActivityItem[]; sections?: MemoryActivitySection[] };
+
 type QueuedMessages = {
 	steering: string[];
 	followUp: string[];
 };
 
-function renderMemoryActivityMessage(
-	message: CustomMessage<{ title?: string; items?: Array<{ status?: "info" | "success" | "warning"; text: string }> }>,
-): Component[] {
+function renderMemoryActivityMessage(message: CustomMessage<MemoryActivityDetails>): string {
 	const title = message.details?.title?.trim() || "Memory";
-	const items = Array.isArray(message.details?.items) ? message.details?.items ?? [] : [];
-	const header = new Text(theme.fg("accent", `[${title}]`), 1, 0);
-	const components: Component[] = [header];
-	for (const item of items) {
-		const icon =
-			item.status === "success"
-				? theme.fg("success", "✓")
-				: item.status === "warning"
-					? theme.fg("warning", "!")
-					: theme.fg("dim", "•");
-		components.push(new Text(`  ${icon} ${theme.fg("muted", item.text)}`, 0, 0));
+	const sections =
+		Array.isArray(message.details?.sections) && message.details.sections.length > 0
+			? message.details.sections
+					.map(section => ({
+						label: section.label?.trim() || "Recent",
+						items: (Array.isArray(section.items) ? section.items : []).filter(item => item?.text?.trim()),
+					}))
+					.filter(section => section.items.length > 0)
+			: (() => {
+					const items = (Array.isArray(message.details?.items) ? message.details.items : []).filter(item => item?.text?.trim());
+					if (items.length > 0) return [{ label: "Recent", items }];
+					const content =
+						typeof message.content === "string"
+							? message.content.trim()
+							: message.content
+									.filter((block): block is TextBlock => block.type === "text")
+									.map(block => block.text)
+									.join("\n")
+									.trim();
+					return content ? [{ label: "Recent", items: [{ status: "info" as const, text: content }] }] : [];
+				})();
+	const lines = [theme.fg("accent", `[${title}]`)];
+	for (const section of sections) {
+		lines.push(`  ${theme.fg("accent", section.label)}`);
+		for (const [index, item] of section.items.entries()) {
+			const branch = index === section.items.length - 1 ? "└" : "├";
+			const icon =
+				item.status === "success"
+					? theme.fg("success", "✓")
+					: item.status === "warning"
+						? theme.fg("warning", "!")
+						: theme.fg("dim", "•");
+			lines.push(`    ${theme.fg("dim", branch)} ${icon} ${theme.fg("muted", item.text)}`);
+		}
 	}
-	if (items.length === 0) {
-		const content =
-			typeof message.content === "string"
-				? message.content.trim()
-				: message.content
-						.filter((block): block is TextBlock => block.type === "text")
-						.map(block => block.text)
-						.join("\n")
-						.trim();
-		if (content) components.push(new Text(`  ${theme.fg("muted", content)}`, 0, 0));
-	}
-	return components;
+	return lines.join("\n");
 }
 
 export class UiHelpers {
@@ -162,10 +176,21 @@ export class UiHelpers {
 						break;
 					}
 					if (message.customType === MEMORY_ACTIVITY_MESSAGE_TYPE) {
-						const components = renderMemoryActivityMessage(
-							message as CustomMessage<{ title?: string; items?: Array<{ status?: "info" | "success" | "warning"; text: string }> }>,
-						);
-						for (const component of components) this.ctx.chatContainer.addChild(component);
+						const rendered = renderMemoryActivityMessage(message as CustomMessage<MemoryActivityDetails>);
+						const children = this.ctx.chatContainer.children;
+						const last = children.length > 0 ? children[children.length - 1] : undefined;
+						const secondLast = children.length > 1 ? children[children.length - 2] : undefined;
+						if (last && secondLast && last === this.ctx.lastMemoryText && secondLast === this.ctx.lastMemorySpacer) {
+							this.ctx.lastMemoryText.setText(rendered);
+							this.ctx.ui.requestRender();
+							break;
+						}
+						const spacer = new Spacer(1);
+						const text = new Text(rendered, 1, 0);
+						this.ctx.chatContainer.addChild(spacer);
+						this.ctx.chatContainer.addChild(text);
+						this.ctx.lastMemorySpacer = spacer;
+						this.ctx.lastMemoryText = text;
 						break;
 					}
 					if (message.customType === SKILL_PROMPT_MESSAGE_TYPE) {
