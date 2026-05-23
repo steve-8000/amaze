@@ -1,4 +1,6 @@
 # Verifier uncertain policy
+> **Status**: landed (2026-05-23) — reference
+
 
 `goal.uncertainPolicy` controls how `AcceptanceVerifier.summarize` treats criteria that return `uncertain`.
 

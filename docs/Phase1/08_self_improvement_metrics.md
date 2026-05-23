@@ -1,4 +1,8 @@
 # Phase 1D-08 — Self-Improvement Metrics
+> **Ticket**: T1.8
+> **Phase**: P2
+> **Status**: landed (2026-05-23)
+> **Closing**: docs/Phase1/closing-report.md
 
 > **출처**: `docs/Phase0/03_gpt.md` §7.3.
 > **위상**: P2. Phase 04 (observability) 완료 후. 06/07 과 병렬 가능.

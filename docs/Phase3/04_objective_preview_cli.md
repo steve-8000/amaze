@@ -1,4 +1,9 @@
 # T12.4 — Autonomy objective preview command
+> **Ticket**: T12.4
+> **Phase**: P1
+> **Status**: landed (2026-05-23)
+> **Closing**: docs/Phase3/closing-report.md
+
 
 ## Current state (grounded)
 

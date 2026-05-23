@@ -34,7 +34,7 @@ Per-directory reruns were not required because the aggregate sweep had zero fail
 
 ## Per-ticket status
 
-## Phase 3 ticket 진행 표
+### Phase 3 ticket 진행 표
 
 | Ticket | Status | Acceptance-linked tests / checks |
 |---|---|---|
@@ -61,7 +61,7 @@ Per-directory reruns were not required because the aggregate sweep had zero fail
 
 ## Open follow-ups
 
-## 널리 쓰일 제한사항 / Open follow-ups
+### 널리 쓰일 제한사항 / Open follow-ups
 
 - Skipped tests remain at 302 in the aggregate sweep, unchanged from the Phase2 closing count. This report records the count but does not audit each skip rationale.
 - Autonomy remains default OFF. Phase3 adds non-mutating preview/operator visibility, not autonomous production enablement.
@@ -69,7 +69,7 @@ Per-directory reruns were not required because the aggregate sweep had zero fail
 
 ## Next steps
 
-## 다음 단계 (Phase4 candidates / dogfood window)
+### 다음 단계 (Phase4 candidates / dogfood window)
 
 - Run the dogfood window against real JSONL sessions, covering metrics, rules, objective preview, proposal evaluation, memory governance, and root doctor output.
 - Phase4 candidate: convert dogfood findings into release criteria for enabling higher-confidence self-improvement loops.

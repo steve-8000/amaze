@@ -1,4 +1,8 @@
 # Phase 1D-06 — Learning Proposal Layer
+> **Ticket**: T1.6
+> **Phase**: P2
+> **Status**: landed (2026-05-23)
+> **Closing**: docs/Phase1/closing-report.md
 
 > **출처**: `docs/Phase0/03_gpt.md` §7.2.
 > **위상**: P2. Phase 03 (memory governance) + Phase 05 (rule DSL) 완료 후.

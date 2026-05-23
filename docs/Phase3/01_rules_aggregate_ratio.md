@@ -1,4 +1,9 @@
 # T12.1 — `rules run` aggregate ratio crash
+> **Ticket**: T12.1
+> **Phase**: P0
+> **Status**: landed (2026-05-23)
+> **Closing**: docs/Phase3/closing-report.md
+
 
 ## Current state (grounded)
 

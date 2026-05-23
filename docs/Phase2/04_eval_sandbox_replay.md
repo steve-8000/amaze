@@ -1,4 +1,8 @@
 # T11.4 — Sandbox-replay eval gate
+> **Ticket**: T11.4
+> **Phase**: P1
+> **Status**: landed (2026-05-23)
+> **Closing**: docs/Phase2/closing-report.md
 
 ## Current state (grounded)
 

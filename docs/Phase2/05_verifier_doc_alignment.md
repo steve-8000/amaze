@@ -1,4 +1,8 @@
 # T11.5 — Verifier doc/code alignment
+> **Ticket**: T11.5
+> **Phase**: P1
+> **Status**: landed (2026-05-23)
+> **Closing**: docs/Phase2/closing-report.md
 
 ## Current state (grounded)
 

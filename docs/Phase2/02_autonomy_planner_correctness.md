@@ -1,4 +1,8 @@
 # T11.2 — Autonomy planner correctness
+> **Ticket**: T11.2
+> **Phase**: P0
+> **Status**: landed (2026-05-23)
+> **Closing**: docs/Phase2/closing-report.md
 
 ## Current state (grounded)
 

@@ -1,4 +1,8 @@
 # Phase 1A-02 — Verifier & Tool Capability Hardening
+> **Ticket**: T1.2
+> **Phase**: P1
+> **Status**: landed (2026-05-23)
+> **Closing**: docs/Phase1/closing-report.md
 
 > **출처**: `docs/Phase0/01_gpt.md` P1 (uncertain policy), `docs/Phase0/02_gpt.md` §6, §8 ~ §11.
 > **위상**: P1. Phase1A-01 머지 후 진입.

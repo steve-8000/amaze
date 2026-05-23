@@ -74,7 +74,7 @@ Per-directory sweep:
 
 Notable aggregate-only failures also included `test/cli/memory-doctor.test.ts` expecting `- session-reindex: ok` but receiving an ENOENT path containing `sessions\0`; this appeared in the broad command output even though the isolated `test/cli` directory run passed.
 
-## Phase 1 ticket 진행 표
+## Per-ticket status
 
 | Phase | Ticket | Status | Acceptance-linked tests / checks |
 |---|---|---|---|
@@ -125,7 +125,14 @@ Notable aggregate-only failures also included `test/cli/memory-doctor.test.ts` e
 | 1Ω Ops | T10.3 Phase1 driving docs | done | `docs/Phase1/README.md`, `docs/Phase1/goal-mode-driving.md` |
 | 1Ω Ops | T10.4 `amaze doctor` 통합 | done | `packages/coding-agent/test/cli/doctor.test.ts` |
 
-## 널리 쓰일 제한사항
+## Exit criteria checklist
+
+- [x] Phase1 ticket implementation sweep recorded in `## Per-ticket status`.
+- [x] Typecheck sweep recorded in `## Typecheck`.
+- [x] Test sweep recorded in `## Test sweep`.
+- [ ] One-week dogfood improvement evidence remains pending; see `## Next steps`.
+
+## Open follow-ups
 
 - `prompt-cache.cache` event는 현재 prompt-cache-policy 쪽에서 read/write token detail을 넓게 노출하지 않아 완전 구현되지 않았다.
 - Autonomy는 기본 OFF (`autonomy.enabled=false`)이며, objective loop는 명시 enable 전에는 no-op이어야 한다.
@@ -135,7 +142,7 @@ Notable aggregate-only failures also included `test/cli/memory-doctor.test.ts` e
 - Skill auto-promotion은 active artifact 생성까지 가지 않고 eval/review gate에 머문다. 따라서 오래된 Nexus artifact 렌더링 테스트는 validated/active status를 명시해야 한다.
 - Mutation scope guard는 canonical cwd 기준으로 절대 temp path를 거부한다. 기존 no-contract/backward-compat 테스트 중 cwd를 temp root로 맞추지 않은 케이스는 실패한다.
 
-## 다음 단계
+## Next steps
 
 `docs/Phase1/00_overview.md` §5 종료 조건 대비, 코드 경로는 대부분 닫혔지만 마지막 체크박스인 “1주 실측 데이터에서 force-complete rate 감소 또는 goal completion pass rate 증가 입증”은 아직 관찰 데이터가 필요하다. 이제 observability JSONL, rule DSL, learning proposal/eval gate, metrics CLI, autonomy OFF-by-default objective surface가 붙었으므로 dogfood에서 실측 가능하다.
 

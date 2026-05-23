@@ -1,4 +1,8 @@
 # Phase 1Ω-10 — Operational Runbook (P0 immediate / cross-cutting)
+> **Ticket**: T1.10
+> **Phase**: P0
+> **Status**: landed (2026-05-23)
+> **Closing**: docs/Phase1/closing-report.md
 
 > **출처**: `docs/Phase0/01_gpt.md` §"가장 먼저 고칠 순서" P0~P2.
 > **위상**: P0 (AGENTS.md, test:ts split). 다른 모든 phase 와 병렬 가능. 시작 즉시 진입 권장.

@@ -1,4 +1,9 @@
 # T12.6 — `prompt.cache` event emission
+> **Ticket**: T12.6
+> **Phase**: P2
+> **Status**: landed (2026-05-23)
+> **Closing**: docs/Phase3/closing-report.md
+
 
 ## Current state (grounded)
 

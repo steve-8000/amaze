@@ -6,19 +6,20 @@ Phase1은 Amaze 실행 루프를 AI-Coach-style analysis, Nexus learning proposa
 
 ## 파일 인덱스
 
-| Phase code | 파일 | 우선순위 | 의존 |
-|---|---|---|---|
-| 00 | [00_overview.md](./00_overview.md) | P0 | — |
-| 01 | [01_security_boundaries.md](./01_security_boundaries.md) | P0 | — |
-| 02 | [02_verifier_hardening.md](./02_verifier_hardening.md) | P1 | 01 |
-| 03 | [03_memory_governance.md](./03_memory_governance.md) | P1 | — (병렬) |
-| 04 | [04_observability_ingest.md](./04_observability_ingest.md) | P2 | 01 |
-| 05 | [05_rule_dsl.md](./05_rule_dsl.md) | P2 | 04 |
-| 06 | [06_learning_proposal.md](./06_learning_proposal.md) | P2 | 03, 05 |
-| 07 | [07_eval_gate.md](./07_eval_gate.md) | P2 | 06 |
-| 08 | [08_self_improvement_metrics.md](./08_self_improvement_metrics.md) | P2 | 04 |
-| 09 | [09_autonomous_goals.md](./09_autonomous_goals.md) | P3 | 07, 08 |
-| 10 | [10_release_runbook.md](./10_release_runbook.md) | P0 | — (병렬) |
+|코드|문서|Phase|Status|의존|Evidence|
+|---|---|---|---|---|---|
+|—|[00_overview.md](./00_overview.md)|P0|closed|—|—|
+|T1.1|[01_security_boundaries.md](./01_security_boundaries.md)|P0|landed (2026-05-23)|—|closing-report Per-ticket status: T1.1-T1.4|
+|T1.2|[02_verifier_hardening.md](./02_verifier_hardening.md)|P1|landed (2026-05-23)|T1.1|closing-report Per-ticket status: T2.1-T2.5|
+|T1.3|[03_memory_governance.md](./03_memory_governance.md)|P1|landed (2026-05-23)|—|closing-report Per-ticket status: T3.1-T3.6|
+|T1.4|[04_observability_ingest.md](./04_observability_ingest.md)|P2|landed (2026-05-23)|T1.1|closing-report Per-ticket status: T4.1-T4.4|
+|T1.5|[05_rule_dsl.md](./05_rule_dsl.md)|P2|landed (2026-05-23)|T1.4|closing-report Per-ticket status: T5.1-T5.6|
+|T1.6|[06_learning_proposal.md](./06_learning_proposal.md)|P2|landed (2026-05-23)|T1.3, T1.5|closing-report Per-ticket status: T6.1-T6.5|
+|T1.7|[07_eval_gate.md](./07_eval_gate.md)|P2|landed (2026-05-23)|T1.6|closing-report Per-ticket status: T7.1-T7.5|
+|T1.8|[08_self_improvement_metrics.md](./08_self_improvement_metrics.md)|P2|landed (2026-05-23)|T1.4|closing-report Per-ticket status: T8.1-T8.3|
+|T1.9|[09_autonomous_goals.md](./09_autonomous_goals.md)|P3|landed (2026-05-23)|T1.7, T1.8|closing-report Per-ticket status: T9.1-T9.4|
+|T1.10|[10_release_runbook.md](./10_release_runbook.md)|P0|landed (2026-05-23)|—|closing-report Per-ticket status: T10.1-T10.4|
+|—|[closing-report.md](./closing-report.md)|Ω|closed|—|—|
 
 ## 의존 그래프
 
@@ -54,4 +55,4 @@ Phase1Ω — Operational
 
 ## 진행 상황
 
-진행 상황의 진실 소스는 이 README가 아니라 parent orchestrator의 master todo다. 이 파일은 Phase1 문서 인덱스와 운전 진입점만 제공한다. ticket 완료, revision, rollback, phase complete 상태는 parent orchestrator가 보유한 master todo와 goal runtime state를 기준으로 판단한다.
+진행 상황의 진실 소스는 이 README가 아니라 [closing-report.md](./closing-report.md)다. 이 파일은 Phase1 문서 인덱스와 운전 진입점만 제공한다. ticket 완료와 phase complete 상태는 closing report의 per-ticket status와 test/typecheck sweep을 기준으로 판단한다.

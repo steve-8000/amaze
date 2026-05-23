@@ -1,4 +1,9 @@
 # T12.3 — Memory stale-fact CLI workflow
+> **Ticket**: T12.3
+> **Phase**: P1
+> **Status**: landed (2026-05-23)
+> **Closing**: docs/Phase3/closing-report.md
+
 
 ## Current state (grounded)
 

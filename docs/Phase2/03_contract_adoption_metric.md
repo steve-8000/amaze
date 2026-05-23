@@ -1,4 +1,8 @@
 # T11.3 — `subagent.contractAdoption` measures contracts, not isolation
+> **Ticket**: T11.3
+> **Phase**: P0
+> **Status**: landed (2026-05-23)
+> **Closing**: docs/Phase2/closing-report.md
 
 ## Current state (grounded)
 

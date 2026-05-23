@@ -1,4 +1,8 @@
 # T11.7 — Mandatory regression-command gate at apply
+> **Ticket**: T11.7
+> **Phase**: P1
+> **Status**: landed (2026-05-23)
+> **Closing**: docs/Phase2/closing-report.md
 
 ## Current state (grounded)
 

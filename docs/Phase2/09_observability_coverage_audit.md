@@ -1,4 +1,8 @@
 # T11.9 — Observability coverage audit
+> **Ticket**: T11.9
+> **Phase**: P2
+> **Status**: landed (2026-05-23)
+> **Closing**: docs/Phase2/closing-report.md
 
 ## Current state (grounded)
 

@@ -1,4 +1,6 @@
 # Observability coverage audit
+> **Status**: landed (2026-05-23) — reference
+
 
 Source schema: `packages/coding-agent/src/observability/event-schema.ts` (`SessionEvent`). `prompt.cache` is intentionally unimplemented per `docs/Phase1/closing-report.md` limitation note.
 

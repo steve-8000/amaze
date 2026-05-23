@@ -1,4 +1,8 @@
 # Phase 1E-09 — Autonomous Long-Horizon Goal Manager (feature-flagged)
+> **Ticket**: T1.9
+> **Phase**: P3
+> **Status**: landed (2026-05-23)
+> **Closing**: docs/Phase1/closing-report.md
 
 > **출처**: `docs/Phase0/03_gpt.md` §5.1, §8 (Level 4 → 향한 한 발).
 > **위상**: P3. Phase 1D 의 eval gate (07) 와 metrics (08) 가 안정화된 후 진입.

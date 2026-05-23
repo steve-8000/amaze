@@ -1,4 +1,8 @@
 # Phase 1D-07 — Eval / Safety Gate & Versioned Promotion
+> **Ticket**: T1.7
+> **Phase**: P2
+> **Status**: landed (2026-05-23)
+> **Closing**: docs/Phase1/closing-report.md
 
 > **출처**: `docs/Phase0/03_gpt.md` §6 (Eval/Safety Layer), §7.2 (LearningProposal apply).
 > **위상**: P2. Phase 06 (Learning Proposal) 완료 후.

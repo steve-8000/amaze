@@ -1,4 +1,8 @@
 # T11.1 — `check:ts` clean
+> **Ticket**: T11.1
+> **Phase**: P0
+> **Status**: landed (2026-05-23)
+> **Closing**: docs/Phase2/closing-report.md
 
 ## Current state (grounded)
 

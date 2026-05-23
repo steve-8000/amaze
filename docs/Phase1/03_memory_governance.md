@@ -1,4 +1,8 @@
 # Phase 1B-03 — Memory & Skill Governance
+> **Ticket**: T1.3
+> **Phase**: P1
+> **Status**: landed (2026-05-23)
+> **Closing**: docs/Phase1/closing-report.md
 
 > **출처**: `docs/Phase0/01_gpt.md` P1 contradiction / skill auto-active / legacy migration, P2 static memory boundary / session-search freshness / FTS / startup degraded.
 > **위상**: P1. 1A 와 병렬 가능 (코드 영역 분리: `nexus/**` vs `task/tools/**`).

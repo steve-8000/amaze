@@ -42,8 +42,6 @@ Per-directory sweep for directories that failed in aggregate:
 
 ## Per-ticket status
 
-## Phase 2 ticket 진행 표
-
 | Ticket | Status | Acceptance-linked tests / checks |
 |---|---|---|
 | T11.1 `check:ts` clean | Pass | `bun run check:ts` exit 0; 0 errors, down from Phase1's 22. |
@@ -75,14 +73,12 @@ Per-directory sweep for directories that failed in aggregate:
 
 ## Open follow-ups
 
-## 널리 쓰일 제한사항 / Open follow-ups
-
 - Phase2 cannot be marked fully closed until the aggregate Phase2 test sweep exits 0. The only observed failure is `test/cli/memory-doctor.test.ts` in the aggregate command, where `session-reindex` reported an ENOENT path ending in `sessions\0`; `test/cli` passed when rerun in isolation.
 - Skipped tests remain at 302 in the aggregate sweep, matching the Phase1 closing snapshot's documented skip count. No new skip rationale was evaluated beyond the aggregate count.
 - `prompt.cache` remains the known observability limitation tracked by the Phase2 observability coverage work rather than implemented in this closure step.
 - Autonomy remains default OFF; Phase2 validates planner correctness and gates, not production enablement.
 
-## 다음 단계
+## Next steps
 
 - Phase3 candidate: investigate and fix the aggregate-only `memory doctor` / `session-reindex` ENOENT involving a `sessions\0` path, then rerun the same aggregate sweep until exit 0.
 - Phase3 candidate: close the `prompt.cache` observability gap identified by the coverage audit.

@@ -1,4 +1,9 @@
 # T12.5 — Root `amaze doctor` health-check command
+> **Ticket**: T12.5
+> **Phase**: P1
+> **Status**: landed (2026-05-23)
+> **Closing**: docs/Phase3/closing-report.md
+
 
 ## Current state (grounded)
 

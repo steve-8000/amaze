@@ -1,4 +1,6 @@
 # Phase3 Exit Criteria
+> **Status**: landed (2026-05-23) — reference
+
 
 Phase3 closes only when every check below holds against current-state evidence.
 

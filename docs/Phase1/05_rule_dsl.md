@@ -1,4 +1,8 @@
 # Phase 1C-05 — Rule DSL Engine (`.amaze/rules/*.rule.md`)
+> **Ticket**: T1.5
+> **Phase**: P2
+> **Status**: landed (2026-05-23)
+> **Closing**: docs/Phase1/closing-report.md
 
 > **출처**: `docs/Phase0/03_gpt.md` §7.1 (AI Coach Rule DSL 흡수).
 > **위상**: P2. Phase 04 (observability) 완료 후.

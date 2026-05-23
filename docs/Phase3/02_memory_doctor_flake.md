@@ -1,4 +1,9 @@
 # T12.2 — memory-doctor aggregate `sessions\0` flake
+> **Ticket**: T12.2
+> **Phase**: P0
+> **Status**: landed (2026-05-23)
+> **Closing**: docs/Phase3/closing-report.md
+
 
 ## Current state (grounded)
 

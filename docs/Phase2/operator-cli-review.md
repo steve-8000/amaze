@@ -1,4 +1,6 @@
 # Operator CLI review
+> **Status**: landed (2026-05-23) — reference
+
 
 Scratch runs were executed under `/tmp/amaze-cli-review*` with a temporary `HOME`, a synthetic observability JSONL session, and temporary SQLite databases. CLI entry used for working invocations: `bun --cwd packages/coding-agent src/cli.ts ...`. `bun --cwd packages/coding-agent run src/cli.ts ...` was also tried first and only printed Bun's `run` usage, so it is not the usable source-tree entry form.
 

@@ -1,4 +1,8 @@
 # Phase 1C-04 — Observability Plane: Session Parser & Event Bus
+> **Ticket**: T1.4
+> **Phase**: P2
+> **Status**: landed (2026-05-23)
+> **Closing**: docs/Phase1/closing-report.md
 
 > **출처**: `docs/Phase0/03_gpt.md` §1, §6 (AMAZE 흡수할 AI Coach parser/analyzer).
 > **위상**: P2. 1A 머지 후 진입.

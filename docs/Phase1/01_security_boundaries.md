@@ -1,4 +1,8 @@
 # Phase 1A-01 — Boundary Closure (권한/검증 경계)
+> **Ticket**: T1.1
+> **Phase**: P0
+> **Status**: landed (2026-05-23)
+> **Closing**: docs/Phase1/closing-report.md
 
 > **출처**: `docs/Phase0/02_gpt.md` §3 ~ §5, §7.
 > **위상**: P0. Phase1 의 모든 후속 작업의 전제조건.
