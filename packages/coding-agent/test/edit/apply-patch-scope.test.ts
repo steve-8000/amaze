@@ -1,4 +1,6 @@
-import { beforeEach, describe, expect, it } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import * as fs from "node:fs/promises";
+import * as os from "node:os";
 import * as path from "node:path";
 import { Settings } from "@amaze/coding-agent/config/settings";
 import { EditTool } from "@amaze/coding-agent/edit";
@@ -31,9 +33,15 @@ const addFile = (filePath: string) => [`*** Add File: ${filePath}`, "+export con
 
 describe("apply_patch scope guard", () => {
 	let tool: EditTool;
+	let tmpCwd = "";
 
-	beforeEach(() => {
-		tool = new EditTool(createSession(process.cwd(), contract));
+	beforeEach(async () => {
+		tmpCwd = await fs.mkdtemp(path.join(os.tmpdir(), "apply-patch-scope-"));
+		tool = new EditTool(createSession(tmpCwd, contract));
+	});
+
+	afterEach(async () => {
+		await fs.rm(tmpCwd, { recursive: true, force: true });
 	});
 
 	it("rejects an apply_patch envelope containing an out-of-scope file entry", async () => {
