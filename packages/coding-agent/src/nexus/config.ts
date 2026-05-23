@@ -12,6 +12,7 @@ export interface NexusConfig {
 	knowledgePromptMaxChars: number;
 	knowledgeMaxIndexedFiles: number;
 	knowledgeMaxFileBytes: number;
+	knowledgeMaintenanceMinIntervalMs: number;
 	searchResultMaxEntries: number;
 	searchResultMaxChars: number;
 	searchEntryMaxChars: number;
@@ -92,6 +93,7 @@ export function loadNexusConfig(settings: Settings): NexusConfig {
 		knowledgePromptMaxChars: numberSetting(settings.get("nexus.knowledge.promptMaxChars"), 5_000, 200, 50_000),
 		knowledgeMaxIndexedFiles: numberSetting(settings.get("nexus.knowledge.maxIndexedFiles"), 2_000, 0, 100_000),
 		knowledgeMaxFileBytes: numberSetting(settings.get("nexus.knowledge.maxFileBytes"), 256 * 1024, 1_024, 10 * 1024 * 1024),
+		knowledgeMaintenanceMinIntervalMs: numberSetting(settings.get("nexus.knowledge.maintenanceMinIntervalMs"), 15 * 60 * 1000, 0, 7 * 24 * 60 * 60 * 1000),
 		searchResultMaxEntries: numberSetting(settings.get("nexus.searchResultMaxEntries"), 5, 1, 20),
 		searchResultMaxChars: numberSetting(settings.get("nexus.searchResultMaxChars"), 2_400, 200, 50_000),
 		searchEntryMaxChars: numberSetting(settings.get("nexus.searchEntryMaxChars"), 480, 80, 10_000),

@@ -11,6 +11,7 @@ const repoSearchSchema = z.object({
 	query: z.string().describe("natural language or keyword query over Nexus repository knowledge"),
 	path_prefix: z.string().optional().describe("optional repository-relative path prefix"),
 	limit: z.number().int().min(1).max(20).optional(),
+	explain: z.boolean().optional().describe("include compact ranking and provenance diagnostics"),
 });
 
 export type RepoSearchParams = z.infer<typeof repoSearchSchema>;
@@ -36,8 +37,9 @@ export class RepoSearchTool implements AgentTool<typeof repoSearchSchema> {
 			query: params.query,
 			pathPrefix: params.path_prefix,
 			limit: params.limit,
+			explain: params.explain,
 		});
-		const rendered = renderNexusKnowledgeSearchResults(result.entries, result.entryMaxChars, result.maxChars);
+		const rendered = renderNexusKnowledgeSearchResults(result.entries, result.entryMaxChars, result.maxChars, result.explain);
 		return {
 			content: [{ type: "text", text: rendered.text }],
 			details: { ...result, truncated: rendered.truncated },
@@ -49,6 +51,7 @@ export interface NexusKnowledgeSearchOptions {
 	query: string;
 	pathPrefix?: string;
 	limit?: number;
+	explain?: boolean;
 }
 
 export interface NexusKnowledgeSearchToolResult {
@@ -57,6 +60,7 @@ export interface NexusKnowledgeSearchToolResult {
 	entries: NexusKnowledgeSearchResult[];
 	entryMaxChars: number;
 	maxChars: number;
+	explain: boolean;
 }
 
 export function searchNexusRepositoryKnowledge(session: ToolSession, options: NexusKnowledgeSearchOptions): NexusKnowledgeSearchToolResult {
@@ -72,18 +76,26 @@ export function searchNexusRepositoryKnowledge(session: ToolSession, options: Ne
 			pathPrefix: options.pathPrefix,
 			limit: options.limit ?? (session.settings.get("nexus.searchResultMaxEntries") ?? 5),
 		});
-		const rendered = renderNexusKnowledgeSearchResults(entries, entryMaxChars, maxChars);
-		return { count: entries.length, truncated: rendered.truncated, entries, entryMaxChars, maxChars };
+		const rendered = renderNexusKnowledgeSearchResults(entries, entryMaxChars, maxChars, Boolean(options.explain));
+		return { count: entries.length, truncated: rendered.truncated, entries, entryMaxChars, maxChars, explain: Boolean(options.explain) };
 	} finally {
 		store.close();
 	}
 }
 
-export function renderNexusKnowledgeSearchResults(entries: NexusKnowledgeSearchResult[], entryMaxChars: number, maxChars: number): { text: string; truncated: boolean } {
+export function renderNexusKnowledgeSearchResults(
+	entries: NexusKnowledgeSearchResult[],
+	entryMaxChars: number,
+	maxChars: number,
+	explain = false,
+): { text: string; truncated: boolean } {
 	if (entries.length === 0) return { text: "No Nexus repository knowledge results.", truncated: false };
 	const lines = ["Nexus repository knowledge results:", ""];
 	for (const entry of entries) {
-		lines.push(`- ${entry.document.path}:${entry.chunk.startLine}-${entry.chunk.endLine} ${truncate(oneLine(entry.chunk.content), entryMaxChars)}`);
+		const provenance = `${entry.document.path}:${entry.chunk.startLine}-${entry.chunk.endLine}`;
+		const diagnostics = explain ? ` [${entry.matchKind}; score=${entry.score.toFixed(3)}; ${entry.diagnostics.join(", ")}]` : "";
+		const reserve = explain ? Math.min(entryMaxChars / 3, 96) : 0;
+		lines.push(`- ${provenance}${diagnostics} ${truncate(oneLine(entry.chunk.content), Math.max(40, Math.floor(entryMaxChars - reserve)))}`);
 	}
 	let text = lines.join("\n");
 	const truncated = text.length > maxChars;

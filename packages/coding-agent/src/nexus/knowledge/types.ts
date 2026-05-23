@@ -7,7 +7,11 @@ export type NexusKnowledgeSymbolKind =
 	| "let"
 	| "var"
 	| "type"
-	| "interface";
+	| "interface"
+	| "method"
+	| "alias";
+
+export type NexusKnowledgeMatchKind = "fts" | "path" | "symbol" | "mixed";
 
 export interface NexusKnowledgeDocument {
 	id: string;
@@ -41,8 +45,10 @@ export interface NexusKnowledgeSymbol {
 	kind: NexusKnowledgeSymbolKind;
 	exported: boolean;
 	line: number;
+	endLine: number | null;
 	column: number;
 	signature: string;
+	parentSymbol: string | null;
 }
 
 export interface NexusKnowledgeUpsertDocumentInput {
@@ -68,6 +74,8 @@ export interface NexusKnowledgeSearchResult {
 	document: NexusKnowledgeDocument;
 	chunk: NexusKnowledgeChunk;
 	score: number;
+	matchKind: NexusKnowledgeMatchKind;
+	diagnostics: string[];
 }
 
 export interface NexusKnowledgeCodeQuery {
@@ -84,6 +92,10 @@ export interface NexusKnowledgeReference {
 	column: number;
 	snippet: string;
 	definition: NexusKnowledgeSymbol | null;
+	kind: "definition" | "reference";
+	chunkIndex: number;
+	chunkStartLine: number;
+	chunkEndLine: number;
 }
 
 export interface NexusKnowledgeCaller {
@@ -114,6 +126,9 @@ export interface NexusKnowledgeIndexStats {
 	discoveredFiles: number;
 	indexedFiles: number;
 	skippedFiles: number;
+	unchangedFiles: number;
+	prunedFiles: number;
+	readErrors: number;
 	chunks: number;
 	symbols: number;
 }

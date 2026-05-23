@@ -104,16 +104,20 @@ describe("Nexus compatibility tools", () => {
 						kind: "function",
 						exported: false,
 						line: 1,
+						endLine: 3,
 						column: 10,
 						signature: "function createWidgetConfig()",
+						parentSymbol: null,
 					},
 					{
 						name: "WidgetFactory",
 						kind: "function",
 						exported: true,
 						line: 4,
+						endLine: 6,
 						column: 17,
 						signature: "export function WidgetFactory()",
+						parentSymbol: null,
 					},
 				],
 			});
@@ -129,12 +133,23 @@ describe("Nexus compatibility tools", () => {
 					{
 						chunkIndex: 0,
 						startLine: 1,
-						endLine: 3,
-						content: "import { WidgetFactory } from './widget';\nWidgetFactory();\nexpect(WidgetFactory).toBeDefined();",
+						endLine: 5,
+						content: "import { WidgetFactory } from './widget';\nexport { WidgetFactory as WidgetFactoryAlias };\n\nexport function runWidgetSpec() {\n\treturn WidgetFactory();\n}",
 						contentHash: "widget-test-chunk-hash",
 					},
 				],
-				symbols: [],
+				symbols: [
+					{
+						name: "runWidgetSpec",
+						kind: "function",
+						exported: true,
+						line: 4,
+						endLine: 5,
+						column: 17,
+						signature: "export function runWidgetSpec()",
+						parentSymbol: null,
+					},
+				],
 			});
 		} finally {
 			store.close();
@@ -161,15 +176,16 @@ describe("Nexus compatibility tools", () => {
 		const codeRefs = tools.find(tool => tool.name === "code_refs")!;
 		const codeCallers = tools.find(tool => tool.name === "code_callers")!;
 		const codeCallees = tools.find(tool => tool.name === "code_callees")!;
-		const searchResult = await repoSearch.execute("repo-search-1", { query: "WidgetFactory" });
+		const searchResult = await repoSearch.execute("repo-search-1", { query: "WidgetFactory", explain: true });
 		const defResult = await codeDef.execute("code-def-1", { symbol: "WidgetFactory" });
 		const refsResult = await codeRefs.execute("code-refs-1", { symbol: "WidgetFactory", path: "src/widget.test.ts" });
-		const callersResult = await codeCallers.execute("code-callers-1", { symbol: "createWidgetConfig" });
+		const callersResult = await codeCallers.execute("code-callers-1", { symbol: "WidgetFactory" });
 		const calleesResult = await codeCallees.execute("code-callees-1", { symbol: "WidgetFactory", path: "src/widget.ts" });
-		expect((searchResult.content[0] as any).text).toContain("src/widget");
-		expect((defResult.content[0] as any).text).toContain("export function WidgetFactory");
-		expect((refsResult.content[0] as any).text).toContain("src/widget.test.ts");
-		expect((callersResult.content[0] as any).text).toContain("WidgetFactory");
+		expect((searchResult.content[0] as any).text).toContain("src/widget.ts");
+		expect((searchResult.content[0] as any).text).toContain("symbol_match");
+		expect((defResult.content[0] as any).text).toContain("WidgetFactory :: export function WidgetFactory");
+		expect((refsResult.content[0] as any).text).toContain("chunk 0 1-5");
+		expect((callersResult.content[0] as any).text).toContain("runWidgetSpec");
 		expect((calleesResult.content[0] as any).text).toContain("createWidgetConfig");
 	});
 });

@@ -52,7 +52,9 @@ function renderCodeDefinitions(symbol: string, definitions: NexusKnowledgeSymbol
 	if (definitions.length === 0) return `No Nexus code definitions found for ${symbol}.`;
 	const lines = [`Nexus code definitions for ${symbol}:`, ""];
 	for (const definition of definitions) {
-		lines.push(`- ${definition.path}:${definition.line}:${definition.column} [${definition.kind}${definition.exported ? ", exported" : ""}] ${truncate(definition.signature, 240)}`);
+		const label = definition.parentSymbol ? `${definition.parentSymbol}.${definition.name}` : definition.name;
+		const span = definition.endLine && definition.endLine > definition.line ? `${definition.line}-${definition.endLine}` : `${definition.line}`;
+		lines.push(`- ${definition.path}:${span}:${definition.column} [${definition.kind}${definition.exported ? ", exported" : ""}] ${label} :: ${truncate(definition.signature, 240)}`);
 	}
 	return lines.join("\n");
 }

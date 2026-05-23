@@ -1391,6 +1391,7 @@ export const SETTINGS_SCHEMA = {
 	"nexus.knowledge.promptMaxChars": { type: "number", default: 5000 },
 	"nexus.knowledge.maxIndexedFiles": { type: "number", default: 2000 },
 	"nexus.knowledge.maxFileBytes": { type: "number", default: 262144 },
+	"nexus.knowledge.maintenanceMinIntervalMs": { type: "number", default: 900000 },
 	"nexus.searchResultMaxEntries": { type: "number", default: 5 },
 	"nexus.searchResultMaxChars": { type: "number", default: 2400 },
 	"nexus.searchEntryMaxChars": { type: "number", default: 480 },

@@ -5,6 +5,7 @@ import * as path from "node:path";
 import { Settings } from "@amaze/coding-agent/config/settings";
 import { evaluateNexusDoctor } from "@amaze/coding-agent/nexus/doctor";
 import { importLegacyMemorySources } from "@amaze/coding-agent/nexus/importers";
+import { indexNexusRepository } from "@amaze/coding-agent/nexus/knowledge/indexer";
 import { runNexusPipeline } from "@amaze/coding-agent/nexus/pipeline";
 import { staticNexusScope } from "@amaze/coding-agent/nexus/scope";
 import { getNexusDbPath, NexusStore, openNexusDb } from "@amaze/coding-agent/nexus/store";
@@ -210,6 +211,23 @@ describe("NexusStore", () => {
 		} finally {
 			store.close();
 		}
+	});
+	it("reports knowledge freshness and scope diagnostics for indexed repositories", async () => {
+		const agentDir = await makeTempDir("nexus-doctor-knowledge");
+		const cwd = await makeTempDir("nexus-doctor-knowledge-cwd");
+		await fs.mkdir(path.join(cwd, "src"), { recursive: true });
+		await Bun.write(path.join(cwd, "src", "billing.ts"), "export function bill() { return 1; }\n");
+		const settings = Settings.isolated({
+			"memory.backend": "nexus",
+			"nexus.knowledge.enabled": true,
+			"nexus.knowledge.maintenanceMinIntervalMs": 60_000,
+		});
+		Object.defineProperty(settings, "getAgentDir", { value: () => agentDir });
+		await indexNexusRepository({ agentDir, cwd, repoRoot: cwd });
+		const doctor = evaluateNexusDoctor(settings, cwd);
+		expect(doctor.checks.find(check => check.id === "knowledge_scope")?.status).toBe("PASS");
+		expect(doctor.checks.find(check => check.id === "knowledge_provenance")?.status).toBe("PASS");
+		expect(doctor.checks.find(check => check.id === "knowledge_freshness")?.status).toBe("PASS");
 	});
 
 	it("opens the canonical SQLite+FTS store without AI providers", async () => {

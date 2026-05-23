@@ -52,8 +52,12 @@ function renderCodeReferences(symbol: string, references: NexusKnowledgeReferenc
 	if (references.length === 0) return `No Nexus code references found for ${symbol}.`;
 	const lines = [`Nexus code references for ${symbol}:`, ""];
 	for (const reference of references) {
-		const kind = reference.definition ? "definition" : "reference";
-		lines.push(`- ${reference.path}:${reference.line}:${reference.column} [${kind}] ${truncate(oneLine(reference.snippet), 240)}`);
+		const label = reference.definition
+			? `${reference.definition.parentSymbol ? `${reference.definition.parentSymbol}.` : ""}${reference.definition.name}`
+			: "unresolved";
+		lines.push(
+			`- ${reference.path}:${reference.line}:${reference.column} [${reference.kind}; chunk ${reference.chunkIndex} ${reference.chunkStartLine}-${reference.chunkEndLine}; target=${label}] ${truncate(oneLine(reference.snippet), 240)}`,
+		);
 	}
 	return lines.join("\n");
 }

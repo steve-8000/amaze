@@ -52,9 +52,10 @@ function renderCodeCallers(symbol: string, callers: NexusKnowledgeCaller[]): str
 	if (callers.length === 0) return `No Nexus code callers found for ${symbol}.`;
 	const lines = [`Nexus code callers for ${symbol}:`, ""];
 	for (const caller of callers) {
-		const callerLabel = caller.caller ? `${caller.caller.path}:${caller.caller.line} ${caller.caller.name}` : "unknown caller";
+		const callerName = caller.caller ? `${caller.caller.parentSymbol ? `${caller.caller.parentSymbol}.` : ""}${caller.caller.name}` : "unknown caller";
+		const callerSpan = caller.caller?.endLine && caller.caller.endLine > caller.caller.line ? `${caller.caller.line}-${caller.caller.endLine}` : `${caller.caller?.line ?? "?"}`;
 		lines.push(
-			`- ${caller.reference.path}:${caller.reference.line}:${caller.reference.column} [${callerLabel}] ${truncate(oneLine(caller.reference.snippet), 240)}`,
+			`- ${caller.reference.path}:${caller.reference.line}:${caller.reference.column} [caller=${caller.caller ? `${caller.caller.path}:${callerSpan} ${callerName}` : callerName}] ${truncate(oneLine(caller.reference.snippet), 240)}`,
 		);
 	}
 	return lines.join("\n");

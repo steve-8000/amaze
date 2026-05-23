@@ -11,7 +11,7 @@ import { createNexusEmbeddingClient } from "../nexus/embedding-client";
 import { createNexusLlmClient } from "../nexus/llm-client";
 import { runNexusOnlineConsolidation, runNexusPipeline } from "../nexus/pipeline";
 import { resolveNexusProjectScope } from "../nexus/scope";
-import { NexusStore } from "../nexus/store";
+import { getNexusRoot, NexusStore } from "../nexus/store";
 import type { NexusMemoryEntry } from "../nexus/types";
 import type { MemoryBackend, MemoryBackendStartOptions } from "./types";
 
@@ -221,13 +221,27 @@ async function runKnowledgeMaintenance(
 ): Promise<void> {
 	if (!config.knowledgeEnabled) return;
 	const repoRoot = resolveNexusProjectScope(cwd).repoRoot ?? cwd;
-	await indexNexusRepository({
+	const statePath = `${getNexusRoot(agentDir)}/knowledge-maintenance.json`;
+	const previousState = await Bun.file(statePath)
+		.json()
+		.catch(() => null) as { repoRoot?: string; indexedAt?: string } | null;
+	const indexedAtMs = previousState?.indexedAt ? Date.parse(previousState.indexedAt) : Number.NaN;
+	const withinInterval =
+		previousState?.repoRoot === repoRoot
+		&& Number.isFinite(indexedAtMs)
+		&& Date.now() - indexedAtMs < config.knowledgeMaintenanceMinIntervalMs;
+	if (withinInterval) return;
+	const stats = await indexNexusRepository({
 		agentDir,
 		cwd,
 		repoRoot,
 		maxFiles: config.knowledgeMaxIndexedFiles,
 		maxFileBytes: config.knowledgeMaxFileBytes,
 	});
+	await Bun.write(
+		statePath,
+		`${JSON.stringify({ repoRoot, indexedAt: new Date().toISOString(), stats }, null, 2)}\n`,
+	);
 }
 
 function recallKnowledgeEntries(
@@ -255,31 +269,54 @@ function renderUnifiedRecallBlock(args: {
 	const { goal, operationalEntries, knowledgeEntries, entryMaxChars, maxChars } = args;
 	if (operationalEntries.length === 0 && knowledgeEntries.length === 0) return undefined;
 	const seen = new Set<string>();
+	const seenKnowledgeSpans = new Set<string>();
 	const lines: string[] = ["## Relevant Nexus Context", ""];
 	if (goal) lines.push(`goal: ${goal}`, "");
+	const goalOverhead = lines.join("\n").length;
+	const operationalBudget = Math.max(120, Math.floor((maxChars - goalOverhead) * 0.45));
+	const knowledgeBudget = Math.max(120, maxChars - goalOverhead - operationalBudget);
 	if (operationalEntries.length > 0) {
-		lines.push("### Operational memory");
+		const sectionLines = ["### Operational memory"];
 		for (const entry of operationalEntries) {
 			const text = truncateForPrompt(entry.content, entryMaxChars);
 			const key = normalizeRecallText(text);
 			if (!key || seen.has(key)) continue;
 			seen.add(key);
-			lines.push(`- [${entry.scopeKind}/${entry.confidence}/${entry.staleness}] ${text}`);
+			sectionLines.push(`- [${entry.scopeKind}/${entry.confidence}/${entry.staleness}] ${text}`);
 		}
-		lines.push("");
+		appendBudgetedSection(lines, sectionLines, operationalBudget);
 	}
 	if (knowledgeEntries.length > 0) {
-		lines.push("### Repository knowledge");
+		const sectionLines = ["### Repository knowledge"];
 		for (const entry of knowledgeEntries) {
-			const snippet = truncateForPrompt(oneLine(entry.chunk.content), entryMaxChars);
-			const key = normalizeRecallText(snippet);
-			if (!key || seen.has(key)) continue;
+			const spanKey = `${entry.document.path}:${entry.chunk.startLine}-${entry.chunk.endLine}`;
+			if (seenKnowledgeSpans.has(spanKey)) continue;
+			seenKnowledgeSpans.add(spanKey);
+			const snippet = truncateForPrompt(oneLine(entry.chunk.content), Math.max(40, Math.floor(entryMaxChars * 0.75)));
+			const key = `${spanKey}:${normalizeRecallText(snippet)}`;
+			if (!snippet || seen.has(key)) continue;
 			seen.add(key);
-			lines.push(`- ${entry.document.path}:${entry.chunk.startLine}-${entry.chunk.endLine} ${snippet}`);
+			sectionLines.push(`- ${spanKey} [${entry.matchKind}] ${snippet}`);
 		}
+		appendBudgetedSection(lines, sectionLines, knowledgeBudget);
 	}
 	const rendered = lines.join("\n").trim();
 	return rendered ? rendered.slice(0, maxChars) : undefined;
+}
+function appendBudgetedSection(target: string[], sectionLines: string[], maxChars: number): void {
+	if (sectionLines.length <= 1 || maxChars <= 0) return;
+	const accepted: string[] = [];
+	let used = 0;
+	for (const line of sectionLines) {
+		const next = `${line}\n`;
+		if (accepted.length > 1 && used + next.length > maxChars) break;
+		accepted.push(line);
+		used += next.length;
+	}
+	if (accepted.length > 0) {
+		if (target[target.length - 1] !== "") target.push("");
+		target.push(...accepted, "");
+	}
 }
 
 function normalizeRecallText(value: string): string {

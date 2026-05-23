@@ -9,7 +9,7 @@ import type { ToolSession } from ".";
 import { oneLine, truncate } from "./repo-search";
 
 const codeCalleesSchema = z.object({
-	symbol: z.string().describe("symbol, type, function, class, or API name to inspect for outbound calls"),
+	symbol: z.string().describe("symbol, type, function, class, or API name to find callees for"),
 	path: z.string().optional().describe("optional exact repository-relative path"),
 	limit: z.number().int().min(1).max(20).optional(),
 });
@@ -19,7 +19,7 @@ export type CodeCalleesParams = z.infer<typeof codeCalleesSchema>;
 export class CodeCalleesTool implements AgentTool<typeof codeCalleesSchema> {
 	readonly name = "code_callees";
 	readonly label = "Code Callees";
-	readonly description = "Find outbound calls from a symbol using Nexus repository knowledge.";
+	readonly description = "Find called symbols from a calling definition in Nexus repository knowledge.";
 	readonly parameters = codeCalleesSchema;
 	readonly strict = true;
 	readonly loadMode = "discoverable";
@@ -52,8 +52,9 @@ function renderCodeCallees(symbol: string, callees: NexusKnowledgeCallee[]): str
 	if (callees.length === 0) return `No Nexus code callees found for ${symbol}.`;
 	const lines = [`Nexus code callees for ${symbol}:`, ""];
 	for (const callee of callees) {
-		const calleeLabel = callee.callee ? `${callee.callee.path}:${callee.callee.line} ${callee.callee.name}` : callee.name;
-		lines.push(`- ${callee.line}:${callee.column} [${calleeLabel}] ${truncate(oneLine(callee.snippet), 240)}`);
+		const calleeName = callee.callee ? `${callee.callee.parentSymbol ? `${callee.callee.parentSymbol}.` : ""}${callee.callee.name}` : callee.name;
+		const target = callee.callee ? `${callee.callee.path}:${callee.callee.line}` : "unknown definition";
+		lines.push(`- ${callee.line}:${callee.column} [target=${target} ${calleeName}] ${truncate(oneLine(callee.snippet), 240)}`);
 	}
 	return lines.join("\n");
 }

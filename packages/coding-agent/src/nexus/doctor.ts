@@ -1,9 +1,12 @@
+import * as fs from "node:fs";
 import * as path from "node:path";
 
 import type { Settings } from "../config/settings";
 import { loadNexusConfig, resolveNexusCapabilities } from "./config";
+import { NexusKnowledgeStore } from "./knowledge/store";
 import { createNexusEmbeddingClient } from "./embedding-client";
 import { createNexusLlmClient } from "./llm-client";
+import { resolveNexusProjectScope } from "./scope";
 import { getNexusRoot, NexusStore } from "./store";
 import type { NexusDoctorResult } from "./types";
 
@@ -15,6 +18,7 @@ import type { NexusDoctorResult } from "./types";
 export function evaluateNexusDoctor(settings: Settings, cwd: string): NexusDoctorResult {
 	const config = loadNexusConfig(settings);
 	const store = new NexusStore({ agentDir: settings.getAgentDir(), cwd });
+	const knowledgeStore = new NexusKnowledgeStore({ agentDir: settings.getAgentDir(), cwd });
 	try {
 		const stats = store.stats();
 		const capabilities = resolveNexusCapabilities(config);
@@ -49,8 +53,42 @@ export function evaluateNexusDoctor(settings: Settings, cwd: string): NexusDocto
 			status: stats.quarantined > 0 ? "WARN" : "PASS",
 			message: `${stats.quarantined} quarantined memory entries.`,
 		});
+		const repoRoot = resolveNexusProjectScope(cwd).repoRoot ?? cwd;
+		const knowledgeStats = knowledgeStore.knowledgeDoctorStats(repoRoot);
+		const maintenancePath = path.join(getNexusRoot(settings.getAgentDir()), "knowledge-maintenance.json");
+		const maintenanceState = fs.existsSync(maintenancePath)
+			? (JSON.parse(fs.readFileSync(maintenancePath, "utf8")) as { indexedAt?: string } | null)
+			: null;
+		checks.push({
+			id: "knowledge_scope",
+			status: knowledgeStats.foreignDocuments > 0 ? "WARN" : "PASS",
+			message: knowledgeStats.foreignDocuments > 0
+				? `${knowledgeStats.foreignDocuments} indexed documents belong to other repo roots.`
+				: "Repository knowledge is scoped to the current repo root.",
+		});
+		checks.push({
+			id: "knowledge_provenance",
+			status: knowledgeStats.symbolsMissingEndLine > 0 ? "WARN" : "PASS",
+			message: knowledgeStats.symbolsMissingEndLine > 0
+				? `${knowledgeStats.symbolsMissingEndLine} code symbols are missing end-line provenance.`
+				: "Repository knowledge provenance is complete for indexed code symbols.",
+		});
+		const indexedAt = maintenanceState?.indexedAt ?? knowledgeStats.newestIndexedAt;
+		const indexedAgeMs = indexedAt ? Math.max(0, Date.now() - Date.parse(indexedAt)) : Number.POSITIVE_INFINITY;
+		checks.push({
+			id: "knowledge_freshness",
+			status: knowledgeStats.repoDocuments === 0
+				? "WARN"
+				: indexedAgeMs > config.knowledgeMaintenanceMinIntervalMs * 4
+					? "WARN"
+					: "PASS",
+			message: knowledgeStats.repoDocuments === 0
+				? "Current repo root has no indexed knowledge documents."
+				: `Current repo root has ${knowledgeStats.repoDocuments} indexed knowledge documents; newest index age ${Math.round(indexedAgeMs / 1000)}s.`,
+		});
 		return finalizeDoctor(capabilities, stats, checks);
 	} finally {
+		knowledgeStore.close();
 		store.close();
 	}
 }

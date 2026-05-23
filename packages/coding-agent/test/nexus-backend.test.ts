@@ -4,7 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { Settings } from "@amaze/coding-agent/config/settings";
 import { nexusBackend } from "@amaze/coding-agent/memory-backend/nexus-backend";
-import { NexusStore } from "@amaze/coding-agent/nexus/store";
+import { getNexusRoot, NexusStore } from "@amaze/coding-agent/nexus/store";
 import { Snowflake } from "@amaze/utils";
 
 const createdDirs = new Set<string>();
@@ -93,3 +93,36 @@ describe("nexusBackend", () => {
 		}
 	});
 });
+	it("bounds startup knowledge maintenance with the configured interval", async () => {
+		const agentDir = await makeTempDir("nexus-backend-maintenance-agent");
+		const cwd = await makeTempDir("nexus-backend-maintenance-cwd");
+		await fs.mkdir(path.join(cwd, "src"), { recursive: true });
+		await Bun.write(path.join(cwd, "src", "one.ts"), "export const one = 1;\n");
+		const settings = Settings.isolated({
+			"memory.backend": "nexus",
+			"nexus.llm.enabled": false,
+			"nexus.embeddings.enabled": false,
+			"nexus.knowledge.enabled": true,
+			"nexus.knowledge.maxIndexedFiles": 10,
+			"nexus.knowledge.maintenanceMinIntervalMs": 60_000,
+		});
+		Object.defineProperty(settings, "getAgentDir", { value: () => agentDir });
+		const session = {
+			sessionManager: {
+				getCwd: () => cwd,
+				getSessionFile: () => null,
+				getSessionDir: () => path.join(agentDir, "sessions"),
+			},
+			settings,
+			agent: { metadataForProvider: () => undefined },
+		} as any;
+		await nexusBackend.start({ session, settings, modelRegistry: {} as any, agentDir, taskDepth: 0 });
+		const maintenanceStatePath = path.join(getNexusRoot(agentDir), "knowledge-maintenance.json");
+		const firstStateText = await Bun.file(maintenanceStatePath).text();
+		expect(firstStateText).toContain("\"indexedFiles\": 1");
+		const firstMtime = (await fs.stat(maintenanceStatePath)).mtimeMs;
+		await Bun.sleep(20);
+		await nexusBackend.start({ session, settings, modelRegistry: {} as any, agentDir, taskDepth: 0 });
+		const secondMtime = (await fs.stat(maintenanceStatePath)).mtimeMs;
+		expect(secondMtime).toBe(firstMtime);
+	});

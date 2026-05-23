@@ -7,3 +7,4 @@ export * from "./pipeline";
 export * from "./scope";
 export * from "./store";
 export * from "./types";
+export * from "./knowledge/writeback";

@@ -3,7 +3,7 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { Snowflake } from "@amaze/utils";
-import { indexNexusRepository } from "@amaze/coding-agent/nexus/knowledge/indexer";
+import { chunkContent, indexNexusRepository } from "@amaze/coding-agent/nexus/knowledge/indexer";
 import { NexusKnowledgeStore } from "@amaze/coding-agent/nexus/knowledge/store";
 
 const createdDirs = new Set<string>();
@@ -59,25 +59,78 @@ describe("NexusKnowledgeStore", () => {
 		}
 	});
 
-	it("searches indexed chunks with FTS", async () => {
+	it("searches indexed chunks with path and symbol-aware ranking diagnostics", async () => {
 		const agentDir = await makeTempDir("nexus-search-agent");
 		const repoRoot = await makeTempDir("nexus-search-repo");
+		await fs.mkdir(path.join(repoRoot, "src"), { recursive: true });
+		await Bun.write(path.join(repoRoot, "src", "widget.ts"), "export function WidgetFactory() {\n\treturn { ok: true };\n}\n");
 		await Bun.write(path.join(repoRoot, "notes.md"), "Retry policy uses bounded backoff for API calls.\n");
 		await Bun.write(path.join(repoRoot, "other.txt"), "Completely different content.\n");
 
 		await indexNexusRepository({ agentDir, cwd: repoRoot, repoRoot });
 		const store = new NexusKnowledgeStore({ agentDir, cwd: repoRoot });
 		try {
-			const results = store.search({ query: "bounded backoff", repoRoot, limit: 5 });
-			expect(results).toHaveLength(1);
-			expect(results[0]?.document.path).toBe("notes.md");
-			expect(results[0]?.chunk.content).toContain("bounded backoff");
+			const textResults = store.search({ query: "bounded backoff", repoRoot, limit: 5 });
+			expect(textResults).toHaveLength(1);
+			expect(textResults[0]?.document.path).toBe("notes.md");
+			expect(textResults[0]?.diagnostics).toContain("exact_text");
+
+			const pathResults = store.search({ query: "src/widget.ts", repoRoot, limit: 5 });
+			expect(pathResults[0]?.document.path).toBe("src/widget.ts");
+			expect(pathResults[0]?.matchKind).toBe("path");
+			expect(pathResults[0]?.diagnostics).toContain("exact_path");
+
+			const symbolResults = store.search({ query: "WidgetFactory", repoRoot, limit: 5 });
+			expect(symbolResults[0]?.document.path).toBe("src/widget.ts");
+			expect(symbolResults[0]?.matchKind).toBe("mixed");
+			expect(symbolResults[0]?.diagnostics).toContain("symbol_match");
 		} finally {
 			store.close();
 		}
 	});
 
-	it("finds definitions, references, callers, and callees for simple code queries", async () => {
+	it("extracts methods aliases and default exports for JS and TS code", async () => {
+		const agentDir = await makeTempDir("nexus-symbols-agent");
+		const repoRoot = await makeTempDir("nexus-symbols-repo");
+		await fs.mkdir(path.join(repoRoot, "src"), { recursive: true });
+		await Bun.write(
+			path.join(repoRoot, "src", "api.ts"),
+			[
+				"export default function makeApi() {",
+				"\treturn helpers.build();",
+				"}",
+				"",
+				"class CartService {",
+				"\trenderTotal() {",
+				"\t\treturn makeApi();",
+				"\t}",
+				"}",
+				"",
+				"const helpers = {",
+				"\tbuild: () => ({ ok: true }),",
+				"\tformat: function formatCurrency() { return '$'; },",
+				"};",
+				"",
+				"const internalHelper = () => helpers.build();",
+				"export { internalHelper as publicHelper };",
+				"export default internalHelper;",
+			].join("\n"),
+		);
+
+		await indexNexusRepository({ agentDir, cwd: repoRoot, repoRoot });
+		const store = new NexusKnowledgeStore({ agentDir, cwd: repoRoot });
+		try {
+			expect(store.codeDefinitions({ name: "makeApi", repoRoot })[0]?.exported).toBe(true);
+			expect(store.codeDefinitions({ name: "CartService.renderTotal", repoRoot })[0]?.parentSymbol).toBe("CartService");
+			expect(store.codeDefinitions({ name: "helpers.build", repoRoot })[0]?.parentSymbol).toBe("helpers");
+			expect(store.codeDefinitions({ name: "publicHelper", repoRoot })[0]?.kind).toBe("alias");
+			expect(store.codeDefinitions({ name: "internalHelper", repoRoot })[0]?.exported).toBe(true);
+		} finally {
+			store.close();
+		}
+	});
+
+	it("finds definitions references callers and callees with tighter attribution", async () => {
 		const agentDir = await makeTempDir("nexus-code-agent");
 		const repoRoot = await makeTempDir("nexus-code-repo");
 		await fs.mkdir(path.join(repoRoot, "src"), { recursive: true });
@@ -88,9 +141,24 @@ describe("NexusKnowledgeStore", () => {
 				"\treturn value.trim();",
 				"}",
 				"",
+				"function unrelated() {",
+				"\treturn 'noop';",
+				"}",
+				"",
 				"export function runWorkflow(raw: string): string {",
 				"\tconst parsed = parseInput(raw);",
 				"\treturn parsed.toUpperCase();",
+				"}",
+			].join("\n"),
+		);
+		await Bun.write(
+			path.join(repoRoot, "src", "workflow.test.ts"),
+			[
+				"import { parseInput } from './workflow';",
+				"export { parseInput as parseInputAlias };",
+				"",
+				"export function runSpec() {",
+				"\treturn parseInput(' hi ');",
 				"}",
 			].join("\n"),
 		);
@@ -103,15 +171,62 @@ describe("NexusKnowledgeStore", () => {
 			expect(definitions[0]?.line).toBe(1);
 
 			const references = store.codeReferences({ name: "parseInput", repoRoot });
-			expect(references.some(reference => reference.line === 6 && reference.snippet.includes("parseInput(raw)"))).toBe(true);
+			expect(references.some(reference => reference.path === "src/workflow.ts" && reference.line === 10 && reference.kind === "reference")).toBe(true);
+			expect(references.some(reference => reference.path === "src/workflow.test.ts" && reference.line === 5)).toBe(true);
+			expect(references.some(reference => reference.line === 1 || reference.line === 2)).toBe(false);
 
 			const callers = store.codeCallers({ name: "parseInput", repoRoot });
 			expect(callers.some(caller => caller.caller?.name === "runWorkflow")).toBe(true);
+			expect(callers.some(caller => caller.caller?.name === "runSpec")).toBe(true);
+			expect(callers.some(caller => caller.caller?.name === "unrelated")).toBe(false);
 
 			const callees = store.codeCallees({ name: "runWorkflow", repoRoot });
 			expect(callees.some(callee => callee.name === "parseInput")).toBe(true);
+			expect(callees.some(callee => callee.name === "unrelated")).toBe(false);
 		} finally {
 			store.close();
 		}
+	});
+
+	it("indexes incrementally and prunes stale files", async () => {
+		const agentDir = await makeTempDir("nexus-incremental-agent");
+		const repoRoot = await makeTempDir("nexus-incremental-repo");
+		await fs.mkdir(path.join(repoRoot, "src"), { recursive: true });
+		await Bun.write(path.join(repoRoot, "src", "keep.ts"), "export const keep = true;\n");
+		await Bun.write(path.join(repoRoot, "src", "drop.ts"), "export const drop = true;\n");
+
+		const first = await indexNexusRepository({ agentDir, cwd: repoRoot, repoRoot });
+		expect(first.indexedFiles).toBe(2);
+
+		await fs.rm(path.join(repoRoot, "src", "drop.ts"));
+		const second = await indexNexusRepository({ agentDir, cwd: repoRoot, repoRoot });
+		const third = await indexNexusRepository({ agentDir, cwd: repoRoot, repoRoot });
+		const store = new NexusKnowledgeStore({ agentDir, cwd: repoRoot });
+		try {
+			expect(second.prunedFiles).toBe(1);
+			expect(store.codeDefinitions({ name: "drop", repoRoot })).toHaveLength(0);
+			expect(third.unchangedFiles).toBe(1);
+			expect(third.indexedFiles).toBe(0);
+		} finally {
+			store.close();
+		}
+	});
+
+	it("chunks markdown by heading boundaries", () => {
+		const chunks = chunkContent(
+			[
+				"# Intro",
+				"Overview text.",
+				"",
+				"## Details",
+				"More detail.",
+				"Even more detail.",
+			].join("\n"),
+			{ maxLines: 10, maxChars: 200, language: "markdown", kind: "text" },
+		);
+		expect(chunks).toHaveLength(2);
+		expect(chunks[0]?.startLine).toBe(1);
+		expect(chunks[0]?.endLine).toBe(3);
+		expect(chunks[1]?.startLine).toBe(4);
 	});
 });
