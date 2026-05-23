@@ -67,7 +67,11 @@ describe("nexus LLM client", () => {
 			{ fetch: asFetch(fakeFetch) },
 		);
 		expect(client).not.toBeNull();
-		const result = await client!.complete({ messages: [{ role: "user", content: "ping" }], maxTokens: 16, temperature: 0 });
+		const result = await client!.complete({
+			messages: [{ role: "user", content: "ping" }],
+			maxTokens: 16,
+			temperature: 0,
+		});
 		expect(result.ok).toBe(true);
 		if (result.ok) expect(result.content).toBe("pong");
 		expect(captured.url).toBe("http://127.0.0.1:8000/v1/chat/completions");
@@ -133,7 +137,7 @@ describe("nexus LLM client", () => {
 	});
 
 	it("parseLooseJson tolerates preamble and fences", () => {
-		const fenced = "Here you go:\n```json\n{\"k\":1}\n```";
+		const fenced = 'Here you go:\n```json\n{"k":1}\n```';
 		const result = parseLooseJson(fenced);
 		expect(result.ok).toBe(true);
 		if (result.ok) expect((result.value as { k: number }).k).toBe(1);

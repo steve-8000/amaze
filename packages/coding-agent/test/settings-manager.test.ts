@@ -220,8 +220,5 @@ describe("Settings", () => {
 			const hindsightSettings = await Settings.init({ cwd: projectDir, agentDir });
 			expect(hindsightSettings.get("memory.backend")).toBe("nexus");
 		});
-
-
-
 	});
 });

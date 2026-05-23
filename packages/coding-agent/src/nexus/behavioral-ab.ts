@@ -43,7 +43,10 @@ export async function runNexusBehavioralAb(
 	let withoutHits = 0;
 	for (const testCase of cases) {
 		const retrieved = retrieveForBehavioralCase(store, testCase, recallLimit);
-		const memoryBlock = retrieved.length > 0 ? ["Durable memory:", ...retrieved.map(entry => `- ${entry.content}`)].join("\n") : "Durable memory: <none>";
+		const memoryBlock =
+			retrieved.length > 0
+				? ["Durable memory:", ...retrieved.map(entry => `- ${entry.content}`)].join("\n")
+				: "Durable memory: <none>";
 		const sharedSystem = [
 			"You are a coding assistant answering a task-specific question.",
 			"Be concise. If the answer is unknown from the supplied information, reply with 'unknown'.",
@@ -95,7 +98,14 @@ function retrieveForBehavioralCase(store: NexusStore, testCase: NexusBehavioralE
 		limit: recallLimit,
 	});
 	if (direct.length > 0) return direct;
-	const keywords = [...new Set(testCase.question.toLowerCase().split(/[^a-z0-9_.:-]+/).filter(token => token.length >= 4))].slice(0, 6);
+	const keywords = [
+		...new Set(
+			testCase.question
+				.toLowerCase()
+				.split(/[^a-z0-9_.:-]+/)
+				.filter(token => token.length >= 4),
+		),
+	].slice(0, 6);
 	if (keywords.length === 0) return [];
 	const merged = new Map<string, ReturnType<NexusStore["list"]>[number]>();
 	for (const keyword of keywords) {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import * as fs from "node:fs/promises";
 import * as fsSync from "node:fs";
+import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { migrateKnowledgeIntoSeparateDb } from "../src/nexus/knowledge/migration";
@@ -53,7 +53,15 @@ describe("knowledge db migration", () => {
 						language: "typescript",
 						contentHash: "hash-1",
 						sizeBytes: 10,
-						chunks: [{ chunkIndex: 0, startLine: 1, endLine: 1, content: "console.log(1);", contentHash: "chunk-hash-1" }],
+						chunks: [
+							{
+								chunkIndex: 0,
+								startLine: 1,
+								endLine: 1,
+								content: "console.log(1);",
+								contentHash: "chunk-hash-1",
+							},
+						],
 						symbols: [],
 					});
 				} finally {
@@ -80,7 +88,9 @@ describe("knowledge db migration", () => {
 
 			const opDb = openNexusDb(getNexusDbPath(dir));
 			try {
-				const remaining = opDb.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'knowledge_%'").all();
+				const remaining = opDb
+					.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'knowledge_%'")
+					.all();
 				expect(remaining.length).toBe(0);
 			} finally {
 				opDb.close(false);

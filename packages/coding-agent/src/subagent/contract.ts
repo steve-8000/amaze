@@ -284,7 +284,7 @@ export async function verifySubagentCompletion(
 		cwd: completion.cwd,
 		changedFiles: completion.changedFiles,
 	});
-	return { verdict: summarize(results) };
+	return { verdict: summarize(results, contract.successCriteria, "contract") };
 }
 
 function escapeXml(input: string): string {

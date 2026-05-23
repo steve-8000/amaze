@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test, vi } from "bun:test";
 import type { AgentMessage } from "@amaze/agent-core";
-import { compact, DEFAULT_COMPACTION_SETTINGS, type CompactionPreparation } from "@amaze/agent-core/compaction";
+import { type CompactionPreparation, compact, DEFAULT_COMPACTION_SETTINGS } from "@amaze/agent-core/compaction";
 import type { AssistantMessage, Model } from "@amaze/ai";
 import * as ai from "@amaze/ai";
 import { Effort, getBundledModel } from "@amaze/ai";

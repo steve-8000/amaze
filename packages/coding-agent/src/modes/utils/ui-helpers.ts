@@ -51,7 +51,9 @@ function renderMemoryActivityMessage(message: CustomMessage<MemoryActivityDetail
 					}))
 					.filter(section => section.items.length > 0)
 			: (() => {
-					const items = (Array.isArray(message.details?.items) ? message.details.items : []).filter(item => item?.text?.trim());
+					const items = (Array.isArray(message.details?.items) ? message.details.items : []).filter(item =>
+						item?.text?.trim(),
+					);
 					if (items.length > 0) return [{ label: "Recent", items }];
 					const content =
 						typeof message.content === "string"
@@ -180,7 +182,12 @@ export class UiHelpers {
 						const children = this.ctx.chatContainer.children;
 						const last = children.length > 0 ? children[children.length - 1] : undefined;
 						const secondLast = children.length > 1 ? children[children.length - 2] : undefined;
-						if (last && secondLast && last === this.ctx.lastMemoryText && secondLast === this.ctx.lastMemorySpacer) {
+						if (
+							last &&
+							secondLast &&
+							last === this.ctx.lastMemoryText &&
+							secondLast === this.ctx.lastMemorySpacer
+						) {
 							this.ctx.lastMemoryText.setText(rendered);
 							this.ctx.ui.requestRender();
 							break;

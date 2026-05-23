@@ -32,28 +32,138 @@ const embedModel = process.env.NEXUS_LIVE_EMBED_MODEL ?? "bge-m3";
 
 const realisticRollout = [
 	{ type: "session", id: "thr-temp", cwd: process.cwd() },
-	{ type: "message", message: { role: "user", content: "From now on always reply in concise Korean and never apologise more than once per turn." } },
-	{ type: "message", message: { role: "assistant", content: "Understood. I will keep responses concise in Korean and apologise at most once per turn." } },
+	{
+		type: "message",
+		message: {
+			role: "user",
+			content: "From now on always reply in concise Korean and never apologise more than once per turn.",
+		},
+	},
+	{
+		type: "message",
+		message: {
+			role: "assistant",
+			content: "Understood. I will keep responses concise in Korean and apologise at most once per turn.",
+		},
+	},
 	{ type: "message", message: { role: "user", content: "What is the canonical test command for this repo?" } },
-	{ type: "message", message: { role: "assistant", content: "The canonical command is `bun test`; project uses bun:sqlite, and `memory.backend: nexus` is the supported memory mode." } },
-	{ type: "message", message: { role: "user", content: "Note that we deploy via the ops subagent and the cutover ran on 2026-05-01." } },
-	{ type: "message", message: { role: "assistant", content: "Recorded: deployments go through the ops subagent; the cutover landed on 2026-05-01." } },
+	{
+		type: "message",
+		message: {
+			role: "assistant",
+			content:
+				"The canonical command is `bun test`; project uses bun:sqlite, and `memory.backend: nexus` is the supported memory mode.",
+		},
+	},
+	{
+		type: "message",
+		message: { role: "user", content: "Note that we deploy via the ops subagent and the cutover ran on 2026-05-01." },
+	},
+	{
+		type: "message",
+		message: {
+			role: "assistant",
+			content: "Recorded: deployments go through the ops subagent; the cutover landed on 2026-05-01.",
+		},
+	},
 ];
 
 const STOP_WORDS = new Set([
-	"the", "a", "an", "is", "are", "was", "were", "be", "been", "being", "to", "of", "in", "on", "for", "with", "as", "at", "by", "from",
-	"this", "that", "these", "those", "and", "or", "but", "if", "than", "so", "not", "no", "will", "should", "would", "could", "may",
-	"can", "do", "does", "did", "have", "has", "had", "it", "its", "their", "any", "all", "more", "less", "very", "such", "into", "out",
-	"about", "next", "previous", "before", "after", "when", "where", "why", "how", "we", "you", "i", "he", "she", "they", "them", "our",
-	"your", "his", "her", "my", "me", "us", "one", "two", "first", "second",
-	"prompt", "hypothesis", "memory", "memories", "project", "session",
+	"the",
+	"a",
+	"an",
+	"is",
+	"are",
+	"was",
+	"were",
+	"be",
+	"been",
+	"being",
+	"to",
+	"of",
+	"in",
+	"on",
+	"for",
+	"with",
+	"as",
+	"at",
+	"by",
+	"from",
+	"this",
+	"that",
+	"these",
+	"those",
+	"and",
+	"or",
+	"but",
+	"if",
+	"than",
+	"so",
+	"not",
+	"no",
+	"will",
+	"should",
+	"would",
+	"could",
+	"may",
+	"can",
+	"do",
+	"does",
+	"did",
+	"have",
+	"has",
+	"had",
+	"it",
+	"its",
+	"their",
+	"any",
+	"all",
+	"more",
+	"less",
+	"very",
+	"such",
+	"into",
+	"out",
+	"about",
+	"next",
+	"previous",
+	"before",
+	"after",
+	"when",
+	"where",
+	"why",
+	"how",
+	"we",
+	"you",
+	"i",
+	"he",
+	"she",
+	"they",
+	"them",
+	"our",
+	"your",
+	"his",
+	"her",
+	"my",
+	"me",
+	"us",
+	"one",
+	"two",
+	"first",
+	"second",
+	"prompt",
+	"hypothesis",
+	"memory",
+	"memories",
+	"project",
+	"session",
 ]);
 
 function tokenize(text: string): string[] {
 	return text
 		.toLowerCase()
 		.replace(/[`*_~]/g, " ")
-		.split(/[^a-z0-9_.\-]+/)
+		.split(/[^a-z0-9_.-]+/)
 		.filter(token => token.length >= 3 && !STOP_WORDS.has(token));
 }
 
@@ -104,7 +214,9 @@ async function runTrial(temperature: number): Promise<TrialResult> {
 			await runNexusPipeline(store, settings, { llmClient, embeddingClient });
 			const sqlite = await import("bun:sqlite");
 			const db = new sqlite.Database((store as unknown as { dbPath: string }).dbPath);
-			const row = db.prepare("SELECT prompt, hypothesis FROM memory_hypotheses ORDER BY created_at DESC LIMIT 1").get() as { prompt?: string; hypothesis?: string } | undefined;
+			const row = db
+				.prepare("SELECT prompt, hypothesis FROM memory_hypotheses ORDER BY created_at DESC LIMIT 1")
+				.get() as { prompt?: string; hypothesis?: string } | undefined;
 			db.close(false);
 			const items = store.list({ scope: "all", limit: 200 }).map(entry => entry.content);
 			const inputCorpus = new Set(tokenize(items.join("\n")));
@@ -155,7 +267,9 @@ async function main() {
 		const mg = trials.reduce((acc, t) => acc + t.lexicalGrounding, 0) / trials.length;
 		const mn = trials.reduce((acc, t) => acc + t.novelTerms.length, 0) / trials.length;
 		const distinct = new Set(trials.map(t => t.hash)).size;
-		console.log(` ${temp.toString().padEnd(4)} | ${mg.toFixed(3).padEnd(14)} | ${mn.toFixed(2).padEnd(10)} | ${distinct}/${trials.length}`);
+		console.log(
+			` ${temp.toString().padEnd(4)} | ${mg.toFixed(3).padEnd(14)} | ${mn.toFixed(2).padEnd(10)} | ${distinct}/${trials.length}`,
+		);
 	}
 }
 

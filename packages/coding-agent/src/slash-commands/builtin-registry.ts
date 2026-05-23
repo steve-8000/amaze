@@ -20,8 +20,8 @@ import {
 	MarketplaceManager,
 } from "../extensibility/plugins/marketplace";
 import { resolveMemoryBackend } from "../memory-backend";
-import { renderNexusStats, runNexusDoctorLive, runNexusExplain, runNexusSearch } from "../nexus/commands";
 import type { InteractiveModeContext } from "../modes/types";
+import { renderNexusStats, runNexusDoctorLive, runNexusExplain, runNexusSearch } from "../nexus/commands";
 import { getChangelogPath, parseChangelog } from "../utils/changelog";
 import { buildContextReportText } from "./helpers/context-report";
 import { formatDuration } from "./helpers/format";
@@ -896,13 +896,17 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 				case "search": {
 					if (!rest) return usage("Usage: /memory search <query>", runtime);
 					if (backend.id !== "nexus") return usage("Nexus backend is not active for this session.", runtime);
-					await runtime.output(runNexusSearch(runtime.settings.getAgentDir(), runtime.cwd, runtime.settings, rest));
+					await runtime.output(
+						runNexusSearch(runtime.settings.getAgentDir(), runtime.cwd, runtime.settings, rest),
+					);
 					return commandConsumed();
 				}
 				case "explain": {
 					if (!rest) return usage("Usage: /memory explain <id>", runtime);
 					if (backend.id !== "nexus") return usage("Nexus backend is not active for this session.", runtime);
-					await runtime.output(runNexusExplain(runtime.settings.getAgentDir(), runtime.cwd, runtime.settings, rest));
+					await runtime.output(
+						runNexusExplain(runtime.settings.getAgentDir(), runtime.cwd, runtime.settings, rest),
+					);
 					return commandConsumed();
 				}
 				case "doctor": {
@@ -911,10 +915,7 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 					return commandConsumed();
 				}
 				default:
-					return usage(
-						"Usage: /memory <view|clear|reset|enqueue|rebuild|stats|search|explain|doctor>",
-						runtime,
-					);
+					return usage("Usage: /memory <view|clear|reset|enqueue|rebuild|stats|search|explain|doctor>", runtime);
 			}
 		},
 		handleTui: async (command, runtime) => {

@@ -3,10 +3,10 @@ import * as os from "node:os";
 import * as path from "node:path";
 
 import { Settings } from "../src/config/settings";
+import { runNexusBehavioralAb } from "../src/nexus/behavioral-ab";
 import { loadNexusConfig } from "../src/nexus/config";
 import { createNexusEmbeddingClient } from "../src/nexus/embedding-client";
 import { createNexusLlmClient } from "../src/nexus/llm-client";
-import { runNexusBehavioralAb } from "../src/nexus/behavioral-ab";
 import { NexusStore } from "../src/nexus/store";
 
 const llmUrl = process.env.NEXUS_LIVE_LLM_URL ?? "http://127.0.0.1:8000";
@@ -48,7 +48,11 @@ async function main() {
 			if (add.entry) ids.push(add.entry.id);
 		}
 		const embeds = await embeddingClient.embed(seeded);
-		if (embeds.ok) ids.forEach((id, idx) => store.addEmbedding(id, embeds.batch.vectors[idx]!, embeds.batch.model));
+		if (embeds.ok) {
+			ids.forEach((id, idx) => {
+				store.addEmbedding(id, embeds.batch.vectors[idx]!, embeds.batch.model);
+			});
+		}
 		const result = await runNexusBehavioralAb(store, llmClient, [
 			{ id: "t1", question: "What test command should I run for this repository?", expectedAny: ["bun test"] },
 			{ id: "t2", question: "Which agent should handle deployments?", expectedAny: ["ops subagent"] },

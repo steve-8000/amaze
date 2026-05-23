@@ -151,3 +151,28 @@ export async function snapshotGitChangedFiles(cwd: string): Promise<string[]> {
 		return [];
 	}
 }
+export type DirtySnapshot = Map<string, string>;
+
+export async function snapshotDirtyFilesWithHash(cwd: string): Promise<DirtySnapshot> {
+	const snapshot: DirtySnapshot = new Map();
+	const paths = await snapshotGitChangedFiles(cwd);
+	for (const path of paths) {
+		try {
+			const bytes = await Bun.file(`${cwd}/${path}`).bytes();
+			const hasher = new Bun.CryptoHasher("sha256");
+			hasher.update(bytes);
+			snapshot.set(path, hasher.digest("hex"));
+		} catch {
+			// File may have been deleted or moved between git status and read; ignore it.
+		}
+	}
+	return snapshot;
+}
+
+export function diffDirtySnapshots(before: DirtySnapshot, after: DirtySnapshot): string[] {
+	const changed = new Set<string>();
+	for (const [path, hash] of after) {
+		if (before.get(path) !== hash) changed.add(path);
+	}
+	return [...changed];
+}

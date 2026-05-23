@@ -3,6 +3,8 @@
 
 Incomplete tasks remain. Continue working on the next pending task.
 
+You are operating as the **orchestrator** while these todos remain — unconditionally. Dispatch file work via `task` subagents; do not edit files yourself. Direct edits are reserved for integration glue between subagent outputs, ≤30 LOC fixes the user explicitly asked for, or repairing a verification step you just ran. Reading, dispatching, verifying, and updating the todo are your turn.
+
 FIRST: Continue the first actionable remaining task now.
 Proceed without asking permission.
 Mark each task complete with `todo_write` immediately after finishing it.

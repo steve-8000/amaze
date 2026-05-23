@@ -22,7 +22,11 @@ describe("memory_relations CHECK trigger", () => {
 		await withStore(async (_store, agentDir) => {
 			const db = openNexusDb(getNexusDbPath(agentDir));
 			try {
-				expect(() => db.prepare("INSERT INTO memory_relations(from_id,to_id,relation,created_at) VALUES (?,?,?,?)").run("a", "b", "bogus", "now")).toThrow(/invalid memory_relations\.relation/);
+				expect(() =>
+					db
+						.prepare("INSERT INTO memory_relations(from_id,to_id,relation,created_at) VALUES (?,?,?,?)")
+						.run("a", "b", "bogus", "now"),
+				).toThrow(/invalid memory_relations\.relation/);
 			} finally {
 				db.close(false);
 			}
@@ -34,7 +38,13 @@ describe("memory_relations CHECK trigger", () => {
 			const db = openNexusDb(getNexusDbPath(agentDir));
 			try {
 				for (const rel of ["supports", "contradicts", "supersedes", "duplicate_of", "generalizes", "specializes"]) {
-					expect(() => db.prepare("INSERT OR REPLACE INTO memory_relations(from_id,to_id,relation,created_at) VALUES (?,?,?,?)").run("a", `b-${rel}`, rel, "now")).not.toThrow();
+					expect(() =>
+						db
+							.prepare(
+								"INSERT OR REPLACE INTO memory_relations(from_id,to_id,relation,created_at) VALUES (?,?,?,?)",
+							)
+							.run("a", `b-${rel}`, rel, "now"),
+					).not.toThrow();
 				}
 			} finally {
 				db.close(false);
@@ -48,9 +58,30 @@ describe("pipeline stage stats", () => {
 		await withStore(async (_store, agentDir) => {
 			const db = openNexusDb(getNexusDbPath(agentDir));
 			try {
-				recordPipelineStage(db, { kind: "pipeline", jobKey: "r1:ingest", stage: "ingest", durationMs: 100, llmCalls: 1, status: "success" });
-				recordPipelineStage(db, { kind: "pipeline", jobKey: "r2:ingest", stage: "ingest", durationMs: 200, llmCalls: 2, status: "success" });
-				recordPipelineStage(db, { kind: "pipeline", jobKey: "r1:embed", stage: "embed", durationMs: 50, embedCalls: 5, status: "success" });
+				recordPipelineStage(db, {
+					kind: "pipeline",
+					jobKey: "r1:ingest",
+					stage: "ingest",
+					durationMs: 100,
+					llmCalls: 1,
+					status: "success",
+				});
+				recordPipelineStage(db, {
+					kind: "pipeline",
+					jobKey: "r2:ingest",
+					stage: "ingest",
+					durationMs: 200,
+					llmCalls: 2,
+					status: "success",
+				});
+				recordPipelineStage(db, {
+					kind: "pipeline",
+					jobKey: "r1:embed",
+					stage: "embed",
+					durationMs: 50,
+					embedCalls: 5,
+					status: "success",
+				});
 				const stats = recentStageStats(db, 50);
 				const byName = Object.fromEntries(stats.map(s => [s.stage, s]));
 				expect(byName.ingest.count).toBe(2);

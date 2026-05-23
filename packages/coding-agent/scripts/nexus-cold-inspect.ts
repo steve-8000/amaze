@@ -21,16 +21,60 @@ const embedModel = process.env.NEXUS_LIVE_EMBED_MODEL ?? "bge-m3";
 
 const realisticRollout = [
 	{ type: "session", id: "thr-cold", cwd: process.cwd() },
-	{ type: "message", message: { role: "user", content: "From now on always reply in concise Korean and never apologise more than once per turn." } },
-	{ type: "message", message: { role: "assistant", content: "Understood. I will keep responses concise in Korean and apologise at most once per turn." } },
+	{
+		type: "message",
+		message: {
+			role: "user",
+			content: "From now on always reply in concise Korean and never apologise more than once per turn.",
+		},
+	},
+	{
+		type: "message",
+		message: {
+			role: "assistant",
+			content: "Understood. I will keep responses concise in Korean and apologise at most once per turn.",
+		},
+	},
 	{ type: "message", message: { role: "user", content: "What is the canonical test command for this repo?" } },
-	{ type: "message", message: { role: "assistant", content: "The canonical command is `bun test`; project uses bun:sqlite, and `memory.backend: nexus` is the supported memory mode." } },
+	{
+		type: "message",
+		message: {
+			role: "assistant",
+			content:
+				"The canonical command is `bun test`; project uses bun:sqlite, and `memory.backend: nexus` is the supported memory mode.",
+		},
+	},
 	{ type: "message", message: { role: "user", content: "Try running `pnpm test` once to confirm it fails." } },
-	{ type: "message", message: { role: "assistant", content: "Ran `pnpm test`. It failed with: 'ENOENT pnpm-lock.yaml not found'. Bun is required; pnpm is not configured here." } },
-	{ type: "message", message: { role: "user", content: "Add a memory: this project's secret API token is sk-test-1234567890abcdef." } },
-	{ type: "message", message: { role: "assistant", content: "I will not store credentials. Memory is for durable conventions and decisions, not secrets." } },
-	{ type: "message", message: { role: "user", content: "Note that we deploy via the ops subagent and the cutover ran on 2026-05-01." } },
-	{ type: "message", message: { role: "assistant", content: "Recorded: deployments go through the ops subagent; the cutover landed on 2026-05-01." } },
+	{
+		type: "message",
+		message: {
+			role: "assistant",
+			content:
+				"Ran `pnpm test`. It failed with: 'ENOENT pnpm-lock.yaml not found'. Bun is required; pnpm is not configured here.",
+		},
+	},
+	{
+		type: "message",
+		message: { role: "user", content: "Add a memory: this project's secret API token is sk-test-1234567890abcdef." },
+	},
+	{
+		type: "message",
+		message: {
+			role: "assistant",
+			content: "I will not store credentials. Memory is for durable conventions and decisions, not secrets.",
+		},
+	},
+	{
+		type: "message",
+		message: { role: "user", content: "Note that we deploy via the ops subagent and the cutover ran on 2026-05-01." },
+	},
+	{
+		type: "message",
+		message: {
+			role: "assistant",
+			content: "Recorded: deployments go through the ops subagent; the cutover landed on 2026-05-01.",
+		},
+	},
 ];
 
 async function main() {
@@ -78,17 +122,21 @@ async function main() {
 		console.log("\n[cold] active memory entries:");
 		const all = store.list({ scope: "all", limit: 200 });
 		for (const entry of all) {
-			console.log(`  · [${entry.scopeKind}/${entry.target}/${entry.memoryType}/${entry.confidence}] ${entry.content.slice(0, 200)}`);
+			console.log(
+				`  · [${entry.scopeKind}/${entry.target}/${entry.memoryType}/${entry.confidence}] ${entry.content.slice(0, 200)}`,
+			);
 		}
 
 		console.log("\n[cold] hypotheses:");
-		const hypos = (store as unknown as { _dbInstance?: { prepare: (sql: string) => { all: () => Array<{ prompt: string; hypothesis: string; supporting_memory_ids: string }> } } });
 		// Re-open db via a public path: use NexusStore internal SQL through doctor. We'll just SELECT directly.
 		const sqlite = await import("bun:sqlite");
 		const dbPath = (store as unknown as { dbPath: string }).dbPath;
 		const db = new sqlite.Database(dbPath);
-		const rows = db.prepare("SELECT prompt, hypothesis, supporting_memory_ids, status FROM memory_hypotheses").all() as Array<{ prompt: string; hypothesis: string; supporting_memory_ids: string; status: string }>;
-		for (const row of rows) console.log(`  · status=${row.status}\n    prompt: ${row.prompt}\n    hypothesis: ${row.hypothesis}`);
+		const rows = db
+			.prepare("SELECT prompt, hypothesis, supporting_memory_ids, status FROM memory_hypotheses")
+			.all() as Array<{ prompt: string; hypothesis: string; supporting_memory_ids: string; status: string }>;
+		for (const row of rows)
+			console.log(`  · status=${row.status}\n    prompt: ${row.prompt}\n    hypothesis: ${row.hypothesis}`);
 
 		console.log("\n[cold] secret-token leak check:");
 		const tokenHits = store.search({ query: "sk-test", scope: "all", limit: 5, includeHistory: true });
@@ -99,7 +147,12 @@ async function main() {
 		const queryEmbed = await embeddingClient.embed(["how to validate this repo"]);
 		if (queryEmbed.ok) {
 			const ftsOnly = store.search({ query: "validate", scope: "current_project", limit: 5 });
-			const hybrid = store.search({ query: "validate", scope: "current_project", limit: 5, queryVector: queryEmbed.batch.vectors[0] });
+			const hybrid = store.search({
+				query: "validate",
+				scope: "current_project",
+				limit: 5,
+				queryVector: queryEmbed.batch.vectors[0],
+			});
 			console.log("  FTS-only ('validate'):");
 			for (const entry of ftsOnly) console.log(`    · ${entry.content}`);
 			console.log("  hybrid ('validate' + bge-m3('how to validate this repo')):");
@@ -107,7 +160,11 @@ async function main() {
 		}
 
 		console.log("\n[cold] embedding stats:");
-		const dimRow = db.prepare("SELECT embedding_dim, embedding_model, COUNT(*) AS n FROM memory_items WHERE embedding IS NOT NULL GROUP BY embedding_dim, embedding_model").all();
+		const dimRow = db
+			.prepare(
+				"SELECT embedding_dim, embedding_model, COUNT(*) AS n FROM memory_items WHERE embedding IS NOT NULL GROUP BY embedding_dim, embedding_model",
+			)
+			.all();
 		console.log(dimRow);
 		db.close(false);
 	} finally {

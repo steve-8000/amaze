@@ -23,6 +23,7 @@ import { createHash } from "node:crypto";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { Glob } from "bun";
+import { settings } from "../config/settings";
 
 export type CriterionStatus = "pass" | "fail" | "uncertain";
 
@@ -31,7 +32,7 @@ export type CriterionKind =
 	| { type: "scope-include"; globs: string[] }
 	| { type: "scope-exclude"; globs: string[] }
 	| { type: "file-exists"; path: string }
-	| { type: "command-exit"; command: string; expected: number; cwd?: string; timeoutMs?: number }
+	| { type: "command-exit"; argv?: string[]; command?: string; expected: number; cwd?: string; timeoutMs?: number }
 	/**
 	 * Tool-driven richer check: run a command and assert patterns against its output.
 	 * `stdoutPattern` / `stderrPattern` MUST match (regex strings); `mustNotMatch` patterns
@@ -40,7 +41,8 @@ export type CriterionKind =
 	 */
 	| {
 			type: "command-output";
-			command: string;
+			command?: string;
+			argv?: string[];
 			expected?: number;
 			cwd?: string;
 			timeoutMs?: number;
@@ -68,6 +70,18 @@ export interface AcceptanceCriterion {
 	id: string;
 	description: string;
 	check: CriterionKind;
+	blocking?: "fail-only" | "uncertain-blocks";
+}
+
+export function defaultBlockingPolicy(criterion: AcceptanceCriterion): "fail-only" | "uncertain-blocks" {
+	switch (criterion.check.type) {
+		case "scope-include":
+		case "lsp-clean":
+		case "llm-judged":
+			return "uncertain-blocks";
+		default:
+			return "fail-only";
+	}
 }
 
 /**
@@ -150,6 +164,27 @@ function matchesAnyGlob(filePath: string, globs: string[]): boolean {
 function truncateForEvidence(text: string, maxLength = 400): string {
 	if (text.length <= maxLength) return text;
 	return `${text.slice(0, maxLength)}... (truncated)`;
+}
+
+type CommandCheck = Extract<CriterionKind, { type: "command-exit" | "command-output" }>;
+
+function shellCriteriaEnabled(): boolean {
+	try {
+		return settings.get("verifier.allowShellCriteria");
+	} catch {
+		return false;
+	}
+}
+
+function resolveCommandArgv(check: CommandCheck): string[] | undefined {
+	if (check.argv) return check.argv;
+	if (!check.command) return undefined;
+	if (!shellCriteriaEnabled()) return undefined;
+	return ["sh", "-c", check.command];
+}
+
+function commandDescription(check: CommandCheck): string {
+	return check.argv ? check.argv.join(" ") : (check.command ?? "(missing command)");
 }
 
 async function checkScopeInclude(
@@ -241,12 +276,22 @@ async function checkCommandExit(
 	criterion: AcceptanceCriterion & { check: { type: "command-exit" } },
 	ctx: VerificationContext,
 ): Promise<CriterionResult> {
-	const { command, expected, cwd, timeoutMs } = criterion.check;
+	const { expected, cwd, timeoutMs } = criterion.check;
 	const workdir = cwd ?? ctx.cwd;
+	const argv = resolveCommandArgv(criterion.check);
+	if (!argv) {
+		return {
+			id: criterion.id,
+			description: criterion.description,
+			status: "fail",
+			evidence: criterion.check.command ? "shell criteria disabled by policy" : "Command criterion is missing argv.",
+			confidence: 1.0,
+		};
+	}
 	const controller = new AbortController();
 	const timeout = timeoutMs && timeoutMs > 0 ? setTimeout(() => controller.abort(), timeoutMs) : null;
 	try {
-		const proc = Bun.spawn(["sh", "-c", command], {
+		const proc = Bun.spawn(argv, {
 			cwd: workdir,
 			stdout: "pipe",
 			stderr: "pipe",
@@ -274,7 +319,7 @@ async function checkCommandExit(
 			description: criterion.description,
 			status: "fail",
 			evidence: aborted
-				? `Command timed out after ${timeoutMs}ms: ${command}`
+				? `Command timed out after ${timeoutMs}ms: ${commandDescription(criterion.check)}`
 				: `Command failed to run: ${String(error)}`,
 			confidence: 1.0,
 		};
@@ -287,12 +332,22 @@ async function checkCommandOutput(
 	criterion: AcceptanceCriterion & { check: { type: "command-output" } },
 	ctx: VerificationContext,
 ): Promise<CriterionResult> {
-	const { command, expected = 0, cwd, timeoutMs, stdoutPattern, stderrPattern, mustNotMatch } = criterion.check;
+	const { expected = 0, cwd, timeoutMs, stdoutPattern, stderrPattern, mustNotMatch } = criterion.check;
 	const workdir = cwd ?? ctx.cwd;
+	const argv = resolveCommandArgv(criterion.check);
+	if (!argv) {
+		return {
+			id: criterion.id,
+			description: criterion.description,
+			status: "fail",
+			evidence: criterion.check.command ? "shell criteria disabled by policy" : "Command criterion is missing argv.",
+			confidence: 1.0,
+		};
+	}
 	const controller = new AbortController();
 	const timeout = timeoutMs && timeoutMs > 0 ? setTimeout(() => controller.abort(), timeoutMs) : null;
 	try {
-		const proc = Bun.spawn(["sh", "-c", command], {
+		const proc = Bun.spawn(argv, {
 			cwd: workdir,
 			stdout: "pipe",
 			stderr: "pipe",
@@ -373,7 +428,9 @@ async function checkCommandOutput(
 			id: criterion.id,
 			description: criterion.description,
 			status: "fail",
-			evidence: aborted ? `Command timed out after ${timeoutMs}ms: ${command}` : `Command failed: ${String(error)}`,
+			evidence: aborted
+				? `Command timed out after ${timeoutMs}ms: ${commandDescription(criterion.check)}`
+				: `Command failed: ${String(error)}`,
 			confidence: 1.0,
 		};
 	} finally {
@@ -664,14 +721,28 @@ export interface VerificationVerdict {
 	results: CriterionResult[];
 }
 
-export function summarize(results: CriterionResult[]): VerificationVerdict {
+export function summarize(
+	results: CriterionResult[],
+	criteria?: AcceptanceCriterion[],
+	mode: "audit" | "contract" = "audit",
+): VerificationVerdict {
 	let failedCount = 0;
 	let uncertainCount = 0;
 	let passedCount = 0;
+	const criteriaById = new Map(criteria?.map(criterion => [criterion.id, criterion]));
 	for (const r of results) {
 		if (r.status === "fail") failedCount++;
-		else if (r.status === "uncertain") uncertainCount++;
-		else passedCount++;
+		else if (r.status === "uncertain") {
+			uncertainCount++;
+			const criterion = criteriaById.get(r.id);
+			if (
+				mode === "contract" &&
+				criterion &&
+				(criterion.blocking ?? defaultBlockingPolicy(criterion)) === "uncertain-blocks"
+			) {
+				failedCount++;
+			}
+		} else passedCount++;
 	}
 	return {
 		verdict: failedCount > 0 ? "fail" : "pass",

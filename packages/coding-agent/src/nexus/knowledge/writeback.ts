@@ -1,6 +1,6 @@
 import * as path from "node:path";
 import { chunkContent, extractJsTsSymbols } from "./indexer";
-import { NexusKnowledgeStore } from "./store";
+import type { NexusKnowledgeStore } from "./store";
 import type { NexusKnowledgeDocumentKind, NexusKnowledgeUpsertDocumentInput } from "./types";
 
 export interface NexusKnowledgeWritebackRequest {
@@ -23,7 +23,9 @@ export type NexusKnowledgeWritebackValidationResult =
 
 const CODE_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".mts", ".cts"]);
 
-export function validateNexusKnowledgeWriteback(request: NexusKnowledgeWritebackRequest): NexusKnowledgeWritebackValidationResult {
+export function validateNexusKnowledgeWriteback(
+	request: NexusKnowledgeWritebackRequest,
+): NexusKnowledgeWritebackValidationResult {
 	const repoRoot = path.resolve(request.repoRoot);
 	const repoPath = normalizeRepoPath(request.repoPath);
 	const absolutePath = path.resolve(repoRoot, repoPath);
@@ -59,7 +61,10 @@ export function validateNexusKnowledgeWriteback(request: NexusKnowledgeWriteback
 	};
 }
 
-export function applyNexusKnowledgeWriteback(store: NexusKnowledgeStore, request: NexusKnowledgeWritebackRequest): NexusKnowledgeWritebackValidationResult {
+export function applyNexusKnowledgeWriteback(
+	store: NexusKnowledgeStore,
+	request: NexusKnowledgeWritebackRequest,
+): NexusKnowledgeWritebackValidationResult {
 	const validation = validateNexusKnowledgeWriteback(request);
 	if (!validation.ok) return validation;
 	store.upsertDocument(validation.input);

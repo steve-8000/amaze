@@ -26,6 +26,7 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import { resetSettingsForTest, Settings } from "@amaze/coding-agent/config/settings";
 import { GoalAcceptanceFailureError, GoalRuntime, type GoalRuntimeHost } from "@amaze/coding-agent/goals/runtime";
 import type { Goal, GoalModeState, GoalRuntimeEvent, GoalTokenUsage } from "@amaze/coding-agent/goals/state";
 import type { AcceptanceCriterion } from "@amaze/coding-agent/goals/verifier";
@@ -82,10 +83,12 @@ describe("V3 Phase 1 — closing audit E2E", () => {
 	beforeEach(async () => {
 		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "amaze-closing-audit-"));
 		baseDir = tempDir;
+		await Settings.init({ inMemory: true, cwd: baseDir });
 	});
 
 	afterEach(async () => {
 		await fs.rm(tempDir, { recursive: true, force: true });
+		resetSettingsForTest();
 	});
 
 	const baseGoal = (criteria: AcceptanceCriterion[]): Goal => ({
@@ -213,7 +216,7 @@ describe("V3 Phase 1 — closing audit E2E", () => {
 						id: "tests-green",
 						description: "test suite exits 0",
 						// `false` mocks a failing test suite; `true` a passing one.
-						check: { type: "command-exit", command: "false", expected: 0 },
+						check: { type: "command-exit", argv: ["/bin/sh", "-c", "false"], expected: 0 },
 					},
 				]),
 			},
@@ -231,7 +234,7 @@ describe("V3 Phase 1 — closing audit E2E", () => {
 				{
 					id: "tests-green",
 					description: "test suite exits 0",
-					check: { type: "command-exit", command: "true", expected: 0 },
+					check: { type: "command-exit", argv: ["/bin/sh", "-c", "true"], expected: 0 },
 				},
 			],
 		});

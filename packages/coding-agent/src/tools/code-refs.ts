@@ -4,8 +4,8 @@ import { resolveMemoryBackend } from "../memory-backend";
 import { NexusKnowledgeStore } from "../nexus/knowledge/store";
 import type { NexusKnowledgeReference } from "../nexus/knowledge/types";
 import { resolveNexusProjectScope } from "../nexus/scope";
-import { resolveAgentCwd } from "./_agent-cwd";
 import type { ToolSession } from ".";
+import { resolveAgentCwd } from "./_agent-cwd";
 import { oneLine, truncate } from "./repo-search";
 
 const codeRefsSchema = z.object({
@@ -37,7 +37,12 @@ export class CodeRefsTool implements AgentTool<typeof codeRefsSchema> {
 		const repoRoot = resolveNexusProjectScope(cwd).repoRoot ?? cwd;
 		const store = new NexusKnowledgeStore({ agentDir: this.session.settings.getAgentDir(), cwd });
 		try {
-			const references = store.codeReferences({ name: params.symbol, repoRoot, path: params.path, limit: params.limit });
+			const references = store.codeReferences({
+				name: params.symbol,
+				repoRoot,
+				path: params.path,
+				limit: params.limit,
+			});
 			return {
 				content: [{ type: "text", text: renderCodeReferences(params.symbol, references) }],
 				details: { count: references.length, symbol: params.symbol, path: params.path, references },

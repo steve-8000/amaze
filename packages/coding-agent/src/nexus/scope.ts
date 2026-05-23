@@ -3,7 +3,15 @@ import * as path from "node:path";
 import type { NexusScope, NexusScopeKind } from "./types";
 
 const STATIC_SCOPES: Record<Exclude<NexusScopeKind, "project">, NexusScope> = {
-	global: { id: "global", kind: "global", key: null, displayName: "global", cwd: null, gitOrigin: null, repoRoot: null },
+	global: {
+		id: "global",
+		kind: "global",
+		key: null,
+		displayName: "global",
+		cwd: null,
+		gitOrigin: null,
+		repoRoot: null,
+	},
 	user: { id: "user", kind: "user", key: null, displayName: "user", cwd: null, gitOrigin: null, repoRoot: null },
 	knowledge: {
 		id: "knowledge",
@@ -14,8 +22,24 @@ const STATIC_SCOPES: Record<Exclude<NexusScopeKind, "project">, NexusScope> = {
 		gitOrigin: null,
 		repoRoot: null,
 	},
-	failure: { id: "failure", kind: "failure", key: null, displayName: "failure", cwd: null, gitOrigin: null, repoRoot: null },
-	session: { id: "session", kind: "session", key: null, displayName: "session", cwd: null, gitOrigin: null, repoRoot: null },
+	failure: {
+		id: "failure",
+		kind: "failure",
+		key: null,
+		displayName: "failure",
+		cwd: null,
+		gitOrigin: null,
+		repoRoot: null,
+	},
+	session: {
+		id: "session",
+		kind: "session",
+		key: null,
+		displayName: "session",
+		cwd: null,
+		gitOrigin: null,
+		repoRoot: null,
+	},
 };
 
 export function staticNexusScope(kind: Exclude<NexusScopeKind, "project">): NexusScope {
@@ -39,7 +63,10 @@ export function resolveNexusProjectScope(cwd: string): NexusScope {
 	};
 }
 
-export function scopeForTarget(target: "memory" | "user" | "project" | "knowledge" | "failure", cwd: string): NexusScope {
+export function scopeForTarget(
+	target: "memory" | "user" | "project" | "knowledge" | "failure",
+	cwd: string,
+): NexusScope {
 	if (target === "memory" || target === "project") return resolveNexusProjectScope(cwd);
 	if (target === "user") return staticNexusScope("user");
 	if (target === "failure") return staticNexusScope("failure");

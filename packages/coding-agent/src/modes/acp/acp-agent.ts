@@ -50,8 +50,8 @@ import { clearPluginRootsAndCaches, resolveActiveProjectRegistryPath } from "../
 import type { ExtensionUIContext, ExtensionUIDialogOptions } from "../../extensibility/extensions";
 import { runExtensionCompact } from "../../extensibility/extensions/compact-handler";
 import { getSessionSlashCommands } from "../../extensibility/extensions/get-commands-handler";
-import { buildSkillPromptMessage, getSkillSlashCommandName } from "../../extensibility/skills";
 import { bumpSkillUse } from "../../extensibility/skill-usage";
+import { buildSkillPromptMessage, getSkillSlashCommandName } from "../../extensibility/skills";
 import { loadSlashCommands } from "../../extensibility/slash-commands";
 import { MCPManager } from "../../mcp/manager";
 import type { MCPServerConfig } from "../../mcp/types";

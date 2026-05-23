@@ -154,16 +154,16 @@ describe("tool path arrays", () => {
 		expect(tool).toBeDefined();
 		if (!tool) throw new Error("Missing write tool");
 
-		const absoluteTarget = path.join(tempDir, "written.txt");
-		const result = await tool.execute("write-absolute-in-cwd", {
-			path: absoluteTarget,
+		const targetPath = "written.txt";
+		const result = await tool.execute("write-cwd-relative", {
+			path: targetPath,
 			content: "written\n",
 		});
 		const text = getText(result);
 
 		expect(text).toContain("Successfully wrote 8 bytes to written.txt");
 		expect(text).not.toContain(tempDir);
-		expect(await Bun.file(absoluteTarget).text()).toBe("written\n");
+		expect(await Bun.file(path.join(tempDir, targetPath)).text()).toBe("written\n");
 	});
 
 	it("ast_grep accepts quoted path and glob filters", async () => {

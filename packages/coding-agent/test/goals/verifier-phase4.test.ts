@@ -45,7 +45,7 @@ describe("V3 Phase 4 — command-output backend", () => {
 				description: "test suite all green",
 				check: {
 					type: "command-output",
-					command: "echo '5 passing, 0 failing'",
+					argv: ["/bin/echo", "5 passing, 0 failing"],
 					expected: 0,
 					stdoutPattern: "\\d+ passing, 0 failing",
 				},
@@ -62,7 +62,7 @@ describe("V3 Phase 4 — command-output backend", () => {
 				description: "test suite all green",
 				check: {
 					type: "command-output",
-					command: "echo '3 passing, 2 failing'",
+					argv: ["/bin/echo", "3 passing, 2 failing"],
 					stdoutPattern: "\\d+ passing, 0 failing",
 				},
 			};
@@ -79,7 +79,7 @@ describe("V3 Phase 4 — command-output backend", () => {
 				description: "no lint warnings",
 				check: {
 					type: "command-output",
-					command: "echo 'WARNING: unused import'",
+					argv: ["/bin/echo", "WARNING: unused import"],
 					mustNotMatch: ["WARNING"],
 				},
 			};
@@ -97,7 +97,7 @@ describe("V3 Phase 4 — command-output backend", () => {
 				description: "build succeeded",
 				check: {
 					type: "command-output",
-					command: "echo 'fine'; exit 7",
+					argv: ["/bin/sh", "-c", "echo 'fine'; exit 7"],
 					expected: 0,
 					stdoutPattern: "fine",
 				},
@@ -331,7 +331,11 @@ describe("V3 Phase 4 — backends compose cleanly", () => {
 				{
 					id: "tests",
 					description: "tests green",
-					check: { type: "command-output", command: "echo '4 passing, 0 failing'", stdoutPattern: "0 failing" },
+					check: {
+						type: "command-output",
+						argv: ["/bin/echo", "4 passing, 0 failing"],
+						stdoutPattern: "0 failing",
+					},
 				},
 				{
 					id: "lsp",

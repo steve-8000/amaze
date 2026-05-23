@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { MEMORY_ACTIVITY_MESSAGE_TYPE } from "@amaze/coding-agent/session/messages";
 import {
 	type BranchSummaryEntry,
 	buildSessionContext,
@@ -8,7 +9,6 @@ import {
 	type SessionMessageEntry,
 	type ThinkingLevelChangeEntry,
 } from "@amaze/coding-agent/session/session-manager";
-import { MEMORY_ACTIVITY_MESSAGE_TYPE } from "@amaze/coding-agent/session/messages";
 
 function msg(id: string, parentId: string | null, role: "user" | "assistant", text: string): SessionMessageEntry {
 	const base = { type: "message" as const, id, parentId, timestamp: "2025-01-01T00:00:00Z" };

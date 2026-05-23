@@ -20,7 +20,7 @@ import applyPatchDescription from "../prompts/tools/apply-patch.md" with { type:
 import hashlineDescription from "../prompts/tools/hashline.md" with { type: "text" };
 import patchDescription from "../prompts/tools/patch.md" with { type: "text" };
 import replaceDescription from "../prompts/tools/replace.md" with { type: "text" };
-import { enforceContractScope, enforceGoalScope } from "../subagent/contract";
+import { enforceMutationScope } from "../subagent/mutation-scope";
 import type { ToolSession } from "../tools";
 import { ToolError } from "../tools/tool-errors";
 import { VimTool, vimSchema } from "../tools/vim";
@@ -352,16 +352,9 @@ export class EditTool implements AgentTool<TInput> {
 		// is the common field across all edit modes per the union type.
 		const pathField = (params as { path?: string }).path;
 		if (typeof pathField === "string" && pathField.length > 0) {
-			const contract = this.session.getSubagentContract?.();
-			enforceContractScope(contract, pathField, (msg: string) => {
+			await enforceMutationScope(this.session, pathField, { op: "update", source: "edit" }, (msg: string) => {
 				throw new ToolError(msg);
 			});
-			// Goal-level fallback when no contract is active — parent drift detection.
-			if (!contract) {
-				enforceGoalScope(this.session.getGoalModeState?.()?.goal?.scopeGuard, pathField, (msg: string) => {
-					throw new ToolError(msg);
-				});
-			}
 		}
 		const modeDefinition = this.#getModeDefinition();
 		return modeDefinition.execute(this, params, signal, getLspBatchRequest(context?.toolCall), onUpdate);
@@ -380,9 +373,19 @@ export class EditTool implements AgentTool<TInput> {
 					onUpdate?: (partialResult: AgentToolResult<EditToolDetails, TInput>) => void,
 				) => {
 					const { edits, path } = params as PatchParams;
-					const runs = (edits as PatchEditEntry[]).map(
-						entry => (br: LspBatchRequest | undefined) =>
-							executePatchSingle({
+					const runs = (edits as PatchEditEntry[]).map(entry => {
+						return async (br: LspBatchRequest | undefined) => {
+							if (entry.rename) {
+								await enforceMutationScope(
+									tool.session,
+									entry.rename,
+									{ op: "rename-destination", source: "edit.patch.rename" },
+									(msg: string) => {
+										throw new ToolError(msg);
+									},
+								);
+							}
+							return executePatchSingle({
 								session: tool.session,
 								path,
 								params: entry,
@@ -392,15 +395,16 @@ export class EditTool implements AgentTool<TInput> {
 								fuzzyThreshold: tool.#fuzzyThreshold,
 								writethrough: tool.#writethrough,
 								beginDeferredDiagnosticsForPath: p => tool.#beginDeferredDiagnosticsForPath(p),
-							}),
-					);
+							});
+						};
+					});
 					return executeSinglePathEntries(path, runs, batchRequest, onUpdate);
 				},
 			},
 			apply_patch: {
 				description: () => prompt.render(applyPatchDescription),
 				parameters: applyPatchSchema,
-				execute: (
+				execute: async (
 					tool: EditTool,
 					params: EditParams,
 					signal: AbortSignal | undefined,
@@ -408,6 +412,34 @@ export class EditTool implements AgentTool<TInput> {
 					onUpdate?: (partialResult: AgentToolResult<EditToolDetails, TInput>) => void,
 				) => {
 					const entries = expandApplyPatchToEntries(params as ApplyPatchParams);
+					await Promise.all(
+						entries.flatMap(entry => {
+							const op = entry.op === "add" ? "create" : entry.op === "delete" ? "delete" : "update";
+							const guards = [
+								enforceMutationScope(
+									tool.session,
+									entry.path,
+									{ op, source: "edit.apply_patch" },
+									(msg: string) => {
+										throw new ToolError(msg);
+									},
+								),
+							];
+							if (entry.rename) {
+								guards.push(
+									enforceMutationScope(
+										tool.session,
+										entry.rename,
+										{ op: "rename-destination", source: "edit.apply_patch.rename" },
+										(msg: string) => {
+											throw new ToolError(msg);
+										},
+									),
+								);
+							}
+							return guards;
+						}),
+					);
 					const perFile = entries.map(entry => {
 						const { path, ...patchParams } = entry;
 						return {

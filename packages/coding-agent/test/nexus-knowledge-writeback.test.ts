@@ -3,7 +3,10 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { NexusKnowledgeStore } from "@amaze/coding-agent/nexus/knowledge/store";
-import { applyNexusKnowledgeWriteback, validateNexusKnowledgeWriteback } from "@amaze/coding-agent/nexus/knowledge/writeback";
+import {
+	applyNexusKnowledgeWriteback,
+	validateNexusKnowledgeWriteback,
+} from "@amaze/coding-agent/nexus/knowledge/writeback";
 import { Snowflake } from "@amaze/utils";
 
 const createdDirs = new Set<string>();

@@ -21,6 +21,7 @@ import type { Skill } from "../extensibility/skills";
 import type { LocalProtocolOptions } from "../internal-urls";
 import { callTool } from "../mcp/client";
 import type { MCPManager } from "../mcp/manager";
+import type { EventBus as SessionEventBus } from "../observability";
 import subagentSystemPromptTemplate from "../prompts/system/subagent-system-prompt.md" with { type: "text" };
 import submitReminderTemplate from "../prompts/system/subagent-yield-reminder.md" with { type: "text" };
 import { AgentRegistry } from "../registry/agent-registry";
@@ -165,6 +166,8 @@ export interface ExecutorOptions {
 	/** Path to parent conversation context file */
 	contextFile?: string;
 	eventBus?: EventBus;
+	sessionId?: string | null;
+	sessionEventBus?: SessionEventBus;
 	contextFiles?: ContextFileEntry[];
 	skills?: Skill[];
 	promptTemplates?: PromptTemplate[];
@@ -489,6 +492,35 @@ function createSubagentSettings(baseSettings: Settings): Settings {
 	});
 }
 
+export function resolveSubprocessToolNames(options: {
+	agent: Pick<AgentDefinition, "tools" | "spawns">;
+	settings: Settings;
+	taskDepth?: number;
+}): string[] {
+	const maxRecursionDepth = options.settings.get("task.maxRecursionDepth") ?? 2;
+	const childDepth = (options.taskDepth ?? 0) + 1;
+	const atMaxDepth = maxRecursionDepth >= 0 && childDepth >= maxRecursionDepth;
+	let toolNames = options.agent.tools ?? [];
+
+	if (toolNames.length > 0 && options.agent.spawns !== undefined && !toolNames.includes("task") && !atMaxDepth) {
+		toolNames = [...toolNames, "task"];
+	}
+
+	if (atMaxDepth && toolNames.includes("task")) {
+		toolNames = toolNames.filter(name => name !== "task");
+	}
+
+	if (toolNames.includes("exec")) {
+		const allowEvalPy = options.settings.get("eval.py") ?? true;
+		const allowEvalJs = options.settings.get("eval.js") ?? true;
+		const expanded = toolNames.filter(name => name !== "exec");
+		if (allowEvalPy || allowEvalJs) expanded.push("eval");
+		toolNames = Array.from(new Set(expanded));
+	}
+
+	return toolNames;
+}
+
 /**
  * Run a single agent in-process.
  */
@@ -509,6 +541,23 @@ export async function runSubprocess(options: ExecutorOptions): Promise<SingleRes
 		onProgress,
 	} = options;
 	const startTime = Date.now();
+
+	const emitSubagentEvent = (event: Parameters<SessionEventBus["emit"]>[0]): void => {
+		try {
+			options.sessionEventBus?.emit(event);
+		} catch (error) {
+			logger.debug("Subagent observability emit failed", { error: String(error) });
+		}
+	};
+	const sessionId = options.sessionId ?? "session";
+	emitSubagentEvent({
+		type: "subagent.start",
+		sessionId,
+		ts: startTime,
+		taskId: id,
+		role: options.contract?.role ?? agent.name,
+		isolated: Boolean(worktree),
+	});
 
 	// F7 (H3) telemetry — record every subagent spawn so we can validate A1's
 	// prefix-reuse bet by measuring actual fan-out per session.
@@ -569,33 +618,13 @@ export async function runSubprocess(options: ExecutorOptions): Promise<SingleRes
 
 	const settings = options.settings ?? Settings.isolated();
 	const subagentSettings = createSubagentSettings(settings);
-	const maxRecursionDepth = settings.get("task.maxRecursionDepth") ?? 2;
 	const maxRuntimeMs = Math.max(0, Math.trunc(Number(settings.get("task.maxRuntimeMs") ?? 0) || 0));
 	const parentDepth = options.taskDepth ?? 0;
 	const childDepth = parentDepth + 1;
+	const maxRecursionDepth = settings.get("task.maxRecursionDepth") ?? 2;
 	const atMaxDepth = maxRecursionDepth >= 0 && childDepth >= maxRecursionDepth;
 
-	// Add tools if specified
-	let toolNames: string[] | undefined;
-	if (agent.tools && agent.tools.length > 0) {
-		toolNames = agent.tools;
-		// Auto-include task tool if spawns defined but task not in tools
-		if (agent.spawns !== undefined && !toolNames.includes("task") && !atMaxDepth) {
-			toolNames = [...toolNames, "task"];
-		}
-	}
-
-	if (atMaxDepth && toolNames?.includes("task")) {
-		toolNames = toolNames.filter(name => name !== "task");
-	}
-	if (toolNames?.includes("exec")) {
-		const allowEvalPy = settings.get("eval.py") ?? true;
-		const allowEvalJs = settings.get("eval.js") ?? true;
-		const expanded = toolNames.filter(name => name !== "exec");
-		if (allowEvalPy || allowEvalJs) expanded.push("eval");
-		expanded.push("bash");
-		toolNames = Array.from(new Set(expanded));
-	}
+	const toolNames = resolveSubprocessToolNames({ agent, settings, taskDepth: options.taskDepth });
 
 	const modelPatterns = normalizeModelPatterns(modelOverride ?? agent.model);
 	const sessionFile = subtaskSessionFile ?? null;
@@ -1444,6 +1473,21 @@ export async function runSubprocess(options: ExecutorOptions): Promise<SingleRes
 		: undefined;
 	progress.status = wasAborted ? "aborted" : exitCode === 0 ? "completed" : "failed";
 	scheduleProgress(true);
+	const endVerdict = wasAborted || exitCode !== 0 ? "fail" : "pass";
+	const lastYieldData = progress.extractedToolData?.yield?.at(-1);
+	const changedFiles =
+		lastYieldData && typeof lastYieldData === "object" && "changedFiles" in lastYieldData
+			? (lastYieldData.changedFiles as unknown)
+			: undefined;
+	emitSubagentEvent({
+		type: "subagent.end",
+		sessionId,
+		ts: Date.now(),
+		taskId: id,
+		verdict: endVerdict,
+		changedFiles: Array.isArray(changedFiles) ? changedFiles.length : 0,
+		revisions: 0,
+	});
 
 	// Emit lifecycle end event after finalization so yield status is reflected
 	if (options.eventBus) {

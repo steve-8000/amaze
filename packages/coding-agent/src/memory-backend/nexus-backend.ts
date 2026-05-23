@@ -1,43 +1,80 @@
 import type { AgentMessage } from "@amaze/agent-core";
 import { logger } from "@amaze/utils";
 import type { Settings } from "../config/settings";
+import { loadNexusConfig } from "../nexus/config";
 import { persistNexusDoctorResult } from "../nexus/doctor";
+import { createNexusEmbeddingClient } from "../nexus/embedding-client";
 import { indexNexusRepository } from "../nexus/knowledge/indexer";
 import { NexusKnowledgeStore } from "../nexus/knowledge/store";
 import type { NexusKnowledgeSearchResult } from "../nexus/knowledge/types";
-import { loadNexusConfig } from "../nexus/config";
-import { createNexusEmbeddingClient } from "../nexus/embedding-client";
 import { createNexusLlmClient } from "../nexus/llm-client";
 import { runNexusOnlineConsolidation, runNexusPipeline } from "../nexus/pipeline";
+import { RECALL_FENCE_CLOSE, RECALL_FENCE_OPEN, stripRecallFences, wrapRecallBlock } from "../nexus/recall-fence";
+import { sanitizeStaticMemoryBody, wrapStaticMemoryBlock } from "../nexus/sanitize";
 import { resolveNexusProjectScope } from "../nexus/scope";
 import { indexCurrentNexusSession, reindexNexusSessions } from "../nexus/session-search";
 import { getNexusDbPath, getNexusRoot, NexusStore, openNexusDb, recordRuntimeEvent } from "../nexus/store";
-import { RECALL_FENCE_CLOSE, RECALL_FENCE_OPEN, stripRecallFences, wrapRecallBlock } from "../nexus/recall-fence";
 import type { NexusMemoryEntry } from "../nexus/types";
 import { MEMORY_ACTIVITY_MESSAGE_TYPE } from "../session/messages";
 import type { MemoryBackend, MemoryBackendStartOptions } from "./types";
 
 const sessionReindexStarted = new Set<string>();
-interface ConsolidationCacheEntry { lastAt: number; lastHash: string; }
-interface MemoryActivityItem { status?: "info" | "success" | "warning"; text: string; }
-interface MemoryActivitySection { label: "Indexing" | "Consolidation" | "Writeback" | "Maintenance"; items: MemoryActivityItem[]; }
-interface MemoryActivityPayload { title: string; sections: MemoryActivitySection[]; }
+interface ConsolidationCacheEntry {
+	lastAt: number;
+	lastHash: string;
+}
+interface MemoryActivityItem {
+	status?: "info" | "success" | "warning";
+	text: string;
+}
+interface MemoryActivitySection {
+	label: "Indexing" | "Consolidation" | "Writeback" | "Maintenance";
+	items: MemoryActivityItem[];
+}
+interface MemoryActivityPayload {
+	title: string;
+	sections: MemoryActivitySection[];
+}
 const consolidationCache = new Map<string, ConsolidationCacheEntry>();
+export interface NexusDegradationStatus {
+	maintenance?: string;
+	sessionReindex?: string;
+	knowledgeMigration?: string;
+}
 
+const nexusDegradation: NexusDegradationStatus = {};
 
-export const nexusBackend: MemoryBackend = {
+export const nexusBackend: MemoryBackend & { getDegradationStatus(): NexusDegradationStatus } = {
 	id: "nexus",
+
+	getDegradationStatus(): NexusDegradationStatus {
+		return { ...nexusDegradation };
+	},
 
 	async start(options: MemoryBackendStartOptions): Promise<void> {
 		const { session, settings, taskDepth } = options;
 		if (taskDepth > 0) return;
 		const config = loadNexusConfig(settings);
 		if (!config.enabled) return;
-		const store = new NexusStore({ agentDir: options.agentDir, cwd: session.sessionManager.getCwd(), contradictionThreshold: config.contradictionThreshold });
+		const store = new NexusStore({
+			agentDir: options.agentDir,
+			cwd: session.sessionManager.getCwd(),
+			contradictionThreshold: config.contradictionThreshold,
+		});
 		try {
-			await runStartupMaintenance(store, settings, config, options.agentDir, session.sessionManager.getCwd(), session);
+			await runStartupMaintenance(
+				store,
+				settings,
+				config,
+				options.agentDir,
+				session.sessionManager.getCwd(),
+				session,
+			);
 		} catch (error) {
-			try { recordRuntimeEvent(store.db, { kind: "startup_failure", severity: "warn", message: String(error) }); } catch {}
+			nexusDegradation.maintenance = String(error);
+			try {
+				recordRuntimeEvent(store.db, { kind: "startup_failure", severity: "warn", message: String(error) });
+			} catch {}
 			logger.debug("Nexus startup failed; continuing without blocking agent loop", { error: String(error) });
 		} finally {
 			store.close();
@@ -45,9 +82,18 @@ export const nexusBackend: MemoryBackend = {
 		if (!sessionReindexStarted.has(options.agentDir)) {
 			sessionReindexStarted.add(options.agentDir);
 			void reindexNexusSessions(options.agentDir).catch(err => {
+				nexusDegradation.sessionReindex = String(err);
 				try {
 					const db = openNexusDb(getNexusDbPath(options.agentDir));
-					try { recordRuntimeEvent(db, { kind: "session_bootstrap_reindex_failure", severity: "warn", message: String(err) }); } finally { db.close(false); }
+					try {
+						recordRuntimeEvent(db, {
+							kind: "session_bootstrap_reindex_failure",
+							severity: "warn",
+							message: String(err),
+						});
+					} finally {
+						db.close(false);
+					}
 				} catch {}
 				logger.debug("Nexus session bootstrap reindex failed", { error: String(err) });
 			});
@@ -70,9 +116,9 @@ export const nexusBackend: MemoryBackend = {
 			const userSummary = await Bun.file(`${store.root}/user/memory_summary.md`)
 				.text()
 				.catch(() => "");
-			const sections = [projectSummary.trim(), globalSummary.trim(), userSummary.trim()].filter(Boolean);
+			const sections = [projectSummary, globalSummary, userSummary].map(sanitizeStaticMemoryBody).filter(Boolean);
 			if (sections.length === 0) return undefined;
-			const body = sections.join("\n\n").slice(0, config.staticPromptMaxChars);
+			const body = wrapStaticMemoryBlock(sections.join("\n\n").slice(0, config.staticPromptMaxChars));
 			return [
 				"## Memory",
 				"",
@@ -87,18 +133,29 @@ export const nexusBackend: MemoryBackend = {
 
 	async beforeAgentStartPrompt(session, promptText): Promise<string | undefined> {
 		const config = loadNexusConfig(session.settings);
-		if (!config.enabled || (!config.autoRecall && !(config.knowledgeEnabled && config.knowledgeAutoRecall))) return undefined;
+		if (!config.enabled || (!config.autoRecall && !(config.knowledgeEnabled && config.knowledgeAutoRecall)))
+			return undefined;
 		const cwd = session.sessionManager.getCwd();
-		const store = new NexusStore({ agentDir: session.settings.getAgentDir(), cwd, contradictionThreshold: config.contradictionThreshold });
+		const store = new NexusStore({
+			agentDir: session.settings.getAgentDir(),
+			cwd,
+			contradictionThreshold: config.contradictionThreshold,
+		});
 		const goal = currentGoalText(session);
 		try {
 			const safePrompt = stripRecallFences(promptText);
 			const operationalEntries = config.autoRecall
 				? store.search({ query: safePrompt, goal, scope: "current_project", limit: config.autoRecallLimit })
 				: [];
-			const knowledgeEntries = config.knowledgeEnabled && config.knowledgeAutoRecall
-				? recallKnowledgeEntries(session.settings.getAgentDir(), cwd, safePrompt, config.knowledgeAutoRecallLimit)
-				: [];
+			const knowledgeEntries =
+				config.knowledgeEnabled && config.knowledgeAutoRecall
+					? recallKnowledgeEntries(
+							session.settings.getAgentDir(),
+							cwd,
+							safePrompt,
+							config.knowledgeAutoRecallLimit,
+						)
+					: [];
 			return renderUnifiedRecallBlock({
 				goal,
 				operationalEntries,
@@ -120,25 +177,38 @@ export const nexusBackend: MemoryBackend = {
 		const query = stripRecallFences(findLatestUserText(messages) ?? "");
 		if (!query) return undefined;
 		const cwd = session.sessionManager.getCwd();
-		const store = new NexusStore({ agentDir: settings.getAgentDir(), cwd, contradictionThreshold: config.contradictionThreshold });
+		const store = new NexusStore({
+			agentDir: settings.getAgentDir(),
+			cwd,
+			contradictionThreshold: config.contradictionThreshold,
+		});
 		const goal = currentGoalText(session);
 		try {
-			const operationalEntries = store.search({ query, goal, scope: "current_project", limit: config.autoRecallLimit });
-			const knowledgeEntries = config.knowledgeEnabled && config.knowledgeAutoRecall
-				? recallKnowledgeEntries(settings.getAgentDir(), cwd, query, config.knowledgeAutoRecallLimit)
-				: [];
+			const operationalEntries = store.search({
+				query,
+				goal,
+				scope: "current_project",
+				limit: config.autoRecallLimit,
+			});
+			const knowledgeEntries =
+				config.knowledgeEnabled && config.knowledgeAutoRecall
+					? recallKnowledgeEntries(settings.getAgentDir(), cwd, query, config.knowledgeAutoRecallLimit)
+					: [];
 			if (operationalEntries.length === 0 && knowledgeEntries.length === 0) return undefined;
 			const lines: string[] = [];
 			if (goal) lines.push(`Current goal: ${goal}`, "");
 			if (operationalEntries.length > 0) {
 				lines.push("Relevant durable memory:");
-				for (const entry of operationalEntries) lines.push(`- ${truncateForPrompt(entry.content, config.searchEntryMaxChars)}`);
+				for (const entry of operationalEntries)
+					lines.push(`- ${truncateForPrompt(entry.content, config.searchEntryMaxChars)}`);
 			}
 			if (knowledgeEntries.length > 0) {
 				if (lines.length > 0) lines.push("");
 				lines.push("Relevant repository knowledge:");
 				for (const entry of knowledgeEntries) {
-					lines.push(`- ${entry.document.path}:${entry.chunk.startLine}-${entry.chunk.endLine} ${truncateForPrompt(oneLine(entry.chunk.content), config.searchEntryMaxChars)}`);
+					lines.push(
+						`- ${entry.document.path}:${entry.chunk.startLine}-${entry.chunk.endLine} ${truncateForPrompt(oneLine(entry.chunk.content), config.searchEntryMaxChars)}`,
+					);
 				}
 			}
 			return lines.join("\n").slice(0, Math.min(config.searchResultMaxChars, config.knowledgePromptMaxChars));
@@ -157,7 +227,9 @@ export const nexusBackend: MemoryBackend = {
 			await store.renderArtifacts();
 			await emitMemoryActivity(session, {
 				title: "Memory",
-				sections: [{ label: "Maintenance", items: [{ status: "success", text: "Cleared persisted Nexus memory state." }] }],
+				sections: [
+					{ label: "Maintenance", items: [{ status: "success", text: "Cleared persisted Nexus memory state." }] },
+				],
 			});
 		} finally {
 			store.close();
@@ -172,7 +244,12 @@ export const nexusBackend: MemoryBackend = {
 			await store.renderArtifacts();
 			await emitMemoryActivity(session, {
 				title: "Memory",
-				sections: [{ label: "Maintenance", items: [{ status: "success", text: "Ran Nexus memory maintenance and refreshed artifacts." }] }],
+				sections: [
+					{
+						label: "Maintenance",
+						items: [{ status: "success", text: "Ran Nexus memory maintenance and refreshed artifacts." }],
+					},
+				],
 			});
 		} finally {
 			store.close();
@@ -186,13 +263,19 @@ export const nexusBackend: MemoryBackend = {
 		if ((session as { taskDepth?: number }).taskDepth && (session as { taskDepth?: number }).taskDepth! > 0) {
 			// Skip indexing for subagent turns — parent session file already captures the work.
 		} else {
-			void indexCurrentNexusSession(session.settings.getAgentDir(), session.sessionManager.getSessionFile?.()).catch(err => {
-				try {
-					const db = openNexusDb(getNexusDbPath(session.settings.getAgentDir()));
-					try { recordRuntimeEvent(db, { kind: "session_index_failure", severity: "warn", message: String(err) }); } finally { db.close(false); }
-				} catch {}
-				logger.debug("Nexus session turn indexing failed", { error: String(err) });
-			});
+			void indexCurrentNexusSession(session.settings.getAgentDir(), session.sessionManager.getSessionFile?.()).catch(
+				err => {
+					try {
+						const db = openNexusDb(getNexusDbPath(session.settings.getAgentDir()));
+						try {
+							recordRuntimeEvent(db, { kind: "session_index_failure", severity: "warn", message: String(err) });
+						} finally {
+							db.close(false);
+						}
+					} catch {}
+					logger.debug("Nexus session turn indexing failed", { error: String(err) });
+				},
+			);
 		}
 		if (!config.onlineConsolidationEnabled) return;
 		if ((session as { taskDepth?: number }).taskDepth && (session as { taskDepth?: number }).taskDepth! > 0) return;
@@ -205,7 +288,9 @@ export const nexusBackend: MemoryBackend = {
 		const messages = [
 			userText ? { role: "user", content: userText } : undefined,
 			assistantText ? { role: "assistant", content: assistantText } : undefined,
-		].filter((message): message is { role: "user" | "assistant"; content: string } => Boolean(message?.content.trim()));
+		].filter((message): message is { role: "user" | "assistant"; content: string } =>
+			Boolean(message?.content.trim()),
+		);
 		if (messages.length === 0) return;
 		const sessionId = session.sessionManager.getSessionId?.() ?? "session";
 		const contentSeed = messages.map(m => `${m.role}:${m.content}`).join("\n---\n");
@@ -220,14 +305,27 @@ export const nexusBackend: MemoryBackend = {
 		}
 		consolidationCache.set(sessionId, { lastAt: now, lastHash: contentHash });
 		void (async () => {
-			const store = new NexusStore({ agentDir: session.settings.getAgentDir(), cwd: session.sessionManager.getCwd(), contradictionThreshold: config.contradictionThreshold });
+			const store = new NexusStore({
+				agentDir: session.settings.getAgentDir(),
+				cwd: session.sessionManager.getCwd(),
+				contradictionThreshold: config.contradictionThreshold,
+			});
 			try {
 				const llmClient = createNexusLlmClient(config);
 				const embeddingClient = createNexusEmbeddingClient(config);
-				const result = await runNexusOnlineConsolidation(store, session.settings, sourceRecordId, messages, { llmClient, embeddingClient });
+				const result = await runNexusOnlineConsolidation(store, session.settings, sourceRecordId, messages, {
+					llmClient,
+					embeddingClient,
+				});
 				await emitMemoryActivity(session, describeOnlineConsolidation(result));
 			} catch (error) {
-				try { recordRuntimeEvent(store.db, { kind: "online_consolidation_failure", severity: "warn", message: String(error) }); } catch {}
+				try {
+					recordRuntimeEvent(store.db, {
+						kind: "online_consolidation_failure",
+						severity: "warn",
+						message: String(error),
+					});
+				} catch {}
 				logger.debug("Nexus online consolidation failed", { error: String(error) });
 			} finally {
 				store.close();
@@ -257,9 +355,31 @@ async function runStartupMaintenance(
 	});
 	if (config.healingEnabled) store.runSelfHealing();
 	await store.renderArtifacts();
-	const knowledgeStats = await runKnowledgeMaintenance(agentDir, cwd, config);
+	const knowledgeStats = await runKnowledgeMaintenanceWithDegradation(agentDir, cwd, config, store);
 	await persistNexusDoctorResult(settings, cwd);
 	await emitMemoryActivity(session, describeStartupMaintenance(pipelineResult, knowledgeStats));
+}
+
+async function runKnowledgeMaintenanceWithDegradation(
+	agentDir: string,
+	cwd: string,
+	config: ReturnType<typeof loadNexusConfig>,
+	store: NexusStore,
+): Promise<Awaited<ReturnType<typeof indexNexusRepository>> | null> {
+	try {
+		return await runKnowledgeMaintenance(agentDir, cwd, config);
+	} catch (error) {
+		nexusDegradation.knowledgeMigration = String(error);
+		try {
+			recordRuntimeEvent(store.db, {
+				kind: "knowledge_migration_failure",
+				severity: "warn",
+				message: String(error),
+			});
+		} catch {}
+		logger.debug("Nexus knowledge migration failed", { error: String(error) });
+		return null;
+	}
 }
 
 async function runKnowledgeMaintenance(
@@ -270,14 +390,14 @@ async function runKnowledgeMaintenance(
 	if (!config.knowledgeEnabled) return null;
 	const repoRoot = resolveNexusProjectScope(cwd).repoRoot ?? cwd;
 	const statePath = `${getNexusRoot(agentDir)}/knowledge-maintenance.json`;
-	const previousState = await Bun.file(statePath)
+	const previousState = (await Bun.file(statePath)
 		.json()
-		.catch(() => null) as { repoRoot?: string; indexedAt?: string } | null;
+		.catch(() => null)) as { repoRoot?: string; indexedAt?: string } | null;
 	const indexedAtMs = previousState?.indexedAt ? Date.parse(previousState.indexedAt) : Number.NaN;
 	const withinInterval =
-		previousState?.repoRoot === repoRoot
-		&& Number.isFinite(indexedAtMs)
-		&& Date.now() - indexedAtMs < config.knowledgeMaintenanceMinIntervalMs;
+		previousState?.repoRoot === repoRoot &&
+		Number.isFinite(indexedAtMs) &&
+		Date.now() - indexedAtMs < config.knowledgeMaintenanceMinIntervalMs;
 	if (withinInterval) return null;
 	const stats = await indexNexusRepository({
 		agentDir,
@@ -286,10 +406,7 @@ async function runKnowledgeMaintenance(
 		maxFiles: config.knowledgeMaxIndexedFiles,
 		maxFileBytes: config.knowledgeMaxFileBytes,
 	});
-	await Bun.write(
-		statePath,
-		`${JSON.stringify({ repoRoot, indexedAt: new Date().toISOString(), stats }, null, 2)}\n`,
-	);
+	await Bun.write(statePath, `${JSON.stringify({ repoRoot, indexedAt: new Date().toISOString(), stats }, null, 2)}\n`);
 	return stats;
 }
 
@@ -298,7 +415,9 @@ async function emitMemoryActivity(
 	payload: MemoryActivityPayload | null,
 ): Promise<void> {
 	if (!session || !payload || payload.sections.every(section => section.items.length === 0)) return;
-	const content = payload.sections.flatMap(section => section.items.map(item => `${section.label}: ${item.text}`)).join("\n");
+	const content = payload.sections
+		.flatMap(section => section.items.map(item => `${section.label}: ${item.text}`))
+		.join("\n");
 	try {
 		await session.sendCustomMessage(
 			{
@@ -347,10 +466,16 @@ function describeOnlineConsolidation(
 ): MemoryActivityPayload | null {
 	const items: MemoryActivityItem[] = [];
 	if (result.createdEntries > 0) {
-		items.push({ status: "success", text: `Captured ${result.createdEntries} new memory entr${result.createdEntries === 1 ? "y" : "ies"} from the completed turn.` });
+		items.push({
+			status: "success",
+			text: `Captured ${result.createdEntries} new memory entr${result.createdEntries === 1 ? "y" : "ies"} from the completed turn.`,
+		});
 	}
 	if (result.embeddings > 0) {
-		items.push({ status: "info", text: `Backfilled ${result.embeddings} memory embedding${result.embeddings === 1 ? "" : "s"} for retrieval.` });
+		items.push({
+			status: "info",
+			text: `Backfilled ${result.embeddings} memory embedding${result.embeddings === 1 ? "" : "s"} for retrieval.`,
+		});
 	}
 	return items.length > 0 ? { title: "Memory", sections: [{ label: "Consolidation", items }] } : null;
 }
@@ -403,7 +528,10 @@ function renderUnifiedRecallBlock(args: {
 			const spanKey = `${entry.document.path}:${entry.chunk.startLine}-${entry.chunk.endLine}`;
 			if (seenKnowledgeSpans.has(spanKey)) continue;
 			seenKnowledgeSpans.add(spanKey);
-			const snippet = truncateForPrompt(oneLine(entry.chunk.content), Math.max(40, Math.floor(entryMaxChars * 0.75)));
+			const snippet = truncateForPrompt(
+				oneLine(entry.chunk.content),
+				Math.max(40, Math.floor(entryMaxChars * 0.75)),
+			);
 			const key = `${spanKey}:${normalizeRecallText(snippet)}`;
 			if (!snippet || seen.has(key)) continue;
 			seen.add(key);
@@ -457,7 +585,9 @@ function findLatestUserText(messages: AgentMessage[]): string | undefined {
 		}
 		if (!Array.isArray(message.content)) continue;
 		const text = message.content
-			.map(block => (block && typeof block === "object" && "text" in block && typeof block.text === "string" ? block.text : ""))
+			.map(block =>
+				block && typeof block === "object" && "text" in block && typeof block.text === "string" ? block.text : "",
+			)
 			.join("\n")
 			.trim();
 		if (text) return text;
@@ -476,7 +606,8 @@ function extractAgentMessageText(message: AgentMessage): string | undefined {
 	const text = content
 		.map((block: unknown) => {
 			if (!block || typeof block !== "object") return "";
-			if ("text" in block && typeof (block as { text?: unknown }).text === "string") return (block as { text: string }).text;
+			if ("text" in block && typeof (block as { text?: unknown }).text === "string")
+				return (block as { text: string }).text;
 			return "";
 		})
 		.join("\n")
@@ -484,7 +615,9 @@ function extractAgentMessageText(message: AgentMessage): string | undefined {
 	return text || undefined;
 }
 
-function currentGoalText(session: { getGoalModeState?: () => { goal?: { objective?: string } | null } | undefined }): string | undefined {
+function currentGoalText(session: {
+	getGoalModeState?: () => { goal?: { objective?: string } | null } | undefined;
+}): string | undefined {
 	const objective = session.getGoalModeState?.()?.goal?.objective?.trim();
 	return objective ? objective : undefined;
 }

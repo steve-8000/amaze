@@ -2,9 +2,9 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Snowflake } from "@amaze/utils";
 import { chunkContent, indexNexusRepository } from "@amaze/coding-agent/nexus/knowledge/indexer";
 import { NexusKnowledgeStore } from "@amaze/coding-agent/nexus/knowledge/store";
+import { Snowflake } from "@amaze/utils";
 
 const createdDirs = new Set<string>();
 
@@ -63,7 +63,10 @@ describe("NexusKnowledgeStore", () => {
 		const agentDir = await makeTempDir("nexus-search-agent");
 		const repoRoot = await makeTempDir("nexus-search-repo");
 		await fs.mkdir(path.join(repoRoot, "src"), { recursive: true });
-		await Bun.write(path.join(repoRoot, "src", "widget.ts"), "export function WidgetFactory() {\n\treturn { ok: true };\n}\n");
+		await Bun.write(
+			path.join(repoRoot, "src", "widget.ts"),
+			"export function WidgetFactory() {\n\treturn { ok: true };\n}\n",
+		);
 		await Bun.write(path.join(repoRoot, "notes.md"), "Retry policy uses bounded backoff for API calls.\n");
 		await Bun.write(path.join(repoRoot, "other.txt"), "Completely different content.\n");
 
@@ -121,7 +124,9 @@ describe("NexusKnowledgeStore", () => {
 		const store = new NexusKnowledgeStore({ agentDir, cwd: repoRoot });
 		try {
 			expect(store.codeDefinitions({ name: "makeApi", repoRoot })[0]?.exported).toBe(true);
-			expect(store.codeDefinitions({ name: "CartService.renderTotal", repoRoot })[0]?.parentSymbol).toBe("CartService");
+			expect(store.codeDefinitions({ name: "CartService.renderTotal", repoRoot })[0]?.parentSymbol).toBe(
+				"CartService",
+			);
 			expect(store.codeDefinitions({ name: "helpers.build", repoRoot })[0]?.parentSymbol).toBe("helpers");
 			expect(store.codeDefinitions({ name: "publicHelper", repoRoot })[0]?.kind).toBe("alias");
 			expect(store.codeDefinitions({ name: "internalHelper", repoRoot })[0]?.exported).toBe(true);
@@ -171,8 +176,15 @@ describe("NexusKnowledgeStore", () => {
 			expect(definitions[0]?.line).toBe(1);
 
 			const references = store.codeReferences({ name: "parseInput", repoRoot });
-			expect(references.some(reference => reference.path === "src/workflow.ts" && reference.line === 10 && reference.kind === "reference")).toBe(true);
-			expect(references.some(reference => reference.path === "src/workflow.test.ts" && reference.line === 5)).toBe(true);
+			expect(
+				references.some(
+					reference =>
+						reference.path === "src/workflow.ts" && reference.line === 10 && reference.kind === "reference",
+				),
+			).toBe(true);
+			expect(references.some(reference => reference.path === "src/workflow.test.ts" && reference.line === 5)).toBe(
+				true,
+			);
 			expect(references.some(reference => reference.line === 1 || reference.line === 2)).toBe(false);
 
 			const callers = store.codeCallers({ name: "parseInput", repoRoot });
@@ -214,14 +226,7 @@ describe("NexusKnowledgeStore", () => {
 
 	it("chunks markdown by heading boundaries", () => {
 		const chunks = chunkContent(
-			[
-				"# Intro",
-				"Overview text.",
-				"",
-				"## Details",
-				"More detail.",
-				"Even more detail.",
-			].join("\n"),
+			["# Intro", "Overview text.", "", "## Details", "More detail.", "Even more detail."].join("\n"),
 			{ maxLines: 10, maxChars: 200, language: "markdown", kind: "text" },
 		);
 		expect(chunks).toHaveLength(2);

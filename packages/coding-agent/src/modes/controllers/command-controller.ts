@@ -605,7 +605,11 @@ export class CommandController {
 
 		if (action === "stats") {
 			if (backend.id !== "nexus") return this.ctx.showError("Nexus backend is not active for this session.");
-			showMarkdownPanel(this.ctx, "Nexus Stats", renderNexusStats(agentDir, this.ctx.sessionManager.getCwd(), this.ctx.settings));
+			showMarkdownPanel(
+				this.ctx,
+				"Nexus Stats",
+				renderNexusStats(agentDir, this.ctx.sessionManager.getCwd(), this.ctx.settings),
+			);
 			return;
 		}
 
@@ -621,19 +625,25 @@ export class CommandController {
 			return;
 		}
 
-
 		if (action === "explain") {
 			const id = argumentText.slice("explain".length).trim();
 			if (!id) return this.ctx.showError("Usage: /memory explain <id>");
 			if (backend.id !== "nexus") return this.ctx.showError("Nexus backend is not active for this session.");
-			showMarkdownPanel(this.ctx, "Nexus Memory Explanation", runNexusExplain(agentDir, this.ctx.sessionManager.getCwd(), this.ctx.settings, id));
+			showMarkdownPanel(
+				this.ctx,
+				"Nexus Memory Explanation",
+				runNexusExplain(agentDir, this.ctx.sessionManager.getCwd(), this.ctx.settings, id),
+			);
 			return;
 		}
 
-
 		if (action === "doctor") {
 			if (backend.id !== "nexus") return this.ctx.showError("Nexus backend is not active for this session.");
-			showMarkdownPanel(this.ctx, "Nexus Doctor", await runNexusDoctorLive(this.ctx.settings, this.ctx.sessionManager.getCwd()));
+			showMarkdownPanel(
+				this.ctx,
+				"Nexus Doctor",
+				await runNexusDoctorLive(this.ctx.settings, this.ctx.sessionManager.getCwd()),
+			);
 			return;
 		}
 
@@ -642,20 +652,15 @@ export class CommandController {
 			if (!query) return this.ctx.showError("Usage: /memory session-search <query>");
 			if (backend.id !== "nexus") return this.ctx.showError("Nexus backend is not active for this session.");
 			const { searchNexusSessionAnchors } = await import("../../nexus/session-search");
-			const result = searchNexusSessionAnchors(
-				agentDir,
-				this.ctx.sessionManager.getCwd(),
-				this.ctx.settings,
-				query,
-			);
+			const result = searchNexusSessionAnchors(agentDir, this.ctx.sessionManager.getCwd(), this.ctx.settings, query);
 			showMarkdownPanel(this.ctx, "Nexus Session Search", result.text);
 			return;
 		}
 
-
-		this.ctx.showError("Usage: /memory <view|clear|reset|enqueue|rebuild|stats|search|explain|doctor|session-search>");
+		this.ctx.showError(
+			"Usage: /memory <view|clear|reset|enqueue|rebuild|stats|search|explain|doctor|session-search>",
+		);
 	}
-
 
 	async #runNewSessionFlow(options?: NewSessionOptions, label: string = "New session started"): Promise<void> {
 		if (this.ctx.loadingAnimation) {

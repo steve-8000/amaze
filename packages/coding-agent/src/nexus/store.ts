@@ -2,7 +2,8 @@ import { Database } from "bun:sqlite";
 import * as fsSync from "node:fs";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { getMemoriesDir } from "@amaze/utils";
+import { getMemoriesDir, logger } from "@amaze/utils";
+import type { EventBus as SessionEventBus } from "../observability";
 import { bufferToVector, cosineSimilarity, vectorToBuffer } from "./embedding-client";
 import { activeScopesForSearch, resolveNexusProjectScope, scopeForTarget, staticNexusScope } from "./scope";
 import type {
@@ -33,6 +34,8 @@ interface NexusStoreOptions {
 	agentDir: string;
 	cwd: string;
 	contradictionThreshold?: number;
+	sessionId?: string | null;
+	sessionEventBus?: SessionEventBus;
 }
 
 interface AddMemoryInput {
@@ -129,7 +132,6 @@ export function getNexusDbPath(agentDir: string): string {
 export function getNexusKnowledgeDbPath(agentDir: string): string {
 	return path.join(getNexusRoot(agentDir), "nexus-knowledge.db");
 }
-
 
 export function getNexusRoot(agentDir: string): string {
 	return path.join(getMemoriesDir(agentDir), "nexus");
@@ -371,6 +373,18 @@ export class NexusStore {
 		this.#contradictionThreshold = options.contradictionThreshold ?? 0.7;
 	}
 
+	#emitSessionEvent(event: Parameters<SessionEventBus["emit"]>[0]): void {
+		try {
+			this.options.sessionEventBus?.emit(event);
+		} catch (error) {
+			logger.debug("Nexus observability emit failed", { error: String(error) });
+		}
+	}
+
+	#sessionId(): string {
+		return this.options.sessionId ?? "session";
+	}
+
 	close(): void {
 		this.#db?.close(false);
 		this.#db = undefined;
@@ -405,14 +419,29 @@ ON CONFLICT(id) DO UPDATE SET
 			sourceRecordId: input.sourceRecordId,
 			projectKey: scope.kind === "project" ? scope.key : null,
 			content,
-			rawJson: { target: input.target, category: input.category ?? null, failureReason: input.failureReason ?? null },
+			rawJson: {
+				target: input.target,
+				category: input.category ?? null,
+				failureReason: input.failureReason ?? null,
+			},
 		});
 		const existing = this.#findExact(scope.id, input.target, content);
 		if (existing) {
 			const now = isoNow();
-			this.#dbInstance.prepare("UPDATE memory_items SET usage_count = usage_count + 1, last_used_at = ?, updated_at = ? WHERE id = ?").run(now, now, existing.id);
+			this.#dbInstance
+				.prepare(
+					"UPDATE memory_items SET usage_count = usage_count + 1, last_used_at = ?, updated_at = ? WHERE id = ?",
+				)
+				.run(now, now, existing.id);
 			const updated = this.#getById(existing.id) ?? existing;
 			this.#logEvent(updated.id, "touch", "nexus_memory_tool", existing, updated);
+			this.#emitSessionEvent({
+				type: "memory.write",
+				sessionId: this.#sessionId(),
+				ts: Date.now(),
+				memoryType: updated.memoryType,
+				status: updated.status,
+			});
 			return {
 				success: true,
 				message: "Entry already exists; refreshed usage metadata.",
@@ -423,7 +452,8 @@ ON CONFLICT(id) DO UPDATE SET
 		const now = isoNow();
 		const id = crypto.randomUUID();
 		const memoryType = input.memoryType ?? inferMemoryType(input.target, input.category);
-		const confidence = input.confidence ?? (input.sourceKind?.startsWith("old_") ? "imported_unverified" : "user_asserted");
+		const confidence =
+			input.confidence ?? (input.sourceKind?.startsWith("old_") ? "imported_unverified" : "user_asserted");
 		this.#dbInstance
 			.prepare(`
 INSERT INTO memory_items (
@@ -448,7 +478,16 @@ INSERT INTO memory_items (
 				now,
 			);
 		const entry = this.#getById(id) ?? undefined;
-		if (entry) this.#logEvent(entry.id, "accepted", "nexus_memory_tool", null, entry);
+		if (entry) {
+			this.#logEvent(entry.id, "accepted", "nexus_memory_tool", null, entry);
+			this.#emitSessionEvent({
+				type: "memory.write",
+				sessionId: this.#sessionId(),
+				ts: Date.now(),
+				memoryType: entry.memoryType,
+				status: entry.status,
+			});
+		}
 		return { success: true, message: "Entry added.", target: input.target, entry };
 	}
 
@@ -460,7 +499,8 @@ INSERT INTO memory_items (
 		const scope = input.scope ?? scopeForTarget(input.target, this.options.cwd);
 		const matches = this.#findContaining(scope.id, input.target, oldText, true);
 		if (matches.length === 0) return { success: false, error: `No entry matched '${oldText}'.` };
-		if (matches.length > 1) return { success: false, error: `Multiple entries matched '${oldText}'. Be more specific.`, entries: matches };
+		if (matches.length > 1)
+			return { success: false, error: `Multiple entries matched '${oldText}'. Be more specific.`, entries: matches };
 		const previous = matches[0];
 		const now = isoNow();
 		const replacement = this.add({
@@ -474,8 +514,14 @@ INSERT INTO memory_items (
 			scope,
 		});
 		if (!replacement.success || !replacement.entry) return replacement;
-		this.#dbInstance.prepare("UPDATE memory_items SET status = 'superseded', valid_to = ?, updated_at = ? WHERE id = ?").run(now, now, previous.id);
-		this.#dbInstance.prepare("INSERT OR IGNORE INTO memory_relations (from_id, to_id, relation, created_at) VALUES (?, ?, 'supersedes', ?)").run(replacement.entry.id, previous.id, now);
+		this.#dbInstance
+			.prepare("UPDATE memory_items SET status = 'superseded', valid_to = ?, updated_at = ? WHERE id = ?")
+			.run(now, now, previous.id);
+		this.#dbInstance
+			.prepare(
+				"INSERT OR IGNORE INTO memory_relations (from_id, to_id, relation, created_at) VALUES (?, ?, 'supersedes', ?)",
+			)
+			.run(replacement.entry.id, previous.id, now);
 		this.#logEvent(previous.id, "superseded", "nexus_memory_tool", previous, this.#getById(previous.id));
 		return { ...replacement, message: "Entry replaced; previous entry retained as superseded history." };
 	}
@@ -486,12 +532,19 @@ INSERT INTO memory_items (
 		const scope = input.scope ?? scopeForTarget(input.target, this.options.cwd);
 		const matches = this.#findContaining(scope.id, input.target, oldText, true);
 		if (matches.length === 0) return { success: false, error: `No entry matched '${oldText}'.` };
-		if (matches.length > 1) return { success: false, error: `Multiple entries matched '${oldText}'. Be more specific.`, entries: matches };
+		if (matches.length > 1)
+			return { success: false, error: `Multiple entries matched '${oldText}'. Be more specific.`, entries: matches };
 		const previous = matches[0];
 		const now = isoNow();
-		this.#dbInstance.prepare("UPDATE memory_items SET status = 'deleted', valid_to = ?, updated_at = ? WHERE id = ?").run(now, now, previous.id);
+		this.#dbInstance
+			.prepare("UPDATE memory_items SET status = 'deleted', valid_to = ?, updated_at = ? WHERE id = ?")
+			.run(now, now, previous.id);
 		this.#logEvent(previous.id, "deleted", "nexus_memory_tool", previous, this.#getById(previous.id));
-		return { success: true, message: "Entry deleted from active projection; temporal history retained.", target: input.target };
+		return {
+			success: true,
+			message: "Entry deleted from active projection; temporal history retained.",
+			target: input.target,
+		};
 	}
 
 	search(input: NexusSearchInput): NexusMemoryEntry[] {
@@ -508,13 +561,44 @@ INSERT INTO memory_items (
 		}
 		try {
 			const fts = this.#runFtsSearch(query, scopes, input, limit);
-			if (fts.length > 0) return rankForGoal(fts, input.goal);
+			if (fts.length > 0) {
+				const ranked = rankForGoal(fts, input.goal);
+				this.#emitSessionEvent({
+					type: "memory.recall",
+					sessionId: this.#sessionId(),
+					ts: Date.now(),
+					query,
+					hits: ranked.length,
+					usedHits: 0,
+				});
+				return ranked;
+			}
 		} catch {
 			// Fall through to token search below.
 		}
 		const tokenHits = this.#fallbackTokenSearch(query, scopes, input, limit);
-		if (tokenHits.length > 0) return rankForGoal(tokenHits, input.goal);
-		return rankForGoal(this.#fallbackLikeSearch(query, scopes, input, limit), input.goal);
+		if (tokenHits.length > 0) {
+			const ranked = rankForGoal(tokenHits, input.goal);
+			this.#emitSessionEvent({
+				type: "memory.recall",
+				sessionId: this.#sessionId(),
+				ts: Date.now(),
+				query,
+				hits: ranked.length,
+				usedHits: 0,
+			});
+			return ranked;
+		}
+		const ranked = rankForGoal(this.#fallbackLikeSearch(query, scopes, input, limit), input.goal);
+		this.#emitSessionEvent({
+			type: "memory.recall",
+			sessionId: this.#sessionId(),
+			ts: Date.now(),
+			query,
+			hits: ranked.length,
+			usedHits: 0,
+		});
+		return ranked;
 	}
 
 	/**
@@ -526,7 +610,9 @@ INSERT INTO memory_items (
 		if (!vector || vector.length === 0) return;
 		const buffer = vectorToBuffer(vector);
 		this.#dbInstance
-			.prepare("UPDATE memory_items SET embedding = ?, embedding_model = ?, embedding_dim = ?, updated_at = ? WHERE id = ?")
+			.prepare(
+				"UPDATE memory_items SET embedding = ?, embedding_model = ?, embedding_dim = ?, updated_at = ? WHERE id = ?",
+			)
 			.run(buffer, model, vector.length, isoNow(), memoryId);
 	}
 
@@ -536,7 +622,10 @@ INSERT INTO memory_items (
 	 * embedding client, and write back with `addEmbedding`. Missing vectors are
 	 * prioritized over model drift so new rows are searchable first.
 	 */
-	listMissingOrStaleEmbeddings(limit: number, activeModel: string | null | undefined): Array<{ id: string; content: string; reason: "missing" | "stale_model" }> {
+	listMissingOrStaleEmbeddings(
+		limit: number,
+		activeModel: string | null | undefined,
+	): Array<{ id: string; content: string; reason: "missing" | "stale_model" }> {
 		const cap = Math.max(1, Math.min(500, limit));
 		const rows = this.#dbInstance
 			.prepare(`
@@ -548,7 +637,11 @@ WHERE status = 'active'
 ORDER BY (embedding IS NULL) DESC, updated_at DESC
 LIMIT ?
 `)
-			.all(activeModel ?? null, activeModel ?? null, cap) as Array<{ id: string; content: string; reason: "missing" | "stale_model" }>;
+			.all(activeModel ?? null, activeModel ?? null, cap) as Array<{
+			id: string;
+			content: string;
+			reason: "missing" | "stale_model";
+		}>;
 		return rows;
 	}
 
@@ -591,13 +684,20 @@ WHERE ${conditions.join(" AND ")}
 		return scored.slice(0, limit);
 	}
 
-	#runFtsSearch(query: string, scopes: NexusScope[] | undefined, input: NexusSearchInput, limit: number): NexusMemoryEntry[] {
+	#runFtsSearch(
+		query: string,
+		scopes: NexusScope[] | undefined,
+		input: NexusSearchInput,
+		limit: number,
+	): NexusMemoryEntry[] {
 		const params: Array<string | number | null> = [escapeFts5Query(query)];
 		const conditions = ["mi.rowid IN (SELECT rowid FROM memory_fts WHERE memory_fts MATCH ?)"];
 		appendScopeConditions(conditions, params, scopes);
 		if (!input.includeHistory) conditions.push("mi.status = 'active'");
 		if (input.target) {
-			conditions.push(input.target === "memory" ? "mi.target IN ('memory', 'project', 'knowledge')" : "mi.target = ?");
+			conditions.push(
+				input.target === "memory" ? "mi.target IN ('memory', 'project', 'knowledge')" : "mi.target = ?",
+			);
 			if (input.target !== "memory") params.push(input.target);
 		}
 		if (input.category) {
@@ -643,9 +743,13 @@ LIMIT ?
 		if (ftsCandidates.length === 0) {
 			ftsCandidates = this.#fallbackLikeSearch(query, scopes, input, ftsLimit);
 		}
-		const vectorCandidates = this.vectorSearch(queryVector, { scope: input.scope, limit: ftsLimit, includeHistory: input.includeHistory });
+		const vectorCandidates = this.vectorSearch(queryVector, {
+			scope: input.scope,
+			limit: ftsLimit,
+			includeHistory: input.includeHistory,
+		});
 		const ftsScores = new Map<string, { entry: NexusMemoryEntry; rank: number }>();
-		ftsCandidates.forEach((entry, index) => ftsScores.set(entry.id, { entry, rank: index + 1 }));
+		for (const [index, entry] of ftsCandidates.entries()) ftsScores.set(entry.id, { entry, rank: index + 1 });
 		const vectorScores = new Map<string, { entry: NexusMemoryEntry; score: number }>();
 		for (const candidate of vectorCandidates) vectorScores.set(candidate.entry.id, candidate);
 		const merged = new Map<string, { entry: NexusMemoryEntry; score: number }>();
@@ -654,29 +758,40 @@ LIMIT ?
 		for (const [id, { entry, rank }] of ftsScores) {
 			const ftsScore = ftsW * (1 - (rank - 1) / ftsCount);
 			const vectorScore = vectorWeight * Math.max(0, vectorScores.get(id)?.score ?? 0);
-			merged.set(id, { entry, score: ftsScore + vectorScore + confidenceBoost(entry) + goalBoost(entry, input.goal) });
+			merged.set(id, {
+				entry,
+				score: ftsScore + vectorScore + confidenceBoost(entry) + goalBoost(entry, input.goal),
+			});
 		}
 		for (const [id, { entry, score }] of vectorScores) {
 			if (merged.has(id)) continue;
-			merged.set(id, { entry, score: vectorWeight * Math.max(0, score) + confidenceBoost(entry) + goalBoost(entry, input.goal) });
+			merged.set(id, {
+				entry,
+				score: vectorWeight * Math.max(0, score) + confidenceBoost(entry) + goalBoost(entry, input.goal),
+			});
 		}
 		const ordered = [...merged.values()].sort((a, b) => b.score - a.score);
 		const filtered = ordered.filter(({ entry }) => {
-			if (input.target === "memory") return entry.target === "memory" || entry.target === "project" || entry.target === "knowledge";
+			if (input.target === "memory")
+				return entry.target === "memory" || entry.target === "project" || entry.target === "knowledge";
 			if (input.target) return entry.target === input.target;
 			return true;
 		});
 		return filtered.slice(0, limit).map(item => item.entry);
 	}
 
-	list(input: { scope?: NexusSearchInput["scope"]; target?: "memory" | "user" | "failure"; limit?: number } = {}): NexusMemoryEntry[] {
+	list(
+		input: { scope?: NexusSearchInput["scope"]; target?: "memory" | "user" | "failure"; limit?: number } = {},
+	): NexusMemoryEntry[] {
 		const limit = clampLimit(input.limit, 50, 500);
 		const scopes = activeScopesForSearch(this.options.cwd, input.scope);
 		const params: Array<string | number | null> = [];
 		const conditions = ["mi.status = 'active'"];
 		appendScopeConditions(conditions, params, scopes);
 		if (input.target) {
-			conditions.push(input.target === "memory" ? "mi.target IN ('memory', 'project', 'knowledge')" : "mi.target = ?");
+			conditions.push(
+				input.target === "memory" ? "mi.target IN ('memory', 'project', 'knowledge')" : "mi.target = ?",
+			);
 			if (input.target !== "memory") params.push(input.target);
 		}
 		params.push(limit);
@@ -695,8 +810,12 @@ LIMIT ?
 
 	importSource(input: ImportSourceInput): string {
 		const content = input.content.trim();
-		const checksum = hashString(`${input.sourceKind}\n${input.sourcePath ?? ""}\n${input.sourceRecordId ?? ""}\n${content}`);
-		const existing = this.#dbInstance.prepare("SELECT id FROM memory_sources WHERE checksum = ?").get(checksum) as { id: string } | undefined;
+		const checksum = hashString(
+			`${input.sourceKind}\n${input.sourcePath ?? ""}\n${input.sourceRecordId ?? ""}\n${content}`,
+		);
+		const existing = this.#dbInstance.prepare("SELECT id FROM memory_sources WHERE checksum = ?").get(checksum) as
+			| { id: string }
+			| undefined;
 		if (existing) return existing.id;
 		const id = crypto.randomUUID();
 		const now = isoNow();
@@ -727,24 +846,42 @@ INSERT INTO memory_sources (
 		const now = isoNow();
 		const tx = this.#dbInstance.transaction((ids: string[]) => {
 			for (const id of ids) {
-				this.#dbInstance.prepare("UPDATE memory_items SET usage_count = usage_count + 1, last_used_at = ?, updated_at = ? WHERE id = ?").run(now, now, id);
-				this.#dbInstance.prepare("INSERT INTO memory_usage (id, memory_id, thread_id, turn_id, citation_note, used_at) VALUES (?, ?, ?, ?, ?, ?)").run(crypto.randomUUID(), id, threadId ?? null, turnId ?? null, citationNote ?? null, now);
+				this.#dbInstance
+					.prepare(
+						"UPDATE memory_items SET usage_count = usage_count + 1, last_used_at = ?, updated_at = ? WHERE id = ?",
+					)
+					.run(now, now, id);
+				this.#dbInstance
+					.prepare(
+						"INSERT INTO memory_usage (id, memory_id, thread_id, turn_id, citation_note, used_at) VALUES (?, ?, ?, ?, ?, ?)",
+					)
+					.run(crypto.randomUUID(), id, threadId ?? null, turnId ?? null, citationNote ?? null, now);
 			}
 		});
 		tx(memoryIds);
 	}
 
-	createHypothesis(prompt: string, hypothesis: string, supportingMemoryIds: string[] = [], scope = this.scope): string {
+	createHypothesis(
+		prompt: string,
+		hypothesis: string,
+		supportingMemoryIds: string[] = [],
+		scope = this.scope,
+	): string {
 		this.ensureScope(scope);
 		const id = crypto.randomUUID();
 		const now = isoNow();
 		this.#dbInstance
-			.prepare("INSERT INTO memory_hypotheses (id, scope_id, prompt, hypothesis, supporting_memory_ids, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'proposed', ?, ?)")
+			.prepare(
+				"INSERT INTO memory_hypotheses (id, scope_id, prompt, hypothesis, supporting_memory_ids, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'proposed', ?, ?)",
+			)
 			.run(id, scope.id, prompt, hypothesis, JSON.stringify(supportingMemoryIds), now, now);
 		return id;
 	}
 
-	listHypotheses(status: "proposed" | "accepted" | "rejected" | "expired" = "proposed", limit = 20): Array<{
+	listHypotheses(
+		status: "proposed" | "accepted" | "rejected" | "expired" = "proposed",
+		limit = 20,
+	): Array<{
 		id: string;
 		scopeId: string | null;
 		prompt: string;
@@ -755,17 +892,19 @@ INSERT INTO memory_sources (
 		updatedAt: string;
 	}> {
 		const rows = this.#dbInstance
-			.prepare("SELECT id, scope_id, prompt, hypothesis, supporting_memory_ids, status, created_at, updated_at FROM memory_hypotheses WHERE status = ? ORDER BY created_at ASC LIMIT ?")
+			.prepare(
+				"SELECT id, scope_id, prompt, hypothesis, supporting_memory_ids, status, created_at, updated_at FROM memory_hypotheses WHERE status = ? ORDER BY created_at ASC LIMIT ?",
+			)
 			.all(status, clampLimit(limit, 20, 200)) as Array<{
-				id: string;
-				scope_id: string | null;
-				prompt: string;
-				hypothesis: string;
-				supporting_memory_ids: string;
-				status: "proposed" | "accepted" | "rejected" | "expired";
-				created_at: string;
-				updated_at: string;
-			}>;
+			id: string;
+			scope_id: string | null;
+			prompt: string;
+			hypothesis: string;
+			supporting_memory_ids: string;
+			status: "proposed" | "accepted" | "rejected" | "expired";
+			created_at: string;
+			updated_at: string;
+		}>;
 		return rows.map(row => ({
 			id: row.id,
 			scopeId: row.scope_id,
@@ -778,11 +917,20 @@ INSERT INTO memory_sources (
 		}));
 	}
 
-	updateHypothesisStatus(id: string, status: "accepted" | "rejected" | "expired", reason: string, verifier = "nexus_hypothesis_verifier"): boolean {
-		const before = this.#dbInstance.prepare("SELECT * FROM memory_hypotheses WHERE id = ?").get(id) as Record<string, unknown> | undefined;
+	updateHypothesisStatus(
+		id: string,
+		status: "accepted" | "rejected" | "expired",
+		reason: string,
+		verifier = "nexus_hypothesis_verifier",
+	): boolean {
+		const before = this.#dbInstance.prepare("SELECT * FROM memory_hypotheses WHERE id = ?").get(id) as
+			| Record<string, unknown>
+			| undefined;
 		if (!before) return false;
 		const now = isoNow();
-		const result = this.#dbInstance.prepare("UPDATE memory_hypotheses SET status = ?, updated_at = ? WHERE id = ?").run(status, now, id);
+		const result = this.#dbInstance
+			.prepare("UPDATE memory_hypotheses SET status = ?, updated_at = ? WHERE id = ?")
+			.run(status, now, id);
 		this.#logEvent(null, `hypothesis_${status}`, verifier, null, {
 			id,
 			scopeId: typeof before.scope_id === "string" ? before.scope_id : "project:unknown",
@@ -830,19 +978,57 @@ LIMIT ?
 		return rows.map(mapRow).filter(entry => !usedSourceIds.has(entry.id));
 	}
 
-	upsertSkill(scopeId: string, name: string, content: string, sourceMemoryIds: string[], status: "draft" | "active" | "validated" = "active"): boolean {
+	upsertSkill(
+		scopeId: string,
+		name: string,
+		content: string,
+		sourceMemoryIds: string[],
+		status:
+			| "candidate"
+			| "draft"
+			| "eval_pending"
+			| "validated"
+			| "active"
+			| "deprecated"
+			| "banned" = "eval_pending",
+	): boolean {
 		const skillName = sanitizeSkillName(name);
 		const now = isoNow();
-		const existing = this.#dbInstance.prepare("SELECT id FROM memory_skills WHERE scope_id = ? AND name = ?").get(scopeId, skillName) as { id: string } | undefined;
+		const existing = this.#dbInstance
+			.prepare("SELECT id FROM memory_skills WHERE scope_id = ? AND name = ?")
+			.get(scopeId, skillName) as { id: string } | undefined;
 		if (existing) {
 			const result = this.#dbInstance
-				.prepare("UPDATE memory_skills SET content = ?, status = ?, source_memory_ids = ?, updated_at = ? WHERE id = ?")
+				.prepare(
+					"UPDATE memory_skills SET content = ?, status = ?, source_memory_ids = ?, updated_at = ? WHERE id = ?",
+				)
 				.run(content, status, JSON.stringify(sourceMemoryIds), now, existing.id);
-			return Number(result.changes ?? 0) > 0;
+			const changed = Number(result.changes ?? 0) > 0;
+			if (changed && (status === "eval_pending" || status === "active")) {
+				this.#emitSessionEvent({
+					type: "skill.promote",
+					sessionId: this.#sessionId(),
+					ts: Date.now(),
+					name: skillName,
+					status,
+				});
+			}
+			return changed;
 		}
 		this.#dbInstance
-			.prepare("INSERT INTO memory_skills (id, scope_id, name, content, status, source_memory_ids, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+			.prepare(
+				"INSERT INTO memory_skills (id, scope_id, name, content, status, source_memory_ids, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+			)
 			.run(crypto.randomUUID(), scopeId, skillName, content, status, JSON.stringify(sourceMemoryIds), now, now);
+		if (status === "eval_pending" || status === "active") {
+			this.#emitSessionEvent({
+				type: "skill.promote",
+				sessionId: this.#sessionId(),
+				ts: Date.now(),
+				name: skillName,
+				status,
+			});
+		}
 		return true;
 	}
 
@@ -855,14 +1041,22 @@ LIMIT ?
 	} {
 		const entry = this.#getById(id);
 		const source = this.#dbInstance
-			.prepare("SELECT ms.* FROM memory_items mi LEFT JOIN memory_sources ms ON ms.id = mi.source_id WHERE mi.id = ?")
+			.prepare(
+				"SELECT ms.* FROM memory_items mi LEFT JOIN memory_sources ms ON ms.id = mi.source_id WHERE mi.id = ?",
+			)
 			.get(id) as Record<string, unknown> | undefined;
 		const escaped = `%${escapeLikePattern(id)}%`;
 		const events = this.#dbInstance
-			.prepare("SELECT * FROM memory_events WHERE memory_id = ? OR (memory_id IS NULL AND (after_json LIKE ? ESCAPE '\\' OR before_json LIKE ? ESCAPE '\\')) ORDER BY created_at ASC")
+			.prepare(
+				"SELECT * FROM memory_events WHERE memory_id = ? OR (memory_id IS NULL AND (after_json LIKE ? ESCAPE '\\' OR before_json LIKE ? ESCAPE '\\')) ORDER BY created_at ASC",
+			)
 			.all(id, escaped, escaped) as Array<Record<string, unknown>>;
-		const relations = this.#dbInstance.prepare("SELECT * FROM memory_relations WHERE from_id = ? OR to_id = ? ORDER BY created_at ASC").all(id, id) as Array<Record<string, unknown>>;
-		const usage = this.#dbInstance.prepare("SELECT * FROM memory_usage WHERE memory_id = ? ORDER BY used_at DESC LIMIT 50").all(id) as Array<Record<string, unknown>>;
+		const relations = this.#dbInstance
+			.prepare("SELECT * FROM memory_relations WHERE from_id = ? OR to_id = ? ORDER BY created_at ASC")
+			.all(id, id) as Array<Record<string, unknown>>;
+		const usage = this.#dbInstance
+			.prepare("SELECT * FROM memory_usage WHERE memory_id = ? ORDER BY used_at DESC LIMIT 50")
+			.all(id) as Array<Record<string, unknown>>;
 		return { entry, source: source ?? null, events, relations, usage };
 	}
 
@@ -893,8 +1087,12 @@ LIMIT ?
 			superseded: scalar("SELECT COUNT(*) AS count FROM memory_items WHERE status = 'superseded'"),
 			quarantined: scalar("SELECT COUNT(*) AS count FROM memory_items WHERE status = 'quarantined'"),
 			hypotheses: scalar("SELECT COUNT(*) AS count FROM memory_hypotheses WHERE status = 'proposed'"),
-			pendingJobs: scalar("SELECT COUNT(*) AS count FROM memory_jobs WHERE status IN ('pending', 'running', 'error')"),
-			unresolvedContradictions: scalar("SELECT COUNT(*) AS count FROM memory_relations WHERE relation = 'contradicts'"),
+			pendingJobs: scalar(
+				"SELECT COUNT(*) AS count FROM memory_jobs WHERE status IN ('pending', 'running', 'error')",
+			),
+			unresolvedContradictions: scalar(
+				"SELECT COUNT(*) AS count FROM memory_relations WHERE relation = 'contradicts'",
+			),
 		};
 	}
 
@@ -932,7 +1130,9 @@ DELETE FROM memory_scopes;
 
 	#findExact(scopeId: string, target: NexusMemoryTarget, content: string): NexusMemoryEntry | null {
 		const row = this.#dbInstance
-			.prepare(`SELECT ${MEMORY_COLUMNS} FROM memory_items mi JOIN memory_scopes s ON s.id = mi.scope_id WHERE mi.scope_id = ? AND mi.target = ? AND mi.content = ? AND mi.status != 'deleted' LIMIT 1`)
+			.prepare(
+				`SELECT ${MEMORY_COLUMNS} FROM memory_items mi JOIN memory_scopes s ON s.id = mi.scope_id WHERE mi.scope_id = ? AND mi.target = ? AND mi.content = ? AND mi.status != 'deleted' LIMIT 1`,
+			)
 			.get(scopeId, target, content) as MemoryRow | undefined;
 		return row ? mapRow(row) : null;
 	}
@@ -951,24 +1151,38 @@ ORDER BY mi.created_at ASC
 
 	#getById(id: string): NexusMemoryEntry | null {
 		const row = this.#dbInstance
-			.prepare(`SELECT ${MEMORY_COLUMNS} FROM memory_items mi JOIN memory_scopes s ON s.id = mi.scope_id WHERE mi.id = ? LIMIT 1`)
+			.prepare(
+				`SELECT ${MEMORY_COLUMNS} FROM memory_items mi JOIN memory_scopes s ON s.id = mi.scope_id WHERE mi.id = ? LIMIT 1`,
+			)
 			.get(id) as MemoryRow | undefined;
 		return row ? mapRow(row) : null;
 	}
 
-	#fallbackLikeSearch(query: string, scopes: NexusScope[] | undefined, input: NexusSearchInput, limit: number): NexusMemoryEntry[] {
+	#fallbackLikeSearch(
+		query: string,
+		scopes: NexusScope[] | undefined,
+		input: NexusSearchInput,
+		limit: number,
+	): NexusMemoryEntry[] {
 		const params: Array<string | number | null> = [`%${escapeLikePattern(query)}%`];
 		const conditions = ["mi.content LIKE ? ESCAPE '\\'"];
 		appendScopeConditions(conditions, params, scopes);
 		if (!input.includeHistory) conditions.push("mi.status = 'active'");
 		params.push(limit);
 		const rows = this.#dbInstance
-			.prepare(`SELECT ${MEMORY_COLUMNS} FROM memory_items mi JOIN memory_scopes s ON s.id = mi.scope_id WHERE ${conditions.join(" AND ")} ORDER BY mi.updated_at DESC LIMIT ?`)
+			.prepare(
+				`SELECT ${MEMORY_COLUMNS} FROM memory_items mi JOIN memory_scopes s ON s.id = mi.scope_id WHERE ${conditions.join(" AND ")} ORDER BY mi.updated_at DESC LIMIT ?`,
+			)
 			.all(...params) as MemoryRow[];
 		return rows.map(mapRow);
 	}
 
-	#fallbackTokenSearch(query: string, scopes: NexusScope[] | undefined, input: NexusSearchInput, limit: number): NexusMemoryEntry[] {
+	#fallbackTokenSearch(
+		query: string,
+		scopes: NexusScope[] | undefined,
+		input: NexusSearchInput,
+		limit: number,
+	): NexusMemoryEntry[] {
 		const tokens = tokenizeSearchQuery(query).slice(0, 8);
 		if (tokens.length === 0) return [];
 		const params: Array<string | number | null> = tokens.map(token => `%${escapeLikePattern(token)}%`);
@@ -976,18 +1190,25 @@ ORDER BY mi.created_at ASC
 		appendScopeConditions(conditions, params, scopes);
 		if (!input.includeHistory) conditions.push("mi.status = 'active'");
 		if (input.target) {
-			conditions.push(input.target === "memory" ? "mi.target IN ('memory', 'project', 'knowledge')" : "mi.target = ?");
+			conditions.push(
+				input.target === "memory" ? "mi.target IN ('memory', 'project', 'knowledge')" : "mi.target = ?",
+			);
 			if (input.target !== "memory") params.push(input.target);
 		}
 		params.push(Math.min(50, Math.max(limit, limit * 3)));
 		const rows = this.#dbInstance
-			.prepare(`SELECT ${MEMORY_COLUMNS} FROM memory_items mi JOIN memory_scopes s ON s.id = mi.scope_id WHERE ${conditions.join(" AND ")} ORDER BY mi.updated_at DESC LIMIT ?`)
+			.prepare(
+				`SELECT ${MEMORY_COLUMNS} FROM memory_items mi JOIN memory_scopes s ON s.id = mi.scope_id WHERE ${conditions.join(" AND ")} ORDER BY mi.updated_at DESC LIMIT ?`,
+			)
 			.all(...params) as MemoryRow[];
 		const minMatches = Math.min(2, tokens.length);
 		return rows
 			.map(mapRow)
 			.map(entry => {
-				const matches = tokens.reduce((sum, token) => sum + (entry.content.toLowerCase().includes(token) ? 1 : 0), 0);
+				const matches = tokens.reduce(
+					(sum, token) => sum + (entry.content.toLowerCase().includes(token) ? 1 : 0),
+					0,
+				);
 				return {
 					entry,
 					matches,
@@ -1000,10 +1221,26 @@ ORDER BY mi.created_at ASC
 			.map(item => item.entry);
 	}
 
-	#logEvent(memoryId: string | null, eventType: string, source: string, before: NexusMemoryEntry | null, after: NexusMemoryEntry | null): void {
+	#logEvent(
+		memoryId: string | null,
+		eventType: string,
+		source: string,
+		before: NexusMemoryEntry | null,
+		after: NexusMemoryEntry | null,
+	): void {
 		this.#dbInstance
-			.prepare("INSERT INTO memory_events (id, memory_id, event_type, source, before_json, after_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
-			.run(crypto.randomUUID(), memoryId, eventType, source, before ? JSON.stringify(before) : null, after ? JSON.stringify(after) : null, isoNow());
+			.prepare(
+				"INSERT INTO memory_events (id, memory_id, event_type, source, before_json, after_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+			)
+			.run(
+				crypto.randomUUID(),
+				memoryId,
+				eventType,
+				source,
+				before ? JSON.stringify(before) : null,
+				after ? JSON.stringify(after) : null,
+				isoNow(),
+			);
 	}
 
 	async #renderScopeArtifacts(scope: NexusScope, root: string): Promise<void> {
@@ -1015,18 +1252,27 @@ ORDER BY mi.created_at ASC
 		await Promise.all([
 			Bun.write(path.join(root, "MEMORY.md"), renderMarkdown(title, entries)),
 			Bun.write(path.join(root, "memory_summary.md"), renderSummary(scope, entries, skills)),
-			Bun.write(path.join(root, "FAILURES.md"), renderMarkdown(`${title} FAILURES`, entries.filter(entry => entry.target === "failure"))),
+			Bun.write(
+				path.join(root, "FAILURES.md"),
+				renderMarkdown(
+					`${title} FAILURES`,
+					entries.filter(entry => entry.target === "failure"),
+				),
+			),
 		]);
 		const skillsDir = path.join(root, "skills");
 		await fs.mkdir(skillsDir, { recursive: true });
 		const keep = new Set<string>();
 		for (const skill of skills) {
+			if (skill.status !== "active" && skill.status !== "validated") continue;
 			keep.add(skill.name);
 			const skillDir = path.join(skillsDir, skill.name);
 			await fs.mkdir(skillDir, { recursive: true });
 			await Bun.write(path.join(skillDir, "SKILL.md"), renderSkillMarkdown(skill));
 		}
-		const existing = await fs.readdir(skillsDir, { withFileTypes: true }).catch(() => [] as Awaited<ReturnType<typeof fs.readdir>>);
+		const existing = await fs
+			.readdir(skillsDir, { withFileTypes: true })
+			.catch(() => [] as Awaited<ReturnType<typeof fs.readdir>>);
 		for (const dirent of existing) {
 			if (!dirent.isDirectory()) continue;
 			const dirName = dirent.name.toString();
@@ -1037,14 +1283,18 @@ ORDER BY mi.created_at ASC
 
 	#listScopeEntries(scopeId: string): NexusMemoryEntry[] {
 		const rows = this.#dbInstance
-			.prepare(`SELECT ${MEMORY_COLUMNS} FROM memory_items mi JOIN memory_scopes s ON s.id = mi.scope_id WHERE mi.scope_id = ? AND mi.status = 'active' ORDER BY COALESCE(mi.last_used_at, mi.updated_at) DESC, mi.id DESC`)
+			.prepare(
+				`SELECT ${MEMORY_COLUMNS} FROM memory_items mi JOIN memory_scopes s ON s.id = mi.scope_id WHERE mi.scope_id = ? AND mi.status = 'active' ORDER BY COALESCE(mi.last_used_at, mi.updated_at) DESC, mi.id DESC`,
+			)
 			.all(scopeId) as MemoryRow[];
 		return rows.map(mapRow);
 	}
 
 	#listSkills(scopeId: string): Array<{ name: string; content: string; status: string; sourceMemoryIds: string[] }> {
 		const rows = this.#dbInstance
-			.prepare("SELECT name, content, status, source_memory_ids FROM memory_skills WHERE scope_id = ? AND status IN ('draft', 'active', 'validated') ORDER BY updated_at DESC, name ASC")
+			.prepare(
+				"SELECT name, content, status, source_memory_ids FROM memory_skills WHERE scope_id = ? AND status IN ('draft', 'eval_pending', 'active', 'validated') ORDER BY updated_at DESC, name ASC",
+			)
 			.all(scopeId) as Array<{ name: string; content: string; status: string; source_memory_ids: string }>;
 		return rows.map(row => ({
 			name: row.name,
@@ -1071,7 +1321,9 @@ FROM memory_items mi
 JOIN memory_scopes s ON s.id = mi.scope_id
 WHERE mi.status = 'active' AND mi.embedding IS NOT NULL
 `)
-			.all() as Array<MemoryRow & { embedding: Uint8Array | null; embedding_model: string | null; embedding_dim: number | null }>;
+			.all() as Array<
+			MemoryRow & { embedding: Uint8Array | null; embedding_model: string | null; embedding_dim: number | null }
+		>;
 		const buckets = new Map<string, Array<{ entry: NexusMemoryEntry; vector: Float32Array }>>();
 		for (const row of rows) {
 			const vector = bufferToVector(row.embedding);
@@ -1096,9 +1348,23 @@ WHERE mi.status = 'active' AND mi.embedding IS NOT NULL
 					const score = cosineSimilarity(canonical.vector, candidate.vector);
 					if (score < threshold) continue;
 					const now = isoNow();
-					this.#dbInstance.prepare("UPDATE memory_items SET status = 'superseded', valid_to = ?, updated_at = ? WHERE id = ? AND status = 'active'").run(now, now, candidate.entry.id);
-					this.#dbInstance.prepare("INSERT OR IGNORE INTO memory_relations (from_id, to_id, relation, created_at) VALUES (?, ?, 'duplicate_of', ?)").run(candidate.entry.id, canonical.entry.id, now);
-					this.#logEvent(candidate.entry.id, "semantic_duplicate", "nexus_self_healing", candidate.entry, this.#getById(candidate.entry.id));
+					this.#dbInstance
+						.prepare(
+							"UPDATE memory_items SET status = 'superseded', valid_to = ?, updated_at = ? WHERE id = ? AND status = 'active'",
+						)
+						.run(now, now, candidate.entry.id);
+					this.#dbInstance
+						.prepare(
+							"INSERT OR IGNORE INTO memory_relations (from_id, to_id, relation, created_at) VALUES (?, ?, 'duplicate_of', ?)",
+						)
+						.run(candidate.entry.id, canonical.entry.id, now);
+					this.#logEvent(
+						candidate.entry.id,
+						"semantic_duplicate",
+						"nexus_self_healing",
+						candidate.entry,
+						this.#getById(candidate.entry.id),
+					);
 					superseded.add(candidate.entry.id);
 					merged += 1;
 				}
@@ -1108,7 +1374,11 @@ WHERE mi.status = 'active' AND mi.embedding IS NOT NULL
 	}
 
 	#markDuplicates(): number {
-		const rows = this.#dbInstance.prepare(`SELECT ${MEMORY_COLUMNS} FROM memory_items mi JOIN memory_scopes s ON s.id = mi.scope_id WHERE mi.status = 'active'`).all() as MemoryRow[];
+		const rows = this.#dbInstance
+			.prepare(
+				`SELECT ${MEMORY_COLUMNS} FROM memory_items mi JOIN memory_scopes s ON s.id = mi.scope_id WHERE mi.status = 'active'`,
+			)
+			.all() as MemoryRow[];
 		const groups = new Map<string, NexusMemoryEntry[]>();
 		for (const row of rows) {
 			const entry = mapRow(row);
@@ -1123,8 +1393,16 @@ WHERE mi.status = 'active' AND mi.embedding IS NOT NULL
 			entries.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 			const canonical = entries[0];
 			for (const duplicate of entries.slice(1)) {
-				this.#dbInstance.prepare("UPDATE memory_items SET status = 'superseded', valid_to = ?, updated_at = ? WHERE id = ? AND status = 'active'").run(isoNow(), isoNow(), duplicate.id);
-				this.#dbInstance.prepare("INSERT OR IGNORE INTO memory_relations (from_id, to_id, relation, created_at) VALUES (?, ?, 'duplicate_of', ?)").run(duplicate.id, canonical.id, isoNow());
+				this.#dbInstance
+					.prepare(
+						"UPDATE memory_items SET status = 'superseded', valid_to = ?, updated_at = ? WHERE id = ? AND status = 'active'",
+					)
+					.run(isoNow(), isoNow(), duplicate.id);
+				this.#dbInstance
+					.prepare(
+						"INSERT OR IGNORE INTO memory_relations (from_id, to_id, relation, created_at) VALUES (?, ?, 'duplicate_of', ?)",
+					)
+					.run(duplicate.id, canonical.id, isoNow());
 				changed += 1;
 			}
 		}
@@ -1132,12 +1410,20 @@ WHERE mi.status = 'active' AND mi.embedding IS NOT NULL
 	}
 
 	#markStaleImported(): number {
-		const result = this.#dbInstance.prepare("UPDATE memory_items SET staleness = 'needs_refresh', updated_at = ? WHERE status = 'active' AND confidence = 'imported_unverified' AND staleness = 'unknown'").run(isoNow());
+		const result = this.#dbInstance
+			.prepare(
+				"UPDATE memory_items SET staleness = 'needs_refresh', updated_at = ? WHERE status = 'active' AND confidence = 'imported_unverified' AND staleness = 'unknown'",
+			)
+			.run(isoNow());
 		return Number(result.changes ?? 0);
 	}
 
 	#detectTextContradictions(): number {
-		const rows = this.#dbInstance.prepare(`SELECT ${MEMORY_COLUMNS}, mi.embedding AS embedding, mi.embedding_model AS embedding_model FROM memory_items mi JOIN memory_scopes s ON s.id = mi.scope_id WHERE mi.status = 'active'`).all() as Array<MemoryRow & { embedding: Uint8Array | null; embedding_model: string | null }>;
+		const rows = this.#dbInstance
+			.prepare(
+				`SELECT ${MEMORY_COLUMNS}, mi.embedding AS embedding, mi.embedding_model AS embedding_model FROM memory_items mi JOIN memory_scopes s ON s.id = mi.scope_id WHERE mi.status = 'active'`,
+			)
+			.all() as Array<MemoryRow & { embedding: Uint8Array | null; embedding_model: string | null }>;
 		const groups = new Map<string, Array<NexusMemoryEntry & { vector?: Float32Array }>>();
 		for (const row of rows) {
 			const entry = mapRow(row);
@@ -1157,8 +1443,16 @@ WHERE mi.status = 'active' AND mi.embedding IS NOT NULL
 					if (entries[i].content === entries[j].content) continue;
 					const score = scoreContradictionLikelihood(entries[i], entries[j]);
 					if (score < threshold) continue;
-					this.#dbInstance.prepare("INSERT OR IGNORE INTO memory_relations (from_id, to_id, relation, created_at) VALUES (?, ?, 'contradicts', ?)").run(entries[i].id, entries[j].id, isoNow());
-					this.#dbInstance.prepare("INSERT OR IGNORE INTO memory_relations (from_id, to_id, relation, created_at) VALUES (?, ?, 'contradicts', ?)").run(entries[j].id, entries[i].id, isoNow());
+					this.#dbInstance
+						.prepare(
+							"INSERT OR IGNORE INTO memory_relations (from_id, to_id, relation, created_at) VALUES (?, ?, 'contradicts', ?)",
+						)
+						.run(entries[i].id, entries[j].id, isoNow());
+					this.#dbInstance
+						.prepare(
+							"INSERT OR IGNORE INTO memory_relations (from_id, to_id, relation, created_at) VALUES (?, ?, 'contradicts', ?)",
+						)
+						.run(entries[j].id, entries[i].id, isoNow());
 					changed += 1;
 				}
 			}
@@ -1167,13 +1461,19 @@ WHERE mi.status = 'active' AND mi.embedding IS NOT NULL
 	}
 
 	#detectScopeLeaks(): number {
-		const result = this.#dbInstance.prepare("UPDATE memory_items SET status = 'quarantined', updated_at = ? WHERE status = 'active' AND ((target = 'project' AND scope_id NOT LIKE 'project:%') OR (target = 'user' AND scope_id != 'user'))").run(isoNow());
+		const result = this.#dbInstance
+			.prepare(
+				"UPDATE memory_items SET status = 'quarantined', updated_at = ? WHERE status = 'active' AND ((target = 'project' AND scope_id NOT LIKE 'project:%') OR (target = 'user' AND scope_id != 'user'))",
+			)
+			.run(isoNow());
 		return Number(result.changes ?? 0);
 	}
 
 	#promoteRepeatedSkillCandidates(): number {
 		const rows = this.#dbInstance
-			.prepare(`SELECT mi.id, mi.scope_id, mi.content, mi.memory_type FROM memory_items mi WHERE mi.status = 'active' AND mi.memory_type IN ('workflow', 'skill_candidate', 'command') ORDER BY mi.scope_id, mi.created_at`)
+			.prepare(
+				`SELECT mi.id, mi.scope_id, mi.content, mi.memory_type FROM memory_items mi WHERE mi.status = 'active' AND mi.memory_type IN ('workflow', 'skill_candidate', 'command') ORDER BY mi.scope_id, mi.created_at`,
+			)
 			.all() as Array<{ id: string; scope_id: string; content: string; memory_type: string }>;
 		const byScope = new Map<string, Array<{ id: string; content: string; memory_type: string }>>();
 		for (const row of rows) {
@@ -1185,15 +1485,28 @@ WHERE mi.status = 'active' AND mi.embedding IS NOT NULL
 		for (const [scopeId, entries] of byScope) {
 			if (entries.length < 2 && !entries.some(entry => entry.memory_type === "skill_candidate")) continue;
 			const name = sanitizeSkillName(entries[0]?.content ?? "memory-skill");
-			const existing = this.#dbInstance.prepare("SELECT id FROM memory_skills WHERE scope_id = ? AND name = ?").get(scopeId, name) as { id: string } | undefined;
+			const existing = this.#dbInstance
+				.prepare("SELECT id FROM memory_skills WHERE scope_id = ? AND name = ?")
+				.get(scopeId, name) as { id: string } | undefined;
 			const now = isoNow();
-			const content = buildSkillContent(name, entries.map(entry => entry.content));
+			const content = buildSkillContent(
+				name,
+				entries.map(entry => entry.content),
+			);
 			const sourceMemoryIds = JSON.stringify(entries.map(entry => entry.id));
 			if (existing) {
-				this.#dbInstance.prepare("UPDATE memory_skills SET content = ?, status = 'active', source_memory_ids = ?, updated_at = ? WHERE id = ?").run(content, sourceMemoryIds, now, existing.id);
+				this.#dbInstance
+					.prepare(
+						"UPDATE memory_skills SET content = ?, status = 'draft', source_memory_ids = ?, updated_at = ? WHERE id = ?",
+					)
+					.run(content, sourceMemoryIds, now, existing.id);
 				continue;
 			}
-			this.#dbInstance.prepare("INSERT INTO memory_skills (id, scope_id, name, content, status, source_memory_ids, created_at, updated_at) VALUES (?, ?, ?, ?, 'draft', ?, ?, ?)").run(crypto.randomUUID(), scopeId, name, content, sourceMemoryIds, now, now);
+			this.#dbInstance
+				.prepare(
+					"INSERT INTO memory_skills (id, scope_id, name, content, status, source_memory_ids, created_at, updated_at) VALUES (?, ?, ?, ?, 'draft', ?, ?, ?)",
+				)
+				.run(crypto.randomUUID(), scopeId, name, content, sourceMemoryIds, now, now);
 			created += 1;
 		}
 		return created;
@@ -1223,7 +1536,11 @@ function normalizeCategory(value: NexusMemoryCategory | null | undefined): Nexus
 	return value && CATEGORY_VALUES.has(value) ? value : null;
 }
 
-function appendScopeConditions(conditions: string[], params: Array<string | number | null>, scopes: NexusScope[] | undefined): void {
+function appendScopeConditions(
+	conditions: string[],
+	params: Array<string | number | null>,
+	scopes: NexusScope[] | undefined,
+): void {
 	if (!scopes || scopes.length === 0) return;
 	conditions.push(`mi.scope_id IN (${scopes.map(() => "?").join(", ")})`);
 	for (const scope of scopes) params.push(scope.id);
@@ -1265,7 +1582,29 @@ function tokenizeSearchQuery(value: string): string[] {
 	];
 }
 
-const GOAL_STOP_WORDS = new Set(["the", "and", "for", "with", "that", "this", "from", "into", "about", "how", "why", "what", "when", "where", "which", "work", "future", "현재", "목표", "진행", "구현"]);
+const GOAL_STOP_WORDS = new Set([
+	"the",
+	"and",
+	"for",
+	"with",
+	"that",
+	"this",
+	"from",
+	"into",
+	"about",
+	"how",
+	"why",
+	"what",
+	"when",
+	"where",
+	"which",
+	"work",
+	"future",
+	"현재",
+	"목표",
+	"진행",
+	"구현",
+]);
 
 function confidenceBoost(entry: NexusMemoryEntry): number {
 	let boost = 0;
@@ -1393,7 +1732,12 @@ function renderSummary(
 	return lines.join("\n");
 }
 
-function renderSkillMarkdown(skill: { name: string; content: string; status: string; sourceMemoryIds: string[] }): string {
+function renderSkillMarkdown(skill: {
+	name: string;
+	content: string;
+	status: string;
+	sourceMemoryIds: string[];
+}): string {
 	return [
 		"---",
 		`name: ${skill.name}`,
@@ -1474,8 +1818,17 @@ export function recordRuntimeEvent(db: Database, event: RuntimeEventInput): void
 
 export function recentRuntimeEvents(db: Database, limit = 50): RuntimeEventRow[] {
 	const rows = db
-		.prepare(`SELECT id, kind, severity, message, context_json, created_at FROM memory_runtime_events ORDER BY id DESC LIMIT ?`)
-		.all(limit) as Array<{ id: number; kind: string; severity: string; message: string; context_json: string | null; created_at: string }>;
+		.prepare(
+			`SELECT id, kind, severity, message, context_json, created_at FROM memory_runtime_events ORDER BY id DESC LIMIT ?`,
+		)
+		.all(limit) as Array<{
+		id: number;
+		kind: string;
+		severity: string;
+		message: string;
+		context_json: string | null;
+		created_at: string;
+	}>;
 	return rows.map(row => ({
 		id: row.id,
 		kind: row.kind,
@@ -1489,7 +1842,9 @@ export function recentRuntimeEvents(db: Database, limit = 50): RuntimeEventRow[]
 function safeParse(text: string): Record<string, unknown> | undefined {
 	try {
 		const parsed = JSON.parse(text);
-		return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, unknown> : undefined;
+		return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+			? (parsed as Record<string, unknown>)
+			: undefined;
 	} catch {
 		return undefined;
 	}
@@ -1506,7 +1861,11 @@ export interface StageStat {
 }
 
 export function recentStageStats(db: Database, limit = 50): StageStat[] {
-	const rows = db.prepare("SELECT stage, duration_ms, llm_calls, embed_calls, last_error FROM memory_jobs WHERE stage IS NOT NULL ORDER BY finished_at DESC LIMIT ?").all(limit) as Array<{
+	const rows = db
+		.prepare(
+			"SELECT stage, duration_ms, llm_calls, embed_calls, last_error FROM memory_jobs WHERE stage IS NOT NULL ORDER BY finished_at DESC LIMIT ?",
+		)
+		.all(limit) as Array<{
 		stage: string | null;
 		duration_ms: number | null;
 		llm_calls: number;
@@ -1528,7 +1887,15 @@ export function recentStageStats(db: Database, limit = 50): StageStat[] {
 		const sorted = [...acc.durations].sort((a, b) => a - b);
 		const avg = sorted.length ? sorted.reduce((a, b) => a + b, 0) / sorted.length : 0;
 		const p95 = sorted.length ? sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.95))] : 0;
-		out.push({ stage, count: sorted.length, avgDurationMs: Math.round(avg), p95DurationMs: p95, totalLlmCalls: acc.llm, totalEmbedCalls: acc.embed, lastError: acc.lastError });
+		out.push({
+			stage,
+			count: sorted.length,
+			avgDurationMs: Math.round(avg),
+			p95DurationMs: p95,
+			totalLlmCalls: acc.llm,
+			totalEmbedCalls: acc.embed,
+			lastError: acc.lastError,
+		});
 	}
 	return out;
 }
@@ -1538,7 +1905,14 @@ function topicLabel(entry: NexusMemoryEntry): string {
 }
 
 function extractKeywords(content: string): string[] {
-	return [...new Set(content.toLowerCase().split(/[^a-z0-9_./-]+/).filter(token => token.length >= 4))];
+	return [
+		...new Set(
+			content
+				.toLowerCase()
+				.split(/[^a-z0-9_./-]+/)
+				.filter(token => token.length >= 4),
+		),
+	];
 }
 
 function normalizeForDuplicate(content: string): string {
@@ -1546,7 +1920,13 @@ function normalizeForDuplicate(content: string): string {
 }
 
 function extractSubjectKey(content: string): string {
-	return content.split(/[:\-–—]/, 1)[0]?.trim().toLowerCase().slice(0, 80) ?? "";
+	return (
+		content
+			.split(/[:\-–—]/, 1)[0]
+			?.trim()
+			.toLowerCase()
+			.slice(0, 80) ?? ""
+	);
 }
 
 function scoreContradictionLikelihood(
@@ -1562,13 +1942,30 @@ function scoreContradictionLikelihood(
 		else if (cos >= 0.5) score += 0.15;
 		else if (cos < 0.3) score -= 0.3;
 	} else if (!hasA && !hasB) {
-		// No embeddings on either side: lexical subject-key match is the only signal.
-		// Trust it as strong evidence so callers without embeddings still surface contradictions.
-		score = 0.85;
+		score = lexicalContradictionSignal(a.content, b.content);
 	}
 	// One-sided embedding gives no useful comparison; keep baseline 0.5.
 	if (a.confidence === "imported_unverified" || b.confidence === "imported_unverified") score -= 0.1;
 	return Math.max(0, Math.min(1, score));
+}
+
+function lexicalContradictionSignal(a: string, b: string): number {
+	const pair = `${a}\n${b}`.toLowerCase();
+	const hard = [
+		/\bmust\b.*\bmust not\b/s,
+		/\bmust not\b.*\bmust\b/s,
+		/\balways\b.*\bnever\b/s,
+		/\bnever\b.*\balways\b/s,
+		/\benabled\b.*\bdisabled\b/s,
+		/\bdisabled\b.*\benabled\b/s,
+		/\btrue\b.*\bfalse\b/s,
+		/\bfalse\b.*\btrue\b/s,
+		/사용한다.*사용하지 않는다/s,
+		/사용하지 않는다.*사용한다/s,
+		/켜야 한다.*꺼야 한다/s,
+		/꺼야 한다.*켜야 한다/s,
+	];
+	return hard.some(re => re.test(pair)) ? 0.75 : 0.35;
 }
 
 function parseJsonStringArray(value: string): string[] {

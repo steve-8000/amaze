@@ -4,8 +4,8 @@ import { resolveMemoryBackend } from "../memory-backend";
 import { NexusKnowledgeStore } from "../nexus/knowledge/store";
 import type { NexusKnowledgeCallee } from "../nexus/knowledge/types";
 import { resolveNexusProjectScope } from "../nexus/scope";
-import { resolveAgentCwd } from "./_agent-cwd";
 import type { ToolSession } from ".";
+import { resolveAgentCwd } from "./_agent-cwd";
 import { oneLine, truncate } from "./repo-search";
 
 const codeCalleesSchema = z.object({
@@ -52,9 +52,13 @@ function renderCodeCallees(symbol: string, callees: NexusKnowledgeCallee[]): str
 	if (callees.length === 0) return `No Nexus code callees found for ${symbol}.`;
 	const lines = [`Nexus code callees for ${symbol}:`, ""];
 	for (const callee of callees) {
-		const calleeName = callee.callee ? `${callee.callee.parentSymbol ? `${callee.callee.parentSymbol}.` : ""}${callee.callee.name}` : callee.name;
+		const calleeName = callee.callee
+			? `${callee.callee.parentSymbol ? `${callee.callee.parentSymbol}.` : ""}${callee.callee.name}`
+			: callee.name;
 		const target = callee.callee ? `${callee.callee.path}:${callee.callee.line}` : "unknown definition";
-		lines.push(`- ${callee.line}:${callee.column} [target=${target} ${calleeName}] ${truncate(oneLine(callee.snippet), 240)}`);
+		lines.push(
+			`- ${callee.line}:${callee.column} [target=${target} ${calleeName}] ${truncate(oneLine(callee.snippet), 240)}`,
+		);
 	}
 	return lines.join("\n");
 }

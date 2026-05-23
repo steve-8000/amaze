@@ -17,6 +17,13 @@ function createSession(overrides: Partial<ToolSession> = {}): ToolSession {
 	};
 }
 
+function createBypassSession(overrides: Partial<ToolSession> = {}): ToolSession {
+	return createSession({
+		settings: Settings.isolated({ "task.yield.allowSchemaBypass": true }),
+		...overrides,
+	});
+}
+
 function toRecord(value: unknown): Record<string, unknown> {
 	return value != null && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 }
@@ -214,7 +221,7 @@ describe("YieldTool", () => {
 				},
 			],
 		};
-		const tool = new YieldTool(createSession({ outputSchema }));
+		const tool = new YieldTool(createBypassSession({ outputSchema }));
 		const parametersRecord = tool.parameters as unknown as Record<string, unknown>;
 		// $defs should NOT be in parameters — refs are inlined
 		expect(parametersRecord.$defs).toBeUndefined();
@@ -383,7 +390,7 @@ describe("YieldTool", () => {
 			},
 			required: ["token"],
 		};
-		const tool = new YieldTool(createSession({ outputSchema }));
+		const tool = new YieldTool(createBypassSession({ outputSchema }));
 
 		await expect(tool.execute("call-short-1", { result: { data: { token: "ab" } } } as never)).rejects.toThrow(
 			"Output does not match schema",
@@ -434,7 +441,7 @@ describe("YieldTool", () => {
 			},
 			required: ["token"],
 		};
-		const tool = new YieldTool(createSession({ outputSchema }));
+		const tool = new YieldTool(createBypassSession({ outputSchema }));
 
 		await expect(tool.execute("call-struct-1", { result: { data: { token: "ab" } } } as never)).rejects.toThrow(
 			"Output does not match schema",

@@ -14,7 +14,7 @@ Budget:
 
 This is an autonomous continuation. The objective persists across turns; do not redefine success around a smaller, easier, or already-completed subset.
 
-Before calling `goal({op:"complete", goal_id:"..."})`, you MUST perform a completion audit against the current repo state:
+Before calling `goal({op:"complete", goal_id:"…"})`, you MUST perform a completion audit against the current repo state:
 
 1. **Restate the objective as concrete deliverables.** What files, behaviors, tests, gates, or artifacts must exist for the objective to be true? Write them down (todo_write, or in your reasoning).
 2. **Map each deliverable to evidence.** For every requirement, identify the authoritative source that would prove it: a file's contents, a command's output, a test's pass status, a PR/issue state.
@@ -23,8 +23,8 @@ Before calling `goal({op:"complete", goal_id:"..."})`, you MUST perform a comple
 5. **Treat uncertainty as not-yet-achieved.** Indirect evidence, partial coverage, missing artifacts, or "looks right" without inspection mean continue working. Gather stronger evidence or do more work.
 6. **Budget exhaustion is not completion.** Do not call complete merely because tokens are nearly out. If the budget is tight and the work is unfinished, leave the goal active and stop the turn — the user or runtime decides next steps.
 
-Call `goal({op:"complete", goal_id:"..."})` only when every deliverable has direct, current-state evidence proving it is satisfied. The completion call is a load-bearing claim; it ends the autonomous loop and surfaces a "done" report to the user.
+Call `goal({op:"complete", goal_id:"…"})` only when every deliverable has direct, current-state evidence proving it is satisfied. The completion call is a load-bearing claim; it ends the autonomous loop and surfaces a "done" report to the user.
 
-Call `goal({op:"block", goal_id:"..."})` only when the same blocking condition has repeated for at least three consecutive goal turns and no meaningful progress is possible without user input or an external-state change.
+Call `goal({op:"block", goal_id:"…"})` only when the same blocking condition has repeated for at least three consecutive goal turns and no meaningful progress is possible without user input or an external-state change.
 
 If the work is not done and not strictly blocked, just keep working. Do not narrate that you are continuing — execute.

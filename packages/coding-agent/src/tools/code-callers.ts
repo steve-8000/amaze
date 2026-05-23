@@ -4,8 +4,8 @@ import { resolveMemoryBackend } from "../memory-backend";
 import { NexusKnowledgeStore } from "../nexus/knowledge/store";
 import type { NexusKnowledgeCaller } from "../nexus/knowledge/types";
 import { resolveNexusProjectScope } from "../nexus/scope";
-import { resolveAgentCwd } from "./_agent-cwd";
 import type { ToolSession } from ".";
+import { resolveAgentCwd } from "./_agent-cwd";
 import { oneLine, truncate } from "./repo-search";
 
 const codeCallersSchema = z.object({
@@ -52,8 +52,13 @@ function renderCodeCallers(symbol: string, callers: NexusKnowledgeCaller[]): str
 	if (callers.length === 0) return `No Nexus code callers found for ${symbol}.`;
 	const lines = [`Nexus code callers for ${symbol}:`, ""];
 	for (const caller of callers) {
-		const callerName = caller.caller ? `${caller.caller.parentSymbol ? `${caller.caller.parentSymbol}.` : ""}${caller.caller.name}` : "unknown caller";
-		const callerSpan = caller.caller?.endLine && caller.caller.endLine > caller.caller.line ? `${caller.caller.line}-${caller.caller.endLine}` : `${caller.caller?.line ?? "?"}`;
+		const callerName = caller.caller
+			? `${caller.caller.parentSymbol ? `${caller.caller.parentSymbol}.` : ""}${caller.caller.name}`
+			: "unknown caller";
+		const callerSpan =
+			caller.caller?.endLine && caller.caller.endLine > caller.caller.line
+				? `${caller.caller.line}-${caller.caller.endLine}`
+				: `${caller.caller?.line ?? "?"}`;
 		lines.push(
 			`- ${caller.reference.path}:${caller.reference.line}:${caller.reference.column} [caller=${caller.caller ? `${caller.caller.path}:${callerSpan} ${callerName}` : callerName}] ${truncate(oneLine(caller.reference.snippet), 240)}`,
 		);

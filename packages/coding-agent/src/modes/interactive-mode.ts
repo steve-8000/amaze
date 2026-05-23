@@ -210,6 +210,7 @@ export class InteractiveMode implements InteractiveModeContext {
 	loopLimit: LoopLimitRuntime | undefined = undefined;
 	#loopAutoSubmitTimer: NodeJS.Timeout | undefined;
 	todoPhases: TodoPhase[] = [];
+
 	hideThinkingBlock = false;
 	pendingImages: ImageContent[] = [];
 	compactionQueuedMessages: CompactionQueuedMessage[] = [];
@@ -932,21 +933,15 @@ export class InteractiveMode implements InteractiveModeContext {
 		return active ?? nonEmpty[nonEmpty.length - 1];
 	}
 
-	#renderTodoList(): void {
-		this.todoContainer.clear();
-		const phases = this.todoPhases.filter(phase => phase.tasks.length > 0);
-		if (phases.length === 0) {
-			return;
-		}
-
+	#buildTodoBodyLines(phases: TodoPhase[]): string[] {
 		const indent = "  ";
 		const hook = theme.tree.hook;
-		const lines = ["", indent + theme.bold(theme.fg("accent", "Todos"))];
+		const lines: string[] = [];
 
 		if (!this.todoExpanded) {
 			const activeIdx = phases.indexOf(this.#getActivePhase(phases) ?? phases[0]);
 			const activePhase = phases[activeIdx];
-			if (!activePhase) return;
+			if (!activePhase) return lines;
 			lines.push(
 				`${indent}${theme.fg("accent", `${hook} ${formatPhaseDisplayName(activePhase.name, activeIdx + 1)}`)}`,
 			);
@@ -959,8 +954,7 @@ export class InteractiveMode implements InteractiveModeContext {
 				const remaining = activePhase.tasks.length - visibleTasks.length;
 				lines.push(theme.fg("muted", `${indent}  ${hook} +${remaining} more`));
 			}
-			this.todoContainer.addChild(new Text(lines.join("\n"), 1, 0));
-			return;
+			return lines;
 		}
 
 		phases.forEach((phase, phaseIndex) => {
@@ -970,7 +964,17 @@ export class InteractiveMode implements InteractiveModeContext {
 				lines.push(this.#formatTodoLine(todo, prefix));
 			});
 		});
+		return lines;
+	}
 
+	#renderTodoList(): void {
+		this.todoContainer.clear();
+		const phases = this.todoPhases.filter(phase => phase.tasks.length > 0);
+		if (phases.length === 0) return;
+
+		const indent = "  ";
+		const lines: string[] = ["", indent + theme.bold(theme.fg("accent", "Todos"))];
+		lines.push(...this.#buildTodoBodyLines(phases));
 		this.todoContainer.addChild(new Text(lines.join("\n"), 1, 0));
 	}
 

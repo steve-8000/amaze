@@ -37,13 +37,26 @@ describe("NexusStore", () => {
 		const cwd = await makeTempDir("nexus-cwd");
 		const store = new NexusStore({ agentDir, cwd });
 		try {
-			const add = store.add({ target: "project", content: "Use bun test for project validation.", memoryType: "workflow" });
+			const add = store.add({
+				target: "project",
+				content: "Use bun test for project validation.",
+				memoryType: "workflow",
+			});
 			expect(add.success).toBe(true);
 			const search = store.search({ query: "bun test", scope: "current_project", limit: 5, includeHistory: true });
 			expect(search.some(entry => entry.content.includes("bun test"))).toBe(true);
-			const replace = store.replace({ target: "project", oldText: "bun test", content: "Use pnpm test for project validation." });
+			const replace = store.replace({
+				target: "project",
+				oldText: "bun test",
+				content: "Use pnpm test for project validation.",
+			});
 			expect(replace.success).toBe(true);
-			const history = store.search({ query: "project validation", scope: "current_project", limit: 10, includeHistory: true });
+			const history = store.search({
+				query: "project validation",
+				scope: "current_project",
+				limit: 10,
+				includeHistory: true,
+			});
 			expect(history.some(entry => entry.status === "superseded")).toBe(true);
 			expect(history.some(entry => entry.status === "active" && entry.content.includes("pnpm test"))).toBe(true);
 		} finally {
@@ -61,15 +74,40 @@ describe("NexusStore", () => {
 			store.add({ target: "project", content: "Project-specific command." });
 			store.add({ target: "failure", content: "Global failure shield." });
 			store.add({ target: "knowledge", content: "General knowledge entry." });
-			const currentProjectMemory = store.search({ query: "local memory convention", scope: "current_project", limit: 10, includeHistory: true });
+			const currentProjectMemory = store.search({
+				query: "local memory convention",
+				scope: "current_project",
+				limit: 10,
+				includeHistory: true,
+			});
 			expect(currentProjectMemory.some(entry => entry.scopeKind === "project")).toBe(true);
-			const currentGlobal = store.search({ query: "global convention", scope: "current_project", limit: 10, includeHistory: true });
+			const currentGlobal = store.search({
+				query: "global convention",
+				scope: "current_project",
+				limit: 10,
+				includeHistory: true,
+			});
 			expect(currentGlobal.some(entry => entry.scopeKind === "global")).toBe(true);
-			const currentProject = store.search({ query: "project-specific command", scope: "current_project", limit: 10, includeHistory: true });
+			const currentProject = store.search({
+				query: "project-specific command",
+				scope: "current_project",
+				limit: 10,
+				includeHistory: true,
+			});
 			expect(currentProject.some(entry => entry.scopeKind === "project")).toBe(true);
-			const globalOnly = store.search({ query: "global convention", scope: "global", limit: 10, includeHistory: true });
+			const globalOnly = store.search({
+				query: "global convention",
+				scope: "global",
+				limit: 10,
+				includeHistory: true,
+			});
 			expect(globalOnly.every(entry => entry.scopeKind === "global" || entry.scopeKind === "user")).toBe(true);
-			const failureOnly = store.search({ query: "failure shield", scope: "failure", limit: 10, includeHistory: true });
+			const failureOnly = store.search({
+				query: "failure shield",
+				scope: "failure",
+				limit: 10,
+				includeHistory: true,
+			});
 			expect(failureOnly.every(entry => entry.scopeKind === "failure")).toBe(true);
 		} finally {
 			store.close();
@@ -83,16 +121,28 @@ describe("NexusStore", () => {
 		try {
 			store.add({ target: "project", content: "Command: bun test", confidence: "tool_verified" });
 			store.add({ target: "project", content: "Command: bun   test", confidence: "tool_verified" });
+			store.add({ target: "project", content: "Rule: Always close the file", memoryType: "workflow" });
+			store.add({ target: "project", content: "Rule: Never close the file", memoryType: "workflow" });
 			store.add({ target: "memory", content: "Runtime: enabled", confidence: "imported_unverified" });
-			store.add({ target: "memory", content: "Runtime: disabled", confidence: "imported_unverified" });
-			store.add({ target: "user", content: "Mis-scoped user preference", scope: { ...store.scope, id: store.scope.id, kind: "project" } as any });
+			store.add({
+				target: "user",
+				content: "Mis-scoped user preference",
+				scope: { ...store.scope, id: store.scope.id, kind: "project" } as any,
+			});
 			const healing = store.runSelfHealing();
 			expect(healing.duplicates).toBeGreaterThan(0);
 			expect(healing.stale).toBeGreaterThan(0);
 			expect(healing.contradictions).toBeGreaterThan(0);
 			expect(healing.scopeLeaks).toBeGreaterThan(0);
 			const history = store.search({ query: "Runtime", scope: "all", limit: 10, includeHistory: true });
-			expect(history.some(entry => entry.status === "quarantined" || entry.status === "superseded" || entry.staleness === "needs_refresh")).toBe(true);
+			expect(
+				history.some(
+					entry =>
+						entry.status === "quarantined" ||
+						entry.status === "superseded" ||
+						entry.staleness === "needs_refresh",
+				),
+			).toBe(true);
 		} finally {
 			store.close();
 		}
@@ -106,14 +156,31 @@ describe("NexusStore", () => {
 		const sessionRows = [
 			{ type: "session", id: "thr-1", cwd },
 			{ type: "message", message: { role: "user", content: "Always reply in concise Korean." } },
-			{ type: "message", message: { role: "assistant", content: "Use bun test and memory.backend nexus for this repository. Skill generation should be enabled." } },
-			{ type: "message", message: { role: "assistant", content: "Run bun test before edits; bun test validates project commands." } },
-			{ type: "message", message: { role: "assistant", content: "The last run failed with error: dependency mismatch." } },
+			{
+				type: "message",
+				message: {
+					role: "assistant",
+					content:
+						"Use bun test and memory.backend nexus for this repository. Skill generation should be enabled.",
+				},
+			},
+			{
+				type: "message",
+				message: { role: "assistant", content: "Run bun test before edits; bun test validates project commands." },
+			},
+			{
+				type: "message",
+				message: { role: "assistant", content: "The last run failed with error: dependency mismatch." },
+			},
 		];
-		await Bun.write(path.join(sessionDir, "thr-1.jsonl"), `${sessionRows.map(row => JSON.stringify(row)).join("\n")}\n`);
+		await Bun.write(
+			path.join(sessionDir, "thr-1.jsonl"),
+			`${sessionRows.map(row => JSON.stringify(row)).join("\n")}\n`,
+		);
 		const settings = Settings.isolated({ "memory.backend": "nexus", "nexus.dream.enabled": true });
 		const store = new NexusStore({ agentDir, cwd });
 		try {
+			store.upsertSkill(store.scope.id, "concise-korean", "Always reply in concise Korean.", [], "validated");
 			const result = await runNexusPipeline(store, settings);
 			expect(result.importedSources).toBeGreaterThan(0);
 			expect(result.createdEntries).toBeGreaterThan(0);
@@ -154,9 +221,9 @@ describe("NexusStore", () => {
 		const agentDir = await makeTempDir("nexus-db");
 		const db = openNexusDb(getNexusDbPath(agentDir));
 		try {
-			const row = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'memory_items'").get() as
-				| { name?: string }
-				| undefined;
+			const row = db
+				.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'memory_items'")
+				.get() as { name?: string } | undefined;
 			expect(row?.name).toBe("memory_items");
 		} finally {
 			db.close(false);

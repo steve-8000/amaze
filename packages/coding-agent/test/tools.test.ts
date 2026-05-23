@@ -736,7 +736,7 @@ describe("Coding Agent Tools", () => {
 
 	describe("write tool", () => {
 		it("should write file contents", async () => {
-			const testFile = path.join(testDir, "write-test.txt");
+			const testFile = "write-test.txt";
 			const content = "Test content";
 
 			const result = await writeTool.execute("test-call-3", { path: testFile, content });
@@ -746,7 +746,7 @@ describe("Coding Agent Tools", () => {
 		});
 
 		it("should create parent directories", async () => {
-			const testFile = path.join(testDir, "nested", "dir", "test.txt");
+			const testFile = path.join("nested", "dir", "test.txt");
 			const content = "Nested content";
 
 			const result = await writeTool.execute("test-call-4", { path: testFile, content });
@@ -793,7 +793,7 @@ describe("Coding Agent Tools", () => {
 		});
 
 		it("should create a new archive when writing to an archive subpath", async () => {
-			const archivePath = path.join(testDir, "nested", "created.tar.gz");
+			const archivePath = path.join("nested", "created.tar.gz");
 			const content = "created inside archive\n";
 
 			const result = await writeTool.execute("test-call-archive-write-create", {
@@ -804,15 +804,15 @@ describe("Coding Agent Tools", () => {
 			expect(getTextOutput(result)).toContain(
 				`Successfully wrote ${content.length} bytes to nested/${path.basename(archivePath)}:pkg/new.txt`,
 			);
-			expect(fs.existsSync(archivePath)).toBe(true);
+			expect(fs.existsSync(path.join(testDir, archivePath))).toBe(true);
 
-			const archive = new Bun.Archive(await Bun.file(archivePath).bytes());
+			const archive = new Bun.Archive(await Bun.file(path.join(testDir, archivePath)).bytes());
 			const files = await archive.files();
 			expect(await files.get("pkg/new.txt")?.text()).toBe(content);
 		});
 
 		it("should treat a plain archive filename as a regular file write", async () => {
-			const archivePath = path.join(testDir, "literal.zip");
+			const archivePath = "literal.zip";
 			const content = "plain file contents\n";
 
 			const result = await writeTool.execute("test-call-archive-plain-file", {
@@ -823,7 +823,7 @@ describe("Coding Agent Tools", () => {
 			expect(getTextOutput(result)).toContain(
 				`Successfully wrote ${content.length} bytes to ${path.basename(archivePath)}`,
 			);
-			expect(fs.readFileSync(archivePath, "utf-8")).toBe(content);
+			expect(fs.readFileSync(path.join(testDir, archivePath), "utf-8")).toBe(content);
 		});
 	});
 

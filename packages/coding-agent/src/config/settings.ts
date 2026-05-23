@@ -648,9 +648,10 @@ export class Settings {
 			raw.memory = memoryRoot;
 		}
 
-		// Canonical cutover: persisted legacy backends now migrate to Nexus. Their
-		// data is still imported by Nexus as migration sources, but they are no
-		// longer treated as canonical runtime writers in normal config loads.
+		// Canonical cutover: legacy backend settings migrate to Nexus.
+		// Legacy backend data is not imported automatically.
+		// Prior sessions are reindexed through Nexus session search.
+		// Manual data import: amaze memory migrate-legacy --from <rockey|hindsight>.
 		const migratedMemoryBackend = (raw.memory as Record<string, unknown> | undefined)?.backend;
 		if (
 			migratedMemoryBackend === "rockey" ||

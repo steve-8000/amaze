@@ -51,7 +51,10 @@ const queues = new Map<string, Promise<unknown>>();
 function enqueue<T>(filePath: string, fn: () => Promise<T>): Promise<T> {
 	const prev = queues.get(filePath) ?? Promise.resolve();
 	const next = prev.catch(() => undefined).then(fn);
-	queues.set(filePath, next.catch(() => undefined));
+	queues.set(
+		filePath,
+		next.catch(() => undefined),
+	);
 	return next;
 }
 

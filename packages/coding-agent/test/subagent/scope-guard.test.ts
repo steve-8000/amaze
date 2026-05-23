@@ -110,10 +110,10 @@ describe("V3 Phase 2.2 — tool-layer scope enforcement", () => {
 	it("WriteTool with no contract behaves as before (backward compat)", async () => {
 		const session = createSession(tmpDir);
 		const tool = new WriteTool(session);
-		const filePath = path.join(tmpDir, "anywhere.txt");
+		const filePath = "anywhere.txt";
 
 		await tool.execute("call-4", { path: filePath, content: "no contract" });
-		const written = await Bun.file(filePath).text();
+		const written = await Bun.file(path.join(tmpDir, filePath)).text();
 		expect(written).toBe("no contract");
 	});
 

@@ -68,8 +68,6 @@ const TEXT_EXTENSIONS = new Set([
 ]);
 
 const CODE_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".mts", ".cts"]);
-const MARKDOWN_EXTENSIONS = new Set([".md", ".mdx"]);
-
 const LANGUAGE_BY_EXTENSION = new Map<string, string>([
 	[".ts", "typescript"],
 	[".tsx", "tsx"],
@@ -107,7 +105,6 @@ export async function indexNexusRepository(options: NexusKnowledgeIndexOptions):
 	const store = new NexusKnowledgeStore({ agentDir: options.agentDir, cwd: options.cwd });
 	try {
 		const discovered = await discoverRepositoryFiles(repoRoot, { maxFiles, maxFileBytes });
-		const discoveredPaths = new Set(discovered.map(file => normalizeRelativePath(file.relativePath)));
 		const stats: NexusKnowledgeIndexStats = {
 			repoRoot,
 			discoveredFiles: discovered.length,
@@ -213,7 +210,13 @@ export async function discoverRepositoryFiles(
 
 export function chunkContent(
 	content: string,
-	options: { maxLines?: number; maxChars?: number; language?: string | null; kind?: "code" | "text"; symbols?: SymbolCandidate[] } = {},
+	options: {
+		maxLines?: number;
+		maxChars?: number;
+		language?: string | null;
+		kind?: "code" | "text";
+		symbols?: SymbolCandidate[];
+	} = {},
 ): NexusKnowledgeUpsertDocumentInput["chunks"] {
 	const maxLines = options.maxLines ?? DEFAULT_CHUNK_MAX_LINES;
 	const maxChars = options.maxChars ?? DEFAULT_CHUNK_MAX_CHARS;
@@ -222,7 +225,7 @@ export function chunkContent(
 		maxLines,
 		maxChars,
 		isMarkdown: options.language === "markdown" || options.language === "mdx",
-		symbols: options.kind === "code" ? options.symbols ?? [] : [],
+		symbols: options.kind === "code" ? (options.symbols ?? []) : [],
 	});
 	return ranges.map((range, chunkIndex) => {
 		const chunkLines = lines.slice(range.startLine - 1, range.endLine);
@@ -285,7 +288,10 @@ export function extractJsTsSymbols(content: string): SymbolCandidate[] {
 		if (matched) continue;
 
 		if (currentClass && currentClass.startLine < lineNumber && lineNumber <= currentClass.endLine) {
-			const methodMatch = /^(\s*)(?:public\s+|private\s+|protected\s+|static\s+|async\s+|readonly\s+|override\s+|get\s+|set\s+|\*)*([A-Za-z_$][\w$]*)\s*\([^;]*\)\s*\{/.exec(line);
+			const methodMatch =
+				/^(\s*)(?:public\s+|private\s+|protected\s+|static\s+|async\s+|readonly\s+|override\s+|get\s+|set\s+|\*)*([A-Za-z_$][\w$]*)\s*\([^;]*\)\s*\{/.exec(
+					line,
+				);
 			const name = methodMatch?.[2] ?? "";
 			if (name && name !== "constructor") {
 				add({
@@ -303,7 +309,10 @@ export function extractJsTsSymbols(content: string): SymbolCandidate[] {
 		}
 
 		if (currentObject && currentObject.startLine < lineNumber && lineNumber <= currentObject.endLine) {
-			const objectMethodMatch = /^(\s*)([A-Za-z_$][\w$]*)\s*:\s*(?:async\s*)?(?:function\b|\([^)]*\)\s*=>|[A-Za-z_$][\w$]*\s*=>)/.exec(line);
+			const objectMethodMatch =
+				/^(\s*)([A-Za-z_$][\w$]*)\s*:\s*(?:async\s*)?(?:function\b|\([^)]*\)\s*=>|[A-Za-z_$][\w$]*\s*=>)/.exec(
+					line,
+				);
 			const name = objectMethodMatch?.[2] ?? "";
 			if (name) {
 				add({
@@ -322,7 +331,10 @@ export function extractJsTsSymbols(content: string): SymbolCandidate[] {
 
 		const exportMatch = /^\s*export\s*\{([^}]+)\}/.exec(line);
 		if (exportMatch?.[1]) {
-			for (const part of exportMatch[1].split(",").map(value => value.trim()).filter(Boolean)) {
+			for (const part of exportMatch[1]
+				.split(",")
+				.map(value => value.trim())
+				.filter(Boolean)) {
 				const aliasMatch = /^(?<local>[A-Za-z_$][\w$]*)(?:\s+as\s+(?<exported>[A-Za-z_$][\w$]*))?$/.exec(part);
 				const local = aliasMatch?.groups?.local ?? "";
 				const exportedName = aliasMatch?.groups?.exported ?? local;
@@ -350,11 +362,22 @@ export function extractJsTsSymbols(content: string): SymbolCandidate[] {
 		if (symbol) symbol.exported = true;
 	}
 
-	return symbols.sort((left, right) => left.line - right.line || left.column - right.column || left.name.localeCompare(right.name));
+	return symbols.sort(
+		(left, right) => left.line - right.line || left.column - right.column || left.name.localeCompare(right.name),
+	);
 }
 
-const DECLARATION_PATTERNS: { kind: NexusKnowledgeSymbolKind; regex: RegExp; nameGroup: number; forceExported?: boolean }[] = [
-	{ kind: "function", regex: /^(\s*)(export\s+)?(?:default\s+)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*\([^)]*\)/, nameGroup: 3 },
+const DECLARATION_PATTERNS: {
+	kind: NexusKnowledgeSymbolKind;
+	regex: RegExp;
+	nameGroup: number;
+	forceExported?: boolean;
+}[] = [
+	{
+		kind: "function",
+		regex: /^(\s*)(export\s+)?(?:default\s+)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*\([^)]*\)/,
+		nameGroup: 3,
+	},
 	{ kind: "class", regex: /^(\s*)(export\s+)?(?:default\s+)?class\s+([A-Za-z_$][\w$]*)\b/, nameGroup: 3 },
 	{ kind: "interface", regex: /^(\s*)(export\s+)?interface\s+([A-Za-z_$][\w$]*)\b/, nameGroup: 3 },
 	{ kind: "type", regex: /^(\s*)(export\s+)?type\s+([A-Za-z_$][\w$]*)\b/, nameGroup: 3 },
@@ -403,7 +426,12 @@ function buildChunkRanges(
 	return chunks;
 }
 
-function findPreferredChunkEnd(preferredStarts: number[], startLine: number, maxLines: number, maxLineCount: number): number {
+function findPreferredChunkEnd(
+	preferredStarts: number[],
+	startLine: number,
+	maxLines: number,
+	maxLineCount: number,
+): number {
 	const hardEnd = Math.min(maxLineCount, startLine + maxLines - 1);
 	const candidateStarts = preferredStarts.filter(line => line > startLine && line <= hardEnd);
 	if (candidateStarts.length === 0) return hardEnd;

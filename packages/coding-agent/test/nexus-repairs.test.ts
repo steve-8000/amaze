@@ -42,9 +42,21 @@ describe("NexusStore semantic dedup", () => {
 		const cwd = await makeTempDir("nexus-sem-dedup-cwd");
 		const store = new NexusStore({ agentDir, cwd });
 		try {
-			const canonical = store.add({ target: "user", content: "Reply in concise Korean.", confidence: "user_asserted" });
-			const paraphrase = store.add({ target: "user", content: "Keep responses concise in Korean.", confidence: "user_asserted" });
-			const lookalike = store.add({ target: "user", content: "Apologise at most once per turn.", confidence: "user_asserted" });
+			const canonical = store.add({
+				target: "user",
+				content: "Reply in concise Korean.",
+				confidence: "user_asserted",
+			});
+			const paraphrase = store.add({
+				target: "user",
+				content: "Keep responses concise in Korean.",
+				confidence: "user_asserted",
+			});
+			const lookalike = store.add({
+				target: "user",
+				content: "Apologise at most once per turn.",
+				confidence: "user_asserted",
+			});
 			expect(canonical.entry && paraphrase.entry && lookalike.entry).toBeTruthy();
 
 			const near = unitVector([1, 0, 0, 0]);
@@ -111,7 +123,10 @@ describe("NexusPipeline usedLlm / usedEmbeddings accuracy", () => {
 		await fs.mkdir(sessionDir, { recursive: true });
 		const rows = [
 			{ type: "session", id: "thr-1", cwd },
-			{ type: "message", message: { role: "user", content: "Always prefer concise replies and use bun test for validation." } },
+			{
+				type: "message",
+				message: { role: "user", content: "Always prefer concise replies and use bun test for validation." },
+			},
 		];
 		await Bun.write(path.join(sessionDir, "thr-1.jsonl"), `${rows.map(row => JSON.stringify(row)).join("\n")}\n`);
 

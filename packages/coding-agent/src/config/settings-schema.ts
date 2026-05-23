@@ -1358,11 +1358,19 @@ export const SETTINGS_SCHEMA = {
 	"nexus.pipeline.enabled": { type: "boolean", default: true },
 	"nexus.healing.enabled": { type: "boolean", default: true },
 	"nexus.healing.autoApplySafeRepairs": { type: "boolean", default: true },
-	"nexus.contradictionThreshold": { type: "number", default: 0.7, description: "Minimum likelihood score (0–1) for marking two memory items as contradicting." },
+	"nexus.contradictionThreshold": {
+		type: "number",
+		default: 0.7,
+		description: "Minimum likelihood score (0–1) for marking two memory items as contradicting.",
+	},
 	"nexus.dream.enabled": { type: "boolean", default: false },
 	"nexus.dream.hypothesesOnly": { type: "boolean", default: true },
 	"nexus.onlineConsolidation.enabled": { type: "boolean", default: true },
-	"nexus.onlineConsolidation.minIntervalMs": { type: "number", default: 0, description: "Minimum milliseconds between online consolidations per session. 0 disables debounce." },
+	"nexus.onlineConsolidation.minIntervalMs": {
+		type: "number",
+		default: 0,
+		description: "Minimum milliseconds between online consolidations per session. 0 disables debounce.",
+	},
 	"nexus.hypothesisVerification.enabled": { type: "boolean", default: true },
 	"nexus.conceptualSkills.enabled": { type: "boolean", default: true },
 	"nexus.fallback.deterministicConsolidation": { type: "boolean", default: true },
@@ -1374,7 +1382,11 @@ export const SETTINGS_SCHEMA = {
 	"nexus.embeddings.provider": { type: "string", default: "disabled" },
 	"nexus.embeddings.baseUrl": { type: "string", default: undefined },
 	"nexus.embeddings.model": { type: "string", default: undefined },
-	"nexus.embedding.reindexOnDrift": { type: "boolean", default: true, description: "Re-embed entries when the active embedding model changes." },
+	"nexus.embedding.reindexOnDrift": {
+		type: "boolean",
+		default: true,
+		description: "Re-embed entries when the active embedding model changes.",
+	},
 	"nexus.vector.enabled": { type: "boolean", default: false },
 	"nexus.vector.provider": { type: "string", default: "disabled" },
 	"nexus.reranker.enabled": { type: "boolean", default: false },
@@ -2164,6 +2176,61 @@ export const SETTINGS_SCHEMA = {
 			tab: "tasks",
 			label: "Goal Status In Footer",
 			description: "Show token budget alongside the goal indicator in the status line",
+		},
+	},
+
+	"autonomy.enabled": {
+		type: "boolean",
+		default: false,
+		ui: {
+			tab: "tasks",
+			label: "Autonomy",
+			description: "Enable the autonomous long-horizon objective loop",
+		},
+	},
+
+	"goal.uncertainPolicy": {
+		type: "enum",
+		values: ["allow", "warn", "block-manual", "block-all"] as const,
+		default: "block-manual",
+		ui: {
+			tab: "tasks",
+			label: "Goal Uncertain Policy",
+			description: "Controls whether uncertain acceptance verifier results block goal completion",
+			options: [
+				{ value: "allow", label: "Allow", description: "Do not block or escalate uncertain verifier results" },
+				{
+					value: "warn",
+					label: "Warn",
+					description: "Surface uncertain verifier results without blocking completion",
+				},
+				{
+					value: "block-manual",
+					label: "Block Non-Manual",
+					description: "Block uncertain automated criteria while allowing manual review criteria",
+				},
+				{ value: "block-all", label: "Block All", description: "Block every uncertain verifier result" },
+			],
+		},
+	},
+
+	"verifier.allowShellCriteria": {
+		type: "boolean",
+		default: false,
+		ui: {
+			tab: "tasks",
+			label: "Verifier Shell Criteria",
+			description: "Allow acceptance verifier command criteria to run deprecated shell command strings",
+		},
+	},
+
+	"task.yield.allowSchemaBypass": {
+		type: "boolean",
+		default: false,
+		ui: {
+			tab: "tasks",
+			label: "Yield Schema Bypass",
+			description: "Allow structured yield output to bypass schema validation after the first failed attempt",
 		},
 	},
 

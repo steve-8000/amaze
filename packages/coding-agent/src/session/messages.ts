@@ -11,14 +11,7 @@ import {
 	renderBranchSummaryContext,
 	renderCompactionSummaryContext,
 } from "@amaze/agent-core/compaction/messages";
-import type {
-	AssistantMessage,
-	ImageContent,
-	Message,
-	MessageAttribution,
-	TextContent,
-	ToolResultMessage,
-} from "@amaze/ai";
+import type { AssistantMessage, ImageContent, Message, MessageAttribution, TextContent } from "@amaze/ai";
 
 export {
 	type BranchSummaryMessage,
@@ -109,16 +102,6 @@ export function stripInternalDetailsFields<T>(details: T | undefined): T | undef
 		delete cleaned[key];
 	}
 	return cleaned as T;
-}
-
-function getPrunedToolResultContent(message: ToolResultMessage): (TextContent | ImageContent)[] {
-	if (message.prunedAt === undefined) {
-		return message.content;
-	}
-	return message.content.map(item => {
-		if (item.type !== "text") return item;
-		return { ...item, text: item.text.slice(0, message.prunedAt!) };
-	});
 }
 
 export interface BashExecutionMessage {
@@ -359,9 +342,7 @@ export function convertToLlm(messages: AgentMessage[]): Message[] {
 						content: [
 							{
 								type: "text",
-								text: m.files
-									.map(file => `File: ${file.path}\n\`\`\`\n${file.content}\n\`\`\``)
-									.join("\n\n"),
+								text: m.files.map(file => `File: ${file.path}\n\`\`\`\n${file.content}\n\`\`\``).join("\n\n"),
 							},
 						],
 						attribution: "user",

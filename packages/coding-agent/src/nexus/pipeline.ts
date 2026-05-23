@@ -29,6 +29,7 @@ import * as path from "node:path";
 import { logger, parseJsonlLenient } from "@amaze/utils";
 
 import type { Settings } from "../config/settings";
+import type { ProposalStore } from "../learning";
 import type { NexusConfig } from "./config";
 import { loadNexusConfig } from "./config";
 import type { NexusEmbeddingClient } from "./embedding-client";
@@ -36,7 +37,7 @@ import { createNexusEmbeddingClient } from "./embedding-client";
 import type { NexusLlmClient } from "./llm-client";
 import { createNexusLlmClient } from "./llm-client";
 import { scopeForTarget } from "./scope";
-import { recordPipelineStage, recordRuntimeEvent, type NexusStore } from "./store";
+import { type NexusStore, recordPipelineStage, recordRuntimeEvent } from "./store";
 import type { NexusConfidence, NexusMemoryCategory, NexusMemoryTarget, NexusMemoryType } from "./types";
 
 export interface NexusPipelineResult {
@@ -60,6 +61,7 @@ export interface NexusPipelineResult {
 export interface NexusPipelineOptions {
 	llmClient?: NexusLlmClient | null;
 	embeddingClient?: NexusEmbeddingClient | null;
+	proposalStore?: ProposalStore;
 }
 
 interface PipelineCounters {
@@ -79,7 +81,11 @@ interface PipelineCounters {
 	embedSuccesses: number;
 }
 
-export async function runNexusPipeline(store: NexusStore, settings: Settings, options: NexusPipelineOptions = {}): Promise<NexusPipelineResult> {
+export async function runNexusPipeline(
+	store: NexusStore,
+	settings: Settings,
+	options: NexusPipelineOptions = {},
+): Promise<NexusPipelineResult> {
 	const config = loadNexusConfig(settings);
 	const counters: PipelineCounters = {
 		importedSources: 0,
@@ -98,7 +104,8 @@ export async function runNexusPipeline(store: NexusStore, settings: Settings, op
 	}
 	const runId = `pipeline:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
 	const llmClient = options.llmClient === undefined ? createNexusLlmClient(config) : options.llmClient;
-	const embeddingClient = options.embeddingClient === undefined ? createNexusEmbeddingClient(config) : options.embeddingClient;
+	const embeddingClient =
+		options.embeddingClient === undefined ? createNexusEmbeddingClient(config) : options.embeddingClient;
 
 	await runStage(store, runId, "ingest", async () => {
 		await ingestRollouts(store, config, counters, llmClient);
@@ -130,7 +137,7 @@ export async function runNexusPipeline(store: NexusStore, settings: Settings, op
 	if (config.conceptualSkillEnabled) {
 		await runStage(store, runId, "skill-promotion", async () => {
 			const before = counters.llmCalls;
-			await promoteConceptualSkills(store, config, counters, llmClient);
+			await promoteConceptualSkills(store, config, counters, llmClient, options.proposalStore);
 			return { llmCalls: counters.llmCalls - before };
 		});
 	}
@@ -151,11 +158,31 @@ async function runStage<T>(store: NexusStore, runId: string, stage: string, fn: 
 		const result = await fn();
 		const llmCalls = (result as { llmCalls?: number } | null | undefined)?.llmCalls ?? 0;
 		const embedCalls = (result as { embedCalls?: number } | null | undefined)?.embedCalls ?? 0;
-		recordPipelineStage(store.db, { kind: "pipeline", jobKey: `${runId}:${stage}`, stage, durationMs: Date.now() - started, llmCalls, embedCalls, status: "success" });
+		recordPipelineStage(store.db, {
+			kind: "pipeline",
+			jobKey: `${runId}:${stage}`,
+			stage,
+			durationMs: Date.now() - started,
+			llmCalls,
+			embedCalls,
+			status: "success",
+		});
 		return result;
 	} catch (error) {
-		recordPipelineStage(store.db, { kind: "pipeline", jobKey: `${runId}:${stage}`, stage, durationMs: Date.now() - started, status: "failure", lastError: String(error) });
-		recordRuntimeEvent(store.db, { kind: "pipeline_stage_failure", severity: "warn", message: String(error), context: { stage, runId } });
+		recordPipelineStage(store.db, {
+			kind: "pipeline",
+			jobKey: `${runId}:${stage}`,
+			stage,
+			durationMs: Date.now() - started,
+			status: "failure",
+			lastError: String(error),
+		});
+		recordRuntimeEvent(store.db, {
+			kind: "pipeline_stage_failure",
+			severity: "warn",
+			message: String(error),
+			context: { stage, runId },
+		});
 		throw error;
 	}
 }
@@ -196,7 +223,8 @@ export async function runNexusOnlineConsolidation(
 		return finalize(counters, 0);
 	}
 	const llmClient = options.llmClient === undefined ? createNexusLlmClient(config) : options.llmClient;
-	const embeddingClient = options.embeddingClient === undefined ? createNexusEmbeddingClient(config) : options.embeddingClient;
+	const embeddingClient =
+		options.embeddingClient === undefined ? createNexusEmbeddingClient(config) : options.embeddingClient;
 	const content = messages.map(message => `${message.role}: ${message.content}`).join("\n");
 	const sourceId = store.importSource({
 		sourceKind: "online_turn",
@@ -242,8 +270,12 @@ function emptyCounters(): PipelineCounters {
 	};
 }
 
-
-async function ingestRollouts(store: NexusStore, config: NexusConfig, counters: PipelineCounters, llmClient: NexusLlmClient | null): Promise<void> {
+async function ingestRollouts(
+	store: NexusStore,
+	config: NexusConfig,
+	counters: PipelineCounters,
+	llmClient: NexusLlmClient | null,
+): Promise<void> {
 	const sessionDir = path.join(store.options.agentDir, "sessions");
 	const names = await fs.readdir(sessionDir).catch(() => [] as string[]);
 	let processed = 0;
@@ -336,10 +368,15 @@ interface LlmCandidate {
 	confidence?: string;
 }
 
-async function extractMemoriesViaLlm(client: NexusLlmClient, text: string, role: string, config: NexusConfig): Promise<{ ok: true; value: LlmCandidate[] } | { ok: false; error: string }> {
+async function extractMemoriesViaLlm(
+	client: NexusLlmClient,
+	text: string,
+	role: string,
+	config: NexusConfig,
+): Promise<{ ok: true; value: LlmCandidate[] } | { ok: false; error: string }> {
 	const system = [
 		"You distill durable memory from a single transcript message.",
-		"Return JSON ONLY with this shape: {\"memories\":[{\"target\":\"user|project|knowledge|failure\",\"content\":\"...\",\"memoryType\":\"preference|project_convention|failure|command|decision|architecture|workflow|tool_quirk|skill_candidate|note\",\"category\":\"preference|convention|tool-quirk|insight|correction|failure\",\"confidence\":\"user_asserted|tool_verified|inferred\"}]}.",
+		'Return JSON ONLY with this shape: {"memories":[{"target":"user|project|knowledge|failure","content":"...","memoryType":"preference|project_convention|failure|command|decision|architecture|workflow|tool_quirk|skill_candidate|note","category":"preference|convention|tool-quirk|insight|correction|failure","confidence":"user_asserted|tool_verified|inferred"}]}.',
 		"Use the empty array when nothing is worth saving long-term. Never invent facts. Never copy secrets, tokens, or credentials.",
 		"Prefer short imperative sentences. One memory per distinct fact.",
 	].join("\n");
@@ -350,9 +387,7 @@ async function extractMemoriesViaLlm(client: NexusLlmClient, text: string, role:
 		temperature: config.extractionTemperature,
 		maxTokens: 512,
 		validate: (value): value is { memories: LlmCandidate[] } =>
-			!!value &&
-			typeof value === "object" &&
-			Array.isArray((value as { memories?: unknown }).memories),
+			!!value && typeof value === "object" && Array.isArray((value as { memories?: unknown }).memories),
 	});
 	if (!result.ok) return result;
 	const memories = result.value.memories;
@@ -395,9 +430,18 @@ function recordCandidate(store: NexusStore, candidate: LlmCandidate, sourcePath:
 	let target = candidate.target;
 	if (target === "memory") target = "knowledge";
 	if (!target || !ALLOWED_TARGETS.has(target as NexusMemoryTarget)) return false;
-	const category = candidate.category && ALLOWED_CATEGORIES.has(candidate.category as NexusMemoryCategory) ? (candidate.category as NexusMemoryCategory) : undefined;
-	const memoryType = candidate.memoryType && ALLOWED_TYPES.has(candidate.memoryType as NexusMemoryType) ? (candidate.memoryType as NexusMemoryType) : undefined;
-	const confidence = candidate.confidence && ALLOWED_CONFIDENCES.has(candidate.confidence as NexusConfidence) ? (candidate.confidence as NexusConfidence) : "inferred";
+	const category =
+		candidate.category && ALLOWED_CATEGORIES.has(candidate.category as NexusMemoryCategory)
+			? (candidate.category as NexusMemoryCategory)
+			: undefined;
+	const memoryType =
+		candidate.memoryType && ALLOWED_TYPES.has(candidate.memoryType as NexusMemoryType)
+			? (candidate.memoryType as NexusMemoryType)
+			: undefined;
+	const confidence =
+		candidate.confidence && ALLOWED_CONFIDENCES.has(candidate.confidence as NexusConfidence)
+			? (candidate.confidence as NexusConfidence)
+			: "inferred";
 	const result = store.add({
 		target: target as NexusMemoryTarget,
 		content,
@@ -458,12 +502,19 @@ function heuristicExtract(store: NexusStore, text: string, role: string, sourceP
 	return entries;
 }
 
-async function backfillEmbeddings(store: NexusStore, client: NexusEmbeddingClient, config: NexusConfig, counters: PipelineCounters): Promise<void> {
+async function backfillEmbeddings(
+	store: NexusStore,
+	client: NexusEmbeddingClient,
+	config: NexusConfig,
+	counters: PipelineCounters,
+): Promise<void> {
 	const budget = Math.max(0, config.maxEmbedCalls - counters.embedCalls);
 	if (budget === 0) return;
 	const activeModel = client.model || config.embeddingsModel || null;
 	const pending =
-		config.reembedOnDrift === false ? store.listMissingEmbeddings(budget).map(entry => ({ ...entry, reason: "missing" as const })) : store.listMissingOrStaleEmbeddings(budget, activeModel);
+		config.reembedOnDrift === false
+			? store.listMissingEmbeddings(budget).map(entry => ({ ...entry, reason: "missing" as const }))
+			: store.listMissingOrStaleEmbeddings(budget, activeModel);
 	if (pending.length === 0) return;
 	const drifted = pending.filter(entry => entry.reason === "stale_model");
 	if (drifted.length > 0 && activeModel) {
@@ -493,14 +544,29 @@ async function backfillEmbeddings(store: NexusStore, client: NexusEmbeddingClien
 	if (inserted > 0) counters.embedSuccesses += 1;
 }
 
-async function verifyProposedHypotheses(store: NexusStore, config: NexusConfig, counters: PipelineCounters, llmClient: NexusLlmClient | null): Promise<void> {
+async function verifyProposedHypotheses(
+	store: NexusStore,
+	config: NexusConfig,
+	counters: PipelineCounters,
+	llmClient: NexusLlmClient | null,
+): Promise<void> {
 	const hypotheses = store.listHypotheses("proposed", 5);
 	if (hypotheses.length === 0) return;
-	const activeMemory = store.list({ scope: "all", limit: 80 }).map(entry => `- ${entry.content}`).join("\n");
+	const activeMemory = store
+		.list({ scope: "all", limit: 80 })
+		.map(entry => `- ${entry.content}`)
+		.join("\n");
 	for (const hypothesis of hypotheses) {
 		if (!llmClient || counters.llmCalls >= config.maxLlmCalls) {
 			if (hypothesis.supportingMemoryIds.length === 0) {
-				if (store.updateHypothesisStatus(hypothesis.id, "expired", "No supporting memory ids remained available for verification.", "nexus_hypothesis_fallback")) {
+				if (
+					store.updateHypothesisStatus(
+						hypothesis.id,
+						"expired",
+						"No supporting memory ids remained available for verification.",
+						"nexus_hypothesis_fallback",
+					)
+				) {
 					counters.hypothesesVerified += 1;
 				}
 			}
@@ -510,7 +576,7 @@ async function verifyProposedHypotheses(store: NexusStore, config: NexusConfig, 
 		const result = await llmClient.completeJson<{ status: "accepted" | "rejected" | "expired"; reason: string }>({
 			system: [
 				"Verify one proposed memory hypothesis against active durable memory.",
-				"Return JSON only: {\"status\":\"accepted|rejected|expired\",\"reason\":\"...\"}.",
+				'Return JSON only: {"status":"accepted|rejected|expired","reason":"..."}.',
 				"accepted means active memory directly supports the hypothesis.",
 				"rejected means active memory directly contradicts it.",
 				"expired means active memory is insufficient to judge it.",
@@ -532,16 +598,26 @@ async function verifyProposedHypotheses(store: NexusStore, config: NexusConfig, 
 			maxTokens: 240,
 			validate: (value): value is { status: "accepted" | "rejected" | "expired"; reason: string } => {
 				const maybe = value as { status?: unknown; reason?: unknown };
-				return (maybe.status === "accepted" || maybe.status === "rejected" || maybe.status === "expired") && typeof maybe.reason === "string";
+				return (
+					(maybe.status === "accepted" || maybe.status === "rejected" || maybe.status === "expired") &&
+					typeof maybe.reason === "string"
+				);
 			},
 		});
 		if (!result.ok) continue;
 		counters.llmSuccesses += 1;
-		if (store.updateHypothesisStatus(hypothesis.id, result.value.status, result.value.reason)) counters.hypothesesVerified += 1;
+		if (store.updateHypothesisStatus(hypothesis.id, result.value.status, result.value.reason))
+			counters.hypothesesVerified += 1;
 	}
 }
 
-async function promoteConceptualSkills(store: NexusStore, config: NexusConfig, counters: PipelineCounters, llmClient: NexusLlmClient | null): Promise<void> {
+async function promoteConceptualSkills(
+	store: NexusStore,
+	config: NexusConfig,
+	counters: PipelineCounters,
+	llmClient: NexusLlmClient | null,
+	proposalStore?: ProposalStore,
+): Promise<void> {
 	const candidates = store.listSkillCandidateEntries(40);
 	if (candidates.length < 3 || !llmClient || counters.llmCalls >= config.maxLlmCalls) return;
 	const grouped = new Map<string, typeof candidates>();
@@ -556,8 +632,8 @@ async function promoteConceptualSkills(store: NexusStore, config: NexusConfig, c
 		const result = await llmClient.completeJson<{ name: string; content: string; sourceMemoryIds?: string[] }>({
 			system: [
 				"Create one reusable procedural skill from repeated memory evidence.",
-				"Return JSON only: {\"name\":\"short slug-like name\",\"content\":\"procedure markdown\",\"sourceMemoryIds\":[\"...\"]}.",
-				"Only use facts present in the input memories. If no real reusable skill exists, return name=\"\" and content=\"\".",
+				'Return JSON only: {"name":"short slug-like name","content":"procedure markdown","sourceMemoryIds":["..."]}.',
+				'Only use facts present in the input memories. If no real reusable skill exists, return name="" and content="".',
 			].join("\n"),
 			messages: [
 				{
@@ -572,7 +648,11 @@ async function promoteConceptualSkills(store: NexusStore, config: NexusConfig, c
 			maxTokens: 700,
 			validate: (value): value is { name: string; content: string; sourceMemoryIds?: string[] } => {
 				const maybe = value as { name?: unknown; content?: unknown; sourceMemoryIds?: unknown };
-				return typeof maybe.name === "string" && typeof maybe.content === "string" && (maybe.sourceMemoryIds === undefined || Array.isArray(maybe.sourceMemoryIds));
+				return (
+					typeof maybe.name === "string" &&
+					typeof maybe.content === "string" &&
+					(maybe.sourceMemoryIds === undefined || Array.isArray(maybe.sourceMemoryIds))
+				);
 			},
 		});
 		if (!result.ok) continue;
@@ -581,23 +661,49 @@ async function promoteConceptualSkills(store: NexusStore, config: NexusConfig, c
 		const content = result.value.content.trim();
 		if (!name || !content) continue;
 		const allowedIds = new Set(entries.map(entry => entry.id));
-		const sourceIds = (result.value.sourceMemoryIds ?? entries.slice(0, 8).map(entry => entry.id)).filter(id => allowedIds.has(id));
+		const sourceIds = (result.value.sourceMemoryIds ?? entries.slice(0, 8).map(entry => entry.id)).filter(id =>
+			allowedIds.has(id),
+		);
 		if (sourceIds.length === 0) continue;
-		if (store.upsertSkill(scopeId, name, content, sourceIds, "active")) counters.conceptualSkills += 1;
+		if (proposalStore) {
+			proposalStore.create({
+				type: "skill",
+				gate: "review",
+				evidence: { sessionIds: [], eventRefs: [], sampleN: sourceIds.length, ruleFindings: [] },
+				provenance: { source: "reflection" },
+				name,
+				sourceMemoryIds: sourceIds,
+				bodyMarkdown: content,
+			});
+		}
+		if (store.upsertSkill(scopeId, name, content, sourceIds, "eval_pending")) counters.conceptualSkills += 1;
 	}
 }
 
-async function reflect(store: NexusStore, config: NexusConfig, counters: PipelineCounters, llmClient: NexusLlmClient | null): Promise<void> {
+async function reflect(
+	store: NexusStore,
+	config: NexusConfig,
+	counters: PipelineCounters,
+	llmClient: NexusLlmClient | null,
+): Promise<void> {
 	if (!config.dreamEnabled) return;
 	const projectEntries = store.search({ query: store.scope.displayName, scope: "current_project", limit: 8 });
 	if (projectEntries.length === 0) return;
 
 	if (llmClient && counters.llmCalls < config.maxLlmCalls) {
 		counters.llmCalls += 1;
-		const reflection = await reflectViaLlm(llmClient, projectEntries.map(entry => entry.content), config);
+		const reflection = await reflectViaLlm(
+			llmClient,
+			projectEntries.map(entry => entry.content),
+			config,
+		);
 		if (reflection.ok) {
 			counters.llmSuccesses += 1;
-			store.createHypothesis(reflection.value.prompt, reflection.value.hypothesis, projectEntries.map(entry => entry.id));
+			store.createHypothesis(
+				reflection.value.prompt,
+				reflection.value.hypothesis,
+				projectEntries.map(entry => entry.id),
+			);
 			counters.hypotheses += 1;
 			return;
 		}
@@ -614,17 +720,24 @@ async function reflect(store: NexusStore, config: NexusConfig, counters: Pipelin
 	counters.hypotheses += 1;
 }
 
-async function reflectViaLlm(client: NexusLlmClient, recentContents: string[], config: NexusConfig): Promise<{ ok: true; value: { prompt: string; hypothesis: string } } | { ok: false; error: string }> {
+async function reflectViaLlm(
+	client: NexusLlmClient,
+	recentContents: string[],
+	config: NexusConfig,
+): Promise<{ ok: true; value: { prompt: string; hypothesis: string } } | { ok: false; error: string }> {
 	const system = [
 		"You are reading a few short durable memories from a single project and proposing ONE hypothesis worth verifying.",
-		"Return JSON ONLY of the exact shape: {\"prompt\": string, \"hypothesis\": string}.",
+		'Return JSON ONLY of the exact shape: {"prompt": string, "hypothesis": string}.',
 		"Hard rules:",
 		"- Use only nouns, commands, file names, dates, and proper nouns that appear verbatim in the provided memories.",
 		"- Do not invent topics such as performance, latency, concurrency, scalability, monitoring, benchmarking, or compliance unless they are already present in the input.",
 		"- The hypothesis must be a single falsifiable claim about something the team can verify next session with a concrete action.",
-		"- If the memories do not support any non-trivial hypothesis, return {\"prompt\":\"No hypothesis worth verifying.\",\"hypothesis\":\"No hypothesis worth verifying.\"}.",
+		'- If the memories do not support any non-trivial hypothesis, return {"prompt":"No hypothesis worth verifying.","hypothesis":"No hypothesis worth verifying."}.',
 	].join("\n");
-	const userPrompt = ["Recent durable memory (newest first):", ...recentContents.slice(0, 12).map((content, i) => `- (#${i + 1}) ${content.slice(0, 400)}`)].join("\n");
+	const userPrompt = [
+		"Recent durable memory (newest first):",
+		...recentContents.slice(0, 12).map((content, i) => `- (#${i + 1}) ${content.slice(0, 400)}`),
+	].join("\n");
 	const result = await client.completeJson<{ prompt: string; hypothesis: string }>({
 		messages: [{ role: "user", content: userPrompt }],
 		system,

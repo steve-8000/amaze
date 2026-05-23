@@ -50,7 +50,10 @@ const toolSession: ToolSession = {
 
 async function getToolMetadata(): Promise<Map<string, { loadMode?: string; summary?: string }>> {
 	const metadata = new Map<string, { loadMode?: string; summary?: string }>();
-	const tools = await createTools({ ...toolSession, settings: createAllToolsSettings("nexus") }, Object.keys(BUILTIN_TOOLS));
+	const tools = await createTools(
+		{ ...toolSession, settings: createAllToolsSettings("nexus") },
+		Object.keys(BUILTIN_TOOLS),
+	);
 	for (const tool of tools) {
 		metadata.set(tool.name, { loadMode: tool.loadMode, summary: tool.summary });
 	}

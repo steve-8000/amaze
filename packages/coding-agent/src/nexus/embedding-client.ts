@@ -47,7 +47,10 @@ export interface NexusEmbeddingClientOptions {
 const DEFAULT_TIMEOUT_MS = 30_000;
 const DEFAULT_BATCH_SIZE = 32;
 
-export function createNexusEmbeddingClient(config: NexusConfig, options: NexusEmbeddingClientOptions = {}): NexusEmbeddingClient | null {
+export function createNexusEmbeddingClient(
+	config: NexusConfig,
+	options: NexusEmbeddingClientOptions = {},
+): NexusEmbeddingClient | null {
 	if (!config.embeddingsEnabled) return null;
 	const baseUrl = sanitizeBaseUrl(config.embeddingsBaseUrl);
 	const model = config.embeddingsModel?.trim();
@@ -92,7 +95,11 @@ abstract class BaseEmbeddingClient implements NexusEmbeddingClient {
 		this.fetchImpl = args.options.fetch ?? fetch;
 		this.timeoutMs = args.options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 		this.#batchSize = Math.max(1, args.options.batchSize ?? DEFAULT_BATCH_SIZE);
-		const headers: Record<string, string> = { "content-type": "application/json", accept: "application/json", ...(args.defaultHeaders ?? {}) };
+		const headers: Record<string, string> = {
+			"content-type": "application/json",
+			accept: "application/json",
+			...(args.defaultHeaders ?? {}),
+		};
 		if (args.options.apiKey) headers.authorization = `Bearer ${args.options.apiKey}`;
 		if (args.options.headers) Object.assign(headers, args.options.headers);
 		this.headers = headers;
@@ -117,15 +124,30 @@ abstract class BaseEmbeddingClient implements NexusEmbeddingClient {
 		return { ok: true, batch: { vectors, model: this.model } };
 	}
 
-	protected abstract embedBatch(inputs: string[], signal?: AbortSignal): Promise<{ ok: true; vectors: Float32Array[] } | { ok: false; error: string }>;
+	protected abstract embedBatch(
+		inputs: string[],
+		signal?: AbortSignal,
+	): Promise<{ ok: true; vectors: Float32Array[] } | { ok: false; error: string }>;
 
-	protected async post(url: string, body: unknown, signal?: AbortSignal): Promise<{ ok: true; json: unknown } | { ok: false; error: string }> {
+	protected async post(
+		url: string,
+		body: unknown,
+		signal?: AbortSignal,
+	): Promise<{ ok: true; json: unknown } | { ok: false; error: string }> {
 		const controller = new AbortController();
 		const onAbort = () => controller.abort(signal?.reason);
 		signal?.addEventListener("abort", onAbort, { once: true });
-		const timer = setTimeout(() => controller.abort(new Error(`Nexus embeddings timeout after ${this.timeoutMs}ms`)), this.timeoutMs);
+		const timer = setTimeout(
+			() => controller.abort(new Error(`Nexus embeddings timeout after ${this.timeoutMs}ms`)),
+			this.timeoutMs,
+		);
 		try {
-			const response = await this.fetchImpl(url, { method: "POST", headers: this.headers, body: JSON.stringify(body), signal: controller.signal });
+			const response = await this.fetchImpl(url, {
+				method: "POST",
+				headers: this.headers,
+				body: JSON.stringify(body),
+				signal: controller.signal,
+			});
 			if (!response.ok) {
 				const text = await response.text().catch(() => "");
 				return { ok: false, error: `HTTP ${response.status}: ${text.slice(0, 240)}` };
@@ -150,14 +172,20 @@ class OllamaEmbeddingClient extends BaseEmbeddingClient {
 		this.#baseUrl = args.baseUrl;
 	}
 
-	protected async embedBatch(inputs: string[], signal?: AbortSignal): Promise<{ ok: true; vectors: Float32Array[] } | { ok: false; error: string }> {
+	protected async embedBatch(
+		inputs: string[],
+		signal?: AbortSignal,
+	): Promise<{ ok: true; vectors: Float32Array[] } | { ok: false; error: string }> {
 		const url = `${this.#baseUrl}/api/embed`;
 		const result = await this.post(url, { model: this.model, input: inputs }, signal);
 		if (!result.ok) return result;
 		const payload = result.json as { embeddings?: number[][] };
 		const embeddings = payload?.embeddings;
 		if (!Array.isArray(embeddings) || embeddings.length !== inputs.length) {
-			return { ok: false, error: `Unexpected Ollama embed response shape (got ${Array.isArray(embeddings) ? embeddings.length : "non-array"} for ${inputs.length} inputs)` };
+			return {
+				ok: false,
+				error: `Unexpected Ollama embed response shape (got ${Array.isArray(embeddings) ? embeddings.length : "non-array"} for ${inputs.length} inputs)`,
+			};
 		}
 		return { ok: true, vectors: embeddings.map(vector => Float32Array.from(vector ?? [])) };
 	}
@@ -173,14 +201,20 @@ class OpenAiCompatibleEmbeddingClient extends BaseEmbeddingClient {
 		this.#baseUrl = args.baseUrl;
 	}
 
-	protected async embedBatch(inputs: string[], signal?: AbortSignal): Promise<{ ok: true; vectors: Float32Array[] } | { ok: false; error: string }> {
+	protected async embedBatch(
+		inputs: string[],
+		signal?: AbortSignal,
+	): Promise<{ ok: true; vectors: Float32Array[] } | { ok: false; error: string }> {
 		const url = `${this.#baseUrl}/v1/embeddings`;
 		const result = await this.post(url, { model: this.model, input: inputs }, signal);
 		if (!result.ok) return result;
 		const payload = result.json as { data?: Array<{ embedding?: number[] }> };
 		const data = payload?.data;
 		if (!Array.isArray(data) || data.length !== inputs.length) {
-			return { ok: false, error: `Unexpected OpenAI embed response shape (got ${Array.isArray(data) ? data.length : "non-array"} for ${inputs.length} inputs)` };
+			return {
+				ok: false,
+				error: `Unexpected OpenAI embed response shape (got ${Array.isArray(data) ? data.length : "non-array"} for ${inputs.length} inputs)`,
+			};
 		}
 		return { ok: true, vectors: data.map(item => Float32Array.from(item?.embedding ?? [])) };
 	}

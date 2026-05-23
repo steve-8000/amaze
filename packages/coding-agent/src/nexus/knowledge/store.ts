@@ -1,7 +1,8 @@
-import { logger } from "@amaze/utils";
-import { Database } from "bun:sqlite";
+import type { Database } from "bun:sqlite";
 import * as crypto from "node:crypto";
+import { logger } from "@amaze/utils";
 import { getNexusKnowledgeDbPath, openNexusDb } from "../store";
+import { migrateKnowledgeIntoSeparateDb } from "./migration";
 import type {
 	NexusKnowledgeCallee,
 	NexusKnowledgeCaller,
@@ -14,7 +15,6 @@ import type {
 	NexusKnowledgeSymbol,
 	NexusKnowledgeUpsertDocumentInput,
 } from "./types";
-import { migrateKnowledgeIntoSeparateDb } from "./migration";
 
 export interface NexusKnowledgeStoreOptions {
 	agentDir: string;
@@ -91,7 +91,19 @@ interface QueryShape {
 const DEFAULT_LIMIT = 20;
 const IDENTIFIER = "[A-Za-z_$][\\w$]*";
 const CALL_PATTERN = new RegExp(`\\b(${IDENTIFIER})\\s*\\(`, "g");
-const CALL_EXCLUDES = new Set(["if", "for", "while", "switch", "catch", "function", "return", "typeof", "await", "new", "super"]);
+const CALL_EXCLUDES = new Set([
+	"if",
+	"for",
+	"while",
+	"switch",
+	"catch",
+	"function",
+	"return",
+	"typeof",
+	"await",
+	"new",
+	"super",
+]);
 const knowledgeMigrationDone = new Set<string>();
 
 function hashText(text: string): string {
@@ -198,10 +210,14 @@ export class NexusKnowledgeStore {
 		const documentId = stableId(input.repoRoot, input.path);
 		const indexedAt = nowIso();
 		const existing = this.getDocument(documentId);
-		if (existing && existing.contentHash === input.contentHash && existing.sizeBytes === input.sizeBytes) return existing;
+		if (existing && existing.contentHash === input.contentHash && existing.sizeBytes === input.sizeBytes)
+			return existing;
 		this.db.transaction(() => {
-			const oldChunks = this.db.query<{ id: string }, [string]>("SELECT id FROM knowledge_chunks WHERE document_id = ?").all(documentId);
-			for (const chunk of oldChunks) this.db.query("DELETE FROM knowledge_chunks_fts WHERE chunk_id = ?").run(chunk.id);
+			const oldChunks = this.db
+				.query<{ id: string }, [string]>("SELECT id FROM knowledge_chunks WHERE document_id = ?")
+				.all(documentId);
+			for (const chunk of oldChunks)
+				this.db.query("DELETE FROM knowledge_chunks_fts WHERE chunk_id = ?").run(chunk.id);
 			this.db.query("DELETE FROM knowledge_chunks WHERE document_id = ?").run(documentId);
 			this.db.query("DELETE FROM knowledge_symbols WHERE document_id = ?").run(documentId);
 			this.db
@@ -239,8 +255,19 @@ ON CONFLICT(id) DO UPDATE SET
 INSERT INTO knowledge_chunks (id, document_id, path, chunk_index, start_line, end_line, content, content_hash)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 `)
-					.run(chunkId, documentId, input.path, chunk.chunkIndex, chunk.startLine, chunk.endLine, chunk.content, chunk.contentHash);
-				this.db.query("INSERT INTO knowledge_chunks_fts (content, path, document_id, chunk_id) VALUES (?, ?, ?, ?)").run(chunk.content, input.path, documentId, chunkId);
+					.run(
+						chunkId,
+						documentId,
+						input.path,
+						chunk.chunkIndex,
+						chunk.startLine,
+						chunk.endLine,
+						chunk.content,
+						chunk.contentHash,
+					);
+				this.db
+					.query("INSERT INTO knowledge_chunks_fts (content, path, document_id, chunk_id) VALUES (?, ?, ?, ?)")
+					.run(chunk.content, input.path, documentId, chunkId);
 			}
 			for (const symbol of input.symbols) {
 				this.db
@@ -249,7 +276,14 @@ INSERT INTO knowledge_symbols (id, document_id, path, name, kind, exported, line
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `)
 					.run(
-						stableId(documentId, symbol.parentSymbol ?? "", symbol.name, symbol.kind, String(symbol.line), String(symbol.column)),
+						stableId(
+							documentId,
+							symbol.parentSymbol ?? "",
+							symbol.name,
+							symbol.kind,
+							String(symbol.line),
+							String(symbol.column),
+						),
 						documentId,
 						input.path,
 						symbol.name,
@@ -270,7 +304,10 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		const limit = normalizeLimit(input.limit);
 		const shape = shapeSearchQuery(input.query);
 		if (!shape.cleaned) return [];
-		const aggregate = new Map<string, { row: SearchRow; score: number; sources: Set<NexusKnowledgeMatchKind>; diagnostics: Set<string> }>();
+		const aggregate = new Map<
+			string,
+			{ row: SearchRow; score: number; sources: Set<NexusKnowledgeMatchKind>; diagnostics: Set<string> }
+		>();
 		const filters = buildSearchFilters(input);
 		const ftsRows = shape.fts ? this.searchFtsRows(shape.fts, filters, limit * 4) : [];
 		const pathRows = shape.pathNeedle ? this.searchPathRows(shape, filters, limit * 3) : [];
@@ -285,7 +322,12 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 				matchKind: collapseMatchKinds(entry.sources),
 				diagnostics: [...entry.diagnostics],
 			}))
-			.sort((left, right) => right.score - left.score || left.row.path.localeCompare(right.row.path) || left.row.chunk_index - right.row.chunk_index)
+			.sort(
+				(left, right) =>
+					right.score - left.score ||
+					left.row.path.localeCompare(right.row.path) ||
+					left.row.chunk_index - right.row.chunk_index,
+			)
 			.slice(0, limit);
 		return ranked.map(entry => ({
 			document: mapDocument(entry.row),
@@ -311,7 +353,13 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 			.map(mapSymbol)
 			.map(symbol => ({ symbol, rank: symbolQueryRank(symbol, input.name) }))
 			.filter(entry => entry.rank > 0)
-			.sort((left, right) => right.rank - left.rank || Number(right.symbol.exported) - Number(left.symbol.exported) || left.symbol.path.localeCompare(right.symbol.path) || left.symbol.line - right.symbol.line)
+			.sort(
+				(left, right) =>
+					right.rank - left.rank ||
+					Number(right.symbol.exported) - Number(left.symbol.exported) ||
+					left.symbol.path.localeCompare(right.symbol.path) ||
+					left.symbol.line - right.symbol.line,
+			)
 			.slice(0, normalizeLimit(input.limit))
 			.map(entry => entry.symbol);
 	}
@@ -356,11 +404,13 @@ ORDER BY d.path, c.chunk_index
 				const snippet = lines[offset] ?? "";
 				if (shouldSkipReferenceLine(snippet)) continue;
 				namePattern.lastIndex = 0;
-				let match: RegExpExecArray | null;
-				while ((match = namePattern.exec(snippet)) !== null) {
+				for (;;) {
+					const match = namePattern.exec(snippet);
+					if (match === null) break;
 					const line = row.start_line + offset;
 					const column = match.index + 1;
-					const definition = definitions.find(symbol => symbolQueryRank(symbol, input.name) > 0 && symbol.line === line) ?? null;
+					const definition =
+						definitions.find(symbol => symbolQueryRank(symbol, input.name) > 0 && symbol.line === line) ?? null;
 					if (definition && looksLikeDefinitionLine(snippet, symbolName)) continue;
 					references.push({
 						document,
@@ -391,7 +441,8 @@ ORDER BY d.path, c.chunk_index
 	codeCallees(input: NexusKnowledgeCodeQuery): NexusKnowledgeCallee[] {
 		const definition = this.codeDefinitions({ ...input, limit: 1 })[0];
 		if (!definition) return [];
-		const rangeEnd = definition.endLine ?? this.nextSymbolStartLine(definition.documentId, definition.line) ?? definition.line;
+		const rangeEnd =
+			definition.endLine ?? this.nextSymbolStartLine(definition.documentId, definition.line) ?? definition.line;
 		const chunks = this.chunksForDocumentRange(definition.documentId, definition.line, rangeEnd);
 		if (chunks.length === 0) return [];
 		const knownSymbols = this.allSymbols(input.repoRoot);
@@ -406,10 +457,12 @@ ORDER BY d.path, c.chunk_index
 				const snippet = lines[offset] ?? "";
 				if (shouldSkipExecutableLine(snippet)) continue;
 				CALL_PATTERN.lastIndex = 0;
-				let match: RegExpExecArray | null;
-				while ((match = CALL_PATTERN.exec(snippet)) !== null) {
+				for (;;) {
+					const match = CALL_PATTERN.exec(snippet);
+					if (match === null) break;
 					const name = match[1] ?? "";
-					if (!name || name === definition.name || CALL_EXCLUDES.has(name) || !knownSymbolNames.has(name)) continue;
+					if (!name || name === definition.name || CALL_EXCLUDES.has(name) || !knownSymbolNames.has(name))
+						continue;
 					if (match.index > 0 && snippet[match.index - 1] === ".") continue;
 					const key = `${name}:${lineNumber}:${match.index}`;
 					if (seen.has(key)) continue;
@@ -434,12 +487,17 @@ ORDER BY d.path, c.chunk_index
 	}
 
 	getDocumentByRepoPath(repoRoot: string, repoPath: string): NexusKnowledgeDocument | null {
-		const row = this.db.query<DocumentRow, [string, string]>("SELECT * FROM knowledge_documents WHERE repo_root = ? AND path = ?").get(repoRoot, repoPath);
+		const row = this.db
+			.query<DocumentRow, [string, string]>("SELECT * FROM knowledge_documents WHERE repo_root = ? AND path = ?")
+			.get(repoRoot, repoPath);
 		return row ? mapDocument(row) : null;
 	}
 
 	listDocumentPaths(repoRoot: string): string[] {
-		return this.db.query<{ path: string }, [string]>("SELECT path FROM knowledge_documents WHERE repo_root = ? ORDER BY path").all(repoRoot).map(row => row.path);
+		return this.db
+			.query<{ path: string }, [string]>("SELECT path FROM knowledge_documents WHERE repo_root = ? ORDER BY path")
+			.all(repoRoot)
+			.map(row => row.path);
 	}
 
 	deleteDocumentsByPath(repoRoot: string, repoPaths: string[]): number {
@@ -447,10 +505,17 @@ ORDER BY d.path, c.chunk_index
 		return this.db.transaction(() => {
 			let deleted = 0;
 			for (const repoPath of repoPaths) {
-				const rows = this.db.query<{ id: string }, [string, string]>("SELECT id FROM knowledge_documents WHERE repo_root = ? AND path = ?").all(repoRoot, repoPath);
+				const rows = this.db
+					.query<{ id: string }, [string, string]>(
+						"SELECT id FROM knowledge_documents WHERE repo_root = ? AND path = ?",
+					)
+					.all(repoRoot, repoPath);
 				for (const row of rows) {
-					const chunkIds = this.db.query<{ id: string }, [string]>("SELECT id FROM knowledge_chunks WHERE document_id = ?").all(row.id);
-					for (const chunk of chunkIds) this.db.query("DELETE FROM knowledge_chunks_fts WHERE chunk_id = ?").run(chunk.id);
+					const chunkIds = this.db
+						.query<{ id: string }, [string]>("SELECT id FROM knowledge_chunks WHERE document_id = ?")
+						.all(row.id);
+					for (const chunk of chunkIds)
+						this.db.query("DELETE FROM knowledge_chunks_fts WHERE chunk_id = ?").run(chunk.id);
 					this.db.query("DELETE FROM knowledge_documents WHERE id = ?").run(row.id);
 					deleted++;
 				}
@@ -459,21 +524,40 @@ ORDER BY d.path, c.chunk_index
 		})();
 	}
 
-	knowledgeDoctorStats(repoRoot: string): { totalDocuments: number; repoDocuments: number; foreignDocuments: number; symbolsMissingEndLine: number; newestIndexedAt: string | null } {
-		const totalDocuments = this.db.query<{ count: number }, []>("SELECT COUNT(*) AS count FROM knowledge_documents").get()?.count ?? 0;
-		const repoDocuments = this.db.query<{ count: number }, [string]>("SELECT COUNT(*) AS count FROM knowledge_documents WHERE repo_root = ?").get(repoRoot)?.count ?? 0;
-		const foreignDocuments = this.db.query<{ count: number }, [string]>("SELECT COUNT(*) AS count FROM knowledge_documents WHERE repo_root != ?").get(repoRoot)?.count ?? 0;
-		const symbolsMissingEndLine = this.db
-			.query<{ count: number }, [string]>(`
+	knowledgeDoctorStats(repoRoot: string): {
+		totalDocuments: number;
+		repoDocuments: number;
+		foreignDocuments: number;
+		symbolsMissingEndLine: number;
+		newestIndexedAt: string | null;
+	} {
+		const totalDocuments =
+			this.db.query<{ count: number }, []>("SELECT COUNT(*) AS count FROM knowledge_documents").get()?.count ?? 0;
+		const repoDocuments =
+			this.db
+				.query<{ count: number }, [string]>("SELECT COUNT(*) AS count FROM knowledge_documents WHERE repo_root = ?")
+				.get(repoRoot)?.count ?? 0;
+		const foreignDocuments =
+			this.db
+				.query<{ count: number }, [string]>(
+					"SELECT COUNT(*) AS count FROM knowledge_documents WHERE repo_root != ?",
+				)
+				.get(repoRoot)?.count ?? 0;
+		const symbolsMissingEndLine =
+			this.db
+				.query<{ count: number }, [string]>(`
 SELECT COUNT(*) AS count
 FROM knowledge_symbols s
 JOIN knowledge_documents d ON d.id = s.document_id
 WHERE d.repo_root = ? AND d.kind = 'code' AND s.end_line IS NULL
 `)
-			.get(repoRoot)?.count ?? 0;
-		const newestIndexedAt = this.db
-			.query<{ indexed_at: string | null }, [string]>("SELECT MAX(indexed_at) AS indexed_at FROM knowledge_documents WHERE repo_root = ?")
-			.get(repoRoot)?.indexed_at ?? null;
+				.get(repoRoot)?.count ?? 0;
+		const newestIndexedAt =
+			this.db
+				.query<{ indexed_at: string | null }, [string]>(
+					"SELECT MAX(indexed_at) AS indexed_at FROM knowledge_documents WHERE repo_root = ?",
+				)
+				.get(repoRoot)?.indexed_at ?? null;
 		return { totalDocuments, repoDocuments, foreignDocuments, symbolsMissingEndLine, newestIndexedAt };
 	}
 
@@ -543,7 +627,10 @@ CREATE INDEX IF NOT EXISTS knowledge_symbols_document_line_idx ON knowledge_symb
 	}
 
 	private symbolsForDocument(documentId: string): NexusKnowledgeSymbol[] {
-		return this.db.query<SymbolRow, [string]>("SELECT * FROM knowledge_symbols WHERE document_id = ? ORDER BY line, column").all(documentId).map(mapSymbol);
+		return this.db
+			.query<SymbolRow, [string]>("SELECT * FROM knowledge_symbols WHERE document_id = ? ORDER BY line, column")
+			.all(documentId)
+			.map(mapSymbol);
 	}
 
 	private allSymbols(repoRoot: string | undefined): NexusKnowledgeSymbol[] {
@@ -558,11 +645,16 @@ ORDER BY s.path, s.line, s.column
 				.all(repoRoot)
 				.map(mapSymbol);
 		}
-		return this.db.query<SymbolRow, []>("SELECT * FROM knowledge_symbols ORDER BY path, line, column").all().map(mapSymbol);
+		return this.db
+			.query<SymbolRow, []>("SELECT * FROM knowledge_symbols ORDER BY path, line, column")
+			.all()
+			.map(mapSymbol);
 	}
 
 	private enclosingSymbolAtLine(documentId: string, line: number, excludeName: string): NexusKnowledgeSymbol | null {
-		const symbols = this.symbolsForDocument(documentId).filter(symbol => symbol.name !== excludeName && symbol.line <= line);
+		const symbols = this.symbolsForDocument(documentId).filter(
+			symbol => symbol.name !== excludeName && symbol.line <= line,
+		);
 		for (let index = 0; index < symbols.length; index++) {
 			const symbol = symbols[index]!;
 			const next = symbols[index + 1] ?? null;
@@ -572,12 +664,14 @@ ORDER BY s.path, s.line, s.column
 	}
 
 	private nextSymbolStartLine(documentId: string, line: number): number | null {
-		const row = this.db.query<{ line: number }, [string, number]>(`
+		const row = this.db
+			.query<{ line: number }, [string, number]>(`
 SELECT line FROM knowledge_symbols
 WHERE document_id = ? AND line > ?
 ORDER BY line
 LIMIT 1
-`).get(documentId, line);
+`)
+			.get(documentId, line);
 		return row?.line ?? null;
 	}
 
@@ -690,7 +784,10 @@ function buildSearchFilters(input: NexusKnowledgeSearchInput): SearchFilters {
 }
 
 function mergeRankedRows(
-	aggregate: Map<string, { row: SearchRow; score: number; sources: Set<NexusKnowledgeMatchKind>; diagnostics: Set<string> }>,
+	aggregate: Map<
+		string,
+		{ row: SearchRow; score: number; sources: Set<NexusKnowledgeMatchKind>; diagnostics: Set<string> }
+	>,
 	rows: SearchRow[],
 	source: NexusKnowledgeMatchKind,
 	diagnosticsForRow: (row: SearchRow) => string[],
@@ -698,8 +795,12 @@ function mergeRankedRows(
 	for (let index = 0; index < rows.length; index++) {
 		const row = rows[index]!;
 		const score = 1 / (60 + index);
-		const current =
-			aggregate.get(row.chunk_id) ?? { row, score: 0, sources: new Set<NexusKnowledgeMatchKind>(), diagnostics: new Set<string>() };
+		const current = aggregate.get(row.chunk_id) ?? {
+			row,
+			score: 0,
+			sources: new Set<NexusKnowledgeMatchKind>(),
+			diagnostics: new Set<string>(),
+		};
 		current.row = row;
 		current.score += score;
 		current.sources.add(source);
@@ -772,7 +873,13 @@ function looksLikeDefinitionLine(snippet: string, symbolName: string): boolean {
 
 function shouldSkipExecutableLine(snippet: string): boolean {
 	const trimmed = snippet.trim();
-	return !trimmed || trimmed.startsWith("//") || trimmed.startsWith("/*") || trimmed.startsWith("*") || /^['"`]/.test(trimmed);
+	return (
+		!trimmed ||
+		trimmed.startsWith("//") ||
+		trimmed.startsWith("/*") ||
+		trimmed.startsWith("*") ||
+		/^['"`]/.test(trimmed)
+	);
 }
 
 function escapeRegExp(value: string): string {

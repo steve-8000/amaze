@@ -6,7 +6,11 @@ import { getNexusDbPath, openNexusDb, recentRuntimeEvents, recordRuntimeEvent } 
 
 async function withDb<T>(fn: (agentDir: string) => Promise<T>): Promise<T> {
 	const dir = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-rt-"));
-	try { return await fn(dir); } finally { await fs.rm(dir, { recursive: true, force: true }); }
+	try {
+		return await fn(dir);
+	} finally {
+		await fs.rm(dir, { recursive: true, force: true });
+	}
 }
 
 describe("runtime events", () => {
@@ -21,7 +25,9 @@ describe("runtime events", () => {
 				expect(rows.length).toBe(3);
 				expect(rows[0].kind).toBe("c");
 				expect(rows[1].context).toEqual({ x: 1 });
-			} finally { db.close(false); }
+			} finally {
+				db.close(false);
+			}
 		});
 	});
 
@@ -32,7 +38,9 @@ describe("runtime events", () => {
 				recordRuntimeEvent(db, { kind: "long", severity: "warn", message: "x".repeat(10000) });
 				const rows = recentRuntimeEvents(db, 1);
 				expect(rows[0].message.length).toBeLessThanOrEqual(4000);
-			} finally { db.close(false); }
+			} finally {
+				db.close(false);
+			}
 		});
 	});
 
@@ -40,8 +48,14 @@ describe("runtime events", () => {
 		await withDb(async agentDir => {
 			const db = openNexusDb(getNexusDbPath(agentDir));
 			try {
-				expect(() => db.prepare("INSERT INTO memory_runtime_events(kind,severity,message,created_at) VALUES (?,?,?,?)").run("bad", "critical", "x", "now")).toThrow();
-			} finally { db.close(false); }
+				expect(() =>
+					db
+						.prepare("INSERT INTO memory_runtime_events(kind,severity,message,created_at) VALUES (?,?,?,?)")
+						.run("bad", "critical", "x", "now"),
+				).toThrow();
+			} finally {
+				db.close(false);
+			}
 		});
 	});
 });

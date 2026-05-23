@@ -1,11 +1,11 @@
 import type { AgentTool, AgentToolResult } from "@amaze/agent-core";
 import * as z from "zod/v4";
 import { resolveMemoryBackend } from "../memory-backend";
-import { resolveNexusProjectScope } from "../nexus/scope";
 import { NexusKnowledgeStore } from "../nexus/knowledge/store";
 import type { NexusKnowledgeSearchResult } from "../nexus/knowledge/types";
-import { resolveAgentCwd } from "./_agent-cwd";
+import { resolveNexusProjectScope } from "../nexus/scope";
 import type { ToolSession } from ".";
+import { resolveAgentCwd } from "./_agent-cwd";
 
 const repoSearchSchema = z.object({
 	query: z.string().describe("natural language or keyword query over Nexus repository knowledge"),
@@ -19,7 +19,8 @@ export type RepoSearchParams = z.infer<typeof repoSearchSchema>;
 export class RepoSearchTool implements AgentTool<typeof repoSearchSchema> {
 	readonly name = "repo_search";
 	readonly label = "Repo Search";
-	readonly description = "Search Nexus repository knowledge for project files, conventions, symbols, and implementation notes.";
+	readonly description =
+		"Search Nexus repository knowledge for project files, conventions, symbols, and implementation notes.";
 	readonly parameters = repoSearchSchema;
 	readonly strict = true;
 	readonly loadMode = "discoverable";
@@ -39,7 +40,12 @@ export class RepoSearchTool implements AgentTool<typeof repoSearchSchema> {
 			limit: params.limit,
 			explain: params.explain,
 		});
-		const rendered = renderNexusKnowledgeSearchResults(result.entries, result.entryMaxChars, result.maxChars, result.explain);
+		const rendered = renderNexusKnowledgeSearchResults(
+			result.entries,
+			result.entryMaxChars,
+			result.maxChars,
+			result.explain,
+		);
 		return {
 			content: [{ type: "text", text: rendered.text }],
 			details: { ...result, truncated: rendered.truncated },
@@ -63,7 +69,10 @@ export interface NexusKnowledgeSearchToolResult {
 	explain: boolean;
 }
 
-export function searchNexusRepositoryKnowledge(session: ToolSession, options: NexusKnowledgeSearchOptions): NexusKnowledgeSearchToolResult {
+export function searchNexusRepositoryKnowledge(
+	session: ToolSession,
+	options: NexusKnowledgeSearchOptions,
+): NexusKnowledgeSearchToolResult {
 	const cwd = resolveAgentCwd(session);
 	const repoRoot = resolveNexusProjectScope(cwd).repoRoot ?? cwd;
 	const store = new NexusKnowledgeStore({ agentDir: session.settings.getAgentDir(), cwd });
@@ -74,10 +83,17 @@ export function searchNexusRepositoryKnowledge(session: ToolSession, options: Ne
 			query: options.query,
 			repoRoot,
 			pathPrefix: options.pathPrefix,
-			limit: options.limit ?? (session.settings.get("nexus.searchResultMaxEntries") ?? 5),
+			limit: options.limit ?? session.settings.get("nexus.searchResultMaxEntries") ?? 5,
 		});
 		const rendered = renderNexusKnowledgeSearchResults(entries, entryMaxChars, maxChars, Boolean(options.explain));
-		return { count: entries.length, truncated: rendered.truncated, entries, entryMaxChars, maxChars, explain: Boolean(options.explain) };
+		return {
+			count: entries.length,
+			truncated: rendered.truncated,
+			entries,
+			entryMaxChars,
+			maxChars,
+			explain: Boolean(options.explain),
+		};
 	} finally {
 		store.close();
 	}
@@ -93,9 +109,13 @@ export function renderNexusKnowledgeSearchResults(
 	const lines = ["Nexus repository knowledge results:", ""];
 	for (const entry of entries) {
 		const provenance = `${entry.document.path}:${entry.chunk.startLine}-${entry.chunk.endLine}`;
-		const diagnostics = explain ? ` [${entry.matchKind}; score=${entry.score.toFixed(3)}; ${entry.diagnostics.join(", ")}]` : "";
+		const diagnostics = explain
+			? ` [${entry.matchKind}; score=${entry.score.toFixed(3)}; ${entry.diagnostics.join(", ")}]`
+			: "";
 		const reserve = explain ? Math.min(entryMaxChars / 3, 96) : 0;
-		lines.push(`- ${provenance}${diagnostics} ${truncate(oneLine(entry.chunk.content), Math.max(40, Math.floor(entryMaxChars - reserve)))}`);
+		lines.push(
+			`- ${provenance}${diagnostics} ${truncate(oneLine(entry.chunk.content), Math.max(40, Math.floor(entryMaxChars - reserve)))}`,
+		);
 	}
 	let text = lines.join("\n");
 	const truncated = text.length > maxChars;

@@ -23,12 +23,18 @@ import { AsyncJobManager } from "../async";
 import { resolveAgentModelPatterns } from "../config/model-resolver";
 import { MCPManager } from "../mcp/manager";
 import type { Theme } from "../modes/theme/theme";
+import { getSessionEventBus } from "../observability/session-bus";
 import planModeSubagentPrompt from "../prompts/system/plan-mode-subagent.md" with { type: "text" };
 import subagentUserPromptTemplate from "../prompts/system/subagent-user-prompt.md" with { type: "text" };
 import taskDescriptionTemplate from "../prompts/tools/task.md" with { type: "text" };
 import taskSummaryTemplate from "../prompts/tools/task-summary.md" with { type: "text" };
 import { stampContractRevision } from "../subagent/contract";
-import { executeContractedTask, snapshotGitChangedFiles } from "../subagent/task-revision-loop";
+import {
+	diffDirtySnapshots,
+	executeContractedTask,
+	snapshotDirtyFilesWithHash,
+	snapshotGitChangedFiles,
+} from "../subagent/task-revision-loop";
 import { parseThinkingLevel } from "../thinking";
 import { formatBytes, formatDuration } from "../tools/render-utils";
 import {
@@ -892,7 +898,7 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 					// revision-loop paths use identical settings except for the assignment text.
 					const baseSubprocessOptions = {
 						cwd: this.session.cwd,
-						agent,
+						agent: effectiveAgent,
 						contract: stampedContract,
 						context: sharedContext,
 						description: task.description,
@@ -910,6 +916,8 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 						enableLsp: false,
 						signal,
 						eventBus: this.session.eventBus,
+						sessionId: this.session.getSessionId?.() ?? null,
+						sessionEventBus: getSessionEventBus(this.session),
 						onProgress: (progress: AgentProgress) => {
 							progressMap.set(index, {
 								...structuredClone(progress),
@@ -937,6 +945,7 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 					// observe it.
 					if (stampedContract) {
 						const cwdBefore = new Set(await snapshotGitChangedFiles(this.session.cwd));
+						const cwdBeforeHash = await snapshotDirtyFilesWithHash(this.session.cwd);
 						let lastSingleResult: SingleResult | undefined;
 						const baseAssignment = task.assignment.trim();
 						const outcome = await executeContractedTask({
@@ -950,17 +959,16 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 								});
 								lastSingleResult = result;
 								const cwdAfter = await snapshotGitChangedFiles(this.session.cwd);
+								const cwdAfterHash = await snapshotDirtyFilesWithHash(this.session.cwd);
 								// Files the subagent ACTUALLY changed during this attempt:
 								//   - paths now dirty that were NOT dirty before the task started, OR
-								//   - paths dirty in BOTH snapshots whose mtime advanced during the attempt
-								// We can't cheaply detect the second case via git porcelain (porcelain doesn't
-								// expose mtimes), so we approximate with set-difference. The original code
-								// used `|| true` which made the filter a no-op — every pre-existing dirty
-								// file was attributed to this attempt, poisoning scope-* verifier signals.
-								// New behavior: pre-existing dirty files are excluded from the attempt's
-								// changedFiles, which is the correct attribution for scope verification
-								// (files dirty BEFORE the subagent ran are not its concern).
-								const changedFiles = cwdAfter.filter(p => !cwdBefore.has(p));
+								//   - paths dirty in BOTH snapshots whose content hash changed during the attempt
+								const changedFiles = [
+									...new Set([
+										...cwdAfter.filter(p => !cwdBefore.has(p)),
+										...diffDirtySnapshots(cwdBeforeHash, cwdAfterHash),
+									]),
+								];
 								return {
 									output: result.output ?? "",
 									exitCode: result.exitCode ?? 0,
@@ -1003,13 +1011,14 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 					isolationHandle = await ensureIsolation(repoRoot, task.id, preferredIsolationBackend);
 					const isolationDir = isolationHandle.mergedDir;
 
-					const result = await runSubprocess({
+					const parentGoalRev = this.session.getGoalModeState?.()?.goal?.contractRevision;
+					const stampedContract = task.contract ? stampContractRevision(task.contract, parentGoalRev) : undefined;
+					this.session.getV3Telemetry?.()?.recordSubagentSpawn(!!stampedContract);
+					const baseSubprocessOptions = {
 						cwd: this.session.cwd,
 						worktree: isolationDir,
-						agent,
-						task: renderSubagentUserPrompt(task.assignment, simpleMode),
-						assignment: task.assignment.trim(),
-						contract: task.contract,
+						agent: effectiveAgent,
+						contract: stampedContract,
 						context: sharedContext,
 						description: task.description,
 						index,
@@ -1026,7 +1035,9 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 						enableLsp: false,
 						signal,
 						eventBus: this.session.eventBus,
-						onProgress: progress => {
+						sessionId: this.session.getSessionId?.() ?? null,
+						sessionEventBus: getSessionEventBus(this.session),
+						onProgress: (progress: AgentProgress) => {
 							progressMap.set(index, {
 								...structuredClone(progress),
 							});
@@ -1043,7 +1054,69 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 						localProtocolOptions,
 						parentArtifactManager,
 						parentTelemetry: this.session.getTelemetry?.(),
-					});
+					};
+
+					let result: SingleResult;
+					if (stampedContract) {
+						const gitBefore = new Set(await snapshotGitChangedFiles(isolationDir));
+						const dirtyBefore = await snapshotDirtyFilesWithHash(isolationDir);
+						const baseAssignment = task.assignment.trim();
+						let lastSingleResult: SingleResult | undefined;
+						const outcome = await executeContractedTask({
+							contract: stampedContract,
+							baseAssignment,
+							runOnce: async ({ composedAssignment }) => {
+								const attemptResult = await runSubprocess({
+									...baseSubprocessOptions,
+									task: renderSubagentUserPrompt(composedAssignment, simpleMode),
+									assignment: composedAssignment,
+								});
+								lastSingleResult = attemptResult;
+								const gitAfter = await snapshotGitChangedFiles(isolationDir);
+								const dirtyAfter = await snapshotDirtyFilesWithHash(isolationDir);
+								const changedFiles = [
+									...new Set([
+										...gitAfter.filter(p => !gitBefore.has(p)),
+										...diffDirtySnapshots(dirtyBefore, dirtyAfter),
+									]),
+								];
+								return {
+									output: attemptResult.output ?? "",
+									exitCode: attemptResult.exitCode ?? 0,
+									aborted: attemptResult.aborted ?? false,
+									changedFiles,
+									cwd: isolationDir,
+								};
+							},
+						});
+						logger.info("subagent.contract.verdict", {
+							taskId: task.id,
+							role: stampedContract.role,
+							verdict: outcome.finalVerdict.verdict,
+							passed: outcome.finalVerdict.passedCount,
+							failed: outcome.finalVerdict.failedCount,
+							uncertain: outcome.finalVerdict.uncertainCount,
+							attempts: outcome.attempts.length,
+						});
+						if (!lastSingleResult) {
+							throw new Error("contracted task produced no result");
+						}
+						result = lastSingleResult;
+						if (outcome.finalVerdict.verdict !== "pass") {
+							const error = `Contract verification failed: ${outcome.finalVerdict.verdict}`;
+							return {
+								...result,
+								exitCode: result.exitCode === 0 ? 1 : result.exitCode,
+								error,
+							};
+						}
+					} else {
+						result = await runSubprocess({
+							...baseSubprocessOptions,
+							task: renderSubagentUserPrompt(task.assignment, simpleMode),
+							assignment: task.assignment.trim(),
+						});
+					}
 					if (mergeMode === "branch" && result.exitCode === 0) {
 						try {
 							const commitMsg =

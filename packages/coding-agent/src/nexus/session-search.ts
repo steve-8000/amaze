@@ -3,6 +3,7 @@ import * as fsSync from "node:fs";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { getSessionsDir, parseJsonlLenient } from "@amaze/utils";
+import { CryptoHasher } from "bun";
 import type { Settings } from "../config/settings";
 import { resolveNexusProjectScope } from "./scope";
 import { getNexusDbPath, getNexusRoot, openNexusDb, recordRuntimeEvent } from "./store";
@@ -27,6 +28,7 @@ interface IndexedSessionRow {
 	file_mtime_ms: number;
 	file_size: number;
 	message_count: number;
+	content_hash: string | null;
 }
 
 interface IndexedMessageRow {
@@ -199,7 +201,11 @@ export function searchNexusSessionAnchors(
 	} catch (error) {
 		try {
 			const errDb = openNexusDb(getNexusDbPath(agentDir));
-			try { recordRuntimeEvent(errDb, { kind: "session_search_failure", severity: "warn", message: String(error) }); } finally { errDb.close(false); }
+			try {
+				recordRuntimeEvent(errDb, { kind: "session_search_failure", severity: "warn", message: String(error) });
+			} finally {
+				errDb.close(false);
+			}
 		} catch {}
 		return { anchors: [], text: "count: 0" };
 	} finally {
@@ -233,7 +239,9 @@ function buildResultFromRows(
 	const siblingsBySession = new Map<string, number[]>();
 	for (const sid of sessionIds) {
 		const lines = (
-			db.prepare("SELECT line_no FROM nexus_session_messages WHERE session_id = ? ORDER BY line_no").all(sid) as Array<{
+			db
+				.prepare("SELECT line_no FROM nexus_session_messages WHERE session_id = ? ORDER BY line_no")
+				.all(sid) as Array<{
 				line_no: number;
 			}>
 		).map(r => r.line_no);
@@ -272,7 +280,8 @@ function openNexusSessionDb(dbPath: string): Database {
 			indexed_at TEXT NOT NULL,
 			file_mtime_ms INTEGER NOT NULL,
 			file_size INTEGER NOT NULL,
-			message_count INTEGER NOT NULL
+			message_count INTEGER NOT NULL,
+			content_hash TEXT
 		);
 
 		CREATE TABLE IF NOT EXISTS nexus_session_messages (
@@ -318,39 +327,62 @@ function openNexusSessionDb(dbPath: string): Database {
 			INSERT INTO nexus_session_fts_trigram(rowid, content) VALUES (new.id, new.content);
 		END;
 	`);
+	ensureNexusSessionsContentHashColumn(db);
 	ensureTrigramBackfill(db);
 	return db;
 }
 
+function ensureNexusSessionsContentHashColumn(db: Database): void {
+	const columns = db.prepare("PRAGMA table_info(nexus_sessions)").all() as Array<{ name: string }>;
+	if (columns.some(column => column.name === "content_hash")) return;
+	db.exec("ALTER TABLE nexus_sessions ADD COLUMN content_hash TEXT;");
+}
+
 function ensureTrigramBackfill(db: Database): void {
 	try {
-		const has = db.prepare("SELECT 1 FROM nexus_session_fts_trigram LIMIT 1").get();
-		if (has) return;
-		const hasMessages = db.prepare("SELECT 1 FROM nexus_session_messages LIMIT 1").get();
-		if (!hasMessages) return;
-		db.exec("INSERT INTO nexus_session_fts_trigram(rowid, content) SELECT id, content FROM nexus_session_messages;");
+		db.exec(`
+			INSERT INTO nexus_session_fts_trigram(rowid, content)
+			SELECT m.id, m.content
+			FROM nexus_session_messages m
+			LEFT JOIN nexus_session_fts_trigram f ON f.rowid = m.id
+			WHERE f.rowid IS NULL;
+		`);
 	} catch {}
 }
 
 async function indexNexusSessionFile(sessionFile: string, db: Database): Promise<boolean> {
 	const stat = await fs.stat(sessionFile);
+	const bytes = await Bun.file(sessionFile).bytes();
+	const contentHash = new CryptoHasher("sha256").update(bytes).digest("hex");
 	const current = db.prepare("SELECT * FROM nexus_sessions WHERE session_file = ?").get(sessionFile) as
 		| IndexedSessionRow
 		| undefined;
-	if (current && current.file_mtime_ms === Math.trunc(stat.mtimeMs) && current.file_size === stat.size) return false;
-	const parsed = parseSessionFile(await Bun.file(sessionFile).text());
+	if (current?.content_hash && current.file_size === stat.size && current.content_hash === contentHash) return false;
+	const parsed = parseSessionFile(new TextDecoder().decode(bytes));
 	if (!parsed) return false;
 	const scope = resolveNexusProjectScope(parsed.cwd);
 	const now = new Date().toISOString();
 	const tx = db.transaction(() => {
+		const oldMessageRows = db
+			.prepare("SELECT id, content FROM nexus_session_messages WHERE session_id = ?")
+			.all(parsed.sessionId) as Array<{ id: number; content: string }>;
+		for (const oldMessage of oldMessageRows) {
+			db.prepare("INSERT INTO nexus_session_fts(nexus_session_fts, rowid, content) VALUES ('delete', ?, ?)").run(
+				oldMessage.id,
+				oldMessage.content,
+			);
+			db.prepare(
+				"INSERT INTO nexus_session_fts_trigram(nexus_session_fts_trigram, rowid, content) VALUES ('delete', ?, ?)",
+			).run(oldMessage.id, oldMessage.content);
+		}
 		db.prepare("DELETE FROM nexus_sessions WHERE session_id = ? OR session_file = ?").run(
 			parsed.sessionId,
 			sessionFile,
 		);
 		db.prepare(
 			`INSERT INTO nexus_sessions (
-				session_id, session_file, cwd, scope_key, display_name, started_at, indexed_at, file_mtime_ms, file_size, message_count
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				session_id, session_file, cwd, scope_key, display_name, started_at, indexed_at, file_mtime_ms, file_size, message_count, content_hash
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		).run(
 			parsed.sessionId,
 			sessionFile,
@@ -362,6 +394,7 @@ async function indexNexusSessionFile(sessionFile: string, db: Database): Promise
 			Math.trunc(stat.mtimeMs),
 			stat.size,
 			parsed.messages.length,
+			contentHash,
 		);
 		const insert = db.prepare(
 			"INSERT INTO nexus_session_messages (session_id, line_no, role, content, timestamp) VALUES (?, ?, ?, ?, ?)",

@@ -23,7 +23,6 @@ afterEach(async () => {
 });
 
 describe("Nexus compatibility tools", () => {
-
 	it("exposes and invokes Nexus repository knowledge tools", async () => {
 		const agentDir = await makeTempDir("nexus-repo-tools-agent");
 		const cwd = await makeTempDir("nexus-repo-tools-cwd");
@@ -52,7 +51,8 @@ describe("Nexus compatibility tools", () => {
 						chunkIndex: 0,
 						startLine: 1,
 						endLine: 6,
-						content: "function createWidgetConfig() {\n\treturn { mode: 'test' };\n}\nexport function WidgetFactory() {\n\treturn createWidgetConfig();\n}\nWidgetFactory();",
+						content:
+							"function createWidgetConfig() {\n\treturn { mode: 'test' };\n}\nexport function WidgetFactory() {\n\treturn createWidgetConfig();\n}\nWidgetFactory();",
 						contentHash: "widget-chunk-hash",
 					},
 				],
@@ -92,7 +92,8 @@ describe("Nexus compatibility tools", () => {
 						chunkIndex: 0,
 						startLine: 1,
 						endLine: 5,
-						content: "import { WidgetFactory } from './widget';\nexport { WidgetFactory as WidgetFactoryAlias };\n\nexport function runWidgetSpec() {\n\treturn WidgetFactory();\n}",
+						content:
+							"import { WidgetFactory } from './widget';\nexport { WidgetFactory as WidgetFactoryAlias };\n\nexport function runWidgetSpec() {\n\treturn WidgetFactory();\n}",
 						contentHash: "widget-test-chunk-hash",
 					},
 				],
@@ -121,7 +122,13 @@ describe("Nexus compatibility tools", () => {
 			getSessionSpawns: () => null,
 			settings,
 		} as any;
-		const tools = await createTools(toolSession, ["repo_search", "code_def", "code_refs", "code_callers", "code_callees"]);
+		const tools = await createTools(toolSession, [
+			"repo_search",
+			"code_def",
+			"code_refs",
+			"code_callers",
+			"code_callees",
+		]);
 		const toolNames = tools.map(tool => tool.name);
 		expect(toolNames).toContain("repo_search");
 		expect(toolNames).toContain("code_def");
@@ -138,7 +145,10 @@ describe("Nexus compatibility tools", () => {
 		const defResult = await codeDef.execute("code-def-1", { symbol: "WidgetFactory" });
 		const refsResult = await codeRefs.execute("code-refs-1", { symbol: "WidgetFactory", path: "src/widget.test.ts" });
 		const callersResult = await codeCallers.execute("code-callers-1", { symbol: "WidgetFactory" });
-		const calleesResult = await codeCallees.execute("code-callees-1", { symbol: "WidgetFactory", path: "src/widget.ts" });
+		const calleesResult = await codeCallees.execute("code-callees-1", {
+			symbol: "WidgetFactory",
+			path: "src/widget.ts",
+		});
 		expect((searchResult.content[0] as any).text).toContain("src/widget.ts");
 		expect((searchResult.content[0] as any).text).toContain("symbol_match");
 		expect((defResult.content[0] as any).text).toContain("WidgetFactory :: export function WidgetFactory");

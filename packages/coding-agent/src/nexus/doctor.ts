@@ -3,8 +3,8 @@ import * as path from "node:path";
 
 import type { Settings } from "../config/settings";
 import { loadNexusConfig, resolveNexusCapabilities } from "./config";
-import { NexusKnowledgeStore } from "./knowledge/store";
 import { createNexusEmbeddingClient } from "./embedding-client";
+import { NexusKnowledgeStore } from "./knowledge/store";
 import { createNexusLlmClient } from "./llm-client";
 import { resolveNexusProjectScope } from "./scope";
 import { getNexusRoot, NexusStore } from "./store";
@@ -17,7 +17,11 @@ import type { NexusDoctorResult } from "./types";
  */
 export function evaluateNexusDoctor(settings: Settings, cwd: string): NexusDoctorResult {
 	const config = loadNexusConfig(settings);
-	const store = new NexusStore({ agentDir: settings.getAgentDir(), cwd, contradictionThreshold: config.contradictionThreshold });
+	const store = new NexusStore({
+		agentDir: settings.getAgentDir(),
+		cwd,
+		contradictionThreshold: config.contradictionThreshold,
+	});
 	const knowledgeStore = new NexusKnowledgeStore({ agentDir: settings.getAgentDir(), cwd });
 	try {
 		const stats = store.stats();
@@ -62,29 +66,33 @@ export function evaluateNexusDoctor(settings: Settings, cwd: string): NexusDocto
 		checks.push({
 			id: "knowledge_scope",
 			status: knowledgeStats.foreignDocuments > 0 ? "WARN" : "PASS",
-			message: knowledgeStats.foreignDocuments > 0
-				? `${knowledgeStats.foreignDocuments} indexed documents belong to other repo roots.`
-				: "Repository knowledge is scoped to the current repo root.",
+			message:
+				knowledgeStats.foreignDocuments > 0
+					? `${knowledgeStats.foreignDocuments} indexed documents belong to other repo roots.`
+					: "Repository knowledge is scoped to the current repo root.",
 		});
 		checks.push({
 			id: "knowledge_provenance",
 			status: knowledgeStats.symbolsMissingEndLine > 0 ? "WARN" : "PASS",
-			message: knowledgeStats.symbolsMissingEndLine > 0
-				? `${knowledgeStats.symbolsMissingEndLine} code symbols are missing end-line provenance.`
-				: "Repository knowledge provenance is complete for indexed code symbols.",
+			message:
+				knowledgeStats.symbolsMissingEndLine > 0
+					? `${knowledgeStats.symbolsMissingEndLine} code symbols are missing end-line provenance.`
+					: "Repository knowledge provenance is complete for indexed code symbols.",
 		});
 		const indexedAt = maintenanceState?.indexedAt ?? knowledgeStats.newestIndexedAt;
 		const indexedAgeMs = indexedAt ? Math.max(0, Date.now() - Date.parse(indexedAt)) : Number.POSITIVE_INFINITY;
 		checks.push({
 			id: "knowledge_freshness",
-			status: knowledgeStats.repoDocuments === 0
-				? "WARN"
-				: indexedAgeMs > config.knowledgeMaintenanceMinIntervalMs * 4
+			status:
+				knowledgeStats.repoDocuments === 0
 					? "WARN"
-					: "PASS",
-			message: knowledgeStats.repoDocuments === 0
-				? "Current repo root has no indexed knowledge documents."
-				: `Current repo root has ${knowledgeStats.repoDocuments} indexed knowledge documents; newest index age ${Math.round(indexedAgeMs / 1000)}s.`,
+					: indexedAgeMs > config.knowledgeMaintenanceMinIntervalMs * 4
+						? "WARN"
+						: "PASS",
+			message:
+				knowledgeStats.repoDocuments === 0
+					? "Current repo root has no indexed knowledge documents."
+					: `Current repo root has ${knowledgeStats.repoDocuments} indexed knowledge documents; newest index age ${Math.round(indexedAgeMs / 1000)}s.`,
 		});
 		return finalizeDoctor(capabilities, stats, checks);
 	} finally {
@@ -102,7 +110,11 @@ export function evaluateNexusDoctor(settings: Settings, cwd: string): NexusDocto
  * throws — failures degrade to `WARN`/`FAIL` checks so the agent can still
  * report a doctor verdict even when local servers are misconfigured.
  */
-export async function evaluateNexusDoctorLive(settings: Settings, cwd: string, options: { timeoutMs?: number } = {}): Promise<NexusDoctorResult> {
+export async function evaluateNexusDoctorLive(
+	settings: Settings,
+	cwd: string,
+	options: { timeoutMs?: number } = {},
+): Promise<NexusDoctorResult> {
 	const base = evaluateNexusDoctor(settings, cwd);
 	const config = loadNexusConfig(settings);
 	const timeoutMs = options.timeoutMs ?? 30_000;
@@ -111,14 +123,19 @@ export async function evaluateNexusDoctorLive(settings: Settings, cwd: string, o
 	if (config.llmEnabled) {
 		const llmClient = createNexusLlmClient(config, { timeoutMs, retries: 0 });
 		if (!llmClient) {
-			liveChecks.push({ id: "llm_live", status: "WARN", message: "LLM enabled but client could not be instantiated (missing baseUrl/model)." });
+			liveChecks.push({
+				id: "llm_live",
+				status: "WARN",
+				message: "LLM enabled but client could not be instantiated (missing baseUrl/model).",
+			});
 		} else {
 			const result = await llmClient.completeJson<{ ok: true }>({
-				messages: [{ role: "user", content: "Return {\"ok\":true}." }],
+				messages: [{ role: "user", content: 'Return {"ok":true}.' }],
 				system: "Return JSON only.",
 				temperature: 0,
 				maxTokens: 64,
-				validate: (value): value is { ok: true } => Boolean(value && typeof value === "object" && (value as { ok?: unknown }).ok === true),
+				validate: (value): value is { ok: true } =>
+					Boolean(value && typeof value === "object" && (value as { ok?: unknown }).ok === true),
 			});
 			liveChecks.push({
 				id: "llm_live",
@@ -133,19 +150,28 @@ export async function evaluateNexusDoctorLive(settings: Settings, cwd: string, o
 	if (config.embeddingsEnabled) {
 		const embeddingClient = createNexusEmbeddingClient(config, { timeoutMs });
 		if (!embeddingClient) {
-			liveChecks.push({ id: "embeddings_live", status: "WARN", message: "Embeddings enabled but client could not be instantiated (missing baseUrl/model)." });
+			liveChecks.push({
+				id: "embeddings_live",
+				status: "WARN",
+				message: "Embeddings enabled but client could not be instantiated (missing baseUrl/model).",
+			});
 		} else {
 			const result = await embeddingClient.embed(["doctor probe"]);
 			if (!result.ok) {
-				liveChecks.push({ id: "embeddings_live", status: "FAIL", message: `Embeddings live probe failed: ${result.error.slice(0, 200)}` });
+				liveChecks.push({
+					id: "embeddings_live",
+					status: "FAIL",
+					message: `Embeddings live probe failed: ${result.error.slice(0, 200)}`,
+				});
 			} else {
 				const dim = result.batch.vectors[0]?.length ?? 0;
 				liveChecks.push({
 					id: "embeddings_live",
 					status: dim > 0 ? "PASS" : "FAIL",
-					message: dim > 0
-						? `Embeddings live probe responded with ${dim}-d vectors (${embeddingClient.provider}/${embeddingClient.model}).`
-						: "Embeddings live probe returned an empty vector.",
+					message:
+						dim > 0
+							? `Embeddings live probe responded with ${dim}-d vectors (${embeddingClient.provider}/${embeddingClient.model}).`
+							: "Embeddings live probe returned an empty vector.",
 				});
 			}
 		}
@@ -171,7 +197,11 @@ export function getNexusDoctorArtifactPath(settings: Settings): string {
 	return path.join(getNexusRoot(settings.getAgentDir()), "doctor.json");
 }
 
-export async function persistNexusDoctorResult(settings: Settings, cwd: string, options: { live?: boolean } = {}): Promise<void> {
+export async function persistNexusDoctorResult(
+	settings: Settings,
+	cwd: string,
+	options: { live?: boolean } = {},
+): Promise<void> {
 	const result = options.live ? await evaluateNexusDoctorLive(settings, cwd) : evaluateNexusDoctor(settings, cwd);
 	await Bun.write(getNexusDoctorArtifactPath(settings), `${JSON.stringify(result, null, 2)}\n`);
 }

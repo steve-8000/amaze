@@ -1,7 +1,7 @@
 import type { AgentTool, AgentToolResult } from "@amaze/agent-core";
 import * as z from "zod/v4";
-import description from "../prompts/tools/session-search.md" with { type: "text" };
 import { searchNexusSessionAnchors } from "../nexus/session-search";
+import description from "../prompts/tools/session-search.md" with { type: "text" };
 import type { ToolSession } from ".";
 import { resolveAgentCwd } from "./_agent-cwd";
 

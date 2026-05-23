@@ -403,7 +403,7 @@ describe("SQLite tool support", () => {
 	it("rejects writes to non-existent databases", async () => {
 		await expect(
 			writeTool.execute("sqlite-write-missing-db", {
-				path: path.join(tmpDir, "missing.sqlite:users"),
+				path: "missing.sqlite:users",
 				content: "{ name: 'Nope' }",
 			}),
 		).rejects.toThrow(/not found/i);

@@ -9,7 +9,6 @@
  */
 
 import { TERMINAL } from "@amaze/tui";
-import { Settings } from "../../config/settings";
 import {
 	type AnyUiMetadata,
 	getDefault,

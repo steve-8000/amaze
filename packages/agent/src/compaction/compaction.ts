@@ -49,6 +49,7 @@ import {
 	serializeConversation,
 	upsertFileOperations,
 } from "./utils";
+
 const COMPACTION_REASONING_EFFORT = Effort.Low;
 
 // ============================================================================

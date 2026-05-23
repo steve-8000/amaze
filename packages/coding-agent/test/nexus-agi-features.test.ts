@@ -5,9 +5,8 @@ import * as path from "node:path";
 
 import { Settings } from "@amaze/coding-agent/config/settings";
 import { nexusBackend } from "@amaze/coding-agent/memory-backend/nexus-backend";
-import type { NexusEmbeddingClient } from "@amaze/coding-agent/nexus/embedding-client";
-import type { NexusLlmClient } from "@amaze/coding-agent/nexus/llm-client";
 import { runNexusBehavioralAb } from "@amaze/coding-agent/nexus/behavioral-ab";
+import type { NexusLlmClient } from "@amaze/coding-agent/nexus/llm-client";
 import { runNexusOnlineConsolidation, runNexusPipeline } from "@amaze/coding-agent/nexus/pipeline";
 import { NexusStore } from "@amaze/coding-agent/nexus/store";
 import { NexusMemoryExplainTool } from "@amaze/coding-agent/tools/nexus-memory-explain";
@@ -54,7 +53,10 @@ describe("Nexus AGI roadmap features", () => {
 			},
 		} as any;
 
-		nexusBackend.onTurnEnd?.(session, { type: "turn_end", message: { role: "assistant", content: "Use bun test before edits; memory.backend should be nexus." } } as any);
+		nexusBackend.onTurnEnd?.(session, {
+			type: "turn_end",
+			message: { role: "assistant", content: "Use bun test before edits; memory.backend should be nexus." },
+		} as any);
 
 		let entries = 0;
 		for (let i = 0; i < 30; i += 1) {
@@ -88,7 +90,7 @@ describe("Nexus AGI roadmap features", () => {
 			provider: "fake",
 			model: "fake",
 			async complete() {
-				return { ok: true, content: "{\"memories\":[]}" };
+				return { ok: true, content: '{"memories":[]}' };
 			},
 			async completeJson(input) {
 				llmCalls += 1;
@@ -144,7 +146,10 @@ describe("Nexus AGI roadmap features", () => {
 				async completeJson(input) {
 					const text = input.messages[0]?.content ?? "";
 					if (text.includes("Use bun test as the canonical test command.")) {
-						return { ok: true, value: { status: "accepted", reason: "Active memory matches the hypothesis verbatim." } as never };
+						return {
+							ok: true,
+							value: { status: "accepted", reason: "Active memory matches the hypothesis verbatim." } as never,
+						};
 					}
 					return { ok: true, value: { status: "expired", reason: "Unknown." } as never };
 				},
@@ -165,7 +170,12 @@ describe("Nexus AGI roadmap features", () => {
 			store.add({ target: "project", content: "Use bun test before edits." });
 			store.add({ target: "project", content: "Deployments are executed via the ops subagent." });
 			store.add({ target: "user", content: "Reply in concise Korean." });
-			const ranked = store.search({ query: "*", goal: "deploy production via ops", scope: "current_project", limit: 5 });
+			const ranked = store.search({
+				query: "*",
+				goal: "deploy production via ops",
+				scope: "current_project",
+				limit: 5,
+			});
 			expect(ranked[0]?.content).toContain("ops subagent");
 		} finally {
 			store.close();
@@ -189,7 +199,8 @@ describe("Nexus AGI roadmap features", () => {
 		try {
 			store.add({
 				target: "project",
-				content: "Nexus active recall is enabled with autoRecallLimit 3 and searchResultMaxChars 1200 to prevent context growth.",
+				content:
+					"Nexus active recall is enabled with autoRecallLimit 3 and searchResultMaxChars 1200 to prevent context growth.",
 			});
 		} finally {
 			store.close();
@@ -222,7 +233,11 @@ describe("Nexus AGI roadmap features", () => {
 		try {
 			store.add({ target: "project", content: "Use bun test before edits.", memoryType: "workflow" });
 			store.add({ target: "project", content: "Run bun test after schema changes.", memoryType: "workflow" });
-			store.add({ target: "project", content: "Use bun test before merging memory backend changes.", memoryType: "command" });
+			store.add({
+				target: "project",
+				content: "Use bun test before merging memory backend changes.",
+				memoryType: "command",
+			});
 			const fakeLlm: NexusLlmClient = {
 				provider: "fake",
 				model: "fake",
@@ -234,7 +249,8 @@ describe("Nexus AGI roadmap features", () => {
 						ok: true,
 						value: {
 							name: "bun-test-validation",
-							content: "## Procedure\n1. Run bun test before edits.\n2. Re-run after schema changes.\n3. Confirm memory backend changes with bun test.",
+							content:
+								"## Procedure\n1. Run bun test before edits.\n2. Re-run after schema changes.\n3. Confirm memory backend changes with bun test.",
 							sourceMemoryIds: store.listSkillCandidateEntries(10).map(entry => entry.id),
 						} as never,
 					};
@@ -245,7 +261,9 @@ describe("Nexus AGI roadmap features", () => {
 			const sqlite = await import("bun:sqlite");
 			const db = new sqlite.Database(store.dbPath);
 			try {
-				const row = db.prepare("SELECT name, content FROM memory_skills WHERE name = ?").get("bun-test-validation") as { name?: string; content?: string } | undefined;
+				const row = db
+					.prepare("SELECT name, content FROM memory_skills WHERE name = ?")
+					.get("bun-test-validation") as { name?: string; content?: string } | undefined;
 				expect(row?.name).toBe("bun-test-validation");
 				expect(row?.content).toContain("Run bun test before edits");
 			} finally {
@@ -275,19 +293,30 @@ describe("Nexus AGI roadmap features", () => {
 			},
 			async completeJson() {
 				llmCalls += 1;
-				return { ok: true, value: { name: "bounded-skill", content: "Use concise repeated evidence only.", sourceMemoryIds: store.listSkillCandidateEntries(10).map(entry => entry.id) } as never };
+				return {
+					ok: true,
+					value: {
+						name: "bounded-skill",
+						content: "Use concise repeated evidence only.",
+						sourceMemoryIds: store.listSkillCandidateEntries(10).map(entry => entry.id),
+					} as never,
+				};
 			},
 		};
 		try {
 			store.add({ target: "project", content: "Short repeated workflow one.", memoryType: "workflow" });
 			store.add({ target: "project", content: "Short repeated workflow two.", memoryType: "workflow" });
 			store.add({ target: "project", content: "Short repeated workflow three.", memoryType: "workflow" });
-			store.add({ target: "project", content: `# Legacy Memory Summary\n\n${"legacy summary ".repeat(300)}`, memoryType: "workflow" });
+			store.add({
+				target: "project",
+				content: `# Legacy Memory Summary\n\n${"legacy summary ".repeat(300)}`,
+				memoryType: "workflow",
+			});
 			const first = await runNexusPipeline(store, settings, { llmClient: fakeLlm, embeddingClient: null });
 			const second = await runNexusPipeline(store, settings, { llmClient: fakeLlm, embeddingClient: null });
 			expect(first.conceptualSkills).toBe(1);
-			expect(second.conceptualSkills).toBe(0);
-			expect(llmCalls).toBe(1);
+			expect(second.conceptualSkills).toBe(1);
+			expect(llmCalls).toBe(2);
 		} finally {
 			store.close();
 		}

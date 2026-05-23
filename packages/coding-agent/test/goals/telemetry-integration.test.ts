@@ -14,7 +14,8 @@
  * rather than spinning a full session.
  */
 
-import { describe, expect, it } from "bun:test";
+import { afterEach, describe, expect, it } from "bun:test";
+import { resetSettingsForTest, Settings } from "@amaze/coding-agent/config/settings";
 import { GoalRuntime, type GoalRuntimeHost } from "@amaze/coding-agent/goals/runtime";
 import type { Goal, GoalModeState, GoalTokenUsage } from "@amaze/coding-agent/goals/state";
 import { formatV3Stats, V3Telemetry } from "@amaze/coding-agent/goals/telemetry";
@@ -55,6 +56,10 @@ const baseGoal = (overrides: Partial<Goal> = {}): Goal => ({
 });
 
 describe("V3 telemetry integration — event pipeline", () => {
+	afterEach(() => {
+		resetSettingsForTest();
+	});
+
 	it("aggregator records design interview firing classifications cumulatively", () => {
 		const t = new V3Telemetry();
 		// Simulate what the ask tool does on each call.
@@ -120,6 +125,7 @@ describe("V3 telemetry integration — event pipeline", () => {
 	});
 
 	it("MEASURE-MODE ACCEPTANCE: GoalRuntime completion flows produce telemetry-able outcomes", async () => {
+		await Settings.init({ inMemory: true, cwd: "/tmp" });
 		// The runtime itself doesn't call telemetry directly (separation of concerns); the
 		// goal-tool wrapper does. But we verify the runtime returns the verdict shape that
 		// telemetry consumes.

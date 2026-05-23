@@ -134,7 +134,7 @@ describe("AcceptanceVerifier — Phase 0 synthetic cases", () => {
 					{
 						id: "C8",
 						description: "noop succeeds",
-						check: { type: "command-exit", command: "true", expected: 0 },
+						check: { type: "command-exit", argv: ["/bin/sh", "-c", "true"], expected: 0 },
 					},
 				],
 				{ cwd: dir, changedFiles: [] },
@@ -150,7 +150,7 @@ describe("AcceptanceVerifier — Phase 0 synthetic cases", () => {
 					{
 						id: "C9",
 						description: "false should be 0",
-						check: { type: "command-exit", command: "false", expected: 0 },
+						check: { type: "command-exit", argv: ["/bin/sh", "-c", "false"], expected: 0 },
 					},
 				],
 				{ cwd: dir, changedFiles: [] },

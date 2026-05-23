@@ -1,4 +1,6 @@
-import { prompt, Snowflake } from "@amaze/utils";
+import { logger, prompt, Snowflake } from "@amaze/utils";
+import { settings } from "../config/settings";
+import type { EventBus as SessionEventBus } from "../observability";
 import goalBudgetLimitPrompt from "../prompts/goals/goal-budget-limit.md" with { type: "text" };
 import goalContinuationPrompt from "../prompts/goals/goal-continuation.md" with { type: "text" };
 import goalModeActivePrompt from "../prompts/goals/goal-mode-active.md" with { type: "text" };
@@ -6,6 +8,7 @@ import type { Goal, GoalBudgetSteering, GoalModeState, GoalRuntimeEvent, GoalTok
 import {
 	type AcceptanceCriterion,
 	AcceptanceVerifier,
+	defaultBlockingPolicy,
 	summarize,
 	type VerificationContext,
 	type VerificationVerdict,
@@ -52,6 +55,33 @@ async function collectChangedFilesFromGit(cwd: string): Promise<string[]> {
 	}
 }
 
+function criteriaForUncertainPolicy(
+	criteria: AcceptanceCriterion[],
+	policy: "allow" | "warn" | "block-manual" | "block-all",
+): { criteria: AcceptanceCriterion[]; mode: "audit" | "contract" } {
+	switch (policy) {
+		case "block-all":
+			return {
+				criteria: criteria.map(criterion => ({ ...criterion, blocking: "uncertain-blocks" })),
+				mode: "contract",
+			};
+		case "block-manual":
+			return {
+				criteria: criteria.map(criterion => ({
+					...criterion,
+					blocking:
+						criterion.check.type === "manual"
+							? "fail-only"
+							: (criterion.blocking ?? defaultBlockingPolicy(criterion)),
+				})),
+				mode: "contract",
+			};
+		case "allow":
+		case "warn":
+			return { criteria, mode: "audit" };
+	}
+}
+
 /**
  * Thrown by `completeGoalFromTool` when the closing audit's verifier surfaces failed
  * acceptance criteria. Carries the structured verdict so the tool surface can render
@@ -82,6 +112,8 @@ export interface GoalRuntimeHost {
 		deliverAs?: "steer" | "followUp" | "nextTurn";
 	}): Promise<void>;
 	now?(): number;
+	getSessionId?(): string | null;
+	sessionEventBus?: SessionEventBus;
 }
 
 export interface GoalTurnSnapshot {
@@ -309,6 +341,14 @@ export class GoalRuntime {
 
 	#now(): number {
 		return this.#host.now?.() ?? Date.now();
+	}
+
+	#emitSessionEvent(event: Parameters<SessionEventBus["emit"]>[0]): void {
+		try {
+			this.#host.sessionEventBus?.emit(event);
+		} catch (error) {
+			logger.debug("Goal observability emit failed", { error: String(error) });
+		}
 	}
 
 	#hasAccountingState(): boolean {
@@ -543,6 +583,14 @@ export class GoalRuntime {
 			this.#budgetReportedFor = undefined;
 			this.#markActiveAccounting(goal);
 			await this.#commitState(state, { persist: "goal" });
+			this.#emitSessionEvent({
+				type: "goal.start",
+				sessionId: this.#host.getSessionId?.() ?? "session",
+				ts: now,
+				goalId: goal.id,
+				title: goal.objective,
+				criteriaCount: goal.acceptanceCriteria?.length ?? 0,
+			});
 			return state;
 		});
 	}
@@ -646,8 +694,22 @@ export class GoalRuntime {
 					const cwd = process.cwd();
 					ctx = { cwd, changedFiles: await collectChangedFilesFromGit(cwd) };
 				}
-				const results = await new AcceptanceVerifier().verify(criteria, ctx);
-				verdict = summarize(results);
+				const policy = settings.get("goal.uncertainPolicy");
+				const blocking = criteriaForUncertainPolicy(criteria, policy);
+				const startedAt = this.#now();
+				const results = await new AcceptanceVerifier().verify(blocking.criteria, ctx);
+				for (const result of results) {
+					this.#emitSessionEvent({
+						type: "verifier.criterion",
+						sessionId: this.#host.getSessionId?.() ?? "session",
+						ts: this.#now(),
+						goalId: state.goal.id,
+						criterionId: result.id,
+						status: result.status,
+						durationMs: this.#now() - startedAt,
+					});
+				}
+				verdict = summarize(results, blocking.criteria, blocking.mode);
 				if (verdict.verdict === "fail") {
 					throw new GoalAcceptanceFailureError(verdict);
 				}
@@ -661,6 +723,17 @@ export class GoalRuntime {
 			this.#clearActiveAccounting();
 			this.#budgetReportedFor = undefined;
 			await this.#commitState(state, { persist: "goal" });
+			const failedCount = verdict?.failedCount ?? 0;
+			const uncertainCount = verdict?.uncertainCount ?? 0;
+			this.#emitSessionEvent({
+				type: "goal.complete",
+				sessionId: this.#host.getSessionId?.() ?? "session",
+				ts: state.goal.updatedAt,
+				goalId: state.goal.id,
+				verdict: options?.force ? "force" : failedCount > 0 ? "fail" : "pass",
+				failedCount,
+				uncertainCount,
+			});
 			return { goal: state.goal, verdict };
 		});
 	}

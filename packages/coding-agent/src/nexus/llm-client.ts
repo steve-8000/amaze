@@ -28,13 +28,17 @@ export interface NexusLlmCompleteInput {
 	signal?: AbortSignal;
 }
 
-export type NexusLlmResult = { ok: true; content: string; usage?: { prompt: number; completion: number } } | { ok: false; error: string };
+export type NexusLlmResult =
+	| { ok: true; content: string; usage?: { prompt: number; completion: number } }
+	| { ok: false; error: string };
 
 export interface NexusLlmClient {
 	readonly provider: string;
 	readonly model: string;
 	complete(input: NexusLlmCompleteInput): Promise<NexusLlmResult>;
-	completeJson<T>(input: NexusLlmCompleteInput & { validate?: (value: unknown) => value is T }): Promise<{ ok: true; value: T } | { ok: false; error: string }>;
+	completeJson<T>(
+		input: NexusLlmCompleteInput & { validate?: (value: unknown) => value is T },
+	): Promise<{ ok: true; value: T } | { ok: false; error: string }>;
 }
 
 export interface NexusLlmClientOptions {
@@ -106,7 +110,9 @@ class OpenAiCompatibleLlmClient implements NexusLlmClient {
 
 	async complete(input: NexusLlmCompleteInput): Promise<NexusLlmResult> {
 		const url = `${this.#baseUrl}/v1/chat/completions`;
-		const messages: NexusLlmMessage[] = input.system ? [{ role: "system", content: input.system }, ...input.messages] : input.messages;
+		const messages: NexusLlmMessage[] = input.system
+			? [{ role: "system", content: input.system }, ...input.messages]
+			: input.messages;
 		const body: Record<string, unknown> = {
 			model: this.model,
 			messages,
@@ -124,9 +130,17 @@ class OpenAiCompatibleLlmClient implements NexusLlmClient {
 			const upstreamSignal = input.signal;
 			const onAbort = () => controller.abort(upstreamSignal?.reason);
 			upstreamSignal?.addEventListener("abort", onAbort, { once: true });
-			const timer = setTimeout(() => controller.abort(new Error(`Nexus LLM timeout after ${this.#timeoutMs}ms`)), this.#timeoutMs);
+			const timer = setTimeout(
+				() => controller.abort(new Error(`Nexus LLM timeout after ${this.#timeoutMs}ms`)),
+				this.#timeoutMs,
+			);
 			try {
-				const response = await this.#fetch(url, { method: "POST", headers: this.#headers, body: payload, signal: controller.signal });
+				const response = await this.#fetch(url, {
+					method: "POST",
+					headers: this.#headers,
+					body: payload,
+					signal: controller.signal,
+				});
 				if (!response.ok) {
 					const text = await response.text().catch(() => "");
 					lastError = `HTTP ${response.status}: ${text.slice(0, 240)}`;
@@ -148,7 +162,9 @@ class OpenAiCompatibleLlmClient implements NexusLlmClient {
 				return {
 					ok: true,
 					content,
-					usage: json.usage ? { prompt: json.usage.prompt_tokens ?? 0, completion: json.usage.completion_tokens ?? 0 } : undefined,
+					usage: json.usage
+						? { prompt: json.usage.prompt_tokens ?? 0, completion: json.usage.completion_tokens ?? 0 }
+						: undefined,
 				};
 			} catch (error) {
 				lastError = error instanceof Error ? error.message : String(error);
@@ -187,9 +203,7 @@ export function parseLooseJson(content: string): { ok: true; value: unknown } | 
 	for (const candidate of candidates) {
 		try {
 			return { ok: true, value: JSON.parse(candidate) };
-		} catch {
-			continue;
-		}
+		} catch {}
 	}
 	return { ok: false, error: `Could not parse JSON from LLM response (len=${content.length})` };
 }
@@ -198,7 +212,7 @@ function collectJsonCandidates(content: string): string[] {
 	const trimmed = content.trim();
 	const candidates: string[] = [trimmed];
 	const fence = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
-	if (fence && fence[1]) candidates.push(fence[1].trim());
+	if (fence?.[1]) candidates.push(fence[1].trim());
 	const objectMatch = extractBalanced(trimmed, "{", "}");
 	if (objectMatch) candidates.push(objectMatch);
 	const arrayMatch = extractBalanced(trimmed, "[", "]");

@@ -77,11 +77,12 @@ describe.skipIf(!liveLlm)("nexus live LLM", () => {
 		const client = createNexusLlmClient(loadNexusConfig(settings), { timeoutMs: 60_000 });
 		expect(client).not.toBeNull();
 		const parsed = await client!.completeJson<{ greeting: string }>({
-			system: "Return strict JSON of shape {\"greeting\":\"hello\"} and nothing else.",
+			system: 'Return strict JSON of shape {"greeting":"hello"} and nothing else.',
 			messages: [{ role: "user", content: "respond now" }],
 			temperature: 0,
 			maxTokens: 64,
-			validate: (value): value is { greeting: string } => typeof (value as { greeting?: unknown })?.greeting === "string",
+			validate: (value): value is { greeting: string } =>
+				typeof (value as { greeting?: unknown })?.greeting === "string",
 		});
 		expect(parsed.ok).toBe(true);
 		if (parsed.ok) expect(parsed.value.greeting.toLowerCase()).toContain("hello");
@@ -125,8 +126,22 @@ describe.skipIf(!(liveLlm && liveEmbed))("nexus live end-to-end pipeline", () =>
 		await fs.mkdir(sessionDir, { recursive: true });
 		const rows = [
 			{ type: "session", id: "thr-live", cwd },
-			{ type: "message", message: { role: "user", content: "I prefer concise Korean replies and want bun test to be the canonical command for this project." } },
-			{ type: "message", message: { role: "assistant", content: "Acknowledged. The project uses memory.backend nexus and bun test for verification before edits." } },
+			{
+				type: "message",
+				message: {
+					role: "user",
+					content:
+						"I prefer concise Korean replies and want bun test to be the canonical command for this project.",
+				},
+			},
+			{
+				type: "message",
+				message: {
+					role: "assistant",
+					content:
+						"Acknowledged. The project uses memory.backend nexus and bun test for verification before edits.",
+				},
+			},
 		];
 		await Bun.write(path.join(sessionDir, "thr-live.jsonl"), `${rows.map(row => JSON.stringify(row)).join("\n")}\n`);
 

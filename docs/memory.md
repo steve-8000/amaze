@@ -11,6 +11,17 @@ Amaze has a pluggable memory plane selected by `memory.backend`. Memory is durab
 
 Legacy `memories.enabled` is accepted only for migration. On first config load, `memories.enabled: true` becomes `memory.backend: nexus`; `false` becomes `off`.
 
+## Legacy migration
+
+Canonical cutover: legacy backend settings migrate to Nexus.
+
+Legacy backend data is not imported automatically.
+
+Prior sessions are reindexed through Nexus session search.
+
+Manual data import: `amaze memory migrate-legacy --from <rockey|hindsight>`.
+
+
 ## Configuration
 
 Use `/settings` or `~/.amaze/agent/config.yml`:

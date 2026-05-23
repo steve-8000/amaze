@@ -185,7 +185,7 @@ jobs:
               # literal text. Unset for this step only — the annotations would be
               # equally broken by the prefix, so we lose nothing.
               GITHUB_ACTIONS: ""
-           run: bun run test:ts
+           run: bun run test:ts:failed
          - name: CLI smoke test
            run: bun run ci:test:smoke
 

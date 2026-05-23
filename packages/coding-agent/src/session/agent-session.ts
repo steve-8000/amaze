@@ -5751,7 +5751,7 @@ export class AgentSession {
 			this.agent.reset();
 			this.agent.restoreQueues(queuedAgentMessages);
 			this.#syncAgentSessionId();
-					this.#steeringMessages = queuedSteeringMessages;
+			this.#steeringMessages = queuedSteeringMessages;
 			this.#followUpMessages = queuedFollowUpMessages;
 			this.#pendingNextTurnMessages = queuedPendingNextTurnMessages;
 			this.#scheduledHiddenNextTurnGeneration = undefined;
@@ -6425,7 +6425,8 @@ export class AgentSession {
 			.sort((a, b) => {
 				const aRank = COMPACTION_PINNED_PROVIDER_ORDER.indexOf(a.provider);
 				const bRank = COMPACTION_PINNED_PROVIDER_ORDER.indexOf(b.provider);
-				const providerDelta = (aRank === -1 ? Number.MAX_SAFE_INTEGER : aRank) - (bRank === -1 ? Number.MAX_SAFE_INTEGER : bRank);
+				const providerDelta =
+					(aRank === -1 ? Number.MAX_SAFE_INTEGER : aRank) - (bRank === -1 ? Number.MAX_SAFE_INTEGER : bRank);
 				if (providerDelta !== 0) return providerDelta;
 				return b.contextWindow - a.contextWindow;
 			});
@@ -8070,7 +8071,7 @@ export class AgentSession {
 		try {
 			await this.sessionManager.setSessionFile(sessionPath);
 			this.#syncAgentSessionId();
-	
+
 			const sessionContext = this.buildDisplaySessionContext();
 			const didReloadConversationChange =
 				!switchingToDifferentSession &&
@@ -8140,13 +8141,13 @@ export class AgentSession {
 					: configuredServiceTier;
 
 			if (switchingToDifferentSession) {
-					}
+			}
 			this.#reconnectToAgent();
 			return true;
 		} catch (error) {
 			this.sessionManager.restoreState(previousSessionState);
 			this.#syncAgentSessionId(previousSessionState.sessionId);
-				let restoreMcpError: unknown;
+			let restoreMcpError: unknown;
 			try {
 				await this.#restoreMCPSelectionsForSessionContext(previousSessionContext, {
 					fallbackSelectedMCPToolNames: previousFallbackSelectedMCPToolNames,

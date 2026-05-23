@@ -1,6 +1,6 @@
 import type { Settings } from "../config/settings";
-import { evaluateNexusDoctor, evaluateNexusDoctorLive } from "./doctor";
 import { loadNexusConfig } from "./config";
+import { evaluateNexusDoctor, evaluateNexusDoctorLive } from "./doctor";
 import { NexusStore, recentRuntimeEvents, recentStageStats } from "./store";
 
 export function renderNexusStats(agentDir: string, cwd: string, settings: Settings): string {
@@ -24,7 +24,13 @@ export function renderNexusStats(agentDir: string, cwd: string, settings: Settin
 	}
 }
 
-export function runNexusSearch(agentDir: string, cwd: string, settings: Settings, query: string, goal?: string): string {
+export function runNexusSearch(
+	agentDir: string,
+	cwd: string,
+	settings: Settings,
+	query: string,
+	goal?: string,
+): string {
 	const config = loadNexusConfig(settings);
 	const store = new NexusStore({ agentDir, cwd, contradictionThreshold: config.contradictionThreshold });
 	try {
@@ -78,13 +84,19 @@ export function runNexusExplain(agentDir: string, cwd: string, settings: Setting
 			"## Events",
 		];
 		if (explanation.events.length === 0) lines.push("- No events.");
-		else for (const event of explanation.events) lines.push(`- ${String(event.event_type ?? "event")} @ ${String(event.created_at ?? "unknown")}`);
+		else
+			for (const event of explanation.events)
+				lines.push(`- ${String(event.event_type ?? "event")} @ ${String(event.created_at ?? "unknown")}`);
 		lines.push("", "## Relations");
 		if (explanation.relations.length === 0) lines.push("- No relations.");
-		else for (const relation of explanation.relations) lines.push(`- ${String(relation.from_id)} --${String(relation.relation)}--> ${String(relation.to_id)}`);
+		else
+			for (const relation of explanation.relations)
+				lines.push(`- ${String(relation.from_id)} --${String(relation.relation)}--> ${String(relation.to_id)}`);
 		lines.push("", "## Usage");
 		if (explanation.usage.length === 0) lines.push("- No recorded usage.");
-		else for (const usage of explanation.usage) lines.push(`- ${String(usage.used_at)} thread=${String(usage.thread_id ?? "")}`);
+		else
+			for (const usage of explanation.usage)
+				lines.push(`- ${String(usage.used_at)} thread=${String(usage.thread_id ?? "")}`);
 		lines.push("");
 		return lines.join("\n");
 	} finally {
@@ -92,7 +104,12 @@ export function runNexusExplain(agentDir: string, cwd: string, settings: Setting
 	}
 }
 
-function renderDoctor(doctor: ReturnType<typeof evaluateNexusDoctor>, agentDir?: string, cwd?: string, settings?: Settings): string {
+function renderDoctor(
+	doctor: ReturnType<typeof evaluateNexusDoctor>,
+	agentDir?: string,
+	cwd?: string,
+	settings?: Settings,
+): string {
 	const runtimeEvents = agentDir && cwd && settings ? renderRuntimeEvents(agentDir, cwd, settings) : [];
 	return [
 		`# Nexus Doctor ${doctor.status}`,
@@ -129,14 +146,18 @@ function renderRuntimeEvents(agentDir: string, cwd: string, settings: Settings):
 		} else {
 			for (const s of stages) {
 				const errPart = s.lastError ? ` last_error="${s.lastError.slice(0, 80)}"` : "";
-				lines.push(`- ${s.stage}: count=${s.count} avg=${s.avgDurationMs}ms p95=${s.p95DurationMs}ms llm=${s.totalLlmCalls} embed=${s.totalEmbedCalls}${errPart}`);
+				lines.push(
+					`- ${s.stage}: count=${s.count} avg=${s.avgDurationMs}ms p95=${s.p95DurationMs}ms llm=${s.totalLlmCalls} embed=${s.totalEmbedCalls}${errPart}`,
+				);
 			}
 		}
 		lines.push("");
 		lines.push("### Recent runtime events");
 		lines.push("");
 		if (events.length === 0) lines.push("_(no events)_");
-		else for (const event of events) lines.push(`- [${event.severity}] ${event.kind}: ${event.message} (${event.createdAt})`);
+		else
+			for (const event of events)
+				lines.push(`- [${event.severity}] ${event.kind}: ${event.message} (${event.createdAt})`);
 		return lines;
 	} finally {
 		store.close();

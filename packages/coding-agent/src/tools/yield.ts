@@ -14,6 +14,7 @@ import {
 	tryEnforceStrictSchema,
 	validateJsonSchemaValue,
 } from "@amaze/ai/utils/schema";
+import { settings as globalSettings, type Settings } from "../config/settings";
 import { subprocessToolRegistry } from "../task/subprocess-tool-registry";
 import type { ToolSession } from ".";
 import { jtdToJsonSchema, normalizeSchema } from "./jtd-to-json-schema";
@@ -43,6 +44,14 @@ function formatJsonSchemaIssues(issues: ReadonlyArray<JsonSchemaValidationIssue>
 			return `${path}${issue.message}`;
 		})
 		.join("; ");
+}
+
+function readAllowSchemaBypass(sessionSettings: Settings | undefined): boolean {
+	try {
+		return (sessionSettings ?? globalSettings).get("task.yield.allowSchemaBypass");
+	} catch {
+		return false;
+	}
 }
 
 function looseRecordSchema(description: string): Record<string, unknown> {
@@ -119,8 +128,10 @@ export class YieldTool implements AgentTool<TSchema, YieldDetails> {
 
 	readonly #validate?: (value: unknown) => JsonSchemaValidationResult;
 	#schemaValidationFailures = 0;
+	readonly #allowSchemaBypass: boolean;
 
 	constructor(session: ToolSession) {
+		this.#allowSchemaBypass = readAllowSchemaBypass(session.settings);
 		let validate: ((value: unknown) => JsonSchemaValidationResult) | undefined;
 		let parameters: TSchema;
 
@@ -237,7 +248,7 @@ export class YieldTool implements AgentTool<TSchema, YieldDetails> {
 				const parsed = this.#validate(data);
 				if (!parsed.success) {
 					this.#schemaValidationFailures++;
-					if (this.#schemaValidationFailures <= 1) {
+					if (!this.#allowSchemaBypass || this.#schemaValidationFailures <= 1) {
 						throw new Error(`Output does not match schema: ${formatJsonSchemaIssues(parsed.issues)}`);
 					}
 					schemaValidationOverridden = true;

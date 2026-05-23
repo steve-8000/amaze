@@ -69,9 +69,21 @@ describe("NexusStore hybrid recall", () => {
 		const cwd = await makeTempDir("nexus-hybrid-cwd");
 		const store = new NexusStore({ agentDir, cwd });
 		try {
-			const a = store.add({ target: "project", content: "Always run bun test before edits.", memoryType: "command" });
-			const b = store.add({ target: "project", content: "Project relies on pnpm test for validation.", memoryType: "command" });
-			const c = store.add({ target: "project", content: "Memory should always be concise in Korean.", memoryType: "preference" });
+			const a = store.add({
+				target: "project",
+				content: "Always run bun test before edits.",
+				memoryType: "command",
+			});
+			const b = store.add({
+				target: "project",
+				content: "Project relies on pnpm test for validation.",
+				memoryType: "command",
+			});
+			const c = store.add({
+				target: "project",
+				content: "Memory should always be concise in Korean.",
+				memoryType: "preference",
+			});
 			expect(a.entry && b.entry && c.entry).toBeTruthy();
 			const client = fakeEmbeddingClient();
 			const seed = await client.embed([a.entry!.content, b.entry!.content, c.entry!.content]);
@@ -132,7 +144,13 @@ describe("NexusStore pipeline with LLM client", () => {
 		const rows = [
 			{ type: "session", id: "thr-1", cwd },
 			{ type: "message", message: { role: "user", content: "Reply in concise Korean by default." } },
-			{ type: "message", message: { role: "assistant", content: "Will run bun test before edits and treat memory.backend nexus as canonical." } },
+			{
+				type: "message",
+				message: {
+					role: "assistant",
+					content: "Will run bun test before edits and treat memory.backend nexus as canonical.",
+				},
+			},
 		];
 		await Bun.write(path.join(sessionDir, "thr-1.jsonl"), `${rows.map(row => JSON.stringify(row)).join("\n")}\n`);
 
@@ -189,7 +207,8 @@ describe("NexusStore pipeline with LLM client", () => {
 						ok: true,
 						value: {
 							prompt: "What canonical commands should we verify next session?",
-							hypothesis: "Running bun test before every edit will catch regressions earlier than rerunning after merges.",
+							hypothesis:
+								"Running bun test before every edit will catch regressions earlier than rerunning after merges.",
 						} as never,
 					};
 				}

@@ -1,7 +1,7 @@
-import { logger } from "@amaze/utils";
 import { Database } from "bun:sqlite";
 import * as fsSync from "node:fs";
 import * as path from "node:path";
+import { logger } from "@amaze/utils";
 import { getNexusDbPath, getNexusKnowledgeDbPath, getNexusRoot, recordRuntimeEvent } from "../store";
 
 const KNOWLEDGE_TABLES = [
@@ -13,7 +13,11 @@ const KNOWLEDGE_TABLES = [
 
 const MIGRATION_MARKER_FILE = "knowledge-db.migrated.json";
 
-export function migrateKnowledgeIntoSeparateDb(agentDir: string): { migrated: number; skipped: boolean; reason?: string } {
+export function migrateKnowledgeIntoSeparateDb(agentDir: string): {
+	migrated: number;
+	skipped: boolean;
+	reason?: string;
+} {
 	const operationalPath = getNexusDbPath(agentDir);
 	if (!fsSync.existsSync(operationalPath)) return { migrated: 0, skipped: true, reason: "no_operational_db" };
 
@@ -24,7 +28,9 @@ export function migrateKnowledgeIntoSeparateDb(agentDir: string): { migrated: nu
 	try {
 		const found = (
 			operational
-				.prepare(`SELECT name FROM sqlite_master WHERE type IN ('table','view') AND name IN (${KNOWLEDGE_TABLES.map(() => "?").join(",")})`)
+				.prepare(
+					`SELECT name FROM sqlite_master WHERE type IN ('table','view') AND name IN (${KNOWLEDGE_TABLES.map(() => "?").join(",")})`,
+				)
 				.all(...KNOWLEDGE_TABLES) as Array<{ name: string }>
 		).map(row => row.name);
 
@@ -42,21 +48,29 @@ export function migrateKnowledgeIntoSeparateDb(agentDir: string): { migrated: nu
 				let totalRows = 0;
 				knowledge.transaction(() => {
 					if (found.includes("knowledge_documents")) {
-						const rows = (knowledge.prepare("SELECT COUNT(*) AS c FROM legacy.knowledge_documents").get() as { c: number }).c;
+						const rows = (
+							knowledge.prepare("SELECT COUNT(*) AS c FROM legacy.knowledge_documents").get() as { c: number }
+						).c;
 						if (rows > 0) {
-							knowledge.exec("INSERT OR IGNORE INTO knowledge_documents SELECT * FROM legacy.knowledge_documents");
+							knowledge.exec(
+								"INSERT OR IGNORE INTO knowledge_documents SELECT * FROM legacy.knowledge_documents",
+							);
 							totalRows += rows;
 						}
 					}
 					if (found.includes("knowledge_chunks")) {
-						const rows = (knowledge.prepare("SELECT COUNT(*) AS c FROM legacy.knowledge_chunks").get() as { c: number }).c;
+						const rows = (
+							knowledge.prepare("SELECT COUNT(*) AS c FROM legacy.knowledge_chunks").get() as { c: number }
+						).c;
 						if (rows > 0) {
 							knowledge.exec("INSERT OR IGNORE INTO knowledge_chunks SELECT * FROM legacy.knowledge_chunks");
 							totalRows += rows;
 						}
 					}
 					if (found.includes("knowledge_symbols")) {
-						const rows = (knowledge.prepare("SELECT COUNT(*) AS c FROM legacy.knowledge_symbols").get() as { c: number }).c;
+						const rows = (
+							knowledge.prepare("SELECT COUNT(*) AS c FROM legacy.knowledge_symbols").get() as { c: number }
+						).c;
 						if (rows > 0) {
 							knowledge.exec("INSERT OR IGNORE INTO knowledge_symbols SELECT * FROM legacy.knowledge_symbols");
 							totalRows += rows;
@@ -66,7 +80,9 @@ export function migrateKnowledgeIntoSeparateDb(agentDir: string): { migrated: nu
 
 				try {
 					knowledge.exec("DELETE FROM knowledge_chunks_fts");
-					knowledge.exec("INSERT INTO knowledge_chunks_fts (content, path, document_id, chunk_id) SELECT content, path, document_id, id FROM knowledge_chunks");
+					knowledge.exec(
+						"INSERT INTO knowledge_chunks_fts (content, path, document_id, chunk_id) SELECT content, path, document_id, id FROM knowledge_chunks",
+					);
 				} catch (error) {
 					logger.debug("knowledge_chunks_fts rebuild skipped", { error: String(error) });
 				}
@@ -81,7 +97,11 @@ export function migrateKnowledgeIntoSeparateDb(agentDir: string): { migrated: nu
 					}
 				})();
 
-				writeMarker(markerPath, { migratedAt: new Date().toISOString(), migratedTables: found, migratedRows: totalRows });
+				writeMarker(markerPath, {
+					migratedAt: new Date().toISOString(),
+					migratedTables: found,
+					migratedRows: totalRows,
+				});
 
 				try {
 					recordRuntimeEvent(operational, {

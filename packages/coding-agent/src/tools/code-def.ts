@@ -4,8 +4,8 @@ import { resolveMemoryBackend } from "../memory-backend";
 import { NexusKnowledgeStore } from "../nexus/knowledge/store";
 import type { NexusKnowledgeSymbol } from "../nexus/knowledge/types";
 import { resolveNexusProjectScope } from "../nexus/scope";
-import { resolveAgentCwd } from "./_agent-cwd";
 import type { ToolSession } from ".";
+import { resolveAgentCwd } from "./_agent-cwd";
 import { truncate } from "./repo-search";
 
 const codeDefSchema = z.object({
@@ -37,7 +37,12 @@ export class CodeDefTool implements AgentTool<typeof codeDefSchema> {
 		const repoRoot = resolveNexusProjectScope(cwd).repoRoot ?? cwd;
 		const store = new NexusKnowledgeStore({ agentDir: this.session.settings.getAgentDir(), cwd });
 		try {
-			const definitions = store.codeDefinitions({ name: params.symbol, repoRoot, path: params.path, limit: params.limit });
+			const definitions = store.codeDefinitions({
+				name: params.symbol,
+				repoRoot,
+				path: params.path,
+				limit: params.limit,
+			});
 			return {
 				content: [{ type: "text", text: renderCodeDefinitions(params.symbol, definitions) }],
 				details: { count: definitions.length, symbol: params.symbol, path: params.path, definitions },
@@ -53,8 +58,13 @@ function renderCodeDefinitions(symbol: string, definitions: NexusKnowledgeSymbol
 	const lines = [`Nexus code definitions for ${symbol}:`, ""];
 	for (const definition of definitions) {
 		const label = definition.parentSymbol ? `${definition.parentSymbol}.${definition.name}` : definition.name;
-		const span = definition.endLine && definition.endLine > definition.line ? `${definition.line}-${definition.endLine}` : `${definition.line}`;
-		lines.push(`- ${definition.path}:${span}:${definition.column} [${definition.kind}${definition.exported ? ", exported" : ""}] ${label} :: ${truncate(definition.signature, 240)}`);
+		const span =
+			definition.endLine && definition.endLine > definition.line
+				? `${definition.line}-${definition.endLine}`
+				: `${definition.line}`;
+		lines.push(
+			`- ${definition.path}:${span}:${definition.column} [${definition.kind}${definition.exported ? ", exported" : ""}] ${label} :: ${truncate(definition.signature, 240)}`,
+		);
 	}
 	return lines.join("\n");
 }

@@ -91,66 +91,66 @@ describe("nexusBackend", () => {
 		}
 	});
 });
-	it("bounds startup knowledge maintenance with the configured interval", async () => {
-		const agentDir = await makeTempDir("nexus-backend-maintenance-agent");
-		const cwd = await makeTempDir("nexus-backend-maintenance-cwd");
-		await fs.mkdir(path.join(cwd, "src"), { recursive: true });
-		await Bun.write(path.join(cwd, "src", "one.ts"), "export const one = 1;\n");
-		const settings = Settings.isolated({
-			"memory.backend": "nexus",
-			"nexus.llm.enabled": false,
-			"nexus.embeddings.enabled": false,
-			"nexus.knowledge.enabled": true,
-			"nexus.knowledge.maxIndexedFiles": 10,
-			"nexus.knowledge.maintenanceMinIntervalMs": 60_000,
-		});
-		Object.defineProperty(settings, "getAgentDir", { value: () => agentDir });
-		const session = {
-			sessionManager: {
-				getCwd: () => cwd,
-				getSessionFile: () => null,
-				getSessionDir: () => path.join(agentDir, "sessions"),
-			},
-			settings,
-			agent: { metadataForProvider: () => undefined },
-		} as any;
-		await nexusBackend.start({ session, settings, modelRegistry: {} as any, agentDir, taskDepth: 0 });
-		const maintenanceStatePath = path.join(getNexusRoot(agentDir), "knowledge-maintenance.json");
-		const firstStateText = await Bun.file(maintenanceStatePath).text();
-		expect(firstStateText).toContain("\"indexedFiles\": 1");
-		const firstMtime = (await fs.stat(maintenanceStatePath)).mtimeMs;
-		await Bun.sleep(20);
-		await nexusBackend.start({ session, settings, modelRegistry: {} as any, agentDir, taskDepth: 0 });
-		const secondMtime = (await fs.stat(maintenanceStatePath)).mtimeMs;
-		expect(secondMtime).toBe(firstMtime);
+it("bounds startup knowledge maintenance with the configured interval", async () => {
+	const agentDir = await makeTempDir("nexus-backend-maintenance-agent");
+	const cwd = await makeTempDir("nexus-backend-maintenance-cwd");
+	await fs.mkdir(path.join(cwd, "src"), { recursive: true });
+	await Bun.write(path.join(cwd, "src", "one.ts"), "export const one = 1;\n");
+	const settings = Settings.isolated({
+		"memory.backend": "nexus",
+		"nexus.llm.enabled": false,
+		"nexus.embeddings.enabled": false,
+		"nexus.knowledge.enabled": true,
+		"nexus.knowledge.maxIndexedFiles": 10,
+		"nexus.knowledge.maintenanceMinIntervalMs": 60_000,
 	});
-	it("emits a live memory activity message without adding LLM context text", async () => {
-		const agentDir = await makeTempDir("nexus-backend-activity-agent");
-		const cwd = await makeTempDir("nexus-backend-activity-cwd");
-		await fs.mkdir(path.join(cwd, "src"), { recursive: true });
-		await Bun.write(path.join(cwd, "src", "memory.ts"), "export const memory = true;\n");
-		const settings = Settings.isolated({
-			"memory.backend": "nexus",
-			"nexus.llm.enabled": false,
-			"nexus.embeddings.enabled": false,
-			"nexus.knowledge.enabled": true,
-			"nexus.knowledge.maxIndexedFiles": 10,
-			"nexus.knowledge.maintenanceMinIntervalMs": 0,
-		});
-		Object.defineProperty(settings, "getAgentDir", { value: () => agentDir });
-		const emitted: Array<{ customType: string; content: string; display: boolean }> = [];
-		const session = {
-			sessionManager: {
-				getCwd: () => cwd,
-				getSessionFile: () => null,
-				getSessionDir: () => path.join(agentDir, "sessions"),
-			},
-			agent: { metadataForProvider: () => undefined },
-			sendCustomMessage: async (message: { customType: string; content: string; display: boolean }) => {
-				emitted.push(message);
-			},
-		} as any;
-		await nexusBackend.start({ session, settings, modelRegistry: {} as any, agentDir, taskDepth: 0 });
-		expect(emitted.some(message => message.customType === "memory-activity" && message.display)).toBe(true);
-		expect(emitted.some(message => /indexed/i.test(message.content))).toBe(true);
+	Object.defineProperty(settings, "getAgentDir", { value: () => agentDir });
+	const session = {
+		sessionManager: {
+			getCwd: () => cwd,
+			getSessionFile: () => null,
+			getSessionDir: () => path.join(agentDir, "sessions"),
+		},
+		settings,
+		agent: { metadataForProvider: () => undefined },
+	} as any;
+	await nexusBackend.start({ session, settings, modelRegistry: {} as any, agentDir, taskDepth: 0 });
+	const maintenanceStatePath = path.join(getNexusRoot(agentDir), "knowledge-maintenance.json");
+	const firstStateText = await Bun.file(maintenanceStatePath).text();
+	expect(firstStateText).toContain('"indexedFiles": 1');
+	const firstMtime = (await fs.stat(maintenanceStatePath)).mtimeMs;
+	await Bun.sleep(20);
+	await nexusBackend.start({ session, settings, modelRegistry: {} as any, agentDir, taskDepth: 0 });
+	const secondMtime = (await fs.stat(maintenanceStatePath)).mtimeMs;
+	expect(secondMtime).toBe(firstMtime);
+});
+it("emits a live memory activity message without adding LLM context text", async () => {
+	const agentDir = await makeTempDir("nexus-backend-activity-agent");
+	const cwd = await makeTempDir("nexus-backend-activity-cwd");
+	await fs.mkdir(path.join(cwd, "src"), { recursive: true });
+	await Bun.write(path.join(cwd, "src", "memory.ts"), "export const memory = true;\n");
+	const settings = Settings.isolated({
+		"memory.backend": "nexus",
+		"nexus.llm.enabled": false,
+		"nexus.embeddings.enabled": false,
+		"nexus.knowledge.enabled": true,
+		"nexus.knowledge.maxIndexedFiles": 10,
+		"nexus.knowledge.maintenanceMinIntervalMs": 0,
 	});
+	Object.defineProperty(settings, "getAgentDir", { value: () => agentDir });
+	const emitted: Array<{ customType: string; content: string; display: boolean }> = [];
+	const session = {
+		sessionManager: {
+			getCwd: () => cwd,
+			getSessionFile: () => null,
+			getSessionDir: () => path.join(agentDir, "sessions"),
+		},
+		agent: { metadataForProvider: () => undefined },
+		sendCustomMessage: async (message: { customType: string; content: string; display: boolean }) => {
+			emitted.push(message);
+		},
+	} as any;
+	await nexusBackend.start({ session, settings, modelRegistry: {} as any, agentDir, taskDepth: 0 });
+	expect(emitted.some(message => message.customType === "memory-activity" && message.display)).toBe(true);
+	expect(emitted.some(message => /indexed/i.test(message.content))).toBe(true);
+});

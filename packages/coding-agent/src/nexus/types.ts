@@ -34,7 +34,13 @@ export type NexusSourceKind =
 	| "healing"
 	| "dream";
 
-export type NexusRelationKind = "supports" | "contradicts" | "supersedes" | "duplicate_of" | "generalizes" | "specializes";
+export type NexusRelationKind =
+	| "supports"
+	| "contradicts"
+	| "supersedes"
+	| "duplicate_of"
+	| "generalizes"
+	| "specializes";
 
 export interface NexusScope {
 	id: string;
