@@ -5,7 +5,8 @@ import * as os from "node:os";
 import * as path from "node:path";
 import type { EvalReport, LearningProposal, LearningProposalType, ProposalStatus } from "./types";
 
-const DEFAULT_DB_PATH = path.join(os.homedir(), ".amaze", "learning", "proposals.db");
+const DEFAULT_DB_PATH = path.join(os.homedir(), ".amaze", "autonomy", "autonomy.db");
+const LEGACY_DB_PATH = path.join(os.homedir(), ".amaze", "learning", "proposals.db");
 
 const VALID_TRANSITIONS: Record<ProposalStatus, ProposalStatus[]> = {
 	pending: ["approved", "rejected", "expired"],
@@ -153,6 +154,7 @@ export class ProposalStore {
 			CREATE INDEX IF NOT EXISTS learning_proposals_evidence_session_ids_idx ON learning_proposals(json_extract(evidence, '$.sessionIds'));
 			CREATE INDEX IF NOT EXISTS learning_proposal_events_proposal_id_idx ON learning_proposal_events(proposal_id);
 		`);
+		migrateLegacyIfNeeded(this.#db, this.dbPath);
 	}
 
 	#insert(proposal: LearningProposal, now: number): void {
@@ -201,6 +203,61 @@ export class ProposalStore {
 			.run(proposalId, ts, kind, JSON.stringify(payload));
 	}
 }
+
+function migrateLegacyIfNeeded(
+	db: Database,
+	dbPath = DEFAULT_DB_PATH,
+	paths: { defaultDbPath?: string; legacyDbPath?: string } = {},
+): void {
+	const defaultDbPath = paths.defaultDbPath ?? DEFAULT_DB_PATH;
+	const legacyDbPath = paths.legacyDbPath ?? LEGACY_DB_PATH;
+	if (dbPath !== defaultDbPath) return;
+	if (legacyDbPath === defaultDbPath || !fs.existsSync(legacyDbPath)) return;
+	const proposalCount = db.query("SELECT COUNT(*) AS count FROM learning_proposals").get() as { count: number };
+	if (proposalCount.count > 0) return;
+
+	const escapedLegacyPath = legacyDbPath.replace(/'/g, "''");
+	let attached = false;
+	try {
+		db.exec(`ATTACH DATABASE '${escapedLegacyPath}' AS legacy`);
+		attached = true;
+		db.transaction(() => {
+			db.exec(`
+				INSERT OR IGNORE INTO learning_proposals
+					(id, type, status, gate, payload, evidence, provenance, created_at, updated_at, expires_at)
+				SELECT id, type, status, gate, payload, evidence, provenance, created_at, updated_at, expires_at
+				FROM legacy.learning_proposals;
+
+				INSERT OR IGNORE INTO learning_proposal_events
+					(proposal_id, ts, kind, payload)
+				SELECT proposal_id, ts, kind, payload
+				FROM legacy.learning_proposal_events;
+			`);
+
+			const promotionSnapshots = db
+				.query("SELECT 1 FROM legacy.sqlite_master WHERE type = 'table' AND name = 'promotion_snapshots'")
+				.get();
+			if (promotionSnapshots) {
+				db.exec(`
+					INSERT OR IGNORE INTO promotion_snapshots
+					SELECT * FROM legacy.promotion_snapshots;
+				`);
+			}
+		})();
+	} catch (error) {
+		process.stderr.write(`autonomy-db migration failed: ${error instanceof Error ? error.message : String(error)}\n`);
+	} finally {
+		if (attached) {
+			try {
+				db.exec("DETACH DATABASE legacy");
+			} catch {
+				// Best-effort cleanup after a failed migration; callers must still be able to use the new DB.
+			}
+		}
+	}
+}
+
+export const __test = { DEFAULT_DB_PATH, LEGACY_DB_PATH, migrateLegacyIfNeeded };
 
 function generateProposalId(now: number): string {
 	return `${now.toString(36)}${crypto.randomBytes(8).toString("hex")}`;

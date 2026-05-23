@@ -1,5 +1,9 @@
+import { Database } from "bun:sqlite";
 import { afterEach, describe, expect, test } from "bun:test";
-import { type NewObjective, ObjectiveStore } from "../../src/autonomy";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
+import { __test, type NewObjective, ObjectiveStore } from "../../src/autonomy";
 import { DEFAULT_AUTONOMY_FORBIDDEN_SCOPES } from "../../src/autonomy/guardrails";
 
 const stores: ObjectiveStore[] = [];
@@ -15,6 +19,12 @@ afterEach(() => {
 		store.close();
 	}
 });
+
+function createTempStore(dbPath: string): ObjectiveStore {
+	const store = new ObjectiveStore(dbPath);
+	stores.push(store);
+	return store;
+}
 
 function objective(overrides: Partial<NewObjective> = {}): NewObjective {
 	return {
@@ -82,5 +92,87 @@ describe("ObjectiveStore", () => {
 			expect.arrayContaining([...DEFAULT_AUTONOMY_FORBIDDEN_SCOPES, "custom/**"]),
 		);
 		expect(new Set(created.guardrails.forbiddenScopes).size).toBe(created.guardrails.forbiddenScopes.length);
+	});
+});
+
+describe("legacy migration", () => {
+	test("imports one legacy objective into the shared autonomy database", () => {
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "amaze-objective-migration-"));
+		const legacyPath = path.join(root, ".amaze", "autonomy", "objectives.db");
+		const defaultPath = path.join(root, ".amaze", "autonomy", "autonomy.db");
+		const legacyStore = createTempStore(legacyPath);
+		const legacyObjective = legacyStore.create(objective({ id: "legacy-objective" }));
+		legacyStore.close();
+		stores.splice(stores.indexOf(legacyStore), 1);
+
+		const db = new Database(defaultPath, { create: true, strict: true });
+		try {
+			db.exec(`
+				CREATE TABLE IF NOT EXISTS objectives (
+					id TEXT PRIMARY KEY,
+					title TEXT NOT NULL,
+					metric_targets TEXT NOT NULL CHECK (json_valid(metric_targets)),
+					budget TEXT NOT NULL CHECK (json_valid(budget)),
+					guardrails TEXT NOT NULL CHECK (json_valid(guardrails)),
+					status TEXT NOT NULL,
+					created_at INTEGER NOT NULL,
+					updated_at INTEGER NOT NULL
+				);
+
+				CREATE TABLE IF NOT EXISTS objective_events (
+					objective_id TEXT NOT NULL,
+					ts INTEGER NOT NULL,
+					kind TEXT NOT NULL,
+					payload TEXT NOT NULL CHECK (json_valid(payload)),
+					FOREIGN KEY (objective_id) REFERENCES objectives(id) ON DELETE CASCADE
+				);
+			`);
+			__test.migrateLegacyIfNeeded(db, defaultPath, { defaultDbPath: defaultPath, legacyDbPath: legacyPath });
+			expect((db.query("SELECT COUNT(*) AS count FROM objectives").get() as { count: number }).count).toBe(1);
+			expect((db.query("SELECT id FROM objectives").get() as { id: string }).id).toBe(legacyObjective.id);
+		} finally {
+			db.close();
+			fs.rmSync(root, { recursive: true, force: true });
+		}
+	});
+
+	test("does not re-import legacy objectives on a second construction", () => {
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "amaze-objective-migration-"));
+		const legacyPath = path.join(root, ".amaze", "autonomy", "objectives.db");
+		const defaultPath = path.join(root, ".amaze", "autonomy", "autonomy.db");
+		const legacyStore = createTempStore(legacyPath);
+		legacyStore.create(objective({ id: "legacy-objective" }));
+		legacyStore.close();
+		stores.splice(stores.indexOf(legacyStore), 1);
+
+		const db = new Database(defaultPath, { create: true, strict: true });
+		try {
+			db.exec(`
+				CREATE TABLE IF NOT EXISTS objectives (
+					id TEXT PRIMARY KEY,
+					title TEXT NOT NULL,
+					metric_targets TEXT NOT NULL CHECK (json_valid(metric_targets)),
+					budget TEXT NOT NULL CHECK (json_valid(budget)),
+					guardrails TEXT NOT NULL CHECK (json_valid(guardrails)),
+					status TEXT NOT NULL,
+					created_at INTEGER NOT NULL,
+					updated_at INTEGER NOT NULL
+				);
+
+				CREATE TABLE IF NOT EXISTS objective_events (
+					objective_id TEXT NOT NULL,
+					ts INTEGER NOT NULL,
+					kind TEXT NOT NULL,
+					payload TEXT NOT NULL CHECK (json_valid(payload)),
+					FOREIGN KEY (objective_id) REFERENCES objectives(id) ON DELETE CASCADE
+				);
+			`);
+			__test.migrateLegacyIfNeeded(db, defaultPath, { defaultDbPath: defaultPath, legacyDbPath: legacyPath });
+			__test.migrateLegacyIfNeeded(db, defaultPath, { defaultDbPath: defaultPath, legacyDbPath: legacyPath });
+			expect((db.query("SELECT COUNT(*) AS count FROM objectives").get() as { count: number }).count).toBe(1);
+		} finally {
+			db.close();
+			fs.rmSync(root, { recursive: true, force: true });
+		}
 	});
 });

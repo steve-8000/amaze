@@ -6,7 +6,8 @@ import * as path from "node:path";
 import { normalizeObjectiveGuardrails } from "./guardrails";
 import type { NewObjective, Objective, ObjectiveEvent, ObjectiveStatus } from "./types";
 
-const DEFAULT_DB_PATH = path.join(os.homedir(), ".amaze", "autonomy", "objectives.db");
+const DEFAULT_DB_PATH = path.join(os.homedir(), ".amaze", "autonomy", "autonomy.db");
+const LEGACY_DB_PATH = path.join(os.homedir(), ".amaze", "autonomy", "objectives.db");
 
 const VALID_STATUSES = new Set<ObjectiveStatus>(["active", "paused", "completed", "cancelled"]);
 
@@ -144,8 +145,54 @@ export class ObjectiveStore {
 			CREATE INDEX IF NOT EXISTS objectives_status_idx ON objectives(status);
 			CREATE INDEX IF NOT EXISTS objective_events_objective_id_idx ON objective_events(objective_id);
 		`);
+		migrateLegacyIfNeeded(this.#db, this.dbPath);
 	}
 }
+
+function migrateLegacyIfNeeded(
+	db: Database,
+	dbPath = DEFAULT_DB_PATH,
+	paths: { defaultDbPath?: string; legacyDbPath?: string } = {},
+): void {
+	const defaultDbPath = paths.defaultDbPath ?? DEFAULT_DB_PATH;
+	const legacyDbPath = paths.legacyDbPath ?? LEGACY_DB_PATH;
+	if (dbPath !== defaultDbPath) return;
+	if (legacyDbPath === defaultDbPath || !fs.existsSync(legacyDbPath)) return;
+	const objectiveCount = db.query("SELECT COUNT(*) AS count FROM objectives").get() as { count: number };
+	if (objectiveCount.count > 0) return;
+
+	const escapedLegacyPath = legacyDbPath.replace(/'/g, "''");
+	let attached = false;
+	try {
+		db.exec(`ATTACH DATABASE '${escapedLegacyPath}' AS legacy`);
+		attached = true;
+		db.transaction(() => {
+			db.exec(`
+				INSERT OR IGNORE INTO objectives
+					(id, title, metric_targets, budget, guardrails, status, created_at, updated_at)
+				SELECT id, title, metric_targets, budget, guardrails, status, created_at, updated_at
+				FROM legacy.objectives;
+
+				INSERT OR IGNORE INTO objective_events
+					(objective_id, ts, kind, payload)
+				SELECT objective_id, ts, kind, payload
+				FROM legacy.objective_events;
+			`);
+		})();
+	} catch (error) {
+		process.stderr.write(`autonomy-db migration failed: ${error instanceof Error ? error.message : String(error)}\n`);
+	} finally {
+		if (attached) {
+			try {
+				db.exec("DETACH DATABASE legacy");
+			} catch {
+				// Best-effort cleanup after a failed migration; callers must still be able to use the new DB.
+			}
+		}
+	}
+}
+
+export const __test = { DEFAULT_DB_PATH, LEGACY_DB_PATH, migrateLegacyIfNeeded };
 
 function generateObjectiveId(now: number): string {
 	return `${now.toString(36)}${randomBytes(8).toString("hex")}`;
