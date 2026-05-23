@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, test, vi } from "bun:test";
 import { initTheme } from "@amaze/coding-agent/modes/theme/theme";
 import type { InteractiveModeContext } from "@amaze/coding-agent/modes/types";
 import { UiHelpers } from "@amaze/coding-agent/modes/utils/ui-helpers";
+import { MEMORY_ACTIVITY_MESSAGE_TYPE } from "@amaze/coding-agent/session/messages";
 import { buildSessionContext } from "@amaze/coding-agent/session/session-manager";
 import { Container } from "@amaze/tui";
 
@@ -96,5 +97,40 @@ describe("InteractiveMode.showStatus", () => {
 		// handler owns this lifecycle and uses it to guard against clearing the
 		// user's in-progress editor draft during an optimistic send (#783).
 		expect(ctx.optimisticUserMessageSignature).toBe("hello\u00001");
+	});
+
+	test("renders live memory activity as a dedicated chat block", () => {
+		const ctx = {
+			chatContainer: new Container(),
+			ui: { requestRender: vi.fn() },
+			isBackgrounded: false,
+			lastStatusSpacer: undefined,
+			lastStatusText: undefined,
+			pendingTools: new Map(),
+			session: { extensionRunner: undefined },
+			toolOutputExpanded: false,
+		} as unknown as InteractiveModeContext;
+		const helpers = new UiHelpers(ctx);
+
+		helpers.addMessageToChat({
+			role: "custom",
+			customType: MEMORY_ACTIVITY_MESSAGE_TYPE,
+			content: "Indexed 12 files",
+			display: true,
+			details: {
+				title: "Memory",
+				items: [
+					{ status: "success", text: "Indexed 12 files." },
+					{ status: "info", text: "Captured 2 new memory entries." },
+				],
+			},
+			attribution: "agent",
+			timestamp: Date.now(),
+		});
+
+		const rendered = renderContainer(ctx.chatContainer);
+		expect(rendered).toContain("[Memory]");
+		expect(rendered).toContain("Indexed 12 files.");
+		expect(rendered).toContain("Captured 2 new memory entries.");
 	});
 });
