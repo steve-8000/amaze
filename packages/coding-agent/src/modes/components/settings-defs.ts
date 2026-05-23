@@ -72,20 +72,6 @@ export type SettingDef = BooleanSettingDef | EnumSettingDef | SubmenuSettingDef 
 
 const CONDITIONS: Record<string, () => boolean> = {
 	hasImageProtocol: () => !!TERMINAL.imageProtocol,
-	hindsightActive: () => {
-		try {
-			return Settings.instance.get("memory.backend") === "hindsight";
-		} catch {
-			return false;
-		}
-	},
-	rockeyActive: () => {
-		try {
-			return Settings.instance.get("memory.backend") === "rockey";
-		} catch {
-			return false;
-		}
-	},
 };
 
 // ═══════════════════════════════════════════════════════════════════════════

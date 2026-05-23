@@ -1,7 +1,6 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { getAgentDir, isEnoent } from "@amaze/utils";
-import { getMemoryRoot } from "../memories";
+import { isEnoent } from "@amaze/utils";
 import { resolveMemoryArtifactRoot } from "../memory-backend/artifact-root";
 import { AgentRegistry } from "../registry/agent-registry";
 import { validateRelativePath } from "./skill-protocol";
@@ -16,16 +15,12 @@ const MEMORY_NAMESPACE = "root";
  * may see different roots.
  */
 function memoryRootsFromRegistry(): string[] {
-	const agentDir = getAgentDir();
 	const roots: string[] = [];
 	for (const ref of AgentRegistry.global().list()) {
 		const session = ref.session;
 		const sm = session?.sessionManager;
-		if (!sm || !session) continue;
-		const root =
-			"settings" in session && session.settings
-				? resolveMemoryArtifactRoot(session.settings, sm.getCwd())
-				: getMemoryRoot(agentDir, sm.getCwd());
+		if (!sm || !session || !("settings" in session) || !session.settings) continue;
+		const root = resolveMemoryArtifactRoot(session.settings, sm.getCwd());
 		if (root && !roots.includes(root)) roots.push(root);
 	}
 	return roots;

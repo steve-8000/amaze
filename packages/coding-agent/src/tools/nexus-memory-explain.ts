@@ -1,8 +1,9 @@
 import type { AgentTool, AgentToolResult } from "@amaze/agent-core";
 import * as z from "zod/v4";
 import { resolveMemoryBackend } from "../memory-backend";
+import { loadNexusConfig } from "../nexus/config";
 import { NexusStore } from "../nexus/store";
-import { resolveRockeyToolCwd } from "../rockey/tool-session";
+import { resolveAgentCwd } from "./_agent-cwd";
 import type { ToolSession } from ".";
 
 const nexusMemoryExplainSchema = z.object({
@@ -28,7 +29,8 @@ export class NexusMemoryExplainTool implements AgentTool<typeof nexusMemoryExpla
 	}
 
 	async execute(_id: string, params: NexusMemoryExplainParams): Promise<AgentToolResult> {
-		const store = new NexusStore({ agentDir: this.session.settings.getAgentDir(), cwd: resolveRockeyToolCwd(this.session) });
+		const config = loadNexusConfig(this.session.settings);
+		const store = new NexusStore({ agentDir: this.session.settings.getAgentDir(), cwd: resolveAgentCwd(this.session), contradictionThreshold: config.contradictionThreshold });
 		try {
 			const explanation = store.explainMemory(params.id);
 			if (!explanation.entry) {

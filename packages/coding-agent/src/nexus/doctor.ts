@@ -17,7 +17,7 @@ import type { NexusDoctorResult } from "./types";
  */
 export function evaluateNexusDoctor(settings: Settings, cwd: string): NexusDoctorResult {
 	const config = loadNexusConfig(settings);
-	const store = new NexusStore({ agentDir: settings.getAgentDir(), cwd });
+	const store = new NexusStore({ agentDir: settings.getAgentDir(), cwd, contradictionThreshold: config.contradictionThreshold });
 	const knowledgeStore = new NexusKnowledgeStore({ agentDir: settings.getAgentDir(), cwd });
 	try {
 		const stats = store.stats();

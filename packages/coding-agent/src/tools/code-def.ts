@@ -4,7 +4,7 @@ import { resolveMemoryBackend } from "../memory-backend";
 import { NexusKnowledgeStore } from "../nexus/knowledge/store";
 import type { NexusKnowledgeSymbol } from "../nexus/knowledge/types";
 import { resolveNexusProjectScope } from "../nexus/scope";
-import { resolveRockeyToolCwd } from "../rockey/tool-session";
+import { resolveAgentCwd } from "./_agent-cwd";
 import type { ToolSession } from ".";
 import { truncate } from "./repo-search";
 
@@ -33,7 +33,7 @@ export class CodeDefTool implements AgentTool<typeof codeDefSchema> {
 	}
 
 	async execute(_id: string, params: CodeDefParams): Promise<AgentToolResult> {
-		const cwd = resolveRockeyToolCwd(this.session);
+		const cwd = resolveAgentCwd(this.session);
 		const repoRoot = resolveNexusProjectScope(cwd).repoRoot ?? cwd;
 		const store = new NexusKnowledgeStore({ agentDir: this.session.settings.getAgentDir(), cwd });
 		try {

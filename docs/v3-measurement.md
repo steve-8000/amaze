@@ -27,8 +27,8 @@ Events recorded today (instrumentation already wired into production code paths)
 | Source | Event | Method |
 | --- | --- | --- |
 | `ask` tool | every invocation | `recordDesignInterviewCall(classification)` |
-| `goal({op:"complete"})` | every completion (pass / fail / force) | `recordClosingAudit(outcome)` |
-| `goal({op:"complete"})` | per criterion | `recordVerifierResult(checkType, status)` |
+| `goal({op:"complete", goal_id})` | every model completion claim (pass / fail) | `recordClosingAudit(outcome)` |
+| `goal({op:"complete", goal_id})` | per criterion | `recordVerifierResult(checkType, status)` |
 | `task` tool | every subagent spawn (with/without contract) | `recordSubagentSpawn(withContract)` |
 
 Events **not yet** instrumented (deliberate — keep surface tight):
@@ -43,11 +43,11 @@ Events **not yet** instrumented (deliberate — keep surface tight):
 
 V3 is not only telemetry. The shipped runtime exposes three user-visible coordination surfaces:
 
-1. **Goal lifecycle** through the hidden `goal` tool:
-   - `create` starts an objective and optional token budget.
+1. **Goal lifecycle** through runtime/user authority plus the hidden model-facing `goal` tool:
+   - Runtime/user paths create objectives, adjust budgets, revise contract surfaces, pause/resume/drop, and may perform operator-level overrides.
    - `get` returns the current goal.
-   - `update` patches objective, token budget, design answers, or structured `acceptance_criteria`.
-   - `complete` runs the closing audit. `force: true` skips the audit and is counted as a forced completion.
+   - `complete` runs the closing audit and requires the current `goal_id`.
+   - `block` marks the goal blocked and requires the current `goal_id`.
 2. **Design Interview capture** through `ask`: the first qualifying ask call for an active goal stores answers such as `scope`, `constraints`, `approach`, and `acceptance` on the goal. The active goal block is then rendered into the dynamic prompt tail on every rebuild.
 3. **Subagent contracts** through `task({ tasks: [{ contract }] })`: contracted subagents receive a rendered contract, have edit/write scope guarded, and are verified against success criteria on completion. Failed criteria trigger one bounded revision attempt in the non-isolated path.
 
@@ -63,7 +63,7 @@ Structured goal and subagent criteria share the same check families:
 | `llm-judged` | Reserved for model judgement; reports uncertain until a production judge is wired. |
 | `manual` | Always uncertain; it surfaces a human decision point and does not itself fail the audit. |
 
-A failed deterministic criterion blocks `goal({ op: "complete" })` unless completion is forced. Uncertain criteria are surfaced in the completion report so the operator can replace them with deterministic checks or force completion deliberately.
+A failed deterministic criterion blocks `goal({ op: "complete", goal_id: "..." })`. Uncertain criteria are surfaced in the completion report so the operator can replace them with deterministic checks or handle the manual decision outside the model-facing tool.
 
 
 ## Thresholds — when to keep, fix, or prune
@@ -81,9 +81,9 @@ The numbers below assume **≥ 5 real coding sessions** of varied length (≥ 30
 | 1–4% | **Fix or prune** | Model rarely chooses to use contracts even when guidance is present. Either (a) make contracts MUCH easier to author (template defaults, fewer required fields), or (b) prune the Tool-A/B/C wiring and keep only the verifier piece. |
 | < 1% | **Prune.** | Delete `task` schema's `contract` field, `subagent/contract.ts`, `subagent/task-revision-loop.ts`, `Phase 2.1/2.2/3` instrumentation. Saves ~1500 LoC + cognitive overhead. |
 
-### Closing Audit (`goal({op:"complete"})` verifier)
+### Closing Audit (`goal({op:"complete", goal_id})` verifier)
 
-**Metric A**: `force-rate = stats.closingAudit.forced / stats.closingAudit.totalCompletions`
+**Metric A**: `force-rate = stats.closingAudit.forced / stats.closingAudit.totalCompletions` for host/runtime overrides; the model-facing goal tool does not expose force completion.
 
 | Force rate | Verdict | Action |
 | --- | --- | --- |

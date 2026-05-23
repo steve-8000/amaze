@@ -4,13 +4,10 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { Settings } from "@amaze/coding-agent/config/settings";
 import { evaluateNexusDoctor } from "@amaze/coding-agent/nexus/doctor";
-import { importLegacyMemorySources } from "@amaze/coding-agent/nexus/importers";
 import { indexNexusRepository } from "@amaze/coding-agent/nexus/knowledge/indexer";
 import { runNexusPipeline } from "@amaze/coding-agent/nexus/pipeline";
 import { staticNexusScope } from "@amaze/coding-agent/nexus/scope";
 import { getNexusDbPath, NexusStore, openNexusDb } from "@amaze/coding-agent/nexus/store";
-import { getMemoryRoot } from "@amaze/coding-agent/memories";
-import { RockeyStore } from "@amaze/coding-agent/rockey/store";
 import { Snowflake } from "@amaze/utils";
 
 const createdDirs = new Set<string>();
@@ -97,83 +94,6 @@ describe("NexusStore", () => {
 			const history = store.search({ query: "Runtime", scope: "all", limit: 10, includeHistory: true });
 			expect(history.some(entry => entry.status === "quarantined" || entry.status === "superseded" || entry.staleness === "needs_refresh")).toBe(true);
 		} finally {
-			store.close();
-		}
-	});
-
-	it("imports Rockey and legacy local memory as migration sources", async () => {
-		const agentDir = await makeTempDir("nexus-import");
-		const cwd = await makeTempDir("nexus-import-cwd");
-		const rockey = new RockeyStore({ agentDir, cwd });
-		try {
-			rockey.add({ target: "user", content: "Reply in concise Korean by default.", category: "preference" });
-			rockey.add({ target: "project", content: "Project uses bun test.", category: "convention" });
-			await rockey.renderArtifacts();
-		} finally {
-			rockey.close();
-		}
-		const legacyRoot = getMemoryRoot(agentDir, cwd);
-		await fs.mkdir(path.join(legacyRoot, "rollout_summaries"), { recursive: true });
-		await fs.mkdir(path.join(legacyRoot, "skills", "deploy-skill"), { recursive: true });
-		await Bun.write(path.join(legacyRoot, "MEMORY.md"), "Legacy project memory\n");
-		await Bun.write(path.join(legacyRoot, "memory_summary.md"), "Legacy summary\n");
-		await Bun.write(path.join(legacyRoot, "rollout_summaries", "one.md"), "Legacy rollout summary\n");
-		await Bun.write(path.join(legacyRoot, "skills", "deploy-skill", "SKILL.md"), "# Deploy\nLegacy skill\n");
-		const settings = {
-			get: (key: string) => (key === "memory.backend" ? "nexus" : undefined),
-			getCwd: () => cwd,
-		} as unknown as Settings;
-		const store = new NexusStore({ agentDir, cwd });
-		try {
-			const stats = await importLegacyMemorySources(store, settings, { rockey: true, local: true, hindsight: false });
-			expect(stats.rockey).toBeGreaterThan(0);
-			expect(stats.local).toBeGreaterThan(0);
-			expect(store.search({ query: "concise Korean", scope: "current_project", limit: 10, includeHistory: true }).length).toBeGreaterThan(0);
-			expect(store.search({ query: "Legacy project memory", scope: "current_project", limit: 10, includeHistory: true }).length).toBeGreaterThan(0);
-		} finally {
-			store.close();
-		}
-	});
-
-	it("imports Hindsight memory when configured", async () => {
-		const agentDir = await makeTempDir("nexus-hindsight");
-		const cwd = await makeTempDir("nexus-hindsight-cwd");
-		const originalFetch = globalThis.fetch;
-		globalThis.fetch = vi.fn(async () =>
-			new Response(JSON.stringify({ results: [{ id: "mem-1", text: "Hindsight memory about project commands." }] }), {
-				headers: { "content-type": "application/json" },
-			}),
-		) as unknown as typeof fetch;
-		const settings = {
-			get: (key: string) => {
-				if (key === "memory.backend") return "nexus";
-				if (key === "hindsight.apiUrl") return "http://localhost:8888";
-				if (key === "hindsight.bankId") return "bank-1";
-				if (key === "hindsight.autoRecall") return false;
-				if (key === "hindsight.autoRetain") return false;
-				if (key === "hindsight.retainEveryNTurns") return 1;
-				if (key === "hindsight.retainOverlapTurns") return 2;
-				if (key === "hindsight.retainContext") return "amaze";
-				if (key === "hindsight.recallMaxTokens") return 2000;
-				if (key === "hindsight.recallTypes") return [];
-				if (key === "hindsight.recallContextTurns") return 6;
-				if (key === "hindsight.recallMaxQueryChars") return 400;
-				if (key === "hindsight.debug") return false;
-				if (key === "hindsight.mentalModelsEnabled") return false;
-				if (key === "hindsight.mentalModelAutoSeed") return false;
-				if (key === "hindsight.mentalModelRefreshIntervalMs") return 60_000;
-				if (key === "hindsight.mentalModelMaxRenderChars") return 1200;
-				return undefined;
-			},
-			getCwd: () => cwd,
-		} as unknown as Settings;
-		const store = new NexusStore({ agentDir, cwd });
-		try {
-			const stats = await importLegacyMemorySources(store, settings, { rockey: false, local: false, hindsight: true });
-			expect(stats.hindsight).toBeGreaterThan(0);
-			expect(store.search({ query: "project commands", scope: "current_project", limit: 5, includeHistory: true }).length).toBeGreaterThan(0);
-		} finally {
-			globalThis.fetch = originalFetch;
 			store.close();
 		}
 	});

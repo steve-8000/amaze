@@ -1,6 +1,7 @@
+import { logger } from "@amaze/utils";
 import { Database } from "bun:sqlite";
 import * as crypto from "node:crypto";
-import { getNexusDbPath, openNexusDb } from "../store";
+import { getNexusKnowledgeDbPath, openNexusDb } from "../store";
 import type {
 	NexusKnowledgeCallee,
 	NexusKnowledgeCaller,
@@ -13,6 +14,7 @@ import type {
 	NexusKnowledgeSymbol,
 	NexusKnowledgeUpsertDocumentInput,
 } from "./types";
+import { migrateKnowledgeIntoSeparateDb } from "./migration";
 
 export interface NexusKnowledgeStoreOptions {
 	agentDir: string;
@@ -90,6 +92,7 @@ const DEFAULT_LIMIT = 20;
 const IDENTIFIER = "[A-Za-z_$][\\w$]*";
 const CALL_PATTERN = new RegExp(`\\b(${IDENTIFIER})\\s*\\(`, "g");
 const CALL_EXCLUDES = new Set(["if", "for", "while", "switch", "catch", "function", "return", "typeof", "await", "new", "super"]);
+const knowledgeMigrationDone = new Set<string>();
 
 function hashText(text: string): string {
 	return crypto.createHash("sha256").update(text).digest("hex");
@@ -172,9 +175,19 @@ export class NexusKnowledgeStore {
 
 	constructor(options: NexusKnowledgeStoreOptions) {
 		this.cwd = options.cwd;
-		this.dbPath = options.dbPath ?? getNexusDbPath(options.agentDir);
+		this.dbPath = options.dbPath ?? getNexusKnowledgeDbPath(options.agentDir);
 		this.db = openNexusDb(this.dbPath);
 		this.ensureSchema();
+
+		const usingDefaultPath = !options.dbPath || options.dbPath === getNexusKnowledgeDbPath(options.agentDir);
+		if (usingDefaultPath && options.agentDir && !knowledgeMigrationDone.has(options.agentDir)) {
+			knowledgeMigrationDone.add(options.agentDir);
+			try {
+				migrateKnowledgeIntoSeparateDb(options.agentDir);
+			} catch (error) {
+				logger.debug("Knowledge migration on store init failed", { error: String(error) });
+			}
+		}
 	}
 
 	close(): void {

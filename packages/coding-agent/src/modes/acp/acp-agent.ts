@@ -51,6 +51,7 @@ import type { ExtensionUIContext, ExtensionUIDialogOptions } from "../../extensi
 import { runExtensionCompact } from "../../extensibility/extensions/compact-handler";
 import { getSessionSlashCommands } from "../../extensibility/extensions/get-commands-handler";
 import { buildSkillPromptMessage, getSkillSlashCommandName } from "../../extensibility/skills";
+import { bumpSkillUse } from "../../extensibility/skill-usage";
 import { loadSlashCommands } from "../../extensibility/slash-commands";
 import { MCPManager } from "../../mcp/manager";
 import type { MCPServerConfig } from "../../mcp/types";
@@ -712,6 +713,7 @@ export class AcpAgent implements Agent {
 			details: built.details,
 			attribution: "user",
 		});
+		void bumpSkillUse(record.session.settings.getAgentDir(), built.details.name);
 		return true;
 	}
 

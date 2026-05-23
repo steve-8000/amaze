@@ -282,7 +282,7 @@ describe("Nexus AGI roadmap features", () => {
 			store.add({ target: "project", content: "Short repeated workflow one.", memoryType: "workflow" });
 			store.add({ target: "project", content: "Short repeated workflow two.", memoryType: "workflow" });
 			store.add({ target: "project", content: "Short repeated workflow three.", memoryType: "workflow" });
-			store.add({ target: "project", content: `# Rockey Memory Summary\n\n${"legacy summary ".repeat(300)}`, memoryType: "workflow" });
+			store.add({ target: "project", content: `# Legacy Memory Summary\n\n${"legacy summary ".repeat(300)}`, memoryType: "workflow" });
 			const first = await runNexusPipeline(store, settings, { llmClient: fakeLlm, embeddingClient: null });
 			const second = await runNexusPipeline(store, settings, { llmClient: fakeLlm, embeddingClient: null });
 			expect(first.conceptualSkills).toBe(1);

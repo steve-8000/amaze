@@ -4,7 +4,7 @@ import { resolveMemoryBackend } from "../memory-backend";
 import { resolveNexusProjectScope } from "../nexus/scope";
 import { NexusKnowledgeStore } from "../nexus/knowledge/store";
 import type { NexusKnowledgeSearchResult } from "../nexus/knowledge/types";
-import { resolveRockeyToolCwd } from "../rockey/tool-session";
+import { resolveAgentCwd } from "./_agent-cwd";
 import type { ToolSession } from ".";
 
 const repoSearchSchema = z.object({
@@ -64,7 +64,7 @@ export interface NexusKnowledgeSearchToolResult {
 }
 
 export function searchNexusRepositoryKnowledge(session: ToolSession, options: NexusKnowledgeSearchOptions): NexusKnowledgeSearchToolResult {
-	const cwd = resolveRockeyToolCwd(session);
+	const cwd = resolveAgentCwd(session);
 	const repoRoot = resolveNexusProjectScope(cwd).repoRoot ?? cwd;
 	const store = new NexusKnowledgeStore({ agentDir: session.settings.getAgentDir(), cwd });
 	try {

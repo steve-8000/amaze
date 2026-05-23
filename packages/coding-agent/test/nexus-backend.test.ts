@@ -39,8 +39,6 @@ describe("nexusBackend", () => {
 			"nexus.embeddings.enabled": true,
 			"nexus.embeddings.provider": "local_openai",
 			"nexus.dream.enabled": true,
-			"hindsight.apiUrl": "http://127.0.0.1:1",
-			"hindsight.bankId": "missing-bank",
 		});
 		const session = {
 			sessionManager: {

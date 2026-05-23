@@ -4,7 +4,7 @@
 
 **A compact coding-agent runtime for engineers who want the agent to do the work, not narrate the struggle.**
 
-This repository is configured as a source-controlled daily-driver profile for Amaze: a low-token parent orchestrator owns goals, todos, approvals, and integration; bounded subagents do detailed file work; provider prompt caching keeps stable context cheap; Rockey memory preserves durable project/user/failure knowledge.
+This repository is configured as a source-controlled daily-driver profile for Amaze: a low-token parent orchestrator owns goals, todos, approvals, and integration; bounded subagents do detailed file work; provider prompt caching keeps stable context cheap; Nexus memory preserves durable project/user/failure knowledge.
 
 Built for:
 
@@ -29,7 +29,7 @@ Key checked-in defaults:
 - `prompt.mainContextMode = "compact"` for the top-level parent.
 - `prompt.cache.orchestratorRetention = "default"`, `prompt.cache.subagentPrefixReuse = true`.
 - `compaction.enabled = false` and `compaction.strategy = "off"` with continuous tool-output demotion enabled.
-- `memory.backend = "rockey"`.
+- `memory.backend = "nexus"`.
 - User/project skill import from Codex/Claude is disabled; the project uses the allowlisted `.amaze/skills` set.
 - Reasoning summaries are hidden by default (`hideThinkingBlock = true`).
 
@@ -98,7 +98,7 @@ The system prompt is split into stable and volatile blocks:
 
 Anthropic requests receive a `systemPromptCacheBreakpointIndex` hint so cache control lands on STABLE_CORE instead of the changing tail. Other providers ignore the hint safely.
 
-Rockey memory is the active local memory backend. It provides:
+Nexus memory is the active local memory backend. It provides:
 
 - `memory` — add/replace/remove durable user, project, memory, or failure entries.
 - `memory_search` — search durable memory by query/scope/category.

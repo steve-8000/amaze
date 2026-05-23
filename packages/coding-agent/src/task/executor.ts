@@ -18,7 +18,6 @@ import type { CustomTool } from "../extensibility/custom-tools/types";
 import { runExtensionCompact, runExtensionSetModel } from "../extensibility/extensions/compact-handler";
 import { getSessionSlashCommands } from "../extensibility/extensions/get-commands-handler";
 import type { Skill } from "../extensibility/skills";
-import type { HindsightSessionState } from "../hindsight/state";
 import type { LocalProtocolOptions } from "../internal-urls";
 import { callTool } from "../mcp/client";
 import type { MCPManager } from "../mcp/manager";
@@ -182,7 +181,6 @@ export interface ExecutorOptions {
 	 * artifacts directory (no per-subagent subdir).
 	 */
 	parentArtifactManager?: ArtifactManager;
-	parentHindsightSessionState?: HindsightSessionState;
 	/**
 	 * Parent agent's OpenTelemetry configuration. When defined, the subagent's
 	 * loop is started with the same tracer/hooks but its own agent identity
@@ -1155,7 +1153,6 @@ export async function runSubprocess(options: ExecutorOptions): Promise<SingleRes
 						hasUI: false,
 						spawns: spawnsEnv,
 						taskDepth: childDepth,
-						parentHindsightSessionState: options.parentHindsightSessionState,
 						parentTaskPrefix: id,
 						agentId: id,
 						agentDisplayName: agent.name,

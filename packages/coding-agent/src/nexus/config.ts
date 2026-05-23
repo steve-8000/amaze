@@ -18,9 +18,6 @@ export interface NexusConfig {
 	searchEntryMaxChars: number;
 	sessionSearchMaxAnchors: number;
 	pipelineEnabled: boolean;
-	migrationRockey: boolean;
-	migrationLocal: boolean;
-	migrationHindsight: boolean;
 	llmEnabled: boolean;
 	llmProvider: string;
 	llmBaseUrl: string | undefined;
@@ -29,17 +26,20 @@ export interface NexusConfig {
 	embeddingsProvider: string;
 	embeddingsBaseUrl: string | undefined;
 	embeddingsModel: string | undefined;
+	reembedOnDrift: boolean;
 	vectorEnabled: boolean;
 	vectorProvider: string;
 	rerankerEnabled: boolean;
 	rerankerProvider: string;
 	dreamEnabled: boolean;
 	onlineConsolidationEnabled: boolean;
+	onlineConsolidationMinIntervalMs: number;
 	hypothesisVerificationEnabled: boolean;
 	conceptualSkillEnabled: boolean;
 	dreamHypothesesOnly: boolean;
 	healingEnabled: boolean;
 	autoApplySafeRepairs: boolean;
+	contradictionThreshold: number;
 	deterministicFallback: boolean;
 	/**
 	 * Per pipeline run caps. The pipeline never spends more LLM/embed calls than
@@ -99,9 +99,6 @@ export function loadNexusConfig(settings: Settings): NexusConfig {
 		searchEntryMaxChars: numberSetting(settings.get("nexus.searchEntryMaxChars"), 480, 80, 10_000),
 		sessionSearchMaxAnchors: numberSetting(settings.get("nexus.sessionSearchMaxAnchors"), 8, 1, 50),
 		pipelineEnabled: settings.get("nexus.pipeline.enabled") ?? true,
-		migrationRockey: settings.get("nexus.migration.rockey") ?? true,
-		migrationLocal: settings.get("nexus.migration.local") ?? true,
-		migrationHindsight: settings.get("nexus.migration.hindsight") ?? true,
 		llmEnabled: settings.get("nexus.llm.enabled") ?? false,
 		llmProvider: settings.get("nexus.llm.provider") ?? "disabled",
 		llmBaseUrl: stringSetting(settings.get("nexus.llm.baseUrl")),
@@ -110,6 +107,7 @@ export function loadNexusConfig(settings: Settings): NexusConfig {
 		embeddingsProvider: settings.get("nexus.embeddings.provider") ?? "disabled",
 		embeddingsBaseUrl: stringSetting(settings.get("nexus.embeddings.baseUrl")),
 		embeddingsModel: stringSetting(settings.get("nexus.embeddings.model")),
+		reembedOnDrift: settings.get("nexus.embedding.reindexOnDrift") ?? true,
 		vectorEnabled: settings.get("nexus.vector.enabled") ?? false,
 		vectorProvider: settings.get("nexus.vector.provider") ?? "disabled",
 		rerankerEnabled: settings.get("nexus.reranker.enabled") ?? false,
@@ -118,8 +116,10 @@ export function loadNexusConfig(settings: Settings): NexusConfig {
 		dreamHypothesesOnly: settings.get("nexus.dream.hypothesesOnly") ?? true,
 		healingEnabled: settings.get("nexus.healing.enabled") ?? true,
 		autoApplySafeRepairs: settings.get("nexus.healing.autoApplySafeRepairs") ?? true,
+		contradictionThreshold: floatSetting(settings.get("nexus.contradictionThreshold"), 0.7, 0, 1),
 		deterministicFallback: settings.get("nexus.fallback.deterministicConsolidation") ?? true,
 		onlineConsolidationEnabled: settings.get("nexus.onlineConsolidation.enabled") ?? true,
+		onlineConsolidationMinIntervalMs: numberSetting(settings.get("nexus.onlineConsolidation.minIntervalMs"), 0, 0, 7 * 24 * 60 * 60 * 1000),
 		hypothesisVerificationEnabled: settings.get("nexus.hypothesisVerification.enabled") ?? true,
 		conceptualSkillEnabled: settings.get("nexus.conceptualSkills.enabled") ?? true,
 		maxLlmCalls: numberSetting(settings.get("nexus.maxLlmCalls"), 6, 0, 200),

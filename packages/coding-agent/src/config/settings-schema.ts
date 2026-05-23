@@ -191,7 +191,6 @@ const EMPTY_STRING_ARRAY: string[] = [];
 const EMPTY_STRING_RECORD: Record<string, string> = {};
 const DEFAULT_CYCLE_ORDER: string[] = ["smol", "default", "slow"];
 const EMPTY_MODEL_TAGS_RECORD: ModelTagsSettings = {};
-const HINDSIGHT_RECALL_TYPES_DEFAULT: string[] = ["world", "experience"];
 export const DEFAULT_BASH_INTERCEPTOR_RULES: BashInterceptorRule[] = [
 	{
 		pattern: "^\\s*(cat|head|tail|less|more)\\s+",
@@ -1321,62 +1320,21 @@ export const SETTINGS_SCHEMA = {
 
 	"branchSummary.reserveTokens": { type: "number", default: 16384 },
 
-	// Memories
-	// Legacy local-memory enable flag kept only for back-compat migration.
-	// Hidden from UI — users should use `memory.backend` instead.
-	"memories.enabled": {
-		type: "boolean",
-		default: false,
-	},
-
-	"memories.maxRolloutsPerStartup": { type: "number", default: 64 },
-
-	"memories.maxRolloutAgeDays": { type: "number", default: 30 },
-
-	"memories.minRolloutIdleHours": { type: "number", default: 12 },
-
-	"memories.threadScanLimit": { type: "number", default: 300 },
-
-	"memories.maxRawMemoriesForGlobal": { type: "number", default: 200 },
-
-	"memories.stage1Concurrency": { type: "number", default: 8 },
-
-	"memories.stage1LeaseSeconds": { type: "number", default: 120 },
-
-	"memories.stage1RetryDelaySeconds": { type: "number", default: 120 },
-
-	"memories.phase2LeaseSeconds": { type: "number", default: 180 },
-
-	"memories.phase2RetryDelaySeconds": { type: "number", default: 180 },
-
-	"memories.phase2HeartbeatSeconds": { type: "number", default: 30 },
-
-	"memories.rolloutPayloadPercent": { type: "number", default: 0.7 },
-
-	"memories.phase1InputTokenLimit": { type: "number", default: 4000 },
-
-	"memories.fallbackTokenLimit": { type: "number", default: 16000 },
-
-	"memories.summaryInjectionTokenLimit": { type: "number", default: 5000 },
-
-	// Memory backend selector — picks the canonical Nexus local memory plane or
-	// off. Legacy `local`, `rockey`, and `hindsight` values remain accepted in
-	// the enum for migration compatibility, but normal config loads upgrade them
-	// to Nexus in config/settings.ts.
+	// Memory backend selector — picks the canonical Nexus local memory plane or off.
 	"memory.backend": {
 		type: "enum",
-		values: ["off", "local", "rockey", "hindsight", "nexus"] as const,
+		values: ["off", "nexus"] as const,
 		default: "off",
 		ui: {
 			tab: "memory",
 			label: "Memory Backend",
-			description: "Off or Nexus canonical local memory. Legacy backends are imported as migration sources and no longer offered in the UI.",
+			description: "Off or Nexus canonical local memory.",
 			options: [
 				{ value: "off", label: "Off", description: "No memory subsystem runs" },
 				{
 					value: "nexus",
 					label: "Nexus",
-					description: "Canonical temporal local memory with migration, healing, and optional AI enhancement",
+					description: "Canonical temporal local memory with healing and optional AI enhancement",
 				},
 			],
 		},
@@ -1396,15 +1354,15 @@ export const SETTINGS_SCHEMA = {
 	"nexus.searchResultMaxChars": { type: "number", default: 2400 },
 	"nexus.searchEntryMaxChars": { type: "number", default: 480 },
 	"nexus.sessionSearchMaxAnchors": { type: "number", default: 8 },
+	"nexus.sessionSearchMaxPreviewChars": { type: "number", default: 1600 },
 	"nexus.pipeline.enabled": { type: "boolean", default: true },
-	"nexus.migration.rockey": { type: "boolean", default: true },
-	"nexus.migration.local": { type: "boolean", default: true },
-	"nexus.migration.hindsight": { type: "boolean", default: true },
 	"nexus.healing.enabled": { type: "boolean", default: true },
 	"nexus.healing.autoApplySafeRepairs": { type: "boolean", default: true },
+	"nexus.contradictionThreshold": { type: "number", default: 0.7, description: "Minimum likelihood score (0–1) for marking two memory items as contradicting." },
 	"nexus.dream.enabled": { type: "boolean", default: false },
 	"nexus.dream.hypothesesOnly": { type: "boolean", default: true },
 	"nexus.onlineConsolidation.enabled": { type: "boolean", default: true },
+	"nexus.onlineConsolidation.minIntervalMs": { type: "number", default: 0, description: "Minimum milliseconds between online consolidations per session. 0 disables debounce." },
 	"nexus.hypothesisVerification.enabled": { type: "boolean", default: true },
 	"nexus.conceptualSkills.enabled": { type: "boolean", default: true },
 	"nexus.fallback.deterministicConsolidation": { type: "boolean", default: true },
@@ -1416,6 +1374,7 @@ export const SETTINGS_SCHEMA = {
 	"nexus.embeddings.provider": { type: "string", default: "disabled" },
 	"nexus.embeddings.baseUrl": { type: "string", default: undefined },
 	"nexus.embeddings.model": { type: "string", default: undefined },
+	"nexus.embedding.reindexOnDrift": { type: "boolean", default: true, description: "Re-embed entries when the active embedding model changes." },
 	"nexus.vector.enabled": { type: "boolean", default: false },
 	"nexus.vector.provider": { type: "string", default: "disabled" },
 	"nexus.reranker.enabled": { type: "boolean", default: false },
@@ -1425,211 +1384,6 @@ export const SETTINGS_SCHEMA = {
 	"nexus.maxRolloutsPerRun": { type: "number", default: 8 },
 	"nexus.llm.extractionTemperature": { type: "number", default: 0 },
 	"nexus.llm.reflectionTemperature": { type: "number", default: 0 },
-
-	"rockey.autoRecall": {
-		type: "boolean",
-		default: false,
-		ui: {
-			tab: "memory",
-			label: "Rockey Auto Recall",
-			description: "Inject bounded Rockey search results before each agent turn",
-			condition: "rockeyActive",
-		},
-	},
-
-	"rockey.autoRecallLimit": { type: "number", default: 5 },
-
-	"rockey.correctionDetection": {
-		type: "boolean",
-		default: true,
-		ui: {
-			tab: "memory",
-			label: "Rockey Correction Capture",
-			description: "Save user corrections as categorized failure memories",
-			condition: "rockeyActive",
-		},
-	},
-
-	"rockey.staticPromptMaxChars": { type: "number", default: 1200 },
-	"rockey.searchResultMaxEntries": { type: "number", default: 5 },
-	"rockey.searchResultMaxChars": { type: "number", default: 2400 },
-	"rockey.searchEntryMaxChars": { type: "number", default: 480 },
-	"rockey.autoRecallMaxChars": { type: "number", default: 1800 },
-	"rockey.failureRecallMaxEntries": { type: "number", default: 3 },
-	"rockey.failureRecallMaxChars": { type: "number", default: 1200 },
-	"rockey.sessionSearchMaxAnchors": { type: "number", default: 8 },
-	"rockey.sessionSearchMaxPreviewChars": { type: "number", default: 1600 },
-	"rockey.llm.enabled": {
-		type: "boolean",
-		default: true,
-		ui: {
-			tab: "memory",
-			label: "Rockey LLM Jobs",
-			description: "Allow Rockey background scoring and curation jobs to resolve their own models",
-			condition: "rockeyActive",
-		},
-	},
-	"rockey.llm.curation.model": { type: "string", default: undefined },
-	"rockey.llm.curation.provider": { type: "string", default: undefined },
-	"rockey.llm.curation.modelRole": { type: "string", default: undefined },
-	"rockey.llm.curation.fallbackRole": { type: "string", default: "smol" },
-	"rockey.llm.curation.maxInputTokens": { type: "number", default: 4000 },
-	"rockey.llm.curation.maxOutputTokens": { type: "number", default: 1000 },
-	"rockey.llm.curation.timeoutMs": { type: "number", default: 30000 },
-	"rockey.llm.scoring.model": { type: "string", default: undefined },
-	"rockey.llm.scoring.provider": { type: "string", default: undefined },
-	"rockey.llm.scoring.modelRole": { type: "string", default: undefined },
-	"rockey.llm.scoring.fallbackRole": { type: "string", default: "smol" },
-	"rockey.llm.scoring.maxInputTokens": { type: "number", default: 3000 },
-	"rockey.llm.scoring.maxOutputTokens": { type: "number", default: 800 },
-	"rockey.llm.scoring.timeoutMs": { type: "number", default: 20000 },
-	"rockey.llm.summary.model": { type: "string", default: undefined },
-	"rockey.llm.summary.provider": { type: "string", default: undefined },
-	"rockey.llm.summary.modelRole": { type: "string", default: undefined },
-	"rockey.llm.summary.fallbackRole": { type: "string", default: "default" },
-	"rockey.llm.summary.maxInputTokens": { type: "number", default: 6000 },
-	"rockey.llm.summary.maxOutputTokens": { type: "number", default: 1200 },
-	"rockey.llm.summary.timeoutMs": { type: "number", default: 30000 },
-
-	// Hindsight (https://hindsight.vectorize.io)
-	"hindsight.apiUrl": {
-		type: "string",
-		default: "http://localhost:8888",
-		ui: {
-			tab: "memory",
-			label: "Hindsight API URL",
-			description: "Hindsight server URL (Cloud or self-hosted)",
-			condition: "hindsightActive",
-		},
-	},
-
-	"hindsight.apiToken": { type: "string", default: undefined },
-
-	"hindsight.bankId": {
-		type: "string",
-		default: undefined,
-		ui: {
-			tab: "memory",
-			label: "Hindsight Bank ID",
-			description: "Memory bank identifier (default: project name)",
-			condition: "hindsightActive",
-		},
-	},
-
-	"hindsight.bankIdPrefix": { type: "string", default: undefined },
-	"hindsight.scoping": {
-		type: "enum",
-		values: ["global", "per-project", "per-project-tagged"] as const,
-		default: "per-project-tagged",
-		ui: {
-			tab: "memory",
-			label: "Hindsight Scoping",
-			description:
-				"global = one shared bank; per-project = isolated bank per cwd; per-project-tagged = shared bank with project tags so global + project memories merge on recall",
-			options: [
-				{
-					value: "global",
-					label: "Global",
-					description: "One shared bank — every project sees the same memories",
-				},
-				{
-					value: "per-project",
-					label: "Per project",
-					description: "Isolated bank per cwd basename — projects cannot see each other's memories",
-				},
-				{
-					value: "per-project-tagged",
-					label: "Per project (tagged)",
-					description:
-						"Shared bank, retains tagged with project:<cwd>. Recall surfaces project + untagged global memories together",
-				},
-			],
-			condition: "hindsightActive",
-		},
-	},
-	"hindsight.bankMission": { type: "string", default: undefined },
-	"hindsight.retainMission": { type: "string", default: undefined },
-
-	"hindsight.autoRecall": {
-		type: "boolean",
-		default: true,
-		ui: {
-			tab: "memory",
-			label: "Hindsight Auto Recall",
-			description: "Recall memories on the first turn of each session",
-			condition: "hindsightActive",
-		},
-	},
-	"hindsight.autoRetain": {
-		type: "boolean",
-		default: true,
-		ui: {
-			tab: "memory",
-			label: "Hindsight Auto Retain",
-			description: "Retain transcript every N turns and at session boundaries",
-			condition: "hindsightActive",
-		},
-	},
-
-	"hindsight.retainMode": {
-		type: "enum",
-		values: ["full-session", "last-turn"] as const,
-		default: "full-session",
-		ui: {
-			tab: "memory",
-			label: "Hindsight Retain Mode",
-			description: "full-session = upsert one document per session, last-turn = chunked",
-			options: [
-				{
-					value: "full-session",
-					label: "Full session",
-					description: "Upsert one document per session (recommended)",
-				},
-				{ value: "last-turn", label: "Last turn", description: "Chunked retention sliced by turn boundaries" },
-			],
-			condition: "hindsightActive",
-		},
-	},
-	"hindsight.retainEveryNTurns": { type: "number", default: 3 },
-	"hindsight.retainOverlapTurns": { type: "number", default: 2 },
-	"hindsight.retainContext": { type: "string", default: "omp" },
-
-	"hindsight.recallBudget": {
-		type: "enum",
-		values: ["low", "mid", "high"] as const,
-		default: "mid",
-	},
-	"hindsight.recallMaxTokens": { type: "number", default: 1024 },
-	"hindsight.recallContextTurns": { type: "number", default: 1 },
-	"hindsight.recallMaxQueryChars": { type: "number", default: 800 },
-	"hindsight.recallTypes": { type: "array", default: HINDSIGHT_RECALL_TYPES_DEFAULT },
-
-	"hindsight.debug": { type: "boolean", default: false },
-
-	"hindsight.mentalModelsEnabled": {
-		type: "boolean",
-		default: true,
-		ui: {
-			tab: "memory",
-			label: "Hindsight Mental Models",
-			description:
-				"Read curated reflect summaries (mental models) into developer instructions at boot. Loads existing models on the bank — does not write. Pair with hindsight.mentalModelAutoSeed to also auto-create the built-in seed set.",
-			condition: "hindsightActive",
-		},
-	},
-	"hindsight.mentalModelAutoSeed": {
-		type: "boolean",
-		default: true,
-		ui: {
-			tab: "memory",
-			label: "Hindsight Mental Model Auto-Seed",
-			description:
-				"At session start, create any built-in mental models (project-conventions, project-decisions, user-preferences) that do not yet exist on the bank.",
-			condition: "hindsightActive",
-		},
-	},
-	"hindsight.mentalModelRefreshIntervalMs": { type: "number", default: 5 * 60 * 1000 },
-	"hindsight.mentalModelMaxRenderChars": { type: "number", default: 16_000 },
 
 	// TTSR
 	"ttsr.enabled": {

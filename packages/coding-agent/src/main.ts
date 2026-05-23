@@ -94,7 +94,6 @@ const RPC_DEFAULTED_SETTING_PATHS: SettingPath[] = [
 	// Memory subsystems are off-by-default for RPC hosts; embedders that want
 	// memory should opt in explicitly through their own settings layer.
 	"memory.backend",
-	"memories.enabled",
 ];
 
 function applyRpcDefaultSettingOverrides(targetSettings: Settings = settings): void {

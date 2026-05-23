@@ -36,7 +36,7 @@ import { createNexusEmbeddingClient } from "./embedding-client";
 import type { NexusLlmClient } from "./llm-client";
 import { createNexusLlmClient } from "./llm-client";
 import { scopeForTarget } from "./scope";
-import type { NexusStore } from "./store";
+import { recordPipelineStage, recordRuntimeEvent, type NexusStore } from "./store";
 import type { NexusConfidence, NexusMemoryCategory, NexusMemoryTarget, NexusMemoryType } from "./types";
 
 export interface NexusPipelineResult {
@@ -96,33 +96,68 @@ export async function runNexusPipeline(store: NexusStore, settings: Settings, op
 	if (!config.pipelineEnabled) {
 		return finalize(counters, 0);
 	}
+	const runId = `pipeline:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
 	const llmClient = options.llmClient === undefined ? createNexusLlmClient(config) : options.llmClient;
 	const embeddingClient = options.embeddingClient === undefined ? createNexusEmbeddingClient(config) : options.embeddingClient;
 
-	await ingestRollouts(store, config, counters, llmClient);
+	await runStage(store, runId, "ingest", async () => {
+		await ingestRollouts(store, config, counters, llmClient);
+		return { llmCalls: counters.llmCalls };
+	});
 
 	if (embeddingClient && config.maxEmbedCalls > 0) {
-		await backfillEmbeddings(store, embeddingClient, config, counters);
+		await runStage(store, runId, "embed-backfill", async () => {
+			const before = counters.embedCalls;
+			await backfillEmbeddings(store, embeddingClient, config, counters);
+			return { embedCalls: counters.embedCalls - before };
+		});
 	}
 
 	let semanticDuplicates = 0;
 	if (config.healingEnabled) {
-		const healing = store.runSelfHealing();
+		const healing = await runStage(store, runId, "healing", async () => store.runSelfHealing());
 		semanticDuplicates = healing.semanticDuplicates;
 	}
 
 	if (config.hypothesisVerificationEnabled) {
-		await verifyProposedHypotheses(store, config, counters, llmClient);
+		await runStage(store, runId, "hypothesis-verify", async () => {
+			const before = counters.llmCalls;
+			await verifyProposedHypotheses(store, config, counters, llmClient);
+			return { llmCalls: counters.llmCalls - before };
+		});
 	}
 
 	if (config.conceptualSkillEnabled) {
-		await promoteConceptualSkills(store, config, counters, llmClient);
+		await runStage(store, runId, "skill-promotion", async () => {
+			const before = counters.llmCalls;
+			await promoteConceptualSkills(store, config, counters, llmClient);
+			return { llmCalls: counters.llmCalls - before };
+		});
 	}
 
-	await reflect(store, config, counters, llmClient);
+	await runStage(store, runId, "reflect", async () => {
+		const before = counters.llmCalls;
+		await reflect(store, config, counters, llmClient);
+		return { llmCalls: counters.llmCalls - before };
+	});
 
-	await store.renderArtifacts();
+	await runStage(store, runId, "artifacts", async () => store.renderArtifacts());
 	return finalize(counters, semanticDuplicates);
+}
+
+async function runStage<T>(store: NexusStore, runId: string, stage: string, fn: () => Promise<T>): Promise<T> {
+	const started = Date.now();
+	try {
+		const result = await fn();
+		const llmCalls = (result as { llmCalls?: number } | null | undefined)?.llmCalls ?? 0;
+		const embedCalls = (result as { embedCalls?: number } | null | undefined)?.embedCalls ?? 0;
+		recordPipelineStage(store.db, { kind: "pipeline", jobKey: `${runId}:${stage}`, stage, durationMs: Date.now() - started, llmCalls, embedCalls, status: "success" });
+		return result;
+	} catch (error) {
+		recordPipelineStage(store.db, { kind: "pipeline", jobKey: `${runId}:${stage}`, stage, durationMs: Date.now() - started, status: "failure", lastError: String(error) });
+		recordRuntimeEvent(store.db, { kind: "pipeline_stage_failure", severity: "warn", message: String(error), context: { stage, runId } });
+		throw error;
+	}
 }
 
 function finalize(counters: PipelineCounters, semanticDuplicates: number): NexusPipelineResult {
@@ -426,8 +461,19 @@ function heuristicExtract(store: NexusStore, text: string, role: string, sourceP
 async function backfillEmbeddings(store: NexusStore, client: NexusEmbeddingClient, config: NexusConfig, counters: PipelineCounters): Promise<void> {
 	const budget = Math.max(0, config.maxEmbedCalls - counters.embedCalls);
 	if (budget === 0) return;
-	const pending = store.listMissingEmbeddings(budget);
+	const activeModel = client.model || config.embeddingsModel || null;
+	const pending =
+		config.reembedOnDrift === false ? store.listMissingEmbeddings(budget).map(entry => ({ ...entry, reason: "missing" as const })) : store.listMissingOrStaleEmbeddings(budget, activeModel);
 	if (pending.length === 0) return;
+	const drifted = pending.filter(entry => entry.reason === "stale_model");
+	if (drifted.length > 0 && activeModel) {
+		recordRuntimeEvent(store.db, {
+			kind: "embedding_model_drift",
+			severity: "info",
+			message: `Re-embedding ${drifted.length} row(s) due to model change to ${activeModel}`,
+			context: { driftedCount: drifted.length, activeModel },
+		});
+	}
 	counters.embedCalls += pending.length;
 	const result = await client.embed(pending.map(entry => entry.content));
 	if (!result.ok) {

@@ -212,7 +212,7 @@ describe("runSubprocess yield reminders", () => {
 			});
 		});
 		const createAgentSessionSpy = mockCreateAgentSession(session);
-		const parentSettings = Settings.isolated({ "memory.backend": "rockey" });
+		const parentSettings = Settings.isolated({ "memory.backend": "nexus" });
 
 		await runSubprocess({
 			...baseOptions,
@@ -220,7 +220,7 @@ describe("runSubprocess yield reminders", () => {
 			settings: parentSettings,
 		});
 
-		expect(parentSettings.get("memory.backend")).toBe("rockey");
+		expect(parentSettings.get("memory.backend")).toBe("nexus");
 		const call = createAgentSessionSpy.mock.calls[0]?.[0];
 		if (!call?.settings) throw new Error("Expected subagent settings");
 		expect(call.settings.get("memory.backend")).toBe("off");

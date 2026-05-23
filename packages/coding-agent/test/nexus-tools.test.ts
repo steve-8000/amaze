@@ -3,9 +3,6 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { NexusKnowledgeStore } from "@amaze/coding-agent/nexus/knowledge/store";
-import { RockeyMemoryTool } from "@amaze/coding-agent/tools/rockey-memory";
-import { RockeyMemorySearchTool } from "@amaze/coding-agent/tools/rockey-memory-search";
-import { RockeySessionSearchTool } from "@amaze/coding-agent/tools/rockey-session-search";
 import { createTools } from "@amaze/coding-agent/tools";
 import { Snowflake } from "@amaze/utils";
 
@@ -26,45 +23,6 @@ afterEach(async () => {
 });
 
 describe("Nexus compatibility tools", () => {
-	it("exposes memory, memory_search, and session_search under memory.backend=nexus", async () => {
-		const agentDir = await makeTempDir("nexus-tools-agent");
-		const cwd = await makeTempDir("nexus-tools-cwd");
-		const sessionFile = path.join(agentDir, "sessions", "thr.jsonl");
-		await fs.mkdir(path.dirname(sessionFile), { recursive: true });
-		await Bun.write(sessionFile, `${JSON.stringify({ type: "session", id: "thr", cwd })}\n`);
-		const settings = {
-			get: (key: string) => {
-				if (key === "memory.backend") return "nexus";
-				if (key === "nexus.searchResultMaxEntries") return 5;
-				if (key === "nexus.searchEntryMaxChars") return 480;
-				if (key === "nexus.searchResultMaxChars") return 2400;
-				return undefined;
-			},
-			getAgentDir: () => agentDir,
-		};
-		const toolSession = {
-			cwd,
-			hasUI: false,
-			contextFiles: [],
-			getSessionFile: () => sessionFile,
-			getSessionSpawns: () => null,
-			settings,
-		} as any;
-		const memoryTool = RockeyMemoryTool.createIf(toolSession);
-		const searchTool = RockeyMemorySearchTool.createIf(toolSession);
-		const sessionSearchTool = RockeySessionSearchTool.createIf(toolSession);
-		expect(memoryTool).not.toBeNull();
-		expect(searchTool).not.toBeNull();
-		expect(sessionSearchTool).not.toBeNull();
-		const addResult = await memoryTool!.execute("1", {
-			action: "add",
-			target: "project",
-			content: "Use bun test before edits.",
-		});
-		expect(JSON.stringify(addResult.details)).toContain("success");
-		const searchResult = await searchTool!.execute("2", { query: "bun test", scope: "current_project" });
-		expect(JSON.stringify(searchResult.details)).toContain("bun test");
-	});
 
 	it("exposes and invokes Nexus repository knowledge tools", async () => {
 		const agentDir = await makeTempDir("nexus-repo-tools-agent");

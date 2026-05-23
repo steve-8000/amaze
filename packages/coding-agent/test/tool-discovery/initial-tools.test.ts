@@ -13,7 +13,7 @@ import {
 	SshTool,
 } from "../../src/tools/index";
 
-function createAllToolsSettings(memoryBackend: "hindsight" | "rockey" | "nexus"): Settings {
+function createAllToolsSettings(memoryBackend: "nexus"): Settings {
 	return Settings.isolated({
 		"astGrep.enabled": true,
 		"astEdit.enabled": true,
@@ -36,7 +36,7 @@ function createAllToolsSettings(memoryBackend: "hindsight" | "rockey" | "nexus")
 	});
 }
 
-const allToolsSettings = createAllToolsSettings("hindsight");
+const allToolsSettings = createAllToolsSettings("nexus");
 const toolSession: ToolSession = {
 	cwd: "/tmp/test",
 	hasUI: false,
@@ -50,11 +50,9 @@ const toolSession: ToolSession = {
 
 async function getToolMetadata(): Promise<Map<string, { loadMode?: string; summary?: string }>> {
 	const metadata = new Map<string, { loadMode?: string; summary?: string }>();
-	for (const settings of [createAllToolsSettings("hindsight"), createAllToolsSettings("rockey"), createAllToolsSettings("nexus")]) {
-		const tools = await createTools({ ...toolSession, settings }, Object.keys(BUILTIN_TOOLS));
-		for (const tool of tools) {
-			metadata.set(tool.name, { loadMode: tool.loadMode, summary: tool.summary });
-		}
+	const tools = await createTools({ ...toolSession, settings: createAllToolsSettings("nexus") }, Object.keys(BUILTIN_TOOLS));
+	for (const tool of tools) {
+		metadata.set(tool.name, { loadMode: tool.loadMode, summary: tool.summary });
 	}
 	for (const tool of [
 		new AskTool({ ...toolSession, hasUI: true }),

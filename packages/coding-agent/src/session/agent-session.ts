@@ -134,7 +134,6 @@ import type { Skill, SkillWarning } from "../extensibility/skills";
 import { expandSlashCommand, type FileSlashCommand } from "../extensibility/slash-commands";
 import { GoalRuntime, renderGoalBlock } from "../goals/runtime";
 import type { Goal, GoalModeState } from "../goals/state";
-import type { HindsightSessionState } from "../hindsight/state";
 import { type LocalProtocolOptions, resolveLocalUrlToPath } from "../internal-urls";
 import {
 	buildDiscoverableMCPSearchIndex,
@@ -970,7 +969,6 @@ export class AgentSession {
 	#lastSuccessfulYieldToolCallId: string | undefined = undefined;
 	#promptGeneration = 0;
 	#providerSessionState = new Map<string, ProviderSessionState>();
-	#hindsightSessionState: HindsightSessionState | undefined = undefined;
 	readonly rawSseDebugBuffer: RawSseDebugBuffer;
 
 	#acquirePowerAssertion(): void {
@@ -1228,16 +1226,6 @@ export class AgentSession {
 	/** Provider-scoped mutable state store for transport/session caches. */
 	get providerSessionState(): Map<string, ProviderSessionState> {
 		return this.#providerSessionState;
-	}
-
-	getHindsightSessionState(): HindsightSessionState | undefined {
-		return this.#hindsightSessionState;
-	}
-
-	setHindsightSessionState(state: HindsightSessionState | undefined): HindsightSessionState | undefined {
-		const previous = this.#hindsightSessionState;
-		this.#hindsightSessionState = state;
-		return previous;
 	}
 
 	/** TTSR manager for time-traveling stream rules */
@@ -2767,21 +2755,6 @@ export class AgentSession {
 		);
 	}
 
-	#rekeyHindsightMemoryForCurrentSessionId(): void {
-		if (resolveMemoryBackend(this.settings).id !== "hindsight") return;
-		const sid = this.agent.sessionId;
-		if (!sid) return;
-		this.getHindsightSessionState()?.setSessionId(sid);
-	}
-
-	/** New session file: reset auto-recall / retain-threshold counters for the new transcript. */
-	#resetHindsightConversationTrackingIfHindsight(): void {
-		if (resolveMemoryBackend(this.settings).id !== "hindsight") return;
-		const state = this.getHindsightSessionState();
-		if (!state || state.aliasOf) return;
-		state.resetConversationTracking();
-	}
-
 	/**
 	 * Remove all listeners, flush pending writes, and disconnect from agent.
 	 * Call this when completely done with the session.
@@ -2825,9 +2798,6 @@ export class AgentSession {
 		this.#releasePowerAssertion();
 		await this.sessionManager.close();
 		this.#closeAllProviderSessions("dispose");
-		const hindsightState = this.setHindsightSessionState(undefined);
-		await hindsightState?.flushRetainQueue();
-		hindsightState?.dispose();
 		this.#disconnectFromAgent();
 		this.#eventListeners = [];
 	}
@@ -4894,8 +4864,6 @@ export class AgentSession {
 		await this.sessionManager.newSession(options);
 		this.setTodoPhases([]);
 		this.#syncAgentSessionId();
-		this.#rekeyHindsightMemoryForCurrentSessionId();
-		this.#resetHindsightConversationTrackingIfHindsight();
 		this.#steeringMessages = [];
 		this.#followUpMessages = [];
 		this.#pendingNextTurnMessages = [];
@@ -4989,7 +4957,6 @@ export class AgentSession {
 
 		// Update agent session ID
 		this.#syncAgentSessionId();
-		this.#rekeyHindsightMemoryForCurrentSessionId();
 
 		// Emit session_switch event with reason "fork" to hooks
 		if (this.#extensionRunner) {
@@ -5784,9 +5751,7 @@ export class AgentSession {
 			this.agent.reset();
 			this.agent.restoreQueues(queuedAgentMessages);
 			this.#syncAgentSessionId();
-			this.#rekeyHindsightMemoryForCurrentSessionId();
-			this.#resetHindsightConversationTrackingIfHindsight();
-			this.#steeringMessages = queuedSteeringMessages;
+					this.#steeringMessages = queuedSteeringMessages;
 			this.#followUpMessages = queuedFollowUpMessages;
 			this.#pendingNextTurnMessages = queuedPendingNextTurnMessages;
 			this.#scheduledHiddenNextTurnGeneration = undefined;
@@ -8092,8 +8057,7 @@ export class AgentSession {
 		try {
 			await this.sessionManager.setSessionFile(sessionPath);
 			this.#syncAgentSessionId();
-			this.#rekeyHindsightMemoryForCurrentSessionId();
-
+	
 			const sessionContext = this.buildDisplaySessionContext();
 			const didReloadConversationChange =
 				!switchingToDifferentSession &&
@@ -8163,15 +8127,13 @@ export class AgentSession {
 					: configuredServiceTier;
 
 			if (switchingToDifferentSession) {
-				this.#resetHindsightConversationTrackingIfHindsight();
-			}
+					}
 			this.#reconnectToAgent();
 			return true;
 		} catch (error) {
 			this.sessionManager.restoreState(previousSessionState);
 			this.#syncAgentSessionId(previousSessionState.sessionId);
-			this.#rekeyHindsightMemoryForCurrentSessionId();
-			let restoreMcpError: unknown;
+				let restoreMcpError: unknown;
 			try {
 				await this.#restoreMCPSelectionsForSessionContext(previousSessionContext, {
 					fallbackSelectedMCPToolNames: previousFallbackSelectedMCPToolNames,
@@ -8262,8 +8224,6 @@ export class AgentSession {
 		}
 		this.#syncTodoPhasesFromBranch();
 		this.#syncAgentSessionId();
-		this.#rekeyHindsightMemoryForCurrentSessionId();
-		this.#resetHindsightConversationTrackingIfHindsight();
 
 		// Reload messages from entries (works for both file and in-memory mode)
 		const sessionContext = this.buildDisplaySessionContext();

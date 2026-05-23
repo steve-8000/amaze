@@ -2,7 +2,6 @@ import type { AgentMessage } from "@amaze/agent-core";
 import { logger } from "@amaze/utils";
 import type { Settings } from "../config/settings";
 import { persistNexusDoctorResult } from "../nexus/doctor";
-import { importLegacyMemorySources } from "../nexus/importers";
 import { indexNexusRepository } from "../nexus/knowledge/indexer";
 import { NexusKnowledgeStore } from "../nexus/knowledge/store";
 import type { NexusKnowledgeSearchResult } from "../nexus/knowledge/types";
@@ -11,12 +10,17 @@ import { createNexusEmbeddingClient } from "../nexus/embedding-client";
 import { createNexusLlmClient } from "../nexus/llm-client";
 import { runNexusOnlineConsolidation, runNexusPipeline } from "../nexus/pipeline";
 import { resolveNexusProjectScope } from "../nexus/scope";
-import { getNexusRoot, NexusStore } from "../nexus/store";
+import { indexCurrentNexusSession, reindexNexusSessions } from "../nexus/session-search";
+import { getNexusDbPath, getNexusRoot, NexusStore, openNexusDb, recordRuntimeEvent } from "../nexus/store";
+import { RECALL_FENCE_CLOSE, RECALL_FENCE_OPEN, stripRecallFences, wrapRecallBlock } from "../nexus/recall-fence";
 import type { NexusMemoryEntry } from "../nexus/types";
 import { MEMORY_ACTIVITY_MESSAGE_TYPE } from "../session/messages";
 import type { MemoryBackend, MemoryBackendStartOptions } from "./types";
 
-const states = new WeakMap<object, { imported: boolean }>();
+const sessionReindexStarted = new Set<string>();
+interface ConsolidationCacheEntry { lastAt: number; lastHash: string; }
+const consolidationCache = new Map<string, ConsolidationCacheEntry>();
+
 
 export const nexusBackend: MemoryBackend = {
 	id: "nexus",
@@ -26,21 +30,24 @@ export const nexusBackend: MemoryBackend = {
 		if (taskDepth > 0) return;
 		const config = loadNexusConfig(settings);
 		if (!config.enabled) return;
-		const store = new NexusStore({ agentDir: options.agentDir, cwd: session.sessionManager.getCwd() });
+		const store = new NexusStore({ agentDir: options.agentDir, cwd: session.sessionManager.getCwd(), contradictionThreshold: config.contradictionThreshold });
 		try {
-			if (!states.get(session)?.imported) {
-				await importLegacyMemorySources(store, settings, {
-					rockey: config.migrationRockey,
-					local: config.migrationLocal,
-					hindsight: config.migrationHindsight,
-				});
-				states.set(session, { imported: true });
-			}
 			await runStartupMaintenance(store, settings, config, options.agentDir, session.sessionManager.getCwd(), session);
 		} catch (error) {
+			try { recordRuntimeEvent(store.db, { kind: "startup_failure", severity: "warn", message: String(error) }); } catch {}
 			logger.debug("Nexus startup failed; continuing without blocking agent loop", { error: String(error) });
 		} finally {
 			store.close();
+		}
+		if (!sessionReindexStarted.has(options.agentDir)) {
+			sessionReindexStarted.add(options.agentDir);
+			void reindexNexusSessions(options.agentDir).catch(err => {
+				try {
+					const db = openNexusDb(getNexusDbPath(options.agentDir));
+					try { recordRuntimeEvent(db, { kind: "session_bootstrap_reindex_failure", severity: "warn", message: String(err) }); } finally { db.close(false); }
+				} catch {}
+				logger.debug("Nexus session bootstrap reindex failed", { error: String(err) });
+			});
 		}
 	},
 
@@ -48,7 +55,7 @@ export const nexusBackend: MemoryBackend = {
 		const config = loadNexusConfig(settings);
 		if (!config.enabled) return undefined;
 		const cwd = session?.sessionManager.getCwd() ?? settings.getCwd();
-		const store = new NexusStore({ agentDir, cwd });
+		const store = new NexusStore({ agentDir, cwd, contradictionThreshold: config.contradictionThreshold });
 		try {
 			const summaryPath = `${store.artifactRoot}/memory_summary.md`;
 			const projectSummary = await Bun.file(summaryPath)
@@ -79,14 +86,15 @@ export const nexusBackend: MemoryBackend = {
 		const config = loadNexusConfig(session.settings);
 		if (!config.enabled || (!config.autoRecall && !(config.knowledgeEnabled && config.knowledgeAutoRecall))) return undefined;
 		const cwd = session.sessionManager.getCwd();
-		const store = new NexusStore({ agentDir: session.settings.getAgentDir(), cwd });
+		const store = new NexusStore({ agentDir: session.settings.getAgentDir(), cwd, contradictionThreshold: config.contradictionThreshold });
 		const goal = currentGoalText(session);
 		try {
+			const safePrompt = stripRecallFences(promptText);
 			const operationalEntries = config.autoRecall
-				? store.search({ query: promptText, goal, scope: "current_project", limit: config.autoRecallLimit })
+				? store.search({ query: safePrompt, goal, scope: "current_project", limit: config.autoRecallLimit })
 				: [];
 			const knowledgeEntries = config.knowledgeEnabled && config.knowledgeAutoRecall
-				? recallKnowledgeEntries(session.settings.getAgentDir(), cwd, promptText, config.knowledgeAutoRecallLimit)
+				? recallKnowledgeEntries(session.settings.getAgentDir(), cwd, safePrompt, config.knowledgeAutoRecallLimit)
 				: [];
 			return renderUnifiedRecallBlock({
 				goal,
@@ -106,10 +114,10 @@ export const nexusBackend: MemoryBackend = {
 	async preCompactionContext(messages: AgentMessage[], settings: Settings, session): Promise<string | undefined> {
 		const config = loadNexusConfig(settings);
 		if (!config.enabled || !session) return undefined;
-		const query = findLatestUserText(messages);
+		const query = stripRecallFences(findLatestUserText(messages) ?? "");
 		if (!query) return undefined;
 		const cwd = session.sessionManager.getCwd();
-		const store = new NexusStore({ agentDir: settings.getAgentDir(), cwd });
+		const store = new NexusStore({ agentDir: settings.getAgentDir(), cwd, contradictionThreshold: config.contradictionThreshold });
 		const goal = currentGoalText(session);
 		try {
 			const operationalEntries = store.search({ query, goal, scope: "current_project", limit: config.autoRecallLimit });
@@ -139,8 +147,8 @@ export const nexusBackend: MemoryBackend = {
 	},
 
 	async clear(agentDir: string, cwd: string, session): Promise<void> {
-		if (session) states.delete(session);
-		const store = new NexusStore({ agentDir, cwd });
+		const config = session ? loadNexusConfig(session.settings) : undefined;
+		const store = new NexusStore({ agentDir, cwd, contradictionThreshold: config?.contradictionThreshold });
 		try {
 			store.clear();
 			await store.renderArtifacts();
@@ -151,7 +159,8 @@ export const nexusBackend: MemoryBackend = {
 	},
 
 	async enqueue(agentDir: string, cwd: string, session?: MemoryBackendStartOptions["session"]): Promise<void> {
-		const store = new NexusStore({ agentDir, cwd });
+		const config = session ? loadNexusConfig(session.settings) : undefined;
+		const store = new NexusStore({ agentDir, cwd, contradictionThreshold: config?.contradictionThreshold });
 		try {
 			store.runSelfHealing();
 			await store.renderArtifacts();
@@ -163,9 +172,21 @@ export const nexusBackend: MemoryBackend = {
 
 	onTurnEnd(session, event): void {
 		const config = loadNexusConfig(session.settings);
-		if (!config.enabled || !config.onlineConsolidationEnabled) return;
-		if ((session as { taskDepth?: number }).taskDepth && (session as { taskDepth?: number }).taskDepth! > 0) return;
+		if (!config.enabled) return;
 		if (event.type !== "turn_end") return;
+		if ((session as { taskDepth?: number }).taskDepth && (session as { taskDepth?: number }).taskDepth! > 0) {
+			// Skip indexing for subagent turns — parent session file already captures the work.
+		} else {
+			void indexCurrentNexusSession(session.settings.getAgentDir(), session.sessionManager.getSessionFile?.()).catch(err => {
+				try {
+					const db = openNexusDb(getNexusDbPath(session.settings.getAgentDir()));
+					try { recordRuntimeEvent(db, { kind: "session_index_failure", severity: "warn", message: String(err) }); } finally { db.close(false); }
+				} catch {}
+				logger.debug("Nexus session turn indexing failed", { error: String(err) });
+			});
+		}
+		if (!config.onlineConsolidationEnabled) return;
+		if ((session as { taskDepth?: number }).taskDepth && (session as { taskDepth?: number }).taskDepth! > 0) return;
 		const assistant = (event as { message?: AgentMessage }).message;
 		if (!assistant || assistant.role !== "assistant") return;
 		if ("stopReason" in assistant && (assistant.stopReason === "aborted" || assistant.stopReason === "error")) return;
@@ -177,15 +198,27 @@ export const nexusBackend: MemoryBackend = {
 			assistantText ? { role: "assistant", content: assistantText } : undefined,
 		].filter((message): message is { role: "user" | "assistant"; content: string } => Boolean(message?.content.trim()));
 		if (messages.length === 0) return;
-		const sourceRecordId = `${session.sessionManager.getSessionId?.() ?? "session"}:turn:${Date.now()}`;
+		const sessionId = session.sessionManager.getSessionId?.() ?? "session";
+		const contentSeed = messages.map(m => `${m.role}:${m.content}`).join("\n---\n");
+		const contentHash = Bun.hash(contentSeed).toString(16);
+		const sourceRecordId = `${sessionId}:content:${contentHash}`;
+		const now = Date.now();
+		const minIntervalMs = Math.max(0, config.onlineConsolidationMinIntervalMs ?? 0);
+		const cached = consolidationCache.get(sessionId);
+		if (cached) {
+			if (cached.lastHash === contentHash) return;
+			if (minIntervalMs > 0 && now - cached.lastAt < minIntervalMs) return;
+		}
+		consolidationCache.set(sessionId, { lastAt: now, lastHash: contentHash });
 		void (async () => {
-			const store = new NexusStore({ agentDir: session.settings.getAgentDir(), cwd: session.sessionManager.getCwd() });
+			const store = new NexusStore({ agentDir: session.settings.getAgentDir(), cwd: session.sessionManager.getCwd(), contradictionThreshold: config.contradictionThreshold });
 			try {
 				const llmClient = createNexusLlmClient(config);
 				const embeddingClient = createNexusEmbeddingClient(config);
 				const result = await runNexusOnlineConsolidation(store, session.settings, sourceRecordId, messages, { llmClient, embeddingClient });
 				await emitMemoryActivity(session, describeOnlineConsolidation(result));
 			} catch (error) {
+				try { recordRuntimeEvent(store.db, { kind: "online_consolidation_failure", severity: "warn", message: String(error) }); } catch {}
 				logger.debug("Nexus online consolidation failed", { error: String(error) });
 			} finally {
 				store.close();
@@ -363,7 +396,11 @@ function renderUnifiedRecallBlock(args: {
 		appendBudgetedSection(lines, sectionLines, knowledgeBudget);
 	}
 	const rendered = lines.join("\n").trim();
-	return rendered ? rendered.slice(0, maxChars) : undefined;
+	if (!rendered) return undefined;
+	// Reserve space for the surrounding fence so the final string honors maxChars.
+	const fenceOverhead = RECALL_FENCE_OPEN.length + RECALL_FENCE_CLOSE.length + 2; // 2 newlines
+	const budget = Math.max(0, maxChars - fenceOverhead);
+	return wrapRecallBlock(rendered.slice(0, budget));
 }
 function appendBudgetedSection(target: string[], sectionLines: string[], maxChars: number): void {
 	if (sectionLines.length <= 1 || maxChars <= 0) return;

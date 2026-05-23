@@ -3,7 +3,7 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { InternalUrlRouter } from "@amaze/coding-agent/internal-urls";
-import { getMemoryRoot } from "@amaze/coding-agent/memories";
+import { getNexusArtifactRoot } from "@amaze/coding-agent/nexus/store";
 import type { AgentSession } from "@amaze/coding-agent/session/agent-session";
 import { getAgentDir, setAgentDir } from "@amaze/utils";
 import { AgentRegistry } from "../../src/registry/agent-registry";
@@ -24,13 +24,17 @@ async function withMemoryFixture(fn: (fixture: MemoryFixture) => Promise<void>):
 		const cwd = path.join(cleanupRoot, "project");
 		await fs.mkdir(cwd, { recursive: true });
 		setAgentDir(agentDir);
-		const memoryRoot = getMemoryRoot(agentDir, cwd);
+		const memoryRoot = getNexusArtifactRoot(agentDir, cwd);
 		await fs.mkdir(memoryRoot, { recursive: true });
 		AgentRegistry.global().register({
 			id: "test-main",
 			displayName: "test",
 			kind: "main",
 			session: {
+				settings: {
+					get: (key: string) => (key === "memory.backend" ? "nexus" : undefined),
+					getAgentDir: () => agentDir,
+				},
 				sessionManager: {
 					getCwd: () => cwd,
 					getArtifactsDir: () => null,

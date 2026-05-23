@@ -4,7 +4,7 @@ import { resolveMemoryBackend } from "../memory-backend";
 import { NexusKnowledgeStore } from "../nexus/knowledge/store";
 import type { NexusKnowledgeCaller } from "../nexus/knowledge/types";
 import { resolveNexusProjectScope } from "../nexus/scope";
-import { resolveRockeyToolCwd } from "../rockey/tool-session";
+import { resolveAgentCwd } from "./_agent-cwd";
 import type { ToolSession } from ".";
 import { oneLine, truncate } from "./repo-search";
 
@@ -33,7 +33,7 @@ export class CodeCallersTool implements AgentTool<typeof codeCallersSchema> {
 	}
 
 	async execute(_id: string, params: CodeCallersParams): Promise<AgentToolResult> {
-		const cwd = resolveRockeyToolCwd(this.session);
+		const cwd = resolveAgentCwd(this.session);
 		const repoRoot = resolveNexusProjectScope(cwd).repoRoot ?? cwd;
 		const store = new NexusKnowledgeStore({ agentDir: this.session.settings.getAgentDir(), cwd });
 		try {
