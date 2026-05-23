@@ -116,7 +116,7 @@ describe("x_search tool", () => {
 		const payload = JSON.parse(calls[0]?.init.body ?? "{}");
 		expect(payload.model).toBe("grok-4.3");
 		expect(payload.store).toBe(false);
-		expect(payload.tool_choice).toEqual({ type: "x_search" });
+		expect(payload.tool_choice).toBe("required");
 		expect(payload.tools).toEqual([
 			{
 				type: "x_search",

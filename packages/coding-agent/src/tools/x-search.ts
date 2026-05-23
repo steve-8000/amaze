@@ -108,7 +108,7 @@ type XSearchRequestPayload = {
 	model: string;
 	input: Array<{ role: "user"; content: string }>;
 	tools: [XSearchToolDefinition];
-	tool_choice: { type: "x_search" };
+	tool_choice: "required";
 	store: false;
 };
 
@@ -305,7 +305,7 @@ function buildXSearchPayload(params: XSearchParams, model: string): XSearchReque
 		model,
 		input: [{ role: "user", content: query }],
 		tools: [buildXSearchToolDefinition(params)],
-		tool_choice: { type: "x_search" },
+		tool_choice: "required",
 		store: false,
 	};
 }
