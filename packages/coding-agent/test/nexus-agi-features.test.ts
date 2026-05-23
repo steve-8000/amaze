@@ -203,7 +203,8 @@ describe("Nexus AGI roadmap features", () => {
 			getGoalModeState: () => ({ goal: { objective: "use Nexus memory active recall safely" } }),
 		} as any;
 		const recall = await nexusBackend.beforeAgentStartPrompt!(session, "How is Nexus active recall limited?");
-		expect(recall).toContain("## Relevant Memory");
+		expect(recall).toContain("## Relevant Nexus Context");
+		expect(recall).toContain("### Operational memory");
 		expect(recall).toContain("Nexus active recall");
 		expect(recall!.length).toBeLessThanOrEqual(200);
 	});

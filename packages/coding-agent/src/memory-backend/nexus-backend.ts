@@ -92,7 +92,7 @@ export const nexusBackend: MemoryBackend = {
 				operationalEntries,
 				knowledgeEntries,
 				entryMaxChars: config.searchEntryMaxChars,
-				maxChars: config.knowledgePromptMaxChars,
+				maxChars: Math.min(config.searchResultMaxChars, config.knowledgePromptMaxChars),
 			});
 		} catch (error) {
 			logger.debug("Nexus auto-recall failed", { error: String(error) });
@@ -129,7 +129,7 @@ export const nexusBackend: MemoryBackend = {
 					lines.push(`- ${entry.document.path}:${entry.chunk.startLine}-${entry.chunk.endLine} ${truncateForPrompt(oneLine(entry.chunk.content), config.searchEntryMaxChars)}`);
 				}
 			}
-			return lines.join("\n").slice(0, config.knowledgePromptMaxChars);
+			return lines.join("\n").slice(0, Math.min(config.searchResultMaxChars, config.knowledgePromptMaxChars));
 		} catch {
 			return undefined;
 		} finally {
