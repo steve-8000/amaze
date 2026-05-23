@@ -68,6 +68,7 @@ export default class Evolve extends Command {
 				metrics: flags.metrics,
 				json: flags.json,
 				window: flags.window,
+				proposalsDb: flags.proposalsDb,
 			});
 			return;
 		}

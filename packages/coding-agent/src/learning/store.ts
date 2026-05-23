@@ -79,6 +79,15 @@ export class ProposalStore {
 		return rows.map(rowToProposal);
 	}
 
+	countByObjectiveSince(objectiveId: string, sinceMs: number): number {
+		const row = this.#db
+			.query(
+				"SELECT COUNT(*) AS count FROM learning_proposals WHERE json_extract(provenance, '$.objectiveId') = ? AND created_at >= ?",
+			)
+			.get(objectiveId, sinceMs) as { count: number };
+		return row.count;
+	}
+
 	approve(id: string, by?: string): LearningProposal {
 		return this.#transition(id, "approved", { by });
 	}
@@ -153,6 +162,7 @@ export class ProposalStore {
 			CREATE INDEX IF NOT EXISTS learning_proposals_provenance_rule_id_idx ON learning_proposals(json_extract(provenance, '$.ruleId'));
 			CREATE INDEX IF NOT EXISTS learning_proposals_evidence_session_ids_idx ON learning_proposals(json_extract(evidence, '$.sessionIds'));
 			CREATE INDEX IF NOT EXISTS learning_proposal_events_proposal_id_idx ON learning_proposal_events(proposal_id);
+			CREATE INDEX IF NOT EXISTS learning_proposals_provenance_objective_id_idx ON learning_proposals(json_extract(provenance, '$.objectiveId'));
 		`);
 		migrateLegacyIfNeeded(this.#db, this.dbPath);
 	}

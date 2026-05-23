@@ -2,9 +2,11 @@ import * as fs from "node:fs/promises";
 import { homedir } from "node:os";
 import * as path from "node:path";
 import { type Objective, type ObjectiveStatus, ObjectiveStore } from "../autonomy";
+import type { EvoTrace } from "../autonomy/evo-trace";
 import { type ProposalLimitDecision, shouldEmitProposal } from "../autonomy/limits";
 import { planFromMetrics } from "../autonomy/planner";
 import { Settings } from "../config/settings";
+import { type LearningProposal, ProposalStore } from "../learning";
 import { computeMetric, registerDefaultMetrics, registeredMetrics } from "../metrics";
 import type { SessionEvent } from "../observability";
 
@@ -28,6 +30,7 @@ export interface ObjectivePreviewArgs extends ObjectiveIdArgs {
 	metrics?: string;
 	json?: boolean;
 	window?: string;
+	proposalsDb?: string;
 }
 
 const STATUSES: ObjectiveStatus[] = ["active", "paused", "completed", "cancelled"];
@@ -70,20 +73,39 @@ export async function runObjectivePreviewCommand(args: ObjectivePreviewArgs): Pr
 	const settings = await Settings.init();
 	const objective = withStore(args.db, store => requireObjective(store, args.id));
 	const metrics = args.metrics ? await loadMetricsFile(args.metrics) : await computeMetrics(args.window ?? "7d");
-	const proposal = planFromMetrics(objective, metrics, { settings });
+	const { proposal, trace } = planFromMetrics(objective, metrics, { settings });
 
 	if (!proposal) {
 		process.stdout.write(`no remediation needed for objective ${args.id}\n`);
 		return;
 	}
-	const limitDecision = shouldEmitProposal(objective, proposal, { todayCount: 0, usedTokens: 0 });
+	const proposalStore = new ProposalStore(args.proposalsDb);
+	try {
+		const startOfTodayUtc = new Date();
+		startOfTodayUtc.setUTCHours(0, 0, 0, 0);
+		const sinceMs = startOfTodayUtc.getTime();
+		const todayCount = proposalStore.countByObjectiveSince(objective.id, sinceMs);
+		const limitDecision = shouldEmitProposal(objective, proposal, {
+			todayCount,
+			// TODO: observability JSONL aggregation for token/usd history
+			usedTokens: 0,
+			usedUsdCents: 0,
+		});
 
-	if (args.json) {
-		process.stdout.write(`${JSON.stringify({ proposal, limitDecision }, null, 2)}\n`);
-		return;
+		if (!limitDecision.allow && limitDecision.reason) {
+			trace.guardrailBlocks = [limitDecision.reason];
+			trace.stage = "blocked";
+		}
+
+		if (args.json) {
+			process.stdout.write(`${JSON.stringify({ proposal, limitDecision, trace }, null, 2)}\n`);
+			return;
+		}
+
+		process.stdout.write(`${formatProposalPreview(objective, metrics, proposal, limitDecision, trace)}\n`);
+	} finally {
+		proposalStore.close();
 	}
-
-	process.stdout.write(`${formatProposalPreview(objective, metrics, proposal, limitDecision)}\n`);
 }
 
 export async function runObjectivePauseCommand(args: ObjectiveIdArgs): Promise<void> {
@@ -199,8 +221,9 @@ function defaultSinkDir(): string {
 function formatProposalPreview(
 	objective: Objective,
 	metrics: Record<string, number>,
-	proposal: NonNullable<ReturnType<typeof planFromMetrics>>,
+	proposal: LearningProposal,
 	limitDecision: ProposalLimitDecision,
+	trace: EvoTrace,
 ): string {
 	const mismatch = objective.metricTargets.find(target => {
 		const value = metrics[target.metric];
@@ -246,6 +269,16 @@ function formatProposalPreview(
 		lines.push("guardrail: allowed");
 	} else {
 		lines.push("guardrail: blocked", `reason: ${limitDecision.reason}`);
+	}
+	lines.push("evo-trace:", `  stage: ${trace.stage}`, "  nextActions:");
+	for (const action of trace.nextActions) {
+		lines.push(`    - ${action}`);
+	}
+	if (trace.guardrailBlocks && trace.guardrailBlocks.length > 0) {
+		lines.push("  guardrailBlocks:");
+		for (const block of trace.guardrailBlocks) {
+			lines.push(`    - ${block}`);
+		}
 	}
 	return lines.join("\n");
 }

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import { ObjectiveStore } from "../../src/autonomy";
 
 const repoRoot = path.resolve(import.meta.dir, "..", "..", "..", "..");
 const cliEntry = path.join(repoRoot, "packages", "coding-agent", "src", "cli.ts");
@@ -152,5 +153,25 @@ describe("evolve CLI", () => {
 		expect(result.stdout).toContain("guardrail:");
 		expect(result.stdout).toContain("blocked");
 		expect(result.stdout).toContain(".amaze/settings.json");
+	});
+
+	it("evolve status lists recent evolution events for active objectives", async () => {
+		cleanupRoot = await fs.mkdtemp(path.join(os.tmpdir(), "amaze-evolve-cli-"));
+		const objectivesDb = path.join(cleanupRoot, "objectives.db");
+		const store = new ObjectiveStore(objectivesDb);
+		const objective = store.create({
+			title: "Reduce blocks",
+			metricTargets: [{ metric: "guardrail.blockRate", target: 0.1, direction: "down" }],
+			budget: {},
+		});
+		store.recordEvent(objective.id, "blocked", { reason: "budget" });
+		store.close();
+
+		const result = await runCli(cleanupRoot, ["evolve", "status", "--db", objectivesDb]);
+
+		expect(result.exitCode).toBe(0);
+		expect(result.stderr).toBe("");
+		expect(result.stdout).toContain(`Recent evolution events for ${objective.id}:`);
+		expect(result.stdout).toContain("blocked");
 	});
 });

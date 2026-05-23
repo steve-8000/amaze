@@ -74,12 +74,14 @@ describe("objective preview CLI", () => {
 		const parsed = JSON.parse(result.stdout);
 		const proposal = parsed.proposal;
 		expect(parsed.limitDecision.allow).toBe(true);
+		expect(parsed.trace).toBeDefined();
+		expect(parsed.trace.stage).toBeDefined();
 		expect(proposal).toMatchObject({
 			type: "rule",
 			status: "pending",
 			gate: "human-required",
 			evidence: { sessionIds: [], sampleN: 1 },
-			provenance: { source: "reflection" },
+			provenance: { source: "reflection", objectiveId: fixture.objectiveId },
 		});
 		expect(proposal.ruleMarkdown).toContain("custom.previewMetric");
 		expect(proposal.expectedImpact).toBe("Move custom.previewMetric down toward 0.1.");
@@ -147,6 +149,8 @@ describe("objective preview CLI", () => {
 		const parsed = JSON.parse(result.stdout);
 		expect(parsed.proposal).toMatchObject({ type: "rule", evidence: { sessionIds: [] } });
 		expect(parsed.limitDecision.allow).toBe(true);
+		expect(parsed.trace).toBeDefined();
+		expect(parsed.trace.stage).toBeDefined();
 	});
 });
 

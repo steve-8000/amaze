@@ -1,4 +1,5 @@
 import { ObjectiveStore } from "../autonomy";
+import type { EvoStage } from "../autonomy/evo-trace";
 import { DEFAULT_AUTONOMY_FORBIDDEN_SCOPES, normalizeObjectiveGuardrails } from "../autonomy/guardrails";
 import { ProposalStore } from "../learning";
 import { evaluateProposal } from "../learning/eval/pipeline";
@@ -17,6 +18,17 @@ export interface EvolveSimulateArgs {
 	id: string;
 }
 
+const EVO_EVENT_KINDS = new Set<EvoStage>([
+	"objective",
+	"signal",
+	"proposal",
+	"eval",
+	"human-gate",
+	"applied",
+	"rolled-back",
+	"blocked",
+]);
+
 export async function runEvolveStatusCommand(args: EvolveStatusArgs): Promise<void> {
 	const objectives = new ObjectiveStore(args.db);
 	const proposals = new ProposalStore(args.proposalsDb);
@@ -32,11 +44,27 @@ export async function runEvolveStatusCommand(args: EvolveStatusArgs): Promise<vo
 		if (activeObjectives.length === 0 && pendingProposals.length === 0) {
 			lines.push("No active evolution flow.");
 		}
+		for (const objective of activeObjectives) {
+			const events = objectives
+				.listEvents(objective.id)
+				.filter(event => EVO_EVENT_KINDS.has(event.kind as EvoStage))
+				.slice(-3);
+			if (events.length === 0) continue;
+			lines.push(`Recent evolution events for ${objective.id}:`);
+			for (const event of events) {
+				lines.push(`  ${new Date(event.ts).toISOString()}  ${event.kind}  ${summarizeEventPayload(event.payload)}`);
+			}
+		}
 		process.stdout.write(`${lines.join("\n")}\n`);
 	} finally {
 		proposals.close();
 		objectives.close();
 	}
+}
+
+function summarizeEventPayload(payload: Record<string, unknown>): string {
+	const summary = JSON.stringify(payload);
+	return summary.length > 120 ? `${summary.slice(0, 117)}...` : summary;
 }
 
 export async function runEvolveDoctorCommand(args: EvolveDoctorArgs): Promise<void> {

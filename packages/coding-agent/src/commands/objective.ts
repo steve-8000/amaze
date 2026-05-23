@@ -24,6 +24,7 @@ export default class Objective extends Command {
 		metrics: Flags.string({ description: "JSON metrics file for objective preview" }),
 		json: Flags.boolean({ description: "Output JSON" }),
 		window: Flags.string({ description: "Metric window for preview, for example 7d" }),
+		proposalsDb: Flags.string({ description: "Path to proposals SQLite database" }),
 		target: Flags.string({ description: "Metric target value" }),
 		direction: Flags.string({ description: "Target direction: up or down" }),
 		deadline: Flags.string({ description: "Target deadline in epoch milliseconds" }),
@@ -77,6 +78,7 @@ export default class Objective extends Command {
 				metrics: flags.metrics,
 				json: flags.json,
 				window: flags.window,
+				proposalsDb: flags.proposalsDb,
 			});
 			return;
 		}

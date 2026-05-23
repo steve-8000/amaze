@@ -1,5 +1,6 @@
 import type { Settings } from "../config/settings";
 import type { LearningProposal } from "../learning";
+import type { EvoMetricSignal, EvoStage, EvoTrace } from "./evo-trace";
 import type { Objective } from "./types";
 
 interface MetricRemediation {
@@ -35,14 +36,37 @@ export function planFromMetrics(
 	objective: Objective,
 	metrics: Record<string, number>,
 	opts: { sessionId?: string; settings?: PlannerSettings } = {},
-): LearningProposal | null {
+): { proposal: LearningProposal | null; trace: EvoTrace } {
+	const metricSignals: EvoMetricSignal[] = objective.metricTargets.map(t => {
+		const current = metrics[t.metric];
+		const mismatch = t.direction === "down" ? current > t.target : current < t.target;
+		return {
+			metric: t.metric,
+			current: Number.isFinite(current) ? current : 0,
+			target: t.target,
+			direction: t.direction,
+			mismatch,
+		};
+	});
+
 	const mismatch = objective.metricTargets.find(target => {
 		const value = metrics[target.metric];
 		if (value === undefined || !Number.isFinite(value)) return false;
 		return target.direction === "down" ? value > target.target : value < target.target;
 	});
 
-	if (!mismatch) return null;
+	const makeTrace = (stage: EvoStage, proposal: LearningProposal | null, nextActions: string[]): EvoTrace => ({
+		objectiveId: objective.id,
+		stage,
+		metricSignals,
+		proposalId: proposal?.id,
+		proposalType: proposal?.type,
+		gate: proposal?.gate,
+		guardrailBlocks: [],
+		nextActions,
+	});
+
+	if (!mismatch) return { proposal: null, trace: makeTrace("signal", null, ["no remediation needed"]) };
 
 	const base = {
 		id: `autonomy-${objective.id}-${mismatch.metric}-${Date.now()}`,
@@ -64,24 +88,28 @@ export function planFromMetrics(
 		if (opts.settings) {
 			const stngs = opts.settings;
 			const meaningful = Object.entries(remediation.patch).some(([key, value]) => stngs.get(key as any) !== value);
-			if (!meaningful) return null;
+			if (!meaningful) return { proposal: null, trace: makeTrace("signal", null, ["no remediation needed"]) };
 		}
-		return {
+		const proposal: LearningProposal = {
 			...base,
+			provenance: { ...base.provenance, objectiveId: objective.id } as LearningProposal["provenance"],
 			type: "settings",
 			patch: remediation.patch,
 			reason: `${remediation.reason} Objective: ${objective.title}. Current ${mismatch.metric}=${metrics[mismatch.metric]}, target ${mismatch.direction} ${mismatch.target}.`,
 			rollback: remediation.rollback,
 		};
+		return { proposal, trace: makeTrace("proposal", proposal, ["preview the proposal", "approve when ready"]) };
 	}
 
-	return {
+	const proposal: LearningProposal = {
 		...base,
+		provenance: { ...base.provenance, objectiveId: objective.id } as LearningProposal["provenance"],
 		type: "rule",
 		ruleMarkdown: `# ${objective.title}\n\nInvestigate metric \`${mismatch.metric}\` and propose a bounded remediation because current value ${metrics[mismatch.metric]} is not ${mismatch.direction} target ${mismatch.target}.`,
 		replaySessions: opts.sessionId ? [opts.sessionId] : [],
 		expectedImpact: `Move ${mismatch.metric} ${mismatch.direction} toward ${mismatch.target}.`,
 	};
+	return { proposal, trace: makeTrace("proposal", proposal, ["preview the proposal", "approve when ready"]) };
 }
 
 /** Internal accessor used by correctness tests. */

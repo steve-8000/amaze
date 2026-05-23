@@ -106,6 +106,17 @@ describe("ProposalStore", () => {
 		);
 		expect(store.listByType("skill").map(proposal => proposal.id)).toEqual([skill.id]);
 	});
+
+	test("counts proposals for one objective since a timestamp", () => {
+		const store = createStore();
+		const sinceMs = Date.now() - 1_000;
+		store.create(memoryProposal({ provenance: { source: "reflection", objectiveId: "obj-A" } as any }));
+		store.create(memoryProposal({ provenance: { source: "reflection", objectiveId: "obj-B" } as any }));
+
+		expect(store.countByObjectiveSince("obj-A", sinceMs)).toBe(1);
+		expect(store.countByObjectiveSince("obj-B", sinceMs)).toBe(1);
+		expect(store.countByObjectiveSince("obj-C", sinceMs)).toBe(0);
+	});
 });
 
 describe("legacy migration", () => {

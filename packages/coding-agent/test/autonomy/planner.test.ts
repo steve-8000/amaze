@@ -13,16 +13,20 @@ const objective: Objective = {
 
 describe("planFromMetrics", () => {
 	it("creates a human-gated learning proposal when a metric misses its target", () => {
-		const proposal = planFromMetrics(objective, { "goal.forceCompleteRate": 0.05 }, { sessionId: "s1" });
+		const { proposal, trace } = planFromMetrics(objective, { "goal.forceCompleteRate": 0.05 }, { sessionId: "s1" });
 
 		expect(proposal).not.toBeNull();
 		expect(proposal?.gate).toBe("human-required");
 		expect(proposal?.evidence).toEqual({ sessionIds: ["s1"], eventRefs: [], ruleFindings: [], sampleN: 1 });
-		expect(proposal?.provenance).toEqual({ source: "reflection" });
+		expect(proposal?.provenance).toEqual({ source: "reflection", objectiveId: "obj-1" } as any);
 		expect(proposal?.type).toBe("settings");
+		expect(trace.stage).toBe("proposal");
+		expect(trace.metricSignals[0]?.mismatch).toBe(true);
 	});
 
 	it("returns null when all metric targets are satisfied", () => {
-		expect(planFromMetrics(objective, { "goal.forceCompleteRate": 0.005 })).toBeNull();
+		const { proposal, trace } = planFromMetrics(objective, { "goal.forceCompleteRate": 0.005 });
+		expect(proposal).toBeNull();
+		expect(trace.stage).toBe("signal");
 	});
 });
