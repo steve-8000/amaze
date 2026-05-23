@@ -11,7 +11,7 @@ const TEST_AGENT = {
 	spawns: ["task"],
 };
 
-type CapturedAgent = typeof TEST_AGENT;
+type CapturedAgent = Omit<typeof TEST_AGENT, "spawns"> & { spawns?: string[] };
 
 function expectPlanModeAgent(agent: CapturedAgent): void {
 	expect(agent.tools.every(tool => allowedPlanTools.has(tool))).toBe(true);

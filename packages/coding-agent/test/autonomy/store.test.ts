@@ -34,7 +34,7 @@ describe("ObjectiveStore", () => {
 		const store = createStore();
 		const created = store.create(objective({ id: "objective-1" }));
 
-		expect(created).toEqual({ ...objective({ id: "objective-1" }), status: "active" });
+		expect(created).toEqual({ ...objective({ id: "objective-1" }), id: "objective-1", status: "active" });
 		expect(store.get("objective-1")).toEqual(created);
 		expect(store.list()).toEqual([created]);
 

@@ -5,6 +5,7 @@ import * as path from "node:path";
 import { getSessionsDir, parseJsonlLenient } from "@amaze/utils";
 import { CryptoHasher } from "bun";
 import type { Settings } from "../config/settings";
+import { escapeFts5Query } from "./fts-escape";
 import { resolveNexusProjectScope } from "./scope";
 import { getNexusDbPath, getNexusRoot, openNexusDb, recordRuntimeEvent } from "./store";
 
@@ -72,6 +73,7 @@ export interface NexusSessionSearchOptions {
 	role?: "user" | "assistant" | "system";
 	since?: string;
 	limit?: number;
+	advancedQuery?: boolean;
 }
 
 const CJK_RE = /[\u3040-\u9fff\uac00-\ud7af]/;
@@ -164,7 +166,7 @@ export function searchNexusSessionAnchors(
 				return buildResultFromRows(db, rows, settings);
 			}
 		}
-		const params: Array<string | number> = [escapeFts5Query(trimmed)];
+		const params: Array<string | number> = [escapeFts5Query(trimmed, { advanced: options.advancedQuery === true })];
 		const conditions = [`m.rowid IN (SELECT rowid FROM ${ftsTable} WHERE ${ftsTable} MATCH ?)`];
 		if (options.scope !== "all") {
 			conditions.push("s.scope_key = ?");
@@ -472,9 +474,4 @@ function truncateText(text: string, maxChars: number): string {
 	if (text.length <= maxChars) return text;
 	if (maxChars <= 16) return text.slice(0, maxChars);
 	return `${text.slice(0, maxChars - 16)}...[truncated]`;
-}
-
-function escapeFts5Query(query: string): string {
-	if (/\b(OR|AND|NOT|NEAR)\b/.test(query)) return query;
-	return `"${query.replace(/"/g, '""')}"`;
 }

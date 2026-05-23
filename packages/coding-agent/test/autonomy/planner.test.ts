@@ -5,7 +5,7 @@ import type { Objective } from "../../src/autonomy/types";
 const objective: Objective = {
 	id: "obj-1",
 	title: "Reduce force complete rate",
-	metricTargets: [{ metric: "force_complete_rate", target: 0.01, direction: "down" }],
+	metricTargets: [{ metric: "goal.forceCompleteRate", target: 0.01, direction: "down" }],
 	budget: {},
 	guardrails: { requireHumanForApply: true, maxAutoSubgoalsPerDay: 1, forbiddenScopes: [] },
 	status: "active",
@@ -13,7 +13,7 @@ const objective: Objective = {
 
 describe("planFromMetrics", () => {
 	it("creates a human-gated learning proposal when a metric misses its target", () => {
-		const proposal = planFromMetrics(objective, { force_complete_rate: 0.05 }, { sessionId: "s1" });
+		const proposal = planFromMetrics(objective, { "goal.forceCompleteRate": 0.05 }, { sessionId: "s1" });
 
 		expect(proposal).not.toBeNull();
 		expect(proposal?.gate).toBe("human-required");
@@ -23,6 +23,6 @@ describe("planFromMetrics", () => {
 	});
 
 	it("returns null when all metric targets are satisfied", () => {
-		expect(planFromMetrics(objective, { force_complete_rate: 0.005 })).toBeNull();
+		expect(planFromMetrics(objective, { "goal.forceCompleteRate": 0.005 })).toBeNull();
 	});
 });

@@ -496,11 +496,20 @@ export function resolveSubprocessToolNames(options: {
 	agent: Pick<AgentDefinition, "tools" | "spawns">;
 	settings: Settings;
 	taskDepth?: number;
-}): string[] {
+}): string[] | undefined {
 	const maxRecursionDepth = options.settings.get("task.maxRecursionDepth") ?? 2;
 	const childDepth = (options.taskDepth ?? 0) + 1;
 	const atMaxDepth = maxRecursionDepth >= 0 && childDepth >= maxRecursionDepth;
-	let toolNames = options.agent.tools ?? [];
+
+	// Agents that omit `tools` in their frontmatter (e.g. bundled `task` / `quick_task`)
+	// intentionally inherit the host's full tool registry. Returning an empty array here
+	// would force createAgentSession to register zero tools, leaving the subagent unable
+	// to call read/edit/bash/etc. Pass `undefined` through so the SDK uses defaults.
+	if (options.agent.tools === undefined) {
+		return undefined;
+	}
+
+	let toolNames = options.agent.tools;
 
 	if (toolNames.length > 0 && options.agent.spawns !== undefined && !toolNames.includes("task") && !atMaxDepth) {
 		toolNames = [...toolNames, "task"];
@@ -557,6 +566,7 @@ export async function runSubprocess(options: ExecutorOptions): Promise<SingleRes
 		taskId: id,
 		role: options.contract?.role ?? agent.name,
 		isolated: Boolean(worktree),
+		hasContract: options.contract !== undefined,
 	});
 
 	// F7 (H3) telemetry — record every subagent spawn so we can validate A1's

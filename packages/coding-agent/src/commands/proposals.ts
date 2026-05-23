@@ -4,7 +4,7 @@
 import { Args, Command, Flags } from "@amaze/utils/cli";
 import { isProposalStatus, isProposalType } from "../cli/proposals";
 
-const ACTIONS = ["list", "show", "approve", "reject", "diff"] as const;
+const ACTIONS = ["list", "show", "approve", "reject", "apply", "diff"] as const;
 type ProposalsAction = (typeof ACTIONS)[number];
 
 export default class Proposals extends Command {
@@ -20,6 +20,9 @@ export default class Proposals extends Command {
 		status: Flags.string({ description: "Filter by proposal status" }),
 		type: Flags.string({ description: "Filter by proposal type" }),
 		reason: Flags.string({ description: "Approval or rejection reason" }),
+		settingsPath: Flags.string({ description: "Path to settings JSON for applying settings proposals" }),
+		skillsDir: Flags.string({ description: "Path to skills directory for applying skill proposals" }),
+		rulesDir: Flags.string({ description: "Path to rules directory for applying rule proposals" }),
 	};
 
 	async run(): Promise<void> {
@@ -57,6 +60,18 @@ export default class Proposals extends Command {
 			if (!flags.reason) throw new Error("proposals reject requires --reason <reason>");
 			const { runProposalsRejectCommand } = await import("../cli/proposals");
 			await runProposalsRejectCommand({ db: flags.db, id: args.id, reason: flags.reason });
+			return;
+		}
+
+		if (action === "apply") {
+			const { runProposalsApplyCommand } = await import("../cli/proposals");
+			await runProposalsApplyCommand({
+				db: flags.db,
+				id: args.id,
+				settingsPath: flags.settingsPath,
+				skillsDir: flags.skillsDir,
+				rulesDir: flags.rulesDir,
+			});
 			return;
 		}
 

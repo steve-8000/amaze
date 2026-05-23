@@ -31,7 +31,15 @@ export type SessionEvent =
 			failedCount: number;
 			uncertainCount: number;
 	  }
-	| { type: "subagent.start"; sessionId: string; ts: number; taskId: string; role: string; isolated: boolean }
+	| {
+			type: "subagent.start";
+			sessionId: string;
+			ts: number;
+			taskId: string;
+			role: string;
+			isolated: boolean;
+			hasContract: boolean;
+	  }
 	| {
 			type: "subagent.end";
 			sessionId: string;

@@ -1,6 +1,13 @@
 import type { SessionEvent } from "../observability";
 import { compileExpr, evaluate } from "./expr";
-import type { Rule, RuleSeverity } from "./types";
+import type { Rule, RuleScan, RuleSeverity } from "./types";
+
+type AggregateSpec =
+	| { kind: "count" | "ratio" }
+	| { kind: "distinct" }
+	| { kind: "ratioExpr"; numerator: ReturnType<typeof compileExpr>; denominator: ReturnType<typeof compileExpr> };
+
+const RATIO_EXPR_PATTERN = /^ratio\s+(?<num>.+?)\s*\/\s*(?<den>.+)$/;
 
 export interface RuleFinding {
 	ruleId: string;
@@ -22,41 +29,123 @@ interface SeverityBranch {
 	severity: RuleSeverity;
 }
 
+interface RuleBucket {
+	key: Record<string, unknown>;
+	events: SessionEvent[];
+}
+const VALID_SCANS = new Set<RuleScan>(["events", "session", "request", "workspace"]);
+
 const VALID_SEVERITIES = new Set<RuleSeverity>(["info", "warning", "high", "critical"]);
 
-export function evaluateRule(rule: Rule, events: SessionEvent[]): RuleFinding | null {
-	if (rule.detect.scan !== "events") {
+export function evaluateRule(rule: Rule, events: SessionEvent[]): RuleFinding | RuleFinding[] | null {
+	if (!VALID_SCANS.has(rule.detect.scan)) {
 		throw new Error(`Unsupported rule scan: ${rule.detect.scan}`);
 	}
-	if (!["count", "ratio", "distinct"].includes(rule.detect.aggregate)) {
-		throw new Error(`Unsupported rule aggregate: ${rule.detect.aggregate}`);
+
+	const aggregate = parseAggregate(rule);
+	if (aggregate instanceof Error) {
+		return aggregateErrorFinding(rule, aggregate.message);
 	}
 
+	const findings = evaluateRuleGroups(rule, events, aggregate);
+	if (rule.detect.scan === "events") {
+		return findings[0] ?? null;
+	}
+	return findings;
+}
+
+function evaluateRuleGroups(rule: Rule, events: SessionEvent[], aggregate: AggregateSpec): RuleFinding[] {
 	const windowEvents = selectWindow(events, rule.detect.window);
 	const matchExpr = compileExpr(rule.detect.match);
-	const matchedEvents = windowEvents.filter(event => Boolean(evaluate(matchExpr, { $: event })));
-	const count = aggregateCount(rule.detect.aggregate, matchedEvents);
-	const windowSize = windowEvents.length;
-	const ctx = {
-		$: {},
-		count,
-		windowSize,
-		thresholds: rule.detect.thresholds,
-	};
+	const checkExpr = compileExpr(normalizeCheckExpr(rule.detect.check));
+	const findings: RuleFinding[] = [];
+	for (const bucket of groupEvents(windowEvents, rule.detect.scan)) {
+		if (bucket.events.length === 0) {
+			continue;
+		}
+		const matchedEvents = bucket.events.filter(event => Boolean(evaluate(matchExpr, { $: event })));
+		const count = aggregateValue(aggregate, matchedEvents, bucket.events.length);
+		const windowSize = bucket.events.length;
+		const ctx = {
+			$: bucket.key,
+			count,
+			windowSize,
+			thresholds: rule.detect.thresholds,
+		};
 
-	if (!evaluate(compileExpr(rule.detect.check), ctx)) {
-		return null;
+		if (!evaluate(checkExpr, ctx)) {
+			continue;
+		}
+
+		const severity = evaluateSeverity(rule, ctx);
+		findings.push({
+			ruleId: rule.id,
+			severity,
+			count,
+			windowSize,
+			sampleEvents: matchedEvents.slice(0, 3),
+			message: `${rule.name}: ${count} matching event${count === 1 ? "" : "s"} in ${windowSize} event window`,
+		});
 	}
+	return findings;
+}
 
-	const severity = evaluateSeverity(rule, ctx);
-	return {
-		ruleId: rule.id,
-		severity,
-		count,
-		windowSize,
-		sampleEvents: matchedEvents.slice(0, 3),
-		message: `${rule.name}: ${count} matching event${count === 1 ? "" : "s"} in ${windowSize} event window`,
-	};
+function groupEvents(events: SessionEvent[], scan: RuleScan): RuleBucket[] {
+	if (scan === "events" || scan === "workspace") {
+		return [{ key: {}, events }];
+	}
+	if (scan === "session") {
+		return groupBy(events, event => ({ id: event.sessionId, key: { sessionId: event.sessionId } }));
+	}
+	return groupRequests(events);
+}
+
+function groupRequests(events: SessionEvent[]): RuleBucket[] {
+	const buckets = new Map<string, RuleBucket>();
+	const activeTurns = new Map<string, number>();
+	for (const event of events) {
+		if (event.type === "turn.start") {
+			const turn = typeof event.turn === "number" ? event.turn : undefined;
+			if (turn === undefined) {
+				activeTurns.delete(event.sessionId);
+				continue;
+			}
+			activeTurns.set(event.sessionId, turn);
+		}
+
+		const turn = activeTurns.get(event.sessionId);
+		if (turn !== undefined) {
+			const id = `${event.sessionId}\u0000${turn}`;
+			let bucket = buckets.get(id);
+			if (!bucket) {
+				bucket = { key: { sessionId: event.sessionId, turn }, events: [] };
+				buckets.set(id, bucket);
+			}
+			bucket.events.push(event);
+		}
+
+		if (event.type === "turn.end") {
+			activeTurns.delete(event.sessionId);
+		}
+	}
+	return [...buckets.values()];
+}
+
+function groupBy(
+	events: SessionEvent[],
+	keyFor: (event: SessionEvent) => { id: string; key: Record<string, unknown> },
+): RuleBucket[] {
+	const buckets = new Map<string, RuleBucket>();
+	for (const event of events) {
+		const { id, key } = keyFor(event);
+		let bucket = buckets.get(id);
+		if (!bucket) {
+			bucket = { key, events: [] };
+			buckets.set(id, bucket);
+		}
+		bucket.events.push(event);
+	}
+	return [...buckets.values()];
 }
 
 function selectWindow(events: SessionEvent[], rawWindow: unknown): SessionEvent[] {
@@ -66,7 +155,8 @@ function selectWindow(events: SessionEvent[], rawWindow: unknown): SessionEvent[
 		selected = selected.filter(event => event.type === window.type);
 	}
 	if (window.since !== undefined) {
-		selected = selected.filter(event => event.ts >= window.since);
+		const since = window.since;
+		selected = selected.filter(event => event.ts >= since);
 	}
 	if (window.last !== undefined) {
 		selected = selected.slice(-window.last);
@@ -104,11 +194,69 @@ function normalizeWindow(rawWindow: unknown): WindowSpec {
 	return window;
 }
 
-function aggregateCount(aggregate: string, matchedEvents: SessionEvent[]): number {
+function parseAggregate(rule: Rule): AggregateSpec | Error {
+	const aggregate = rule.detect.aggregate;
+	if (aggregate === "count" || aggregate === "ratio") {
+		return { kind: aggregate };
+	}
 	if (aggregate === "distinct") {
+		return { kind: "distinct" };
+	}
+
+	const match = aggregate.match(RATIO_EXPR_PATTERN);
+	if (!match?.groups) {
+		return new Error(`Unsupported rule aggregate: ${aggregate}`);
+	}
+
+	try {
+		return {
+			kind: "ratioExpr",
+			numerator: compileExpr(match.groups.num),
+			denominator: compileExpr(match.groups.den),
+		};
+	} catch (error) {
+		const detail = error instanceof Error ? error.message : String(error);
+		return new Error(`Unsupported rule aggregate: ${aggregate} (${detail})`);
+	}
+}
+
+function aggregateValue(aggregate: AggregateSpec, matchedEvents: SessionEvent[], windowSize: number): number {
+	if (aggregate.kind === "distinct") {
 		return new Set(matchedEvents.map(event => event.sessionId)).size;
 	}
+	if (aggregate.kind === "ratio") {
+		return windowSize === 0 ? 0 : matchedEvents.length / windowSize;
+	}
+	if (aggregate.kind === "ratioExpr") {
+		let numerator = 0;
+		let denominator = 0;
+		for (const event of matchedEvents) {
+			numerator += toFiniteNumber(evaluate(aggregate.numerator, { $: event }));
+			denominator += toFiniteNumber(evaluate(aggregate.denominator, { $: event }));
+		}
+		return denominator === 0 ? 0 : numerator / denominator;
+	}
 	return matchedEvents.length;
+}
+
+function toFiniteNumber(value: unknown): number {
+	const number = typeof value === "number" ? value : Number(value ?? 0);
+	return Number.isFinite(number) ? number : 0;
+}
+
+function normalizeCheckExpr(check: string): string {
+	return check.replaceAll("$ratio", "$count");
+}
+
+function aggregateErrorFinding(rule: Rule, message: string): RuleFinding {
+	return {
+		ruleId: rule.id,
+		severity: "critical",
+		count: 0,
+		windowSize: 0,
+		sampleEvents: [],
+		message,
+	};
 }
 
 function evaluateSeverity(

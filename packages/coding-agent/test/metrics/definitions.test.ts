@@ -7,8 +7,8 @@ const events: SessionEvent[] = [
 	{ type: "goal.complete", ...baseGoal, goalId: "g1", verdict: "pass" },
 	{ type: "goal.complete", ...baseGoal, goalId: "g2", verdict: "force" },
 	{ type: "goal.complete", ...baseGoal, goalId: "g3", verdict: "fail" },
-	{ type: "subagent.start", sessionId: "s", ts: 2, taskId: "t1", role: "r", isolated: true },
-	{ type: "subagent.start", sessionId: "s", ts: 3, taskId: "t2", role: "r", isolated: false },
+	{ type: "subagent.start", sessionId: "s", ts: 2, taskId: "t1", role: "r", isolated: true, hasContract: true },
+	{ type: "subagent.start", sessionId: "s", ts: 3, taskId: "t2", role: "r", isolated: false, hasContract: false },
 	{ type: "subagent.end", sessionId: "s", ts: 4, taskId: "t1", verdict: "pass", changedFiles: 1, revisions: 1 },
 	{
 		type: "subagent.end",

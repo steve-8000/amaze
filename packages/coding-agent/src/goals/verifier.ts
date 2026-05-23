@@ -4,17 +4,19 @@
  * Verifies whether a candidate completion (a set of changed files plus optional command
  * outcomes) satisfies a list of `AcceptanceCriterion`s. Backends are intentionally simple
  * and composable: scope (glob membership), file existence, command exit code, and a manual
- * placeholder that always returns `uncertain` so closing audits surface human-judged items
- * without blocking.
+ * placeholder that always returns `uncertain` so closing audits surface human-judged items.
  *
  * Design contract:
  *   - `verify` MUST be deterministic for deterministic backends. The same input MUST
  *     produce byte-identical output so callers can cache safely.
  *   - `verify` MUST NOT mutate state. Side effects (shell exec) are scoped to the call
  *     itself; nothing persists.
- *   - A criterion returning `uncertain` does NOT block completion at the closing audit
- *     level. Only `fail` blocks. This avoids the "everything is uncertain → blocked
- *     forever" failure mode of overly cautious verifiers.
+ *   - Verdicts have two summarization modes. In `audit` mode, `uncertain` does not
+ *     block completion; only `fail` blocks. Runtime uses this for
+ *     `goal.uncertainPolicy === "allow"` and for `"warn"` after emitting warning events.
+ *     In `contract` mode, criteria whose blocking policy is `uncertain-blocks` treat
+ *     `uncertain` as a fail. Runtime uses this for `"block-manual"` (force-complete
+ *     remains available) and `"block-all"` (no force-complete path).
  *   - Confidence is reported as 0..1. Deterministic backends report 1.0 on a clean
  *     check, lower on ambiguous data (e.g. glob match against zero files).
  */
@@ -708,10 +710,10 @@ export class AcceptanceVerifier {
 }
 
 /**
- * Convenience: summarize verifier results into a verdict. `pass` overall iff every
- * criterion is `pass` or `uncertain`. `fail` overall iff any criterion is `fail`.
- * Uncertain alone does not flip the verdict — closing audit surfaces uncertain
- * items but does not block.
+ * Convenience: summarize verifier results into a verdict. In `mode: "audit"`,
+ * `uncertain` results are counted and surfaced but do not block; only `fail`
+ * blocks. In `mode: "contract"`, an `uncertain` result also counts as failing
+ * when the matching criterion's blocking policy is `uncertain-blocks`.
  */
 export interface VerificationVerdict {
 	verdict: "pass" | "fail";

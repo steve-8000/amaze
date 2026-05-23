@@ -38,4 +38,5 @@ export function evaluateProvenanceGate(proposal: LearningProposal): GateResult {
 			? { passed: true }
 			: { passed: false, reason: "settings proposal requires manual or rule provenance" };
 	}
+	return { passed: false, reason: `unknown proposal type: ${(proposal as { type?: unknown }).type}` };
 }

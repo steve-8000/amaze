@@ -1,5 +1,7 @@
+import { Database } from "bun:sqlite";
 import type { LearningProposal, LearningProposalType, ProposalStatus } from "../learning";
 import { ProposalStore } from "../learning";
+import { ApplyProposalRejectedError, applyProposal } from "../learning/apply";
 
 export interface ProposalsListArgs {
 	db?: string;
@@ -18,6 +20,12 @@ export interface ProposalApproveArgs extends ProposalIdArgs {
 
 export interface ProposalRejectArgs extends ProposalIdArgs {
 	reason: string;
+}
+
+export interface ProposalApplyArgs extends ProposalIdArgs {
+	settingsPath?: string;
+	skillsDir?: string;
+	rulesDir?: string;
 }
 
 const STATUSES: ProposalStatus[] = ["pending", "approved", "rejected", "applied", "rolled-back", "expired"];
@@ -63,6 +71,32 @@ export async function runProposalsRejectCommand(args: ProposalRejectArgs): Promi
 		const proposal = store.reject(args.id, args.reason);
 		process.stdout.write(`rejected ${proposal.id}\n`);
 	});
+}
+
+export async function runProposalsApplyCommand(args: ProposalApplyArgs): Promise<void> {
+	const store = new ProposalStore(args.db);
+	const db = new Database(store.dbPath, { create: true, strict: true });
+	try {
+		const result = await applyProposal({
+			store,
+			db,
+			proposalId: args.id,
+			settingsPath: args.settingsPath,
+			skillsDir: args.skillsDir,
+			rulesDir: args.rulesDir,
+		});
+		process.stdout.write(`applied ${args.id} ${result.version}\n`);
+	} catch (error) {
+		if (error instanceof ApplyProposalRejectedError) {
+			process.stderr.write(`apply rejected: ${error.reason}\n`);
+			process.exitCode = 1;
+			return;
+		}
+		throw error;
+	} finally {
+		db.close();
+		store.close();
+	}
 }
 
 export async function runProposalsDiffCommand(args: ProposalIdArgs): Promise<void> {

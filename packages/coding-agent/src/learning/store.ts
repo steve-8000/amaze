@@ -3,7 +3,7 @@ import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { LearningProposal, LearningProposalType, ProposalStatus } from "./types";
+import type { EvalReport, LearningProposal, LearningProposalType, ProposalStatus } from "./types";
 
 const DEFAULT_DB_PATH = path.join(os.homedir(), ".amaze", "learning", "proposals.db");
 
@@ -29,7 +29,7 @@ type ProposalRow = {
 	expires_at: number | null;
 };
 
-export type NewLearningProposal = Omit<LearningProposal, "id" | "createdAt" | "status">;
+export type NewLearningProposal = Omit<LearningProposal, "id" | "createdAt" | "status"> & Record<string, unknown>;
 
 export class ProposalStore {
 	readonly dbPath: string;
@@ -80,6 +80,32 @@ export class ProposalStore {
 
 	approve(id: string, by?: string): LearningProposal {
 		return this.#transition(id, "approved", { by });
+	}
+
+	setLastEval(id: string, report: EvalReport): LearningProposal {
+		const current = this.get(id);
+		if (!current) {
+			throw new Error(`Learning proposal not found: ${id}`);
+		}
+
+		const now = Date.now();
+		this.#db
+			.query("UPDATE learning_proposals SET payload = ?, updated_at = ? WHERE id = ?")
+			.run(JSON.stringify(proposalPayload({ ...current, lastEvalReport: report })), now, id);
+		this.#recordEvent(id, now, "last-eval", { report });
+		const updated = this.get(id);
+		if (!updated) {
+			throw new Error(`Learning proposal disappeared after last eval update: ${id}`);
+		}
+		return updated;
+	}
+
+	recordApplyRejected(id: string, reason: "missing-sandbox" | "sandbox-fail" | "stale-eval"): void {
+		const current = this.get(id);
+		if (!current) {
+			throw new Error(`Learning proposal not found: ${id}`);
+		}
+		this.#recordEvent(id, Date.now(), "apply-rejected", { reason });
 	}
 
 	reject(id: string, reason: string): LearningProposal {

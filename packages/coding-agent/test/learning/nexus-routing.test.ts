@@ -98,7 +98,7 @@ describe("nexus conceptual skill proposal routing", () => {
 			const proposals = proposalStore.listByType("skill");
 			expect(proposals).toHaveLength(1);
 			expect(proposals[0]?.gate).toBe("review");
-			expect(proposals[0]?.sourceMemoryIds).toEqual(sourceIds);
+			expect(proposals[0]?.type === "skill" ? proposals[0].sourceMemoryIds : undefined).toEqual(sourceIds);
 			expect(proposals[0]?.evidence).toEqual({
 				sessionIds: [],
 				eventRefs: [],

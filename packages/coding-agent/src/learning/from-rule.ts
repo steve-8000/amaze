@@ -5,7 +5,7 @@ interface RuleFindingToProposalOptions {
 	sessionId?: string;
 }
 
-type ProposalWithoutRuntimeFields = Omit<LearningProposal, "id" | "createdAt" | "status">;
+type ProposalWithoutRuntimeFields = Omit<LearningProposal, "id" | "createdAt" | "status"> & Record<string, unknown>;
 
 export function ruleFindingToProposal(
 	finding: RuleFinding,

@@ -12,6 +12,9 @@ const expectedRuleIds = [
 	"stale-contract",
 	"memory-low-precision",
 	"verifier-bypass-rate",
+	"session-memory-recall-decay",
+	"request-cache-churn",
+	"workspace-force-complete-trend",
 ];
 
 describe("builtin rule files", () => {

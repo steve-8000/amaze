@@ -1,6 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import type { SessionEvent } from "../../src/observability";
-import { evaluateRule, type Rule } from "../../src/rules";
+import { evaluateRule, type Rule, type RuleFinding } from "../../src/rules";
+
+function expectFinding(value: RuleFinding | RuleFinding[] | null): RuleFinding {
+	expect(value).not.toBeNull();
+	expect(value).not.toBeArray();
+	return value as RuleFinding;
+}
 
 const forceCompleteRule: Rule = {
 	id: "force-complete-rate",
@@ -52,7 +58,7 @@ function fixtureEvents(forceCount: number): SessionEvent[] {
 
 describe("evaluateRule", () => {
 	test("finds force-complete rate over the typed last window", () => {
-		const finding = evaluateRule(forceCompleteRule, fixtureEvents(20));
+		const finding = expectFinding(evaluateRule(forceCompleteRule, fixtureEvents(20)));
 
 		expect(finding).toMatchObject({
 			ruleId: "force-complete-rate",
@@ -60,11 +66,11 @@ describe("evaluateRule", () => {
 			count: 20,
 			windowSize: 200,
 		});
-		expect(finding?.sampleEvents).toHaveLength(3);
-		expect(finding?.sampleEvents.every(event => event.type === "goal.complete" && event.verdict === "force")).toBe(
+		expect(finding.sampleEvents).toHaveLength(3);
+		expect(finding.sampleEvents.every(event => event.type === "goal.complete" && event.verdict === "force")).toBe(
 			true,
 		);
-		expect(finding?.message).toContain("20 matching events in 200 event window");
+		expect(finding.message).toContain("20 matching events in 200 event window");
 	});
 
 	test("returns null when no force-complete events match", () => {
@@ -85,16 +91,16 @@ describe("evaluateRule", () => {
 	});
 
 	test("uses the first truthy dynamic severity branch", () => {
-		const finding = evaluateRule(forceCompleteRule, fixtureEvents(40));
+		const finding = expectFinding(evaluateRule(forceCompleteRule, fixtureEvents(40)));
 
-		expect(finding?.severity).toBe("high");
-		expect(finding?.count).toBe(40);
+		expect(finding.severity).toBe("high");
+		expect(finding.count).toBe(40);
 	});
 
 	test("rejects unsupported scan targets", () => {
 		const sessionRule: Rule = {
 			...forceCompleteRule,
-			detect: { ...forceCompleteRule.detect, scan: "sessions" },
+			detect: { ...forceCompleteRule.detect, scan: "sessions" as never },
 		};
 
 		expect(() => evaluateRule(sessionRule, fixtureEvents(20))).toThrow(/Unsupported rule scan/);

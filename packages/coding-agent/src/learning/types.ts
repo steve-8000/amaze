@@ -14,6 +14,35 @@ export interface ProposalProvenance {
 	ruleId?: string;
 }
 
+export interface RegressionCommand {
+	argv: string[];
+	cwd?: string;
+	timeoutMs?: number;
+	expected?: number;
+}
+
+export interface SandboxReplayReport {
+	ok: boolean;
+	perCommand: Array<{
+		argv: string[];
+		exit: number | null;
+		stdout: string;
+		stderr: string;
+		durationMs: number;
+		timedOut: boolean;
+	}>;
+	revertedCleanly: boolean;
+}
+
+export interface EvalReport {
+	passed: boolean;
+	stage: "provenance" | "contradiction" | "replay" | "done";
+	signals: Record<string, unknown>;
+	durationMs: number;
+	patchHash: string;
+	sandbox?: SandboxReplayReport;
+}
+
 export interface ProposalBase {
 	id: string;
 	createdAt: number;
@@ -22,6 +51,8 @@ export interface ProposalBase {
 	evidence: ProposalEvidence;
 	provenance: ProposalProvenance;
 	expiresAt?: number;
+	regressionCommands?: RegressionCommand[];
+	lastEvalReport?: EvalReport;
 }
 
 export type MemoryLearningProposal = ProposalBase & {

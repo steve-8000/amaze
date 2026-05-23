@@ -7,7 +7,8 @@ function agentWithTools(tools: string[]): AgentDefinition {
 	return {
 		name: "test-agent",
 		description: "test agent",
-		prompt: "test",
+		systemPrompt: "test",
+		source: "project",
 		tools,
 	};
 }
@@ -43,5 +44,21 @@ describe("exec tool alias expansion", () => {
 		});
 
 		expect(tools).toEqual([]);
+	});
+
+	it("returns undefined when the agent omits tools so the subprocess inherits the host registry", () => {
+		const agent = {
+			name: "test-agent",
+			description: "test agent",
+			prompt: "test",
+			spawns: "*",
+		} as unknown as AgentDefinition;
+		const tools = resolveSubprocessToolNames({
+			agent,
+			settings: Settings.isolated(),
+			taskDepth: 0,
+		});
+
+		expect(tools).toBeUndefined();
 	});
 });

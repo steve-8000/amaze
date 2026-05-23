@@ -4,11 +4,12 @@
 import { Args, Command, Flags } from "@amaze/utils/cli";
 import { isObjectiveDirection } from "../cli/objective";
 
-const ACTIONS = ["create", "list", "show", "pause", "cancel", "enable", "disable"] as const;
+const ACTIONS = ["create", "list", "show", "preview", "pause", "cancel", "enable", "disable"] as const;
 type ObjectiveAction = (typeof ACTIONS)[number];
 
 export default class Objective extends Command {
-	static description = "Manage long-horizon objectives";
+	static description =
+		"Manage long-horizon objectives. Preview works regardless of autonomy.enabled; never mutates state.";
 
 	static args = {
 		action: Args.string({ description: "Objective action", required: false, options: [...ACTIONS] }),
@@ -17,8 +18,12 @@ export default class Objective extends Command {
 
 	static flags = {
 		db: Flags.string({ description: "Path to objectives SQLite database" }),
+		id: Flags.string({ description: "Objective id for preview" }),
 		title: Flags.string({ description: "Objective title" }),
 		metric: Flags.string({ description: "Metric name" }),
+		metrics: Flags.string({ description: "JSON metrics file for objective preview" }),
+		json: Flags.boolean({ description: "Output JSON" }),
+		window: Flags.string({ description: "Metric window for preview, for example 7d" }),
 		target: Flags.string({ description: "Metric target value" }),
 		direction: Flags.string({ description: "Target direction: up or down" }),
 		deadline: Flags.string({ description: "Target deadline in epoch milliseconds" }),
@@ -59,6 +64,20 @@ export default class Objective extends Command {
 		if (action === "enable" || action === "disable") {
 			const { runObjectiveSetEnabledCommand } = await import("../cli/objective");
 			await runObjectiveSetEnabledCommand(action === "enable");
+			return;
+		}
+
+		if (action === "preview") {
+			const id = flags.id ?? args.id;
+			if (!id) throw new Error("objective preview requires --id <id>");
+			const { runObjectivePreviewCommand } = await import("../cli/objective");
+			await runObjectivePreviewCommand({
+				db: flags.db,
+				id,
+				metrics: flags.metrics,
+				json: flags.json,
+				window: flags.window,
+			});
 			return;
 		}
 

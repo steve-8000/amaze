@@ -95,6 +95,7 @@ it("bounds startup knowledge maintenance with the configured interval", async ()
 	const agentDir = await makeTempDir("nexus-backend-maintenance-agent");
 	const cwd = await makeTempDir("nexus-backend-maintenance-cwd");
 	await fs.mkdir(path.join(cwd, "src"), { recursive: true });
+	await fs.mkdir(path.join(agentDir, "sessions"), { recursive: true });
 	await Bun.write(path.join(cwd, "src", "one.ts"), "export const one = 1;\n");
 	const settings = Settings.isolated({
 		"memory.backend": "nexus",
@@ -128,6 +129,7 @@ it("emits a live memory activity message without adding LLM context text", async
 	const agentDir = await makeTempDir("nexus-backend-activity-agent");
 	const cwd = await makeTempDir("nexus-backend-activity-cwd");
 	await fs.mkdir(path.join(cwd, "src"), { recursive: true });
+	await fs.mkdir(path.join(agentDir, "sessions"), { recursive: true });
 	await Bun.write(path.join(cwd, "src", "memory.ts"), "export const memory = true;\n");
 	const settings = Settings.isolated({
 		"memory.backend": "nexus",

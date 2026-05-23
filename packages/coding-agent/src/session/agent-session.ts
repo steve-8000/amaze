@@ -145,6 +145,8 @@ import {
 } from "../mcp/discoverable-tool-metadata";
 import { resolveMemoryBackend } from "../memory-backend";
 import { getCurrentThemeName, theme } from "../modes/theme/theme";
+import { emitPromptCacheEventIfPossible, type PromptCacheResponse } from "../observability/prompt-cache-emit";
+import { getSessionEventBus } from "../observability/session-bus";
 import { type PlanModeState, planGoalDriftReason } from "../plan-mode/state";
 import autoContinuePrompt from "../prompts/system/auto-continue.md" with { type: "text" };
 import eagerTodoPrompt from "../prompts/system/eager-todo.md" with { type: "text" };
@@ -887,6 +889,7 @@ export class AgentSession {
 	#transformContext: (messages: AgentMessage[], signal?: AbortSignal) => AgentMessage[] | Promise<AgentMessage[]>;
 	#onPayload: SimpleStreamOptions["onPayload"] | undefined;
 	#onResponse: SimpleStreamOptions["onResponse"] | undefined;
+	#lastProviderResponse: PromptCacheResponse | undefined;
 	#onSseEvent: SimpleStreamOptions["onSseEvent"] | undefined;
 	#convertToLlm: (messages: AgentMessage[]) => Message[] | Promise<Message[]>;
 	#rebuildSystemPrompt:
@@ -1063,10 +1066,12 @@ export class AgentSession {
 		const configuredOnResponse = config.onResponse;
 		this.#onResponse = configuredOnResponse
 			? async (response, model) => {
+					this.#lastProviderResponse = response as PromptCacheResponse;
 					this.rawSseDebugBuffer.recordResponse(response, model);
 					await configuredOnResponse(response, model);
 				}
 			: (response, model) => {
+					this.#lastProviderResponse = response as PromptCacheResponse;
 					this.rawSseDebugBuffer.recordResponse(response, model);
 				};
 		const configuredOnSseEvent = config.onSseEvent;
@@ -1366,6 +1371,12 @@ export class AgentSession {
 			// Continuous tool-output demotion — bounded, gated by setting, no-op when disabled.
 			// Method swallows its own errors; fire-and-forget is intentional here.
 			void this.#runContinuousDemotion();
+			emitPromptCacheEventIfPossible({
+				sessionId: this.sessionId,
+				response: this.#lastProviderResponse ?? (event.message as PromptCacheResponse),
+				bus: getSessionEventBus(this),
+			});
+			this.#lastProviderResponse = undefined;
 		}
 		// Hold the wire-level agent_end until in-flight prompts unwind. Subscribers
 		// (rpc-mode, ACP, Cursor) treat agent_end as the "session is idle" signal;

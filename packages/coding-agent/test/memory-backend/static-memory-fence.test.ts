@@ -26,7 +26,6 @@ afterEach(async () => {
 function makeSettings(agentDir: string): Settings {
 	const settings = Settings.isolated({
 		"memory.backend": "nexus",
-		"nexus.enabled": true,
 	});
 	Object.defineProperty(settings, "getAgentDir", { value: () => agentDir });
 	return settings;

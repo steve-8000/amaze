@@ -2,14 +2,16 @@ import { describe, expect, mock, test } from "bun:test";
 import type { LearningProposal } from "../../src/learning/types";
 import type { SessionEvent } from "../../src/observability";
 
-const provenanceGate = mock(() => ({ passed: true }));
-const contradictionGate = mock(() => ({ passed: true }));
-const replay = mock(async (sessionId: string, opts: { events?: SessionEvent[] }) => ({
-	sessionId,
-	eventsReplayed: opts.events?.length ?? 0,
-	decisions: { goalCompleteVerdict: "pass", subagentVerdicts: [] },
-	networkCalls: 0,
-}));
+const provenanceGate = mock((): { passed: boolean; reason?: string } => ({ passed: true }));
+const contradictionGate = mock((): { passed: boolean; reason?: string } => ({ passed: true }));
+const replay = mock(
+	async (sessionId: string, opts: { events?: SessionEvent[] }): Promise<ReturnType<typeof replayResult>> => ({
+		sessionId,
+		eventsReplayed: opts.events?.length ?? 0,
+		decisions: { goalCompleteVerdict: "pass", subagentVerdicts: [] },
+		networkCalls: 0,
+	}),
+);
 
 mock.module("../../src/learning/eval/provenance", () => ({
 	evaluateProvenanceGate: provenanceGate,
@@ -92,7 +94,15 @@ function resetMocks() {
 	replay.mockResolvedValue(replayResult("session-1", "pass"));
 }
 
-function replayResult(sessionId: string, verdict: "pass" | "fail" | "force" | null) {
+function replayResult(
+	sessionId: string,
+	verdict: "pass" | "fail" | "force" | null,
+): {
+	sessionId: string;
+	eventsReplayed: number;
+	decisions: { goalCompleteVerdict: "pass" | "fail" | "force" | null; subagentVerdicts: never[] };
+	networkCalls: number;
+} {
 	return {
 		sessionId,
 		eventsReplayed: 1,
@@ -102,7 +112,7 @@ function replayResult(sessionId: string, verdict: "pass" | "fail" | "force" | nu
 }
 
 function goalComplete(sessionId: string, verdict: "pass" | "fail" | "force"): SessionEvent {
-	return { type: "goal.complete", sessionId, ts: 1, goalId: "goal-1", verdict };
+	return { type: "goal.complete", sessionId, ts: 1, goalId: "goal-1", verdict, failedCount: 0, uncertainCount: 0 };
 }
 
 function memoryProposal(): LearningProposal {

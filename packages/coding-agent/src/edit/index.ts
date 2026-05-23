@@ -414,7 +414,7 @@ export class EditTool implements AgentTool<TInput> {
 					const entries = expandApplyPatchToEntries(params as ApplyPatchParams);
 					await Promise.all(
 						entries.flatMap(entry => {
-							const op = entry.op === "add" ? "create" : entry.op === "delete" ? "delete" : "update";
+							const op = entry.op === "create" ? "create" : entry.op === "delete" ? "delete" : "update";
 							const guards = [
 								enforceMutationScope(
 									tool.session,

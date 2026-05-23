@@ -2,8 +2,10 @@ export type RuleSeverity = "info" | "warning" | "high" | "critical";
 
 export type RuleTrust = "built-in" | "personal" | "project";
 
+export type RuleScan = "events" | "session" | "request" | "workspace";
+
 export interface RuleDetect {
-	scan: string;
+	scan: RuleScan;
 	match: string;
 	aggregate: string;
 	window?: unknown;

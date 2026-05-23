@@ -1,8 +1,6 @@
-import { afterEach, describe, expect, it } from "bun:test";
-import { clearMetricRegistryForTest, computeMetric, registerMetric } from "../../src/metrics/engine";
+import { describe, expect, it } from "bun:test";
+import { computeMetric, registerMetric } from "../../src/metrics/engine";
 import type { SessionEvent } from "../../src/observability";
-
-afterEach(() => clearMetricRegistryForTest());
 
 const events: SessionEvent[] = [
 	{ type: "turn.start", sessionId: "s", ts: 10, turn: 1 },

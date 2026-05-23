@@ -20,7 +20,7 @@ export type MetricFinalizeContext = {
 	sampleN: number;
 };
 
-export type MetricDefinition<State = unknown> = {
+export type MetricDefinition<State = any> = {
 	name: string;
 	eventTypes: SessionEventType[];
 	initial: () => State;

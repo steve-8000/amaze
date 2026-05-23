@@ -84,6 +84,7 @@ export interface NexusSearchInput {
 	category?: NexusMemoryCategory;
 	limit?: number;
 	includeHistory?: boolean;
+	advancedQuery?: boolean;
 	/**
 	 * Current user goal/task. When supplied, recall results are re-ranked toward
 	 * memories whose content overlaps the goal. This is deliberately a ranking

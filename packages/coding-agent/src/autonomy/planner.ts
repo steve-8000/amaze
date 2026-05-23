@@ -1,3 +1,4 @@
+import type { Settings } from "../config/settings";
 import type { LearningProposal } from "../learning";
 import type { Objective } from "./types";
 
@@ -7,28 +8,33 @@ interface MetricRemediation {
 	rollback: Record<string, unknown>;
 }
 
+/**
+ * Built-in remediations keyed by the EXACT metric name registered in
+ * `metrics/definitions.ts`. Each remediation's patch and rollback values MUST
+ * validate against `config/settings-schema.ts`. The two invariants are enforced
+ * by `test/autonomy/planner-correctness.test.ts`.
+ */
 const BUILTIN_REMEDIATIONS: Record<string, MetricRemediation> = {
-	force_complete_rate: {
-		patch: { "goal.uncertainPolicy": "ask" },
-		reason: "Reduce forced completions by requiring uncertainty to be surfaced before completion.",
-		rollback: { "goal.uncertainPolicy": "complete" },
+	"goal.forceCompleteRate": {
+		patch: { "goal.uncertainPolicy": "block-manual" },
+		reason:
+			"Tighten uncertain-policy so uncertain criteria surface before completion instead of being force-completed.",
+		rollback: { "goal.uncertainPolicy": "allow" },
 	},
-	verifier_bypass_rate: {
+	"verifier.bypassRate": {
 		patch: { "task.yield.allowSchemaBypass": false },
 		reason: "Reduce verifier bypasses by disabling schema bypass for task yield validation.",
 		rollback: { "task.yield.allowSchemaBypass": true },
 	},
-	shell_criteria_bypass_rate: {
-		patch: { "verifier.allowShellCriteria": false },
-		reason: "Reduce shell verifier bypasses by disabling shell criteria in verifier policy.",
-		rollback: { "verifier.allowShellCriteria": true },
-	},
 };
+
+/** Read-only settings surface the planner uses for no-op suppression. */
+export type PlannerSettings = Pick<Settings, "get">;
 
 export function planFromMetrics(
 	objective: Objective,
 	metrics: Record<string, number>,
-	opts: { sessionId?: string } = {},
+	opts: { sessionId?: string; settings?: PlannerSettings } = {},
 ): LearningProposal | null {
 	const mismatch = objective.metricTargets.find(target => {
 		const value = metrics[target.metric];
@@ -54,6 +60,12 @@ export function planFromMetrics(
 
 	const remediation = BUILTIN_REMEDIATIONS[mismatch.metric];
 	if (remediation) {
+		// No-op suppression: if current settings already match the patch, skip.
+		if (opts.settings) {
+			const stngs = opts.settings;
+			const meaningful = Object.entries(remediation.patch).some(([key, value]) => stngs.get(key as any) !== value);
+			if (!meaningful) return null;
+		}
 		return {
 			...base,
 			type: "settings",
@@ -71,3 +83,6 @@ export function planFromMetrics(
 		expectedImpact: `Move ${mismatch.metric} ${mismatch.direction} toward ${mismatch.target}.`,
 	};
 }
+
+/** Internal accessor used by correctness tests. */
+export const __BUILTIN_REMEDIATIONS = BUILTIN_REMEDIATIONS;

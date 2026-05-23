@@ -40,7 +40,7 @@ export const metricDefinitions: MetricDefinition[] = [
 		initial: () => ({ numerator: 0, denominator: 0 }),
 		reducer: (state: CountState, event) => {
 			if (event.type !== "subagent.start") return state;
-			return { numerator: state.numerator + (event.isolated ? 1 : 0), denominator: state.denominator + 1 };
+			return { numerator: state.numerator + (event.hasContract ? 1 : 0), denominator: state.denominator + 1 };
 		},
 		finalize: ratio,
 	},

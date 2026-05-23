@@ -160,3 +160,9 @@ bun run check:ts
 ## 종료 조건
 
 - doc02 § 13 회귀 매트릭스 중 다음 항목 통과: `contractUncertainBlocksWhenStrict`, `yieldInvalidSchemaDoesNotBypassByDefault`, `commandCriteriaShellRequiresPolicy`, `execDoesNotImplicitlyGrantBash`, `dirtyFileModifiedDuringTaskIsAttributed`.
+
+### Runtime references
+
+- `packages/coding-agent/src/goals/verifier.ts:summarize` — folds criterion results in `audit` or `contract` mode.
+- `packages/coding-agent/src/goals/runtime.ts:completeGoalFromTool` — maps `goal.uncertainPolicy` to verifier mode, warning emission, and force-complete behavior.
+- `packages/coding-agent/src/config/settings-schema.ts:goal.uncertainPolicy` — declares `allow`, `warn`, `block-manual`, and `block-all`.

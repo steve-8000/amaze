@@ -1,9 +1,22 @@
 import type { Database } from "bun:sqlite";
+import * as crypto from "node:crypto";
 import * as path from "node:path";
 import type { ProposalStore } from "../store";
 import type { LearningProposal } from "../types";
 import { ensureApplyMigrations } from "./migrations";
 import { type PromotionSnapshot, restoreSnapshot, snapshotFile, writeFileAtomically } from "./snapshots";
+
+export type ApplyRejectionReason = "missing-sandbox" | "sandbox-fail" | "stale-eval";
+
+export class ApplyProposalRejectedError extends Error {
+	constructor(
+		readonly proposalId: string,
+		readonly reason: ApplyRejectionReason,
+	) {
+		super(`Learning proposal apply rejected: ${reason}`);
+		this.name = "ApplyProposalRejectedError";
+	}
+}
 
 export type ApplyProposalOptions = {
 	store: ProposalStore;
@@ -40,6 +53,12 @@ export async function applyProposal(opts: ApplyProposalOptions): Promise<ApplyPr
 	}
 	if (proposal.status !== "approved") {
 		throw new Error(`Learning proposal must be approved before apply: ${proposal.status}`);
+	}
+
+	const rejection = applyRejectionReason(proposal);
+	if (rejection) {
+		opts.store.recordApplyRejected(proposal.id, rejection);
+		throw new ApplyProposalRejectedError(proposal.id, rejection);
 	}
 
 	const version = createVersion();
@@ -133,6 +152,50 @@ function insertSnapshot(
 		`INSERT INTO promotion_snapshots (id, proposal_id, version, type, snapshot_blob, applied_at)
 		VALUES (?, ?, ?, ?, ?, ?)`,
 	).run(id, proposalId, version, type, JSON.stringify(snapshot), appliedAt);
+}
+
+function applyRejectionReason(proposal: LearningProposal): ApplyRejectionReason | undefined {
+	if (!proposal.regressionCommands?.length) {
+		return undefined;
+	}
+
+	const evalRep = proposal.lastEvalReport;
+	if (!evalRep?.sandbox) {
+		return "missing-sandbox";
+	}
+	if (!evalRep.sandbox.ok) {
+		return "sandbox-fail";
+	}
+	if (evalRep.patchHash !== hashPatch(proposal)) {
+		return "stale-eval";
+	}
+	return undefined;
+}
+
+export function hashPatch(proposal: LearningProposal): string {
+	return crypto
+		.createHash("sha256")
+		.update(canonicalJson(patchPayload(proposal)))
+		.digest("hex");
+}
+
+function patchPayload(proposal: LearningProposal): unknown {
+	if (proposal.type === "settings") return proposal.patch;
+	if (proposal.type === "rule") return proposal.ruleMarkdown;
+	if (proposal.type === "skill") return proposal.bodyMarkdown;
+	if (proposal.type === "memory") return [proposal.content];
+	return null;
+}
+
+function canonicalJson(value: unknown): string {
+	if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+	if (value && typeof value === "object") {
+		return `{${Object.keys(value)
+			.sort()
+			.map(key => `${JSON.stringify(key)}:${canonicalJson((value as Record<string, unknown>)[key])}`)
+			.join(",")}}`;
+	}
+	return JSON.stringify(value);
 }
 
 function applyObjectPatch(current: Record<string, unknown>, patch: Record<string, unknown>): Record<string, unknown> {

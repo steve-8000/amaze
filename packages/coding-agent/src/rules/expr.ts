@@ -80,7 +80,7 @@ function tokenize(source: string): Token[] {
 		}
 
 		if (["(", ")", ".", "[", "]"].includes(char)) {
-			tokens.push({ type: "punct", value: char as Token & never });
+			tokens.push({ type: "punct", value: char as "(" | ")" | "." | "[" | "]" });
 			index += 1;
 			continue;
 		}
@@ -223,7 +223,7 @@ class ExprParser {
 		return token;
 	}
 
-	private expectPunct(value: Token & never): void {
+	private expectPunct(value: "(" | ")" | "." | "[" | "]"): void {
 		const token = this.advance();
 		if (token.type !== "punct" || token.value !== value) throw new Error(`Expected ${value}`);
 	}
@@ -299,9 +299,6 @@ function evaluateBinary(operator: BinaryOperator, leftNode: ExprNode, rightNode:
 			return toNumber(left) / toNumber(right);
 		case "%":
 			return toNumber(left) % toNumber(right);
-		case "&&":
-		case "||":
-			throw new Error("unreachable");
 	}
 }
 

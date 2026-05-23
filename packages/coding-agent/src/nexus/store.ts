@@ -5,6 +5,7 @@ import * as path from "node:path";
 import { getMemoriesDir, logger } from "@amaze/utils";
 import type { EventBus as SessionEventBus } from "../observability";
 import { bufferToVector, cosineSimilarity, vectorToBuffer } from "./embedding-client";
+import { escapeFts5Query } from "./fts-escape";
 import { activeScopesForSearch, resolveNexusProjectScope, scopeForTarget, staticNexusScope } from "./scope";
 import type {
 	NexusConfidence,
@@ -690,7 +691,9 @@ WHERE ${conditions.join(" AND ")}
 		input: NexusSearchInput,
 		limit: number,
 	): NexusMemoryEntry[] {
-		const params: Array<string | number | null> = [escapeFts5Query(query)];
+		const params: Array<string | number | null> = [
+			escapeFts5Query(query, { advanced: input.advancedQuery === true }),
+		];
 		const conditions = ["mi.rowid IN (SELECT rowid FROM memory_fts WHERE memory_fts MATCH ?)"];
 		appendScopeConditions(conditions, params, scopes);
 		if (!input.includeHistory) conditions.push("mi.status = 'active'");
@@ -806,6 +809,20 @@ LIMIT ?
 `)
 			.all(...params) as MemoryRow[];
 		return rows.map(mapRow);
+	}
+
+	markSuperseded(
+		id: string,
+		reason?: string,
+	): { success: boolean; error?: string; entry?: NexusMemoryEntry; prevStatus?: NexusMemoryStatus; reason?: string } {
+		return this.#transitionStatus(id, "superseded", "memory_cli", reason);
+	}
+
+	quarantine(
+		id: string,
+		reason?: string,
+	): { success: boolean; error?: string; entry?: NexusMemoryEntry; prevStatus?: NexusMemoryStatus; reason?: string } {
+		return this.#transitionStatus(id, "quarantined", "memory_cli", reason);
 	}
 
 	importSource(input: ImportSourceInput): string {
@@ -1156,6 +1173,35 @@ ORDER BY mi.created_at ASC
 			)
 			.get(id) as MemoryRow | undefined;
 		return row ? mapRow(row) : null;
+	}
+
+	#transitionStatus(
+		id: string,
+		status: Extract<NexusMemoryStatus, "superseded" | "quarantined">,
+		source: string,
+		reason?: string,
+	): { success: boolean; error?: string; entry?: NexusMemoryEntry; prevStatus?: NexusMemoryStatus; reason?: string } {
+		const previous = this.#getById(id);
+		if (!previous) return { success: false, error: `No memory found for id '${id}'.` };
+		const now = isoNow();
+		this.#dbInstance.transaction(() => {
+			this.#dbInstance
+				.prepare(
+					"UPDATE memory_items SET status = ?, valid_to = CASE WHEN ? = 'superseded' THEN ? ELSE valid_to END, updated_at = ? WHERE id = ?",
+				)
+				.run(status, status, now, now, id);
+			const updated = this.#getById(id);
+			this.#logEvent(
+				id,
+				status,
+				source,
+				previous,
+				updated
+					? { ...updated, provenance: reason ? `${updated.provenance}\nreason:${reason}` : updated.provenance }
+					: null,
+			);
+		})();
+		return { success: true, entry: this.#getById(id) ?? undefined, prevStatus: previous.status, reason };
 	}
 
 	#fallbackLikeSearch(
@@ -1634,11 +1680,6 @@ function rankForCanonical(entry: NexusMemoryEntry): number {
 function clampLimit(value: number | undefined, fallback: number, max: number): number {
 	if (value === undefined || !Number.isFinite(value)) return fallback;
 	return Math.max(1, Math.min(max, Math.floor(value)));
-}
-
-function escapeFts5Query(query: string): string {
-	if (/\b(OR|AND|NOT|NEAR)\b/.test(query)) return query;
-	return `"${query.replace(/"/g, '""')}"`;
 }
 
 function escapeLikePattern(text: string): string {

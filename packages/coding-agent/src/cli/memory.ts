@@ -14,9 +14,16 @@ export interface MemoryMigrateLegacyArgs {
 }
 
 export interface MemoryCommandArgs {
-	action: "migrate-legacy" | "doctor";
-	from: LegacyOrigin;
+	action: "migrate-legacy" | "doctor" | "search" | "mark-superseded" | "quarantine";
+	from?: LegacyOrigin;
+	query?: string;
+	id?: string;
 	dryRun?: boolean;
+	advanced?: boolean;
+	scope?: "current_project" | "global" | "knowledge" | "failure" | "session" | "all";
+	limit?: number;
+	json?: boolean;
+	reason?: string;
 }
 
 export interface MemoryDoctorReport {
@@ -114,9 +121,25 @@ export async function runMemoryCommand(args: MemoryCommandArgs): Promise<void> {
 		runMemoryDoctorCommand();
 		return;
 	}
+	if (args.action === "search") {
+		runMemorySearchCommand({
+			query: args.query ?? "",
+			advanced: args.advanced,
+			scope: args.scope,
+			limit: args.limit,
+			json: args.json,
+		});
+		return;
+	}
+	if (args.action === "mark-superseded" || args.action === "quarantine") {
+		if (!args.id) throw new Error(`memory ${args.action} requires an id`);
+		runMemoryTransitionCommand({ action: args.action, id: args.id, reason: args.reason, json: args.json });
+		return;
+	}
 	if (args.action !== "migrate-legacy") {
 		throw new Error(`Unknown memory action: ${String(args.action)}`);
 	}
+	if (!args.from) throw new Error("memory migrate-legacy requires an origin");
 	await runMemoryMigrateLegacyCommand({ from: args.from, dryRun: args.dryRun });
 }
 
@@ -135,6 +158,91 @@ export function getMemoryDoctorReport(): MemoryDoctorReport {
 
 export function runMemoryDoctorCommand(): void {
 	process.stdout.write(`${getMemoryDoctorReport().text}\n`);
+}
+
+export function runMemorySearchCommand(args: {
+	query: string;
+	advanced?: boolean;
+	scope?: "current_project" | "global" | "knowledge" | "failure" | "session" | "all";
+	limit?: number;
+	json?: boolean;
+}): void {
+	const query = args.query.trim();
+	if (!query) throw new Error("memory search requires a query");
+	const store = new NexusStore({ agentDir: getAgentDir(), cwd: getProjectDir() });
+	try {
+		const entries = store.search({
+			query,
+			scope: args.scope ?? "current_project",
+			limit: args.limit ?? 8,
+			advancedQuery: args.advanced === true,
+		});
+		const rows = entries.map(entry => ({
+			id: entry.id,
+			status: entry.status,
+			content: entry.content,
+			provenance: entry.provenance,
+			source: entry.scopeKind,
+		}));
+		if (args.json) {
+			process.stdout.write(`${JSON.stringify(rows)}\n`);
+			return;
+		}
+		if (rows.length === 0) {
+			process.stdout.write("No Nexus memory results.\n");
+			return;
+		}
+		process.stdout.write(
+			[
+				"ID\tSTATUS\tSOURCE\tPROVENANCE\tCONTENT",
+				...rows.map(row =>
+					[row.id, row.status, row.source, row.provenance, truncateContent(row.content, 120)].join("\t"),
+				),
+				"",
+			].join("\n"),
+		);
+	} finally {
+		store.close();
+	}
+}
+
+export function runMemoryTransitionCommand(args: {
+	action: "mark-superseded" | "quarantine";
+	id: string;
+	reason?: string;
+	json?: boolean;
+}): void {
+	const store = new NexusStore({ agentDir: getAgentDir(), cwd: getProjectDir() });
+	try {
+		process.exitCode = 0;
+		const result =
+			args.action === "mark-superseded"
+				? store.markSuperseded(args.id, args.reason)
+				: store.quarantine(args.id, args.reason);
+		if (!result.success || !result.entry) {
+			process.stderr.write(`${result.error ?? `No memory found for id '${args.id}'.`}\n`);
+			process.exitCode = 1;
+			return;
+		}
+		const output = {
+			id: result.entry.id,
+			status: result.entry.status,
+			prevStatus: result.prevStatus,
+			reason: result.reason,
+		};
+		if (args.json) {
+			process.stdout.write(`${JSON.stringify(output)}\n`);
+			return;
+		}
+		process.stdout.write(`${output.id}\t${output.prevStatus}->${output.status}\n`);
+	} finally {
+		store.close();
+	}
+}
+
+function truncateContent(content: string, maxLength: number): string {
+	const normalized = content.replace(/\s+/g, " ").trim();
+	return normalized.length <= maxLength ? normalized : `${normalized.slice(0, maxLength - 1)}…`;
 }
 
 export async function runMemoryMigrateLegacyCommand(args: MemoryMigrateLegacyArgs): Promise<void> {

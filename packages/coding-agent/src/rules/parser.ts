@@ -1,10 +1,11 @@
 import { YAML } from "bun";
-import type { Rule, RuleDetect, RuleSeverity, RuleTrust } from "./types";
+import type { Rule, RuleDetect, RuleScan, RuleSeverity, RuleTrust } from "./types";
 
 const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/;
 const DETECT_RE = /```detect\r?\n([\s\S]*?)\r?\n```/;
 const VALID_SEVERITIES = new Set<RuleSeverity>(["info", "warning", "high", "critical"]);
 const VALID_TRUST = new Set<RuleTrust>(["built-in", "personal", "project"]);
+const VALID_SCANS = new Set<RuleScan>(["events", "session", "request", "workspace"]);
 
 export function parseRuleMarkdown(text: string): Rule {
 	const frontmatterMatch = text.match(FRONTMATTER_RE);
@@ -37,7 +38,7 @@ export function parseRuleMarkdown(text: string): Rule {
 
 function parseDetect(value: Record<string, unknown>): RuleDetect {
 	return {
-		scan: requireString(value.scan, "detect.scan"),
+		scan: parseScan(value.scan),
 		match: requireString(value.match, "detect.match"),
 		aggregate: requireString(value.aggregate, "detect.aggregate"),
 		window: value.window,
@@ -70,6 +71,12 @@ function optionalRecord(value: unknown, field: string): Record<string, unknown> 
 	if (value === undefined) return undefined;
 	if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`Rule ${field} must be an object`);
 	return value as Record<string, unknown>;
+}
+
+function parseScan(value: unknown): RuleScan {
+	const scan = requireString(value, "detect.scan");
+	if (!VALID_SCANS.has(scan as RuleScan)) throw new Error(`Invalid rule scan: ${scan}`);
+	return scan as RuleScan;
 }
 
 function parseSeverity(value: unknown): RuleSeverity {
