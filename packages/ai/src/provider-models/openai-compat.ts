@@ -1476,9 +1476,25 @@ export function vllmModelManagerOptions(config?: VllmModelManagerConfig): ModelM
 				apiKey,
 				mapModel: (entry, defaults) => {
 					const model = mapWithBundledReference(entry, defaults, references.get(defaults.id));
+					const existingCompat = (model.compat ?? {}) as NonNullable<typeof model.compat>;
+					const existingExtraBody = (existingCompat.extraBody ?? {}) as Record<string, unknown>;
+					const existingChatTemplateKwargs = (existingExtraBody.chat_template_kwargs ?? {}) as Record<
+						string,
+						unknown
+					>;
 					return {
 						...model,
 						contextWindow: toPositiveNumber(entry.max_model_len, model.contextWindow),
+						compat: {
+							...existingCompat,
+							extraBody: {
+								...existingExtraBody,
+								chat_template_kwargs: {
+									enable_thinking: false,
+									...existingChatTemplateKwargs,
+								},
+							},
+						},
 					};
 				},
 			}),
