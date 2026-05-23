@@ -6408,6 +6408,8 @@ export class AgentSession {
 	#getCompactionModelCandidates(availableModels: Model[]): Model[] {
 		const candidates: Model[] = [];
 		const seen = new Set<string>();
+		const COMPACTION_PINNED_MODEL_ID = "gpt-5.4";
+		const COMPACTION_PINNED_PROVIDER_ORDER = ["openai", "openai-codex", "openrouter", "cloudflare-ai-gateway"];
 
 		const addCandidate = (model: Model | undefined): void => {
 			if (!model) return;
@@ -6418,6 +6420,17 @@ export class AgentSession {
 		};
 
 		const currentModel = this.model;
+		const pinnedModels = availableModels
+			.filter(model => model.id === COMPACTION_PINNED_MODEL_ID)
+			.sort((a, b) => {
+				const aRank = COMPACTION_PINNED_PROVIDER_ORDER.indexOf(a.provider);
+				const bRank = COMPACTION_PINNED_PROVIDER_ORDER.indexOf(b.provider);
+				const providerDelta = (aRank === -1 ? Number.MAX_SAFE_INTEGER : aRank) - (bRank === -1 ? Number.MAX_SAFE_INTEGER : bRank);
+				if (providerDelta !== 0) return providerDelta;
+				return b.contextWindow - a.contextWindow;
+			});
+		for (const model of pinnedModels) addCandidate(model);
+
 		for (const role of MODEL_ROLE_IDS) {
 			addCandidate(this.#resolveRoleModelFull(role, availableModels, currentModel).model);
 		}

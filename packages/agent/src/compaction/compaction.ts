@@ -49,6 +49,7 @@ import {
 	serializeConversation,
 	upsertFileOperations,
 } from "./utils";
+const COMPACTION_REASONING_EFFORT = Effort.Low;
 
 // ============================================================================
 // File Operation Tracking
@@ -594,7 +595,7 @@ export async function generateSummary(
 			maxTokens,
 			signal,
 			apiKey,
-			reasoning: Effort.High,
+			reasoning: COMPACTION_REASONING_EFFORT,
 			initiatorOverride: options?.initiatorOverride,
 			metadata: options?.metadata,
 		},
@@ -728,7 +729,7 @@ async function generateShortSummary(
 			maxTokens,
 			signal,
 			apiKey,
-			reasoning: Effort.High,
+			reasoning: COMPACTION_REASONING_EFFORT,
 			initiatorOverride: options?.initiatorOverride,
 			metadata: options?.metadata,
 		},
@@ -1056,7 +1057,7 @@ async function generateTurnPrefixSummary(
 			maxTokens,
 			signal,
 			apiKey,
-			reasoning: Effort.High,
+			reasoning: COMPACTION_REASONING_EFFORT,
 			initiatorOverride: options?.initiatorOverride,
 			metadata: options?.metadata,
 		},
