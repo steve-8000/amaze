@@ -1,6 +1,7 @@
 import { logger, prompt, Snowflake } from "@amaze/utils";
 import { settings } from "../config/settings";
 import { MissionStore, resolveMission } from "../mission/store";
+import type { Mission } from "../mission/types";
 import type { EventBus as SessionEventBus } from "../observability";
 import goalBudgetLimitPrompt from "../prompts/goals/goal-budget-limit.md" with { type: "text" };
 import goalContinuationPrompt from "../prompts/goals/goal-continuation.md" with { type: "text" };
@@ -51,6 +52,22 @@ import {
  */
 
 /**
+ * Resolve a mission for a goal without ever silently attaching to the wrong row.
+ *
+ * Invariant (enforced by mission/producers.test "does not fall back to title …"): when a
+ * goal carries an EXPLICIT missionId, resolution is by id only — a missing id must NOT
+ * fall back to title, or a verification/state write could land on an unrelated mission.
+ * Title fallback applies only when no missionId was provided at all.
+ */
+function resolveMissionForGoal(
+	store: MissionStore,
+	args: { missionId?: string | null; objective: string },
+): Mission | undefined {
+	if (args.missionId) return resolveMission(store, { missionId: args.missionId });
+	return resolveMission(store, { title: args.objective });
+}
+
+/**
  * Mirror goal set/start → mission "created". Resolves an existing mission for the goal
  * (by id, else by title) or creates one titled after the objective, then marks it
  * `executing` (a created+active goal is work in flight). Returns the resolved/created
@@ -67,7 +84,7 @@ export function recordMissionCreatedFromGoal(args: {
 	let store: MissionStore | undefined;
 	try {
 		store = new MissionStore(args.dbPath);
-		const existing = resolveMission(store, { missionId: args.missionId, title: args.objective });
+		const existing = resolveMissionForGoal(store, { missionId: args.missionId, objective: args.objective });
 		if (existing) {
 			if (existing.state !== "executing") {
 				store.updateMission(existing.id, { state: "executing" });
@@ -125,7 +142,7 @@ function transitionMissionStateFromGoal(args: {
 	let store: MissionStore | undefined;
 	try {
 		store = new MissionStore(args.dbPath);
-		const mission = resolveMission(store, { missionId: args.missionId, title: args.objective });
+		const mission = resolveMissionForGoal(store, { missionId: args.missionId, objective: args.objective });
 		if (!mission) return;
 		store.updateMission(mission.id, { state: args.state });
 	} catch (error) {
@@ -145,7 +162,7 @@ export function recordMissionVerificationFromGoalObjective(args: {
 	let store: MissionStore | undefined;
 	try {
 		store = new MissionStore(args.dbPath);
-		const mission = resolveMission(store, { missionId: args.missionId, title: args.objective });
+		const mission = resolveMissionForGoal(store, { missionId: args.missionId, objective: args.objective });
 		if (!mission) return;
 		const status = args.verdict.verdict;
 		store.recordVerification({
