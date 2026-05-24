@@ -1,5 +1,24 @@
+import {
+	MissionAcceptanceFailureError,
+	MissionRuntimeImpl,
+	type MissionRuntimeImplOptions,
+	type MissionTokenAccountInput,
+	type MissionTokenUsage,
+	missionTokenDelta,
+} from "./core/mission-runtime";
 import { MissionEventBus } from "./event-bus";
 import { MissionJsonlSink } from "./jsonl-sink";
+
+// Re-export the canonical mission runtime implementation + error so consumers can
+// reach them via the mission runtime barrel without deep-importing core/.
+export {
+	MissionAcceptanceFailureError,
+	MissionRuntimeImpl,
+	type MissionRuntimeImplOptions,
+	type MissionTokenAccountInput,
+	type MissionTokenUsage,
+	missionTokenDelta,
+};
 
 type MissionRuntimeOptions = {
 	baseDir?: string;
