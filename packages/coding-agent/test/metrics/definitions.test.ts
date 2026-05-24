@@ -69,6 +69,8 @@ describe("default metric definitions", () => {
 		["memory.hitPrecision", 3 / 4],
 		["memory.staleRate", 2 / 3],
 		["prompt.cacheChurn", 1 / 2],
+		// readTokens (1 + 1) over (readTokens + writeTokens) ((1+2) + (1+2)) = 2 / 6
+		["prompt.cacheReadRatio", 1 / 3],
 		["cost.perAcceptedGoal", 40],
 		["verifier.bypassRate", 1 / 2],
 	])("computes %s", (name, expected) => {

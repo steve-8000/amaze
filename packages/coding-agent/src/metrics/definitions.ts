@@ -105,6 +105,25 @@ export const metricDefinitions: MetricDefinition[] = [
 		finalize: ratio,
 	},
 	{
+		// Fraction of cacheable input tokens served from cache: readTokens / (readTokens + writeTokens).
+		// A healthy long session trends high (the STABLE_CORE prefix is re-read, not re-written). A
+		// ratio stuck near 0 while STABLE_CORE is large is the signature of a volatile cached prefix —
+		// e.g. the OAuth billing header (a per-request value) sitting ahead of the cache breakpoint
+		// busting the whole prefix every turn. Use this to confirm/quantify that before attempting the
+		// (auth-sensitive) fix of relocating the billing header out of the cached prefix.
+		name: "prompt.cacheReadRatio",
+		eventTypes: ["prompt.cache"],
+		initial: () => ({ numerator: 0, denominator: 0 }),
+		reducer: (state: CountState, event) => {
+			if (event.type !== "prompt.cache") return state;
+			return {
+				numerator: state.numerator + event.readTokens,
+				denominator: state.denominator + event.readTokens + event.writeTokens,
+			};
+		},
+		finalize: ratio,
+	},
+	{
 		name: "cost.perAcceptedGoal",
 		eventTypes: ["turn.end", "goal.complete"],
 		initial: () => ({ tokens: 0, acceptedGoals: 0 }),
