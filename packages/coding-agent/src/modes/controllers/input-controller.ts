@@ -172,6 +172,12 @@ export class InputController {
 		for (const key of this.ctx.keybindings.getKeys("app.session.observe")) {
 			this.ctx.editor.setCustomKeyHandler(key, () => this.ctx.showSessionObserver());
 		}
+		for (const key of this.ctx.keybindings.getKeys("app.mission.next")) {
+			this.ctx.editor.setCustomKeyHandler(key, () => this.ctx.selectNextMission());
+		}
+		for (const key of this.ctx.keybindings.getKeys("app.mission.previous")) {
+			this.ctx.editor.setCustomKeyHandler(key, () => this.ctx.selectPreviousMission());
+		}
 
 		this.ctx.editor.onChange = (text: string) => {
 			const wasBashMode = this.ctx.isBashMode;

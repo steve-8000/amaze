@@ -48,6 +48,8 @@ interface AppKeybindings {
 	"app.plan.toggle": true;
 	"app.history.search": true;
 	"app.stt.toggle": true;
+	"app.mission.next": true;
+	"app.mission.previous": true;
 }
 
 export type AppKeybinding = keyof AppKeybindings;
@@ -188,6 +190,14 @@ export const KEYBINDINGS = {
 	"app.stt.toggle": {
 		defaultKeys: "alt+h",
 		description: "Toggle speech-to-text",
+	},
+	"app.mission.next": {
+		defaultKeys: "alt+]",
+		description: "Select next mission",
+	},
+	"app.mission.previous": {
+		defaultKeys: "alt+[",
+		description: "Select previous mission",
 	},
 } as const satisfies KeybindingDefinitions;
 

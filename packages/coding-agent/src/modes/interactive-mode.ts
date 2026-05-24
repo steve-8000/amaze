@@ -928,6 +928,29 @@ export class InteractiveMode implements InteractiveModeContext {
 		this.missionControlView?.refresh();
 	}
 
+	selectNextMission(): void {
+		this.#selectMission("next");
+	}
+
+	selectPreviousMission(): void {
+		this.#selectMission("previous");
+	}
+
+	#selectMission(direction: "next" | "previous"): void {
+		const changed =
+			direction === "next"
+				? this.missionControlView.selectNextMission()
+				: this.missionControlView.selectPreviousMission();
+		if (!changed) {
+			this.showStatus("No other mission available.", { dim: true });
+			return;
+		}
+		this.ui.requestRender();
+		this.showStatus(`Selected mission: ${this.missionControlView.getSelectedMissionLabel() ?? "unknown"}`, {
+			dim: true,
+		});
+	}
+
 	#renderTodoHudLine(todo: TodoItem, prefix: string): string {
 		const checkbox = theme.checkbox;
 		const marker = formatHudNoteMarker(todo.notes?.length ?? 0);

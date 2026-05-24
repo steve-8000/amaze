@@ -8,8 +8,9 @@ export class MissionControlView implements Component {
 	#getPreferredMissionInput:
 		| (() => { objectiveId?: string; briefId?: string; title?: string } | undefined)
 		| undefined;
+	#missions: MissionView[] = [];
 	#mission: MissionView | null = null;
-	#missionId: string | undefined;
+	#selectedMissionId: string | undefined;
 	#unsubscribe: Unsubscribe | undefined;
 	#disposed = false;
 
@@ -26,7 +27,7 @@ export class MissionControlView implements Component {
 		const bus = opts.missionEventBus ?? getMissionEventBus();
 		if (bus) {
 			this.#unsubscribe = bus.subscribe(event => {
-				if (this.#missionId === undefined || event.missionId === this.#missionId) {
+				if (this.#selectedMissionId === undefined || event.missionId === this.#selectedMissionId) {
 					this.refresh();
 					opts.onRefresh?.();
 				}
@@ -37,8 +38,46 @@ export class MissionControlView implements Component {
 
 	refresh(): void {
 		if (this.#disposed) return;
-		this.#mission = this.#readModel.getPreferredMissionView(this.#getPreferredMissionInput?.()) ?? null;
-		this.#missionId = this.#mission?.mission.id;
+		this.#missions = this.#readModel.listMissionViews();
+		const selected = this.#selectedMissionId
+			? this.#missions.find(view => view.mission.id === this.#selectedMissionId)
+			: undefined;
+		const preferred =
+			selected ??
+			this.#readModel.getPreferredMissionView(this.#getPreferredMissionInput?.()) ??
+			this.#missions[0] ??
+			null;
+		this.#mission = preferred;
+		this.#selectedMissionId = selected ? selected.mission.id : undefined;
+	}
+
+	selectNextMission(): boolean {
+		return this.#selectMission(1);
+	}
+
+	selectPreviousMission(): boolean {
+		return this.#selectMission(-1);
+	}
+
+	getSelectedMissionLabel(): string | undefined {
+		if (!this.#mission) return undefined;
+		const index = this.#missions.findIndex(view => view.mission.id === this.#mission?.mission.id);
+		const position = index >= 0 ? `${index + 1}/${this.#missions.length}` : "preferred";
+		return `${position} ${this.#mission.mission.title}`;
+	}
+
+	#selectMission(direction: 1 | -1): boolean {
+		this.refresh();
+		if (this.#missions.length <= 1 || !this.#mission) return false;
+		const currentIndex = Math.max(
+			0,
+			this.#missions.findIndex(view => view.mission.id === this.#mission?.mission.id),
+		);
+		const nextIndex = (currentIndex + direction + this.#missions.length) % this.#missions.length;
+		if (nextIndex === currentIndex) return false;
+		this.#mission = this.#missions[nextIndex] ?? null;
+		this.#selectedMissionId = this.#mission?.mission.id;
+		return Boolean(this.#mission);
 	}
 
 	getPreferredInspectorTarget(): { sessionId?: string; sessionFile?: string } | undefined {
@@ -62,7 +101,9 @@ export class MissionControlView implements Component {
 
 	render(width: number): string[] {
 		const innerWidth = Math.max(20, width - 2);
-		const lines = this.#mission ? buildMissionControlLines(this.#mission) : buildMissionControlEmptyLines();
+		const lines = this.#mission
+			? buildMissionControlLines(this.#mission, getMissionStrip(this.#missions, this.#mission))
+			: buildMissionControlEmptyLines();
 		return [
 			`┌${"─".repeat(innerWidth)}┐`,
 			...lines.map(line => `│${padLine(line, innerWidth)}│`),
@@ -79,16 +120,20 @@ export function buildMissionControlEmptyLines(): string[] {
 	];
 }
 
-export function buildMissionControlLines(view: MissionView): string[] {
+export function buildMissionControlLines(view: MissionView, missionStrip?: string): string[] {
 	const mission = view.mission;
 	const objective = view.objective?.title ?? mission.title;
 	const confidence = mission.confidence ?? "unknown";
 	const snapshot = mission.snapshotRef ? "available" : "unavailable";
 	const researchRun = view.researchRun ? `${view.researchRun.status} (${view.researchRun.id})` : "<none>";
+	const laneSummary = summarizeLaneRuns(view);
+	const evidenceSummary = summarizeEvidence(view);
 	const lines: string[] = [
 		`Mission Control — ${objective}`,
+		...(missionStrip ? [missionStrip] : []),
 		`Objective: ${mission.title}`,
 		`State: ${mission.state} | confidence ${confidence} | risk ${mission.riskLevel}`,
+		`Execution: lanes ${laneSummary} | evidence ${evidenceSummary}`,
 		`Research run: ${researchRun}`,
 		`Snapshot: ${snapshot}`,
 		section("Orchestration"),
@@ -105,6 +150,8 @@ export function buildMissionControlLines(view: MissionView): string[] {
 		}
 	}
 
+	lines.push(`  Summary: ${laneSummary}`);
+
 	lines.push(section("Evidence Board"));
 	const evidenceCards = view.evidenceCards.slice(0, 4);
 	if (evidenceCards.length === 0) {
@@ -114,6 +161,7 @@ export function buildMissionControlLines(view: MissionView): string[] {
 			lines.push(`  ${laneBadge(card.lane)} ${card.id} | grade ${card.grade} | ${card.sourceRef}`);
 		}
 	}
+	lines.push(`  Summary: ${evidenceSummary}`);
 
 	lines.push(section("Synthesis / Critique"));
 	lines.push(
@@ -130,7 +178,9 @@ export function buildMissionControlLines(view: MissionView): string[] {
 	lines.push(section("Decision Contract"));
 	if (view.decisionSummary) {
 		lines.push(`  Decision: ${view.decisionSummary.confidence} | ${view.decisionSummary.hypothesis}`);
-		lines.push(`  Evidence refs: ${formatList(view.decisionSummary.evidenceRefs)}`);
+		lines.push(
+			`  Evidence refs: ${formatList(view.decisionSummary.evidenceRefs)} | rejected ${view.decision?.rejectedOptions.length ?? 0}`,
+		);
 		if (view.decision?.nextActions.length) {
 			lines.push(`  Next actions: ${formatList(view.decision.nextActions)}`);
 		}
@@ -140,7 +190,7 @@ export function buildMissionControlLines(view: MissionView): string[] {
 	const latestContract = view.contracts.at(-1);
 	lines.push(
 		latestContract
-			? `  Execution contract: ${latestContract.role} | scope +${latestContract.include.length}/-${latestContract.exclude.length} | criteria ${latestContract.successCriteria.length}`
+			? `  Execution contract: ${latestContract.role} | scope +${latestContract.include.length}/-${latestContract.exclude.length} | criteria ${latestContract.successCriteria.length} | escalation ${latestContract.escalation.onUncertainty}`
 			: "  Execution contract: <none>",
 	);
 	if (view.inspectorTarget) {
@@ -183,6 +233,28 @@ function formatList(items: string[]): string {
 
 function countRollbackSnapshots(rollbacks: MissionView["rollbacks"]): number {
 	return rollbacks.filter(rollback => rollback.snapshotRef).length;
+}
+
+function getMissionStrip(missions: MissionView[], selected: MissionView): string | undefined {
+	if (missions.length <= 1) return undefined;
+	const index = missions.findIndex(view => view.mission.id === selected.mission.id);
+	const position = index >= 0 ? index + 1 : 1;
+	return `Missions: ${missions.length} active | selected ${position}/${missions.length} | ${selected.mission.title}`;
+}
+
+function summarizeLaneRuns(view: MissionView): string {
+	if (view.laneRuns.length === 0) return "0 lanes";
+	const counts = new Map<string, number>();
+	for (const lane of view.laneRuns) {
+		counts.set(lane.status, (counts.get(lane.status) ?? 0) + 1);
+	}
+	return [...counts.entries()].map(([status, count]) => `${status} ${count}`).join(", ");
+}
+
+function summarizeEvidence(view: MissionView): string {
+	if (view.evidenceCards.length === 0) return "0 cards";
+	const lanes = new Set(view.evidenceCards.map(card => card.lane));
+	return `${view.evidenceCards.length} cards across ${lanes.size} lanes`;
 }
 
 function laneBadge(lane: string): string {

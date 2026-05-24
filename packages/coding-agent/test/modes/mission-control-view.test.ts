@@ -104,6 +104,50 @@ describe("MissionControlView", () => {
 		expect(rendered).toContain("Mission Inspector: Ctrl+S for tool traces, artifacts, and subagent details");
 	});
 
+	test("selects missions predictably and renders multi-mission strip", () => {
+		const dbPath = tempDb();
+		const research = new ResearchStore(dbPath);
+		research.createBrief({
+			id: "brief-first",
+			objectiveId: "objective-first",
+			question: "First mission",
+			lanes: ["repo"],
+			requiredEvidence: [],
+			disallowedEvidence: [],
+			riskLevel: "low",
+			stopCriteria: [],
+		});
+		research.createBrief({
+			id: "brief-second",
+			objectiveId: "objective-second",
+			question: "Second mission",
+			lanes: ["source"],
+			requiredEvidence: [],
+			disallowedEvidence: [],
+			riskLevel: "medium",
+			stopCriteria: [],
+		});
+		const missions = new MissionStore(dbPath);
+		cleanup.push(
+			() => missions.close(),
+			() => research.close(),
+		);
+
+		const view = new MissionControlView({ dbPath, getPreferredMissionInput: () => ({ title: "First mission" }) });
+		cleanup.push(() => view.dispose());
+
+		let rendered = Bun.stripANSI(view.render(120).join("\n"));
+		expect(rendered).toContain("Missions: 2 active | selected 2/2 | First mission");
+		expect(rendered).toContain("Objective: First mission");
+		expect(view.selectNextMission()).toBe(true);
+		rendered = Bun.stripANSI(view.render(120).join("\n"));
+		expect(rendered).toContain("Missions: 2 active | selected 1/2 | Second mission");
+		expect(rendered).toContain("Objective: Second mission");
+		expect(view.selectPreviousMission()).toBe(true);
+		rendered = Bun.stripANSI(view.render(120).join("\n"));
+		expect(rendered).toContain("Missions: 2 active | selected 2/2 | First mission");
+	});
+
 	test("renders synthesis critique decision contract and rollback details", () => {
 		const dbPath = tempDb();
 		const research = new ResearchStore(dbPath);
