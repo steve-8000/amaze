@@ -40,7 +40,7 @@ export type RecallFn = (input: NexusSearchInput) => NexusMemoryEntry[];
 /** A recalled memory item, modelled as a Lane D mission memory object. */
 export interface RecalledMemoryItem extends MissionMemoryObject {
 	/** Always `RECALL_AUTHORITY` — recall is guidance, never repo truth. */
-	authority: typeof RECALL_AUTHORITY;
+	authority: Authority;
 }
 
 /**
@@ -53,7 +53,7 @@ export interface MissionMemoryRecall {
 	/** Recalled items, highest-confidence first, each tagged guidance authority. */
 	items: RecalledMemoryItem[];
 	/** The authority every item carries (always the guidance floor). */
-	authority: typeof RECALL_AUTHORITY;
+	authority: Authority;
 }
 
 export interface MissionMemoryBridgeOptions {
