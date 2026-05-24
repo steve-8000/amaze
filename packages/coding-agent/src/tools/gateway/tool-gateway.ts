@@ -12,7 +12,7 @@
  */
 import type { ToolDescriptor, ToolExecutionContext, ToolResult, ToolRiskLevel } from "../registry/tool-descriptor";
 import type { ToolRegistry } from "../registry/tool-registry";
-import { DefaultMutationScopeGuard, type MutationScopeGuard } from "./mutation-guard";
+import { type AsyncMutationScopeGuard, DefaultMutationScopeGuard, type MutationScopeGuard } from "./mutation-guard";
 import { DefaultPermissionGate, type PermissionGate } from "./permission-gate";
 import { classifyRisk } from "./risk-classifier";
 import { DefaultTimeoutPolicy, type TimeoutPolicy } from "./timeout-policy";
@@ -50,6 +50,12 @@ export interface ToolGatewayOptions {
 	policyGate?: PolicyGate;
 	permissionGate?: PermissionGate;
 	mutationGuard?: MutationScopeGuard;
+	/**
+	 * Optional async mutation-scope guard (e.g. subagent/goal scope enforcement
+	 * that must touch the filesystem). Consulted by {@link ToolGateway.guard} in
+	 * addition to the synchronous {@link mutationGuard}. Absent ⇒ skipped.
+	 */
+	asyncMutationGuard?: AsyncMutationScopeGuard;
 	timeoutPolicy?: TimeoutPolicy;
 	hooks?: GatewayHooks;
 }
@@ -68,6 +74,7 @@ export class ToolGateway {
 	#policyGate: PolicyGate;
 	#permissionGate: PermissionGate;
 	#mutationGuard: MutationScopeGuard;
+	#asyncMutationGuard?: AsyncMutationScopeGuard;
 	#timeoutPolicy: TimeoutPolicy;
 	#hooks: GatewayHooks;
 
@@ -76,6 +83,7 @@ export class ToolGateway {
 		this.#policyGate = options.policyGate ?? new AllowAllPolicyGate();
 		this.#permissionGate = options.permissionGate ?? new DefaultPermissionGate();
 		this.#mutationGuard = options.mutationGuard ?? new DefaultMutationScopeGuard();
+		this.#asyncMutationGuard = options.asyncMutationGuard;
 		this.#timeoutPolicy = options.timeoutPolicy ?? new DefaultTimeoutPolicy();
 		this.#hooks = options.hooks ?? {};
 	}
@@ -152,4 +160,97 @@ export class ToolGateway {
 		this.#hooks.onResult?.(descriptor, result, ctx);
 		return result;
 	}
+
+	/**
+	 * Run only the policy pipeline (PolicyGate → PermissionGate → MutationScopeGuard →
+	 * TimeoutPolicy) for an already-resolved descriptor, WITHOUT executing it. This is the
+	 * seam entrypoint used by the agent loop, which keeps ownership of the real execution
+	 * (streaming `onUpdate`, abort signal, original result shape) while delegating the
+	 * allow/deny + timeout + telemetry decision to the gateway.
+	 *
+	 * Emits a `mission.tool.requested` record when a mission context is present and the call
+	 * is allowed. The caller MUST invoke {@link settle} once execution finishes to emit the
+	 * matching `mission.tool.completed` record.
+	 */
+	async guard(descriptor: ToolDescriptor<any, any>, ctx: ToolExecutionContext): Promise<GuardDecision> {
+		const riskLevel = classifyRisk(descriptor);
+		this.#hooks.onClassified?.(descriptor, riskLevel, ctx);
+
+		const deny = (stage: DenyStage, reason: string): GuardDecision => {
+			this.#hooks.onDenied?.(descriptor, stage, reason, ctx);
+			this.#emitRecord(ctx, descriptor, "completed", "denied");
+			return { allowed: false, stage, reason, riskLevel, timeoutMs: 0 };
+		};
+
+		const policy = this.#policyGate.check(descriptor, ctx, riskLevel);
+		if (!policy.allowed) return deny("policy", policy.reason ?? `policy denied tool "${descriptor.name}"`);
+
+		const permission = this.#permissionGate.check(descriptor, ctx, riskLevel);
+		if (!permission.allowed) {
+			return deny("permission", permission.reason ?? `permission denied for tool "${descriptor.name}"`);
+		}
+
+		const mutation = this.#mutationGuard.check(descriptor, ctx);
+		if (!mutation.allowed) {
+			return deny("mutation", mutation.reason ?? `mutation scope denied for tool "${descriptor.name}"`);
+		}
+
+		if (this.#asyncMutationGuard) {
+			const asyncMutation = await this.#asyncMutationGuard.checkAsync(descriptor, ctx);
+			if (!asyncMutation.allowed) {
+				return deny("mutation", asyncMutation.reason ?? `mutation scope denied for tool "${descriptor.name}"`);
+			}
+		}
+
+		const timeoutMs = this.#timeoutPolicy.resolve(descriptor, riskLevel);
+		this.#hooks.onBeforeExecute?.(descriptor, timeoutMs, ctx);
+		this.#emitRecord(ctx, descriptor, "requested");
+		return { allowed: true, riskLevel, timeoutMs };
+	}
+
+	/**
+	 * Emit the terminal `mission.tool.completed` record for a call that passed {@link guard}.
+	 * No-op when no mission context is present.
+	 */
+	settle(descriptor: ToolDescriptor<any, any>, ctx: ToolExecutionContext, status: "ok" | "error"): void {
+		this.#emitRecord(ctx, descriptor, "completed", status);
+	}
+
+	#emitRecord(
+		ctx: ToolExecutionContext,
+		descriptor: ToolDescriptor<any, any>,
+		phase: "requested" | "completed",
+		status?: "ok" | "error" | "denied",
+	): void {
+		const mission = ctx.mission;
+		if (!mission) return;
+		const ts = Date.now();
+		const toolCallId = ctx.toolCallId ?? "";
+		const taskId = mission.taskId ?? null;
+		if (phase === "requested") {
+			mission.emit({
+				type: "mission.tool.requested",
+				missionId: mission.missionId,
+				taskId,
+				toolCallId,
+				tool: descriptor.name,
+				ts,
+			});
+			return;
+		}
+		mission.emit({
+			type: "mission.tool.completed",
+			missionId: mission.missionId,
+			taskId,
+			toolCallId,
+			tool: descriptor.name,
+			status: status ?? "ok",
+			ts,
+		});
+	}
 }
+
+/** Decision returned by {@link ToolGateway.guard}. */
+export type GuardDecision =
+	| { allowed: true; riskLevel: ToolRiskLevel; timeoutMs: number }
+	| { allowed: false; stage: DenyStage; reason: string; riskLevel: ToolRiskLevel; timeoutMs: number };

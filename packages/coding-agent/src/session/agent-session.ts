@@ -171,8 +171,10 @@ import {
 } from "../tool-discovery/tool-index";
 import { assertEditableFile } from "../tools/auto-generated-guard";
 import type { CheckpointState } from "../tools/checkpoint";
+import { SessionToolGateway } from "../tools/gateway/session-gateway";
 import { outputMeta } from "../tools/output-meta";
 import { normalizeLocalScheme, resolveToCwd } from "../tools/path-utils";
+import type { ToolExecutionContext, ToolMissionContext } from "../tools/registry/tool-descriptor";
 import { isAutoQaEnabled } from "../tools/report-tool-issue";
 import { getLatestTodoPhasesFromEntries, type TodoItem, type TodoPhase } from "../tools/todo-write";
 import { ToolAbortError, ToolError } from "../tools/tool-errors";
@@ -814,6 +816,17 @@ export class AgentSession {
 	#allowAcpAgentInitiatedTurns = false;
 	/** Per-session memory of allow_always / reject_always decisions for gated tools. */
 	#acpPermissionDecisions: Map<string, "allow_always" | "reject_always"> = new Map();
+	/**
+	 * Lane H — central tool gateway for mutation-class tools (write/edit/ast_edit/bash/github).
+	 * Transparent pass-through by default; routes the allow/deny + timeout + mission telemetry
+	 * decision through a single seam so mutation tools never dispatch outside the gateway.
+	 */
+	readonly #toolGateway = new SessionToolGateway();
+	/**
+	 * Optional mission binding for tool-call telemetry. Absent ⇒ telemetry no-ops. Lane I sets
+	 * this when a mission/task is bound to the session; the gateway emits mission.tool.* records.
+	 */
+	#missionToolContext: ToolMissionContext | undefined;
 
 	// Compaction state
 	#compactionAbortController: AbortController | undefined = undefined;
@@ -3169,6 +3182,69 @@ export class AgentSession {
 	}
 
 	/**
+	 * Lane H — set/clear the mission binding used for tool-call telemetry. Lane I calls this
+	 * when a mission/task is bound to the session. When unset, gateway telemetry no-ops.
+	 */
+	setMissionToolContext(context: ToolMissionContext | undefined): void {
+		this.#missionToolContext = context;
+	}
+
+	/**
+	 * Lane H — route a mutation-class tool (write/edit/ast_edit/bash/github) through the
+	 * central {@link SessionToolGateway} at the dispatch seam. The gateway runs the policy
+	 * pipeline (allow-all by default ⇒ transparent), resolves timeout metadata, and emits
+	 * mission tool-call telemetry when a mission context is present. The tool's REAL
+	 * execution is unchanged — the seam keeps ownership of streaming/abort/result shape and
+	 * the tool's own inline scope enforcement stays authoritative. Non-mutation tools and
+	 * tools the gateway does not handle are returned untouched.
+	 */
+	#wrapToolForGateway<T extends AgentTool>(tool: T): T {
+		if (!this.#toolGateway.handles(tool.name)) return tool;
+		const session = this;
+		const gateway = this.#toolGateway;
+		return new Proxy(tool, {
+			get(target, prop, receiver) {
+				if (prop !== "execute") return Reflect.get(target, prop, receiver);
+				return async (
+					toolCallId: string,
+					args: unknown,
+					signal: AbortSignal | undefined,
+					onUpdate: unknown,
+					ctx: unknown,
+				) => {
+					const gctx: ToolExecutionContext = {
+						toolCallId,
+						input: args,
+						...(signal ? { signal } : {}),
+						...(session.#missionToolContext ? { mission: session.#missionToolContext } : {}),
+					};
+					const decision = await gateway.decide(target.name, gctx);
+					if (!decision.allowed) {
+						// Mirror the tool's own error channel; message text matches the inline guard.
+						throw new ToolError(decision.reason);
+					}
+					try {
+						const result = await (
+							target.execute as (
+								id: string,
+								a: unknown,
+								s: AbortSignal | undefined,
+								u: unknown,
+								c: unknown,
+							) => Promise<unknown>
+						)(toolCallId, args, signal, onUpdate, ctx);
+						gateway.settle(target.name, gctx, "ok");
+						return result as ReturnType<T["execute"]>;
+					} catch (err) {
+						gateway.settle(target.name, gctx, "error");
+						throw err;
+					}
+				};
+			},
+		}) as T;
+	}
+
+	/**
 	 * Wrap a tool with a permission-gate proxy when an ACP client is connected.
 	 * Only wraps tools whose name is in PERMISSION_REQUIRED_TOOLS and only when
 	 * the bridge exposes `requestPermission`. No-ops for all other cases.
@@ -3276,7 +3352,7 @@ export class AgentSession {
 		for (const name of toolNames) {
 			const tool = this.#toolRegistry.get(name);
 			if (tool) {
-				tools.push(this.#wrapToolForAcpPermission(tool));
+				tools.push(this.#wrapToolForGateway(this.#wrapToolForAcpPermission(tool)));
 				validToolNames.push(name);
 			}
 		}
@@ -3284,7 +3360,7 @@ export class AgentSession {
 		if (isAutoQaEnabled(this.settings) && !validToolNames.includes("report_tool_issue")) {
 			const qaTool = this.#toolRegistry.get("report_tool_issue");
 			if (qaTool) {
-				tools.push(this.#wrapToolForAcpPermission(qaTool));
+				tools.push(this.#wrapToolForGateway(this.#wrapToolForAcpPermission(qaTool)));
 				validToolNames.push("report_tool_issue");
 			}
 		}
@@ -3788,7 +3864,7 @@ export class AgentSession {
 		const activeTools = activeToolNames
 			.map(name => this.#toolRegistry.get(name))
 			.filter((tool): tool is AgentTool => tool !== undefined)
-			.map(tool => this.#wrapToolForAcpPermission(tool));
+			.map(tool => this.#wrapToolForGateway(this.#wrapToolForAcpPermission(tool)));
 		this.agent.setTools(activeTools);
 	}
 
