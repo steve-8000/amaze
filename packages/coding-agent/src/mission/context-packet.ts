@@ -1,3 +1,4 @@
+import type { MissionMemoryRecall } from "../memory/bridge";
 import type { MissionView } from "./read-model";
 
 const MAX_EVIDENCE_CLAIMS = 5;
@@ -27,6 +28,12 @@ export interface ActiveMissionPacket {
 		summary: string;
 	} | null;
 	nextActions: string[];
+	/**
+	 * Optional recall surfaced from memory (Lane J). Additive and opt-in: only
+	 * populated when a {@link MissionMemoryBridge} attaches recall. Items are
+	 * guidance authority and never override repo truth.
+	 */
+	memoryRecall?: MissionMemoryRecall;
 	omitted: {
 		evidenceClaims: number;
 		evidenceCards: number;
@@ -86,6 +93,15 @@ export function buildActiveMissionPacket(view: MissionView): ActiveMissionPacket
 	};
 }
 
+/**
+ * Attach memory recall to an existing packet (Lane J, additive). Returns a new
+ * packet with `memoryRecall` set; does not mutate the input and does not change
+ * any other field, so default packet construction is unaffected.
+ */
+export function withMemoryRecall(packet: ActiveMissionPacket, recall: MissionMemoryRecall): ActiveMissionPacket {
+	return { ...packet, memoryRecall: recall };
+}
+
 export function renderActiveMissionPacket(packet: ActiveMissionPacket | null | undefined): string {
 	if (!packet) return "";
 	const lines = [
@@ -112,6 +128,12 @@ export function renderActiveMissionPacket(packet: ActiveMissionPacket | null | u
 	}
 	if (packet.nextActions.length > 0) {
 		lines.push(`Next actions: ${formatList(packet.nextActions)}`);
+	}
+	if (packet.memoryRecall && packet.memoryRecall.items.length > 0) {
+		lines.push(`Recalled memory (guidance only, never overrides repo truth):`);
+		for (const item of packet.memoryRecall.items) {
+			lines.push(`- [${item.type}] ${item.content}`);
+		}
 	}
 	lines.push(
 		`Omitted: ${packet.omitted.evidenceClaims} evidence claims, ${packet.omitted.evidenceCards} evidence cards, ${packet.omitted.contracts} older contracts, ${packet.omitted.contractIncludes} contract includes, ${packet.omitted.contractCriteria} contract criteria, ${packet.omitted.nextActions} next actions.`,
