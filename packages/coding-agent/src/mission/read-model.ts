@@ -50,6 +50,12 @@ export interface MissionDecisionSummary {
 	hypothesis: string;
 }
 
+export interface MissionInspectorTarget {
+	taskId: string | null;
+	sessionFile: string | null;
+	source: "contract" | "lane-run";
+}
+
 export interface MissionView extends MissionProjectionView {
 	objective: MissionObjectiveSummary | null;
 	decisionSummary: MissionDecisionSummary | null;
@@ -61,6 +67,7 @@ export interface MissionView extends MissionProjectionView {
 	evidenceCards: EvidenceCard[];
 	latestSynthesis: SynthesisRecord | null;
 	latestCritique: CritiqueRecord | null;
+	inspectorTarget: MissionInspectorTarget | null;
 }
 
 export function buildMissionView(input: {
@@ -85,6 +92,8 @@ export function buildMissionView(input: {
 		evidence: input.evidence,
 		laneRuns: input.laneRuns,
 	});
+
+	const inspectorTarget = getMissionInspectorTarget(input.contracts, input.laneRuns);
 
 	return {
 		...projection,
@@ -123,7 +132,25 @@ export function buildMissionView(input: {
 		latestSynthesis: input.latestSynthesis ?? null,
 		latestCritique: input.latestCritique ?? null,
 		rollbacks: [...input.rollbacks],
+		inspectorTarget,
 	};
+}
+
+function getMissionInspectorTarget(
+	contracts: MissionContractRecord[],
+	laneRuns: MissionLaneRun[],
+): MissionInspectorTarget | null {
+	for (const contract of [...contracts].reverse()) {
+		if (contract.taskId || contract.sessionFile) {
+			return { taskId: contract.taskId, sessionFile: contract.sessionFile, source: "contract" };
+		}
+	}
+	for (const laneRun of [...laneRuns].reverse()) {
+		if (laneRun.taskId) {
+			return { taskId: laneRun.taskId, sessionFile: null, source: "lane-run" };
+		}
+	}
+	return null;
 }
 
 export class MissionReadModel {

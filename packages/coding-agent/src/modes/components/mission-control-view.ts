@@ -41,6 +41,15 @@ export class MissionControlView implements Component {
 		this.#missionId = this.#mission?.mission.id;
 	}
 
+	getPreferredInspectorTarget(): { sessionId?: string; sessionFile?: string } | undefined {
+		const target = this.#mission?.inspectorTarget;
+		if (!target) return undefined;
+		return {
+			sessionId: target.taskId ?? undefined,
+			sessionFile: target.sessionFile ?? undefined,
+		};
+	}
+
 	dispose(): void {
 		if (this.#disposed) return;
 		this.#disposed = true;
@@ -134,6 +143,10 @@ export function buildMissionControlLines(view: MissionView): string[] {
 			? `  Execution contract: ${latestContract.role} | scope +${latestContract.include.length}/-${latestContract.exclude.length} | criteria ${latestContract.successCriteria.length}`
 			: "  Execution contract: <none>",
 	);
+	if (view.inspectorTarget) {
+		const label = view.inspectorTarget.taskId ?? view.inspectorTarget.sessionFile ?? "linked trace";
+		lines.push(`  Linked trace: ${label}`);
+	}
 
 	lines.push(section("Verification / Rollback"));
 	lines.push(
@@ -147,7 +160,11 @@ export function buildMissionControlLines(view: MissionView): string[] {
 			? `  Rollback: ${latestRollback.summary} | snapshots ${countRollbackSnapshots(view.rollbacks)}`
 			: `  Rollback: <none> | snapshots ${countRollbackSnapshots(view.rollbacks)}`,
 	);
-	lines.push("Mission Inspector: Ctrl+S for tool traces, artifacts, and subagent details");
+	lines.push(
+		view.inspectorTarget
+			? "Mission Inspector: Ctrl+S opens linked contract trace first"
+			: "Mission Inspector: Ctrl+S for tool traces, artifacts, and subagent details",
+	);
 	return lines;
 }
 

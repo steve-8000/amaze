@@ -2604,7 +2604,10 @@ export class InteractiveMode implements InteractiveModeContext {
 			this.showStatus("No Mission Inspector sessions available");
 			return;
 		}
-		this.#selectorController.showSessionObserver(this.#observerRegistry);
+		this.#selectorController.showSessionObserver(
+			this.#observerRegistry,
+			this.missionControlView.getPreferredInspectorTarget(),
+		);
 	}
 
 	resetObserverRegistry(): void {

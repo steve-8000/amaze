@@ -93,12 +93,16 @@ export interface MissionContractRecord {
 	escalation: { onUncertainty: "ask-parent" | "block"; budgetCap: number };
 	inputArtifact: string | null;
 	mustProduce: string[];
+	taskId: string | null;
+	sessionFile: string | null;
 	createdAt: number;
 }
 
-export type NewMissionContractRecord = Omit<MissionContractRecord, "id" | "createdAt"> & {
+export type NewMissionContractRecord = Omit<MissionContractRecord, "id" | "createdAt" | "taskId" | "sessionFile"> & {
 	id?: string;
 	createdAt?: number;
+	taskId?: string | null;
+	sessionFile?: string | null;
 };
 
 export interface MissionVerificationRecord {

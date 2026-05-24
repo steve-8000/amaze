@@ -88,21 +88,38 @@ export class SessionObserverOverlayComponent extends Container {
 	// Markdown rendering
 	#mdTheme: MarkdownTheme = getMarkdownTheme();
 
-	constructor(registry: SessionObserverRegistry, onDone: () => void, observeKeys: KeyId[]) {
+	constructor(
+		registry: SessionObserverRegistry,
+		onDone: () => void,
+		observeKeys: KeyId[],
+		initialSelection?: { sessionId?: string; sessionFile?: string },
+	) {
 		super();
 		this.#registry = registry;
 		this.#onDone = onDone;
 		this.#observeKeys = observeKeys;
 
-		// Jump directly to the most recently active sub-agent
-		const mostRecent = this.#getMostRecentSubagent();
-		if (mostRecent) {
-			this.#selectedSessionId = mostRecent.id;
+		const initial = this.#getInitialSession(initialSelection) ?? this.#getMostRecentSubagent();
+		if (initial) {
+			this.#selectedSessionId = initial.id;
 			this.#setupViewer();
 		} else {
 			// No sub-agents — close immediately
 			queueMicrotask(() => this.#onDone());
 		}
+	}
+
+	#getInitialSession(initialSelection?: { sessionId?: string; sessionFile?: string }): ObservableSession | undefined {
+		if (!initialSelection?.sessionId && !initialSelection?.sessionFile) return undefined;
+		const sessions = this.#registry.getSessions().filter(s => s.kind === "subagent");
+		if (initialSelection.sessionId) {
+			const byId = sessions.find(s => s.id === initialSelection.sessionId);
+			if (byId) return byId;
+		}
+		if (initialSelection.sessionFile) {
+			return sessions.find(s => s.sessionFile === initialSelection.sessionFile);
+		}
+		return undefined;
 	}
 
 	/** Find the most recently updated sub-agent session (prefer active ones) */

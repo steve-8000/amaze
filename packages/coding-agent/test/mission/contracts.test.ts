@@ -45,6 +45,8 @@ describe("MissionStore contract persistence", () => {
 			escalation: { onUncertainty: "block", budgetCap: 1200000 },
 			inputArtifact: "local://contract.md",
 			mustProduce: ["changed files", "verification results"],
+			taskId: "task-contract",
+			sessionFile: "/tmp/task-contract.jsonl",
 			createdAt: 10,
 		});
 

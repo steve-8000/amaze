@@ -95,6 +95,8 @@ type MissionContractRow = {
 	escalation_json: string;
 	input_artifact: string | null;
 	must_produce_json: string;
+	task_id: string | null;
+	session_file: string | null;
 	created_at: number;
 };
 
@@ -441,13 +443,15 @@ export class MissionStore {
 			successCriteria: [...input.successCriteria],
 			escalation: { ...input.escalation },
 			mustProduce: [...input.mustProduce],
+			taskId: input.taskId ?? null,
+			sessionFile: input.sessionFile ?? null,
 			createdAt: now,
 		};
 		this.#db
 			.query(
 				`INSERT INTO mission_contracts
-					(id, mission_id, role, parent_contract_revision, include_json, exclude_json, success_criteria_json, escalation_json, input_artifact, must_produce_json, created_at)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+					(id, mission_id, role, parent_contract_revision, include_json, exclude_json, success_criteria_json, escalation_json, input_artifact, must_produce_json, task_id, session_file, created_at)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			)
 			.run(
 				record.id,
@@ -460,6 +464,8 @@ export class MissionStore {
 				JSON.stringify(record.escalation),
 				record.inputArtifact,
 				JSON.stringify(record.mustProduce),
+				record.taskId,
+				record.sessionFile,
 				record.createdAt,
 			);
 		this.#eventBus?.emit({
@@ -661,6 +667,8 @@ export class MissionStore {
 				escalation_json TEXT NOT NULL CHECK (json_valid(escalation_json)),
 				input_artifact TEXT,
 				must_produce_json TEXT NOT NULL CHECK (json_valid(must_produce_json)),
+				task_id TEXT,
+				session_file TEXT,
 				created_at INTEGER NOT NULL,
 				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
 			);
@@ -688,8 +696,17 @@ export class MissionStore {
 				created_at INTEGER NOT NULL,
 				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
 			);
+
 			CREATE INDEX IF NOT EXISTS mission_rollbacks_mission_idx ON mission_rollbacks(mission_id);
 		`);
+		this.#ensureColumn("mission_contracts", "task_id", "TEXT");
+		this.#ensureColumn("mission_contracts", "session_file", "TEXT");
+	}
+
+	#ensureColumn(table: string, column: string, definition: string): void {
+		const rows = this.#db.query(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
+		if (rows.some(row => row.name === column)) return;
+		this.#db.run(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
 	}
 }
 
@@ -799,6 +816,8 @@ function rowToContract(row: MissionContractRow): MissionContractRecord {
 		escalation: parseEscalation(row.escalation_json),
 		inputArtifact: row.input_artifact,
 		mustProduce: parseStringArray(row.must_produce_json, "must_produce_json"),
+		taskId: row.task_id,
+		sessionFile: row.session_file,
 		createdAt: row.created_at,
 	};
 }

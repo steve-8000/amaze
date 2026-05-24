@@ -188,6 +188,8 @@ describe("MissionControlView", () => {
 			escalation: { onUncertainty: "ask-parent", budgetCap: 1200 },
 			inputArtifact: null,
 			mustProduce: ["changed files"],
+			taskId: "contract-task",
+			sessionFile: "/tmp/contract-task.jsonl",
 			createdAt: 40,
 		});
 		missions.recordVerification({
@@ -228,6 +230,12 @@ describe("MissionControlView", () => {
 		expect(rendered).toContain("Evidence refs: ev-rich-1");
 		expect(rendered).toContain("Next actions: Run focused view test");
 		expect(rendered).toContain("Execution contract: mission-control-panelizer | scope +1/-1 | criteria 2");
+		expect(rendered).toContain("Linked trace: contract-task");
+		expect(rendered).toContain("Mission Inspector: Ctrl+S opens linked contract trace first");
+		expect(view.getPreferredInspectorTarget()).toEqual({
+			sessionId: "contract-task",
+			sessionFile: "/tmp/contract-task.jsonl",
+		});
 		expect(rendered).toContain("Verification: fail | failed 1 | uncertain 0 | one assertion failed");
 		expect(rendered).toContain("Rollback: restore prior decision | snapshots 1");
 	});

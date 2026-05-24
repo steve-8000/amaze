@@ -87,6 +87,7 @@ export function recordTaskMissionContract(
 	goalObjective: string | undefined,
 	contract: SubagentContract,
 	dbPath?: string,
+	linkage: { taskId?: string | null; sessionFile?: string | null } = {},
 ): void {
 	if (!goalObjective) return;
 	const store = new MissionStore(dbPath);
@@ -103,6 +104,8 @@ export function recordTaskMissionContract(
 			escalation: { ...contract.escalation },
 			inputArtifact: contract.inputArtifact ?? null,
 			mustProduce: [...(contract.outputContract?.mustProduce ?? [])],
+			taskId: linkage.taskId ?? null,
+			sessionFile: linkage.sessionFile ?? null,
 		});
 	} finally {
 		store.close();
@@ -977,7 +980,15 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 					// `logger.info("subagent.contract.verdict", …)` so telemetry consumers can
 					// observe it.
 					if (stampedContract) {
-						recordTaskMissionContract(this.session.getGoalModeState?.()?.goal?.objective, stampedContract);
+						recordTaskMissionContract(
+							this.session.getGoalModeState?.()?.goal?.objective,
+							stampedContract,
+							undefined,
+							{
+								taskId: task.id,
+								sessionFile,
+							},
+						);
 						const cwdBefore = new Set(await snapshotGitChangedFiles(this.session.cwd));
 						const cwdBeforeHash = await snapshotDirtyFilesWithHash(this.session.cwd);
 						let lastSingleResult: SingleResult | undefined;
@@ -1092,7 +1103,15 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 
 					let result: SingleResult;
 					if (stampedContract) {
-						recordTaskMissionContract(this.session.getGoalModeState?.()?.goal?.objective, stampedContract);
+						recordTaskMissionContract(
+							this.session.getGoalModeState?.()?.goal?.objective,
+							stampedContract,
+							undefined,
+							{
+								taskId: task.id,
+								sessionFile,
+							},
+						);
 						const gitBefore = new Set(await snapshotGitChangedFiles(isolationDir));
 						const dirtyBefore = await snapshotDirtyFilesWithHash(isolationDir);
 						const baseAssignment = task.assignment.trim();

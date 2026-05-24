@@ -979,7 +979,10 @@ export class SelectorController {
 		});
 	}
 
-	showSessionObserver(registry: SessionObserverRegistry): void {
+	showSessionObserver(
+		registry: SessionObserverRegistry,
+		initialSelection?: { sessionId?: string; sessionFile?: string },
+	): void {
 		const observeKeys = this.ctx.keybindings.getKeys("app.session.observe");
 		let cleanup: (() => void) | undefined;
 		let overlayHandle: OverlayHandle | undefined;
@@ -990,7 +993,7 @@ export class SelectorController {
 			this.ctx.ui.requestRender();
 		};
 
-		const selector = new SessionObserverOverlayComponent(registry, done, observeKeys);
+		const selector = new SessionObserverOverlayComponent(registry, done, observeKeys, initialSelection);
 
 		cleanup = registry.onChange(() => {
 			selector.refreshFromRegistry();

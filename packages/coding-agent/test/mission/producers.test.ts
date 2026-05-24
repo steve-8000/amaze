@@ -59,6 +59,7 @@ describe("mission write-side producers", () => {
 				outputContract: { mustProduce: ["changed files"] },
 			},
 			db,
+			{ taskId: "producer-task", sessionFile: "/tmp/producer-task.jsonl" },
 		);
 
 		expect(store.listContracts(createdMission.id)).toMatchObject([
@@ -72,6 +73,8 @@ describe("mission write-side producers", () => {
 				escalation: { onUncertainty: "ask-parent", budgetCap: 42 },
 				inputArtifact: "local://contract.md",
 				mustProduce: ["changed files"],
+				taskId: "producer-task",
+				sessionFile: "/tmp/producer-task.jsonl",
 			},
 		]);
 	});
