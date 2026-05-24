@@ -4,6 +4,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { MissionEventBus } from "../mission/event-bus";
+import { getMissionEventBus } from "../mission/runtime";
 import { MissionStore } from "../mission/store";
 import type { Mission } from "../mission/types";
 import {
@@ -108,7 +109,7 @@ export class ResearchStore {
 		this.#db = new Database(dbPath, { create: true, strict: true });
 		this.#db.run("PRAGMA busy_timeout = 3000");
 		this.#db.run("PRAGMA foreign_keys = ON");
-		this.#missionEventBus = missionEventBus;
+		this.#missionEventBus = missionEventBus ?? (dbPath === ":memory:" ? undefined : getMissionEventBus());
 		this.#init();
 	}
 

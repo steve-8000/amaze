@@ -1,9 +1,16 @@
+import * as fs from "node:fs/promises";
+import { homedir } from "node:os";
+import * as path from "node:path";
+import type { MissionEvent } from "../mission/events";
 import { MissionReadModel, type MissionView } from "../mission/read-model";
 import { readMissionEvents } from "../mission/reader";
 import { MISSION_STATES, type MissionState } from "../mission/types";
 import { evidenceContradictsAny } from "../research/scoring";
 import { ResearchStore } from "../research/store";
 import type { EvidenceCard } from "../research/types";
+
+const DEFAULT_STREAM_POLL_INTERVAL_MS = 100;
+const DEFAULT_STREAM_IDLE_TIMEOUT_MS = 30_000;
 
 export async function runMissionListCommand(opts: {
 	db?: string;
@@ -56,11 +63,25 @@ export async function runMissionStreamCommand(opts: {
 	id: string;
 	json?: boolean;
 	follow?: boolean;
+	baseDir?: string;
+	pollIntervalMs?: number;
+	idleTimeoutMs?: number;
+	once?: boolean;
 }): Promise<void> {
 	const readModel = new MissionReadModel({ dbPath: opts.db });
 	try {
 		requireMission(readModel, opts.id);
-		const events = await readMissionEvents(opts.id);
+		if (opts.follow) {
+			await streamMissionEvents(opts.id, {
+				json: opts.json,
+				baseDir: opts.baseDir,
+				pollIntervalMs: opts.pollIntervalMs,
+				idleTimeoutMs: opts.idleTimeoutMs,
+				once: opts.once,
+			});
+			return;
+		}
+		const events = await readMissionEvents(opts.id, { baseDir: opts.baseDir });
 		if (opts.json) {
 			writeJson(events);
 			return;
@@ -125,7 +146,7 @@ export async function runMissionVerifyCommand(opts: { db?: string; id: string; j
 	const { view, close } = loadMission(opts.db, opts.id);
 	try {
 		const events = await readMissionEvents(opts.id);
-		const relatedEvents = events.filter(event => event.type === "decision.recorded");
+		const relatedEvents = filterVerifyRelatedEvents(events);
 		const laneCompleteness = view.laneRuns.map(lane => ({
 			lane: lane.lane,
 			status: lane.status,
@@ -273,7 +294,7 @@ function renderVerify(view: MissionView, relatedEvents: unknown[]): string {
 		view.latestVerification
 			? `verification: ${view.latestVerification.status} failed=${view.latestVerification.failedCount} uncertain=${view.latestVerification.uncertainCount} ${view.latestVerification.summary}`
 			: "verification: not yet recorded",
-		"Decision/verification events:",
+		"Related mission events:",
 		...(relatedEvents.length > 0 ? relatedEvents.map(event => `  ${JSON.stringify(event)}`) : ["  <none>"]),
 	].join("\n");
 }
@@ -390,6 +411,95 @@ function epistemicBadge(role: string): string {
 	if (role === "synthesis") return "[synth]";
 	if (role === "critic") return "[critic]";
 	return "[unknown]";
+}
+
+type StreamMissionEventsOptions = {
+	json?: boolean;
+	baseDir?: string;
+	pollIntervalMs?: number;
+	idleTimeoutMs?: number;
+	once?: boolean;
+};
+
+export async function streamMissionEvents(missionId: string, opts: StreamMissionEventsOptions = {}): Promise<void> {
+	const filePath = missionEventsPath(missionId, opts.baseDir);
+	let offset = 0;
+	let buffer = "";
+	let emitted = false;
+	const pollIntervalMs = opts.pollIntervalMs ?? DEFAULT_STREAM_POLL_INTERVAL_MS;
+	const idleTimeoutMs = opts.idleTimeoutMs ?? DEFAULT_STREAM_IDLE_TIMEOUT_MS;
+	const deadline = opts.once ? Date.now() + idleTimeoutMs : Number.POSITIVE_INFINITY;
+
+	while (true) {
+		const chunk = await readNewBytes(filePath, offset);
+		if (chunk) {
+			offset += Buffer.byteLength(chunk);
+			buffer += chunk;
+			const lines = buffer.split("\n");
+			buffer = lines.pop() ?? "";
+			for (const line of lines) {
+				if (line.trim() === "") continue;
+				const event = JSON.parse(line) as MissionEvent;
+				writeStreamEvent(event, opts.json);
+				emitted = true;
+			}
+			if (opts.once && emitted) return;
+		}
+		if (opts.once && Date.now() >= deadline) return;
+		await sleep(pollIntervalMs);
+	}
+}
+
+function filterVerifyRelatedEvents(events: MissionEvent[]): MissionEvent[] {
+	const relevant = new Set<MissionEvent["type"]>([
+		"research.brief.created",
+		"research.lane.started",
+		"research.lane.completed",
+		"research.evidence.added",
+		"research.synthesis.proposed",
+		"research.critique.completed",
+		"decision.recorded",
+		"contract.created",
+		"verification.completed",
+		"rollback.snapshot.created",
+	]);
+	return events.filter(event => relevant.has(event.type));
+}
+
+async function readNewBytes(filePath: string, offset: number): Promise<string> {
+	try {
+		const handle = await fs.open(filePath, "r");
+		try {
+			const stat = await handle.stat();
+			if (stat.size <= offset) return "";
+			const length = stat.size - offset;
+			const buffer = Buffer.alloc(length);
+			const { bytesRead } = await handle.read(buffer, 0, length, offset);
+			return buffer.subarray(0, bytesRead).toString("utf8");
+		} finally {
+			await handle.close();
+		}
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code === "ENOENT") return "";
+		throw error;
+	}
+}
+
+function writeStreamEvent(event: MissionEvent, json: boolean | undefined): void {
+	if (json) {
+		writeJson(event);
+		return;
+	}
+	process.stdout.write(`${`${event.ts}  ${event.type}  ${eventSummary(event)}`.trimEnd()}\n`);
+}
+
+function missionEventsPath(missionId: string, baseDir?: string): string {
+	const root = baseDir ?? path.join(process.env.HOME || homedir(), ".amaze", "observability", "missions");
+	return path.join(root, `${missionId}.jsonl`);
+}
+
+function sleep(ms: number): Promise<void> {
+	return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 function eventSummary(event: { type: string } & Record<string, unknown>): string {

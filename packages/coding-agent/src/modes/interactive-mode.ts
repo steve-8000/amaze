@@ -41,6 +41,7 @@ import { BUILTIN_SLASH_COMMANDS, loadSlashCommands } from "../extensibility/slas
 import type { Goal, GoalModeState } from "../goals/state";
 import { resolveLocalUrlToPath } from "../internal-urls";
 import { LSP_STARTUP_EVENT_CHANNEL, type LspStartupEvent } from "../lsp/startup-events";
+import { initializeMissionRuntime } from "../mission/runtime";
 import {
 	humanizePlanTitle,
 	type PlanApprovalDetails,
@@ -352,12 +353,13 @@ export class InteractiveMode implements InteractiveModeContext {
 		this.editorContainer.addChild(this.editor);
 		this.statusLine = new StatusLineComponent(session);
 		this.statusLine.setAutoCompactEnabled(session.autoCompactionEnabled);
+		const missionRuntime = initializeMissionRuntime();
 		this.missionControlView = new MissionControlView({
+			missionEventBus: missionRuntime.bus,
+			onRefresh: () => this.ui.requestRender(),
 			getPreferredMissionInput: () => {
 				const objective = this.session.getGoalModeState()?.goal?.objective.trim();
-				return objective
-					? ({ title: objective } as unknown as { objectiveId?: string; briefId?: string })
-					: undefined;
+				return objective ? { title: objective } : undefined;
 			},
 		});
 

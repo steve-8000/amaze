@@ -8,6 +8,7 @@ import {
 	runMissionRollbackCommand,
 	runMissionShowCommand,
 	runMissionVerifyCommand,
+	streamMissionEvents,
 } from "../../src/cli/mission";
 import { MissionEventBus } from "../../src/mission/event-bus";
 import { MissionJsonlSink } from "../../src/mission/jsonl-sink";
@@ -55,7 +56,7 @@ async function createFixture() {
 		stopCriteria: [],
 	});
 	const mission = new MissionStore(dbPath).listMissions({ briefId: brief.id })[0];
-	return { root, home, dbPath, eventsDir, sink, objectives, research, objective, brief, mission };
+	return { root, home, dbPath, eventsDir, bus, sink, objectives, research, objective, brief, mission };
 }
 
 async function closeFixture(fixture: Fixture): Promise<void> {
@@ -299,6 +300,52 @@ describe("mission CLI", () => {
 		}
 	});
 
+	test("mission stream --follow polls and emits newly appended JSONL events", async () => {
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "amaze-mission-stream-follow-"));
+		roots.push(root);
+		const eventsDir = path.join(root, "events");
+		const missionId = "mission-follow-1";
+		const stdoutPromise = captureStdout(() =>
+			streamMissionEvents(missionId, {
+				baseDir: eventsDir,
+				json: true,
+				pollIntervalMs: 5,
+				idleTimeoutMs: 500,
+				once: true,
+			}),
+		);
+		await Bun.sleep(20);
+		fs.mkdirSync(eventsDir, { recursive: true });
+		fs.appendFileSync(
+			path.join(eventsDir, `${missionId}.jsonl`),
+			`${JSON.stringify({ type: "research.evidence.added", missionId, briefId: "brief-1", evidenceId: "ev-1", lane: "repo", grade: "A", ts: 1 })}\n`,
+		);
+		const stdout = await stdoutPromise;
+		const lines = stdout
+			.trim()
+			.split("\\n")
+			.filter(Boolean)
+			.map(line => JSON.parse(line) as { type: string });
+		expect(lines.some(event => event.type === "research.evidence.added")).toBe(true);
+	});
+
+	test("mission verify surfaces non-decision mission events in related events", async () => {
+		const fixture = await createFixture();
+		try {
+			addEvidenceAndDecision(fixture);
+			await fixture.sink.flush();
+			const stdout = await captureStdout(() =>
+				runMissionVerifyCommand({ db: fixture.dbPath, id: fixture.mission.id }),
+			);
+			expect(stdout).toContain("Related mission events:");
+			expect(stdout).toContain("research.brief.created");
+			expect(stdout).toContain("research.evidence.added");
+			expect(stdout).toContain("decision.recorded");
+		} finally {
+			await closeFixture(fixture);
+		}
+	});
+
 	test("mission rollback text says unavailable when snapshotRef is null", async () => {
 		const fixture = await createFixture();
 		try {
@@ -316,7 +363,7 @@ describe("mission CLI", () => {
 	test("mission verify and rollback text reflect stored records", async () => {
 		const fixture = await createFixture();
 		try {
-			const missions = new MissionStore(fixture.dbPath);
+			const missions = new MissionStore(fixture.dbPath, fixture.bus);
 			try {
 				missions.recordVerification({
 					missionId: fixture.mission.id,
@@ -338,11 +385,15 @@ describe("mission CLI", () => {
 			} finally {
 				missions.close();
 			}
+			await fixture.sink.flush();
 
 			const verifyStdout = await captureStdout(() =>
 				runMissionVerifyCommand({ db: fixture.dbPath, id: fixture.mission.id }),
 			);
 			expect(verifyStdout).toContain("verification: uncertain failed=1 uncertain=2 manual review required");
+			expect(verifyStdout).toContain("Related mission events:");
+			expect(verifyStdout).toContain("verification.completed");
+			expect(verifyStdout).toContain("rollback.snapshot.created");
 
 			const rollbackStdout = await captureStdout(() =>
 				runMissionRollbackCommand({ db: fixture.dbPath, id: fixture.mission.id }),

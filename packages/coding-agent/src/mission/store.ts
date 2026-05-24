@@ -12,6 +12,7 @@ import {
 	type RiskLevel,
 } from "../research/types";
 import type { MissionEventBus } from "./event-bus";
+import { getMissionEventBus } from "./runtime";
 import {
 	EPISTEMIC_ROLES,
 	type EpistemicRole,
@@ -131,7 +132,7 @@ export class MissionStore {
 		this.#db = new Database(dbPath, { create: true, strict: true });
 		this.#db.run("PRAGMA busy_timeout = 3000");
 		this.#db.run("PRAGMA foreign_keys = ON");
-		this.#eventBus = eventBus;
+		this.#eventBus = eventBus ?? (dbPath === ":memory:" ? undefined : getMissionEventBus());
 		this.#init();
 	}
 

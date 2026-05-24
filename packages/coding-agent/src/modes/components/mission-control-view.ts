@@ -1,31 +1,51 @@
 import type { Component } from "@amaze/tui";
+import type { MissionEventBus, Unsubscribe } from "../../mission/event-bus";
 import { MissionReadModel, type MissionView } from "../../mission/read-model";
+import { getMissionEventBus } from "../../mission/runtime";
 
 export class MissionControlView implements Component {
 	#readModel: MissionReadModel;
-	#getPreferredMissionInput: (() => { objectiveId?: string; briefId?: string } | undefined) | undefined;
+	#getPreferredMissionInput:
+		| (() => { objectiveId?: string; briefId?: string; title?: string } | undefined)
+		| undefined;
 	#mission: MissionView | null = null;
+	#missionId: string | undefined;
+	#unsubscribe: Unsubscribe | undefined;
 	#disposed = false;
 
 	constructor(
 		opts: {
 			dbPath?: string;
-			getPreferredMissionInput?: () => { objectiveId?: string; briefId?: string } | undefined;
+			getPreferredMissionInput?: () => { objectiveId?: string; briefId?: string; title?: string } | undefined;
+			missionEventBus?: MissionEventBus;
+			onRefresh?: () => void;
 		} = {},
 	) {
 		this.#readModel = new MissionReadModel({ dbPath: opts.dbPath });
 		this.#getPreferredMissionInput = opts.getPreferredMissionInput;
+		const bus = opts.missionEventBus ?? getMissionEventBus();
+		if (bus) {
+			this.#unsubscribe = bus.subscribe(event => {
+				if (this.#missionId === undefined || event.missionId === this.#missionId) {
+					this.refresh();
+					opts.onRefresh?.();
+				}
+			});
+		}
 		this.refresh();
 	}
 
 	refresh(): void {
 		if (this.#disposed) return;
 		this.#mission = this.#readModel.getPreferredMissionView(this.#getPreferredMissionInput?.()) ?? null;
+		this.#missionId = this.#mission?.mission.id;
 	}
 
 	dispose(): void {
 		if (this.#disposed) return;
 		this.#disposed = true;
+		this.#unsubscribe?.();
+		this.#unsubscribe = undefined;
 		this.#readModel.close();
 	}
 

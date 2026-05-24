@@ -17,7 +17,7 @@ export default class Mission extends Command {
 		objective: Flags.string({ description: "Objective id filter" }),
 		brief: Flags.string({ description: "Research brief id filter" }),
 		state: Flags.string({ description: "Mission state filter" }),
-		follow: Flags.boolean({ description: "Follow stream (accepted for future polling tail support)" }),
+		follow: Flags.boolean({ description: "Follow stream by polling mission event JSONL" }),
 		lane: Flags.string({ description: "Evidence lane filter (mission evidence only)" }),
 		grade: Flags.string({ description: "Evidence grade filter (mission evidence only)" }),
 		status: Flags.string({ description: "Evidence classification filter: accepted, speculative, or conflicting" }),
