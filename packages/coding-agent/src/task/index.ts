@@ -328,6 +328,13 @@ function addUsageTotals(target: Usage, usage: Partial<Usage>): void {
 export { loadBundledAgents as BUNDLED_AGENTS } from "./agents";
 export { discoverCommands, expandCommand, getCommand } from "./commands";
 export { discoverAgents, getAgent } from "./discovery";
+export {
+	deriveEvidenceRefs,
+	type MissionTaskBinding,
+	MissionTaskRunner,
+	type MissionTaskRunResult,
+	type RunSubprocessFn,
+} from "./mission-task-runner";
 export { AgentOutputManager } from "./output-manager";
 export type {
 	AgentDefinition,
