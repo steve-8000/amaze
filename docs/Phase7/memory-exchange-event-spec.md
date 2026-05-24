@@ -307,4 +307,4 @@ Implementation should begin only when at least one of these is true:
 ## Reference
 
 - ADR `docs/Phase6/storage-roadmap-decisions.md` D3, D4.
-- `docs/agi.md` Section 8 ("persona" caveats): this spec preserves the prior principle that events are guidance, not authority.
+- Events preserve the prior persona-safety principle in-source: memory exchange data is guidance for downstream agents, not authority over their goals, instructions, or policy boundaries.

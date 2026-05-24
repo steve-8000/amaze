@@ -1,5 +1,7 @@
 # Phase3 driving doc
 
+> **Status:** Historical implementation record. This driving doc records the Phase3 operational-gap closure plan; use the canonical repository README and docs index for current guidance.
+
 ## Intent
 
 Phase3 closes Phase2's leftover operational gaps. Same orchestrator pattern as Phase1/Phase2: parallel `task` dispatch only.

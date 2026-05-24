@@ -1,5 +1,7 @@
 # Phase4 driving doc
 
+> **Status:** Historical implementation record. This driving doc records the completed Phase4 autonomy-safety and operator-interface plan; use the canonical repository README and docs index for current system state.
+
 ## Intent
 
 Phase4 closes the autonomy safety boundary documented but not enforced in Phase1, and adds an operator control plane (`amaze evolve`) that routes existing autonomy + learning surfaces through a single interface.

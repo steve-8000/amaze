@@ -1,5 +1,7 @@
 # Phase1 Roadmap
 
+> **Status:** Historical implementation record. This phase README preserves the Phase1 roadmap and landed work history; use the canonical repository README and docs index for current operator guidance.
+
 > **미션**: 현재 "Verified multi-agent runtime" (Phase0 doc03 기준 Level 3 ~ 3.5)을 **"Eval-gated self-improving agentic runtime"** (Level 4)로 끌어올린다.
 
 Phase1은 Amaze 실행 루프를 AI-Coach-style analysis, Nexus learning proposal, verifier/eval gate, versioned skill/rule/policy promotion, measurable improvement로 연결하되, 권한·검증 경계가 닫힌 상태에서만 closed-loop self-improvement를 허용하는 로드맵이다.

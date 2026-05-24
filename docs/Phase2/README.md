@@ -1,5 +1,7 @@
 # Phase2 driving doc (orchestrator playbook)
 
+> **Status:** Historical implementation record. This driving doc documents the completed Phase2 orchestration plan and dispatch conventions; use the canonical repository README and docs index for current system state.
+
 ## Intent
 
 Run Phase2 via parallel `task` dispatch only. Parent owns todo + integration + verification. Subagents own ticket implementation.
