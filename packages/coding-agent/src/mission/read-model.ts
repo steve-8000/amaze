@@ -13,6 +13,7 @@ import type {
 	MissionRollbackRecord,
 	MissionState,
 	MissionVerificationRecord,
+	ResearchRun,
 } from "./types";
 
 const MISSION_PROPOSAL_STATUSES: ProposalStatus[] = ["pending", "approved", "applied", "rejected", "rolled-back"];
@@ -49,6 +50,7 @@ export interface MissionView extends MissionProjectionView {
 	contracts: MissionContractRecord[];
 	latestVerification: MissionVerificationRecord | null;
 	rollbacks: MissionRollbackRecord[];
+	researchRun: ResearchRun | null;
 }
 
 export function buildMissionView(input: {
@@ -62,6 +64,7 @@ export function buildMissionView(input: {
 	contracts: MissionContractRecord[];
 	latestVerification: MissionVerificationRecord | undefined;
 	rollbacks: MissionRollbackRecord[];
+	researchRun: ResearchRun | undefined;
 }): MissionView {
 	const projection = projectMissionView({
 		mission: input.mission,
@@ -103,6 +106,7 @@ export function buildMissionView(input: {
 			})),
 		contracts: [...input.contracts],
 		latestVerification: input.latestVerification ?? null,
+		researchRun: input.researchRun ?? null,
 		rollbacks: [...input.rollbacks],
 	};
 }
@@ -146,6 +150,7 @@ export class MissionReadModel {
 		const contracts = this.#missions.listContracts(mission.id);
 		const latestVerification = this.#missions.getLatestVerification(mission.id);
 		const rollbacks = this.#missions.listRollbacks(mission.id);
+		const researchRun = this.#missions.getLatestResearchRunForMission(mission.id);
 
 		return buildMissionView({
 			mission,
@@ -158,6 +163,7 @@ export class MissionReadModel {
 			contracts,
 			latestVerification,
 			rollbacks,
+			researchRun,
 		});
 	}
 

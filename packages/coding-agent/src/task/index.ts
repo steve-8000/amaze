@@ -22,13 +22,14 @@ import type { ToolSession } from "..";
 import { AsyncJobManager } from "../async";
 import { resolveAgentModelPatterns } from "../config/model-resolver";
 import { MCPManager } from "../mcp/manager";
+import { MissionStore } from "../mission/store";
 import type { Theme } from "../modes/theme/theme";
 import { getSessionEventBus } from "../observability/session-bus";
 import planModeSubagentPrompt from "../prompts/system/plan-mode-subagent.md" with { type: "text" };
 import subagentUserPromptTemplate from "../prompts/system/subagent-user-prompt.md" with { type: "text" };
 import taskDescriptionTemplate from "../prompts/tools/task.md" with { type: "text" };
 import taskSummaryTemplate from "../prompts/tools/task-summary.md" with { type: "text" };
-import { stampContractRevision } from "../subagent/contract";
+import { type SubagentContract, stampContractRevision } from "../subagent/contract";
 import {
 	diffDirtySnapshots,
 	executeContractedTask,
@@ -80,6 +81,38 @@ export function resolveAgentThinkingLevelOverride(
 ): AgentDefinition["thinkingLevel"] {
 	const raw = settings.get("task.agentThinkingOverrides")[agentName];
 	return parseThinkingLevel(raw) ?? fallback;
+}
+
+export function recordTaskMissionContract(
+	goalObjective: string | undefined,
+	contract: SubagentContract,
+	dbPath?: string,
+): void {
+	if (!goalObjective) return;
+	const store = new MissionStore(dbPath);
+	try {
+		const mission = store.findLatestMissionByTitle(goalObjective);
+		if (!mission) return;
+		store.recordContract({
+			missionId: mission.id,
+			role: contract.role,
+			parentContractRevision: contract.parentContractRevision ?? null,
+			include: [...contract.scope.include],
+			exclude: [...contract.scope.exclude],
+			successCriteria: contract.successCriteria.map(summarizeContractCriterion),
+			escalation: { ...contract.escalation },
+			inputArtifact: contract.inputArtifact ?? null,
+			mustProduce: [...(contract.outputContract?.mustProduce ?? [])],
+		});
+	} finally {
+		store.close();
+	}
+}
+
+function summarizeContractCriterion(criterion: SubagentContract["successCriteria"][number]): string {
+	if (criterion.id) return criterion.id;
+	if (criterion.description) return criterion.description;
+	return JSON.stringify(criterion);
 }
 
 function renderSubagentUserPrompt(assignment: string, simpleMode: TaskSimpleMode): string {
@@ -944,6 +977,7 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 					// `logger.info("subagent.contract.verdict", …)` so telemetry consumers can
 					// observe it.
 					if (stampedContract) {
+						recordTaskMissionContract(this.session.getGoalModeState?.()?.goal?.objective, stampedContract);
 						const cwdBefore = new Set(await snapshotGitChangedFiles(this.session.cwd));
 						const cwdBeforeHash = await snapshotDirtyFilesWithHash(this.session.cwd);
 						let lastSingleResult: SingleResult | undefined;
@@ -1058,6 +1092,7 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 
 					let result: SingleResult;
 					if (stampedContract) {
+						recordTaskMissionContract(this.session.getGoalModeState?.()?.goal?.objective, stampedContract);
 						const gitBefore = new Set(await snapshotGitChangedFiles(isolationDir));
 						const dirtyBefore = await snapshotDirtyFilesWithHash(isolationDir);
 						const baseAssignment = task.assignment.trim();

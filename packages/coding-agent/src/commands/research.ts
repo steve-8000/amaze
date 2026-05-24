@@ -3,6 +3,7 @@ import { Args, Command, Flags } from "@amaze/utils/cli";
 const ACTIONS = [
 	"brief",
 	"list",
+	"run",
 	"show",
 	"add-evidence",
 	"list-evidence",
@@ -10,6 +11,8 @@ const ACTIONS = [
 	"score",
 	"synthesize",
 	"critique",
+	"record-synthesis",
+	"record-critique",
 ] as const;
 type ResearchAction = (typeof ACTIONS)[number];
 
@@ -20,7 +23,8 @@ export default class Research extends Command {
 	static args = {
 		action: Args.string({ description: "Research action", required: false, options: [...ACTIONS] }),
 		id: Args.string({
-			description: "Brief id (for show/score/add-evidence/list-evidence/decide/synthesize/critique)",
+			description:
+				"Brief id (for run/show/score/add-evidence/list-evidence/decide/synthesize/critique/record-synthesis/record-critique)",
 			required: false,
 		}),
 	};
@@ -51,6 +55,16 @@ export default class Research extends Command {
 		rejected: Flags.string({ description: "Rejected options: 'id:reason;id:reason'" }),
 		synthesis: Flags.string({ description: "Inline synthesis text for critique" }),
 		synthesisFile: Flags.string({ description: "File containing synthesis text for critique" }),
+		summary: Flags.string({ description: "Summary for recorded synthesis or critique" }),
+		rawFile: Flags.string({ description: "File containing raw synthesis or critique output" }),
+		rawText: Flags.string({ description: "Inline raw synthesis or critique output" }),
+		hypothesisCount: Flags.string({ description: "Number of hypotheses in recorded synthesis" }),
+		recommended: Flags.string({ description: "Recommended hypothesis id/name for recorded synthesis" }),
+		blockingCount: Flags.string({ description: "Number of blocking critique findings" }),
+		softCount: Flags.string({ description: "Number of soft critique findings" }),
+		verdict: Flags.string({
+			description: "Critique verdict: accept|accept-with-modifications|reject|needs-more-research",
+		}),
 		json: Flags.boolean({ description: "Output JSON" }),
 	};
 
@@ -58,7 +72,7 @@ export default class Research extends Command {
 		const { args, flags } = await this.parse(Research);
 		if (!args.action) {
 			process.stdout.write(
-				"usage: amaze research <brief|list|show|add-evidence|list-evidence|decide|score|synthesize|critique> [...]\n",
+				"usage: amaze research <brief|list|run|show|add-evidence|list-evidence|decide|score|synthesize|critique|record-synthesis|record-critique> [...]\n",
 			);
 			return;
 		}
@@ -90,6 +104,11 @@ export default class Research extends Command {
 		const id = args.id;
 		if (!id) throw new Error(`research ${action} requires <brief-id>`);
 
+		if (action === "run") {
+			const { runResearchRunCommand } = await import("../cli/research");
+			await runResearchRunCommand({ db: flags.db, briefId: id, json: flags.json });
+			return;
+		}
 		if (action === "show") {
 			const { runResearchShowCommand } = await import("../cli/research");
 			await runResearchShowCommand({ db: flags.db, id, json: flags.json });
@@ -156,6 +175,47 @@ export default class Research extends Command {
 			return;
 		}
 
+		if (action === "record-synthesis") {
+			if (flags.hypothesisCount === undefined) {
+				throw new Error("research record-synthesis requires --hypothesis-count <count>");
+			}
+			if (!flags.summary) throw new Error("research record-synthesis requires --summary <text>");
+			const { runResearchRecordSynthesisCommand } = await import("../cli/research");
+			await runResearchRecordSynthesisCommand({
+				db: flags.db,
+				briefId: id,
+				hypothesisCount: parseIntFlag(flags.hypothesisCount, "hypothesis-count"),
+				summary: flags.summary,
+				recommended: flags.recommended,
+				rawFile: flags.rawFile,
+				rawText: flags.rawText,
+				json: flags.json,
+			});
+			return;
+		}
+
+		if (action === "record-critique") {
+			if (flags.blockingCount === undefined) {
+				throw new Error("research record-critique requires --blocking-count <count>");
+			}
+			if (flags.softCount === undefined) throw new Error("research record-critique requires --soft-count <count>");
+			if (!flags.verdict) throw new Error("research record-critique requires --verdict <verdict>");
+			if (!flags.summary) throw new Error("research record-critique requires --summary <text>");
+			const { runResearchRecordCritiqueCommand } = await import("../cli/research");
+			await runResearchRecordCritiqueCommand({
+				db: flags.db,
+				briefId: id,
+				blockingCount: parseIntFlag(flags.blockingCount, "blocking-count"),
+				softCount: parseIntFlag(flags.softCount, "soft-count"),
+				verdict: flags.verdict,
+				summary: flags.summary,
+				rawFile: flags.rawFile,
+				rawText: flags.rawText,
+				json: flags.json,
+			});
+			return;
+		}
+
 		const { runResearchCritiqueCommand } = await import("../cli/research");
 		await runResearchCritiqueCommand({
 			db: flags.db,
@@ -170,5 +230,11 @@ function parseFloatFlag(value: string | undefined, fallback: number): number {
 	if (value === undefined) return fallback;
 	const parsed = Number(value);
 	if (Number.isNaN(parsed)) throw new Error(`Invalid float: ${value}`);
+	return parsed;
+}
+
+function parseIntFlag(value: string, name: string): number {
+	const parsed = Number(value);
+	if (!Number.isInteger(parsed)) throw new Error(`Invalid integer for --${name}: ${value}`);
 	return parsed;
 }

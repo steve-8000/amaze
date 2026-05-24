@@ -1,5 +1,5 @@
 import type { ConfidenceLevel, EvidenceGrade, ResearchLane } from "../research/types";
-import type { EpistemicRole, MissionLaneStatus } from "./types";
+import type { EpistemicRole, MissionLaneStatus, MissionRollbackRecord, MissionVerificationRecord } from "./types";
 
 export type ResearchBriefCreatedEvent = {
 	type: "research.brief.created";
@@ -56,6 +56,7 @@ export type ResearchCritiqueCompletedEvent = {
 	briefId: string;
 	blockingCount: number;
 	softCount: number;
+	verdict: "accept" | "accept-with-modifications" | "reject" | "needs-more-research";
 	ts: number;
 };
 
@@ -68,6 +69,34 @@ export type DecisionRecordedEvent = {
 	ts: number;
 };
 
+export type ContractCreatedEvent = {
+	type: "contract.created";
+	missionId: string;
+	contractId: string;
+	role: string;
+	ts: number;
+};
+
+export type VerificationCompletedEvent = {
+	type: "verification.completed";
+	missionId: string;
+	verificationId: string;
+	status: MissionVerificationRecord["status"];
+	failedCount: number;
+	uncertainCount: number;
+	ts: number;
+};
+
+export type RollbackSnapshotCreatedEvent = {
+	type: "rollback.snapshot.created";
+	missionId: string;
+	rollbackId: string;
+	targetType: MissionRollbackRecord["targetType"];
+	targetId: string;
+	snapshotRef: string | null;
+	ts: number;
+};
+
 export type MissionEvent =
 	| ResearchBriefCreatedEvent
 	| ResearchLaneStartedEvent
@@ -75,4 +104,7 @@ export type MissionEvent =
 	| ResearchEvidenceAddedEvent
 	| ResearchSynthesisProposedEvent
 	| ResearchCritiqueCompletedEvent
-	| DecisionRecordedEvent;
+	| DecisionRecordedEvent
+	| ContractCreatedEvent
+	| VerificationCompletedEvent
+	| RollbackSnapshotCreatedEvent;

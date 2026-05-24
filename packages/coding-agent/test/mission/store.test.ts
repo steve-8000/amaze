@@ -4,7 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { MissionEventBus } from "../../src/mission/event-bus";
 import { MissionStore } from "../../src/mission/store";
-import type { NewMission, NewMissionLaneRun } from "../../src/mission/types";
+import type { NewMission, NewMissionLaneRun, NewResearchRun } from "../../src/mission/types";
 
 const stores: MissionStore[] = [];
 
@@ -46,6 +46,17 @@ function laneRun(missionId: string, overrides: Partial<NewMissionLaneRun> = {}):
 		taskId: null,
 		startedAt: null,
 		endedAt: null,
+		...overrides,
+	};
+}
+
+function researchRun(missionId: string, overrides: Partial<NewResearchRun> = {}): NewResearchRun {
+	return {
+		missionId,
+		briefId: "brief-1",
+		objectiveId: "objective-1",
+		status: "running",
+		completedAt: null,
 		...overrides,
 	};
 }
@@ -132,6 +143,26 @@ describe("MissionStore", () => {
 		expect(store.listLaneRuns(createdMission.id)).toEqual([first, updated]);
 	});
 
+	test("creates, gets, filters, and updates research runs", () => {
+		const store = createStore();
+		const createdMission = store.createMission(mission({ id: "mission-1" }));
+		store.createMission(mission({ id: "mission-2", briefId: "brief-2" }));
+		const first = store.createResearchRun(researchRun(createdMission.id, { id: "run-1", startedAt: 10 }));
+		const second = store.createResearchRun(
+			researchRun(createdMission.id, { id: "run-2", briefId: "brief-2", status: "blocked", startedAt: 20 }),
+		);
+
+		expect(store.getResearchRun("run-1")).toEqual(first);
+		expect(store.getLatestResearchRunForMission(createdMission.id)).toEqual(second);
+		expect(store.listResearchRuns({ missionId: createdMission.id })).toEqual([second, first]);
+		expect(store.listResearchRuns({ briefId: "brief-1" })).toEqual([first]);
+		expect(store.listResearchRuns({ status: "blocked" })).toEqual([second]);
+
+		const updated = store.updateResearchRun("run-1", { status: "completed", completedAt: 30 });
+		expect(updated).toEqual({ ...first, status: "completed", completedAt: 30 });
+		expect(store.getResearchRun("run-1")).toEqual(updated);
+	});
+
 	test("validates mission enums and lane run enums", () => {
 		const store = createStore();
 		expect(() => store.createMission(mission({ state: "unknown" as any }))).toThrow("Invalid mission state");
@@ -153,6 +184,9 @@ describe("MissionStore", () => {
 		expect(() => store.updateMission(createdMission.id, { state: "unknown" as any })).toThrow(
 			"Invalid mission state",
 		);
+		expect(() => store.createResearchRun(researchRun(createdMission.id, { status: "paused" as any }))).toThrow(
+			"Invalid research run status",
+		);
 	});
 
 	test("lane runs require an existing mission", () => {
@@ -173,6 +207,8 @@ describe("MissionStore", () => {
 			expect(second.getMission("mission-1")?.id).toBe("mission-1");
 			second.createLaneRun(laneRun("mission-1", { id: "lane-1" }));
 			expect(second.listLaneRuns("mission-1").map(run => run.id)).toEqual(["lane-1"]);
+			second.createResearchRun(researchRun("mission-1", { id: "run-1" }));
+			expect(second.listResearchRuns({ missionId: "mission-1" }).map(run => run.id)).toEqual(["run-1"]);
 		} finally {
 			fs.rmSync(root, { recursive: true, force: true });
 		}

@@ -4,7 +4,13 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { MissionEventBus } from "../../src/mission/event-bus";
 import { ResearchStore } from "../../src/research/store";
-import type { NewDecisionRecord, NewEvidenceCard, NewResearchBrief } from "../../src/research/types";
+import type {
+	NewCritiqueRecord,
+	NewDecisionRecord,
+	NewEvidenceCard,
+	NewResearchBrief,
+	NewSynthesisRecord,
+} from "../../src/research/types";
 
 const stores: ResearchStore[] = [];
 
@@ -67,6 +73,29 @@ function decision(briefId: string, overrides: Partial<NewDecisionRecord> = {}): 
 		evidenceRefs: ["ev-1"],
 		rejectedOptions: [{ id: "alt", reason: "unsupported" }],
 		nextActions: ["apply"],
+		...overrides,
+	};
+}
+
+function synthesis(briefId: string, overrides: Partial<NewSynthesisRecord> = {}): NewSynthesisRecord {
+	return {
+		briefId,
+		hypothesisCount: 2,
+		recommended: "H1",
+		summary: "H1 is best supported.",
+		rawOutput: "Raw synthesis output.",
+		...overrides,
+	};
+}
+
+function critique(briefId: string, overrides: Partial<NewCritiqueRecord> = {}): NewCritiqueRecord {
+	return {
+		briefId,
+		blockingCount: 0,
+		softCount: 1,
+		verdict: "accept-with-modifications",
+		summary: "Accept with a caveat.",
+		rawOutput: "Raw critique output.",
 		...overrides,
 	};
 }
@@ -178,6 +207,72 @@ describe("ResearchStore", () => {
 	test("recordDecision requires an existing brief", () => {
 		const store = createStore();
 		expect(() => store.recordDecision(decision("missing"))).toThrow("Research brief not found");
+	});
+
+	test("records syntheses and critiques with latest and list accessors", () => {
+		const store = createStore();
+		const created = store.createBrief(brief({ id: "brief-1" }));
+		const firstSynthesis = store.recordSynthesis(synthesis(created.id, { id: "syn-first", createdAt: 10 }));
+		const secondSynthesis = store.recordSynthesis(synthesis(created.id, { id: "syn-second", createdAt: 20 }));
+		const firstCritique = store.recordCritique(critique(created.id, { id: "crit-first", createdAt: 10 }));
+		const secondCritique = store.recordCritique(
+			critique(created.id, { id: "crit-second", verdict: "accept", blockingCount: 0, createdAt: 20 }),
+		);
+
+		expect(store.getLatestSynthesis(created.id)).toEqual(secondSynthesis);
+		expect(store.listSyntheses(created.id)).toEqual([firstSynthesis, secondSynthesis]);
+		expect(store.getLatestCritique(created.id)).toEqual(secondCritique);
+		expect(store.listCritiques(created.id)).toEqual([firstCritique, secondCritique]);
+	});
+
+	test("synthesis and critique require an existing brief and critique validates verdict", () => {
+		const store = createStore();
+		const created = store.createBrief(brief({ id: "brief-1" }));
+
+		expect(() => store.recordSynthesis(synthesis("missing"))).toThrow("Research brief not found");
+		expect(() => store.recordCritique(critique("missing"))).toThrow("Research brief not found");
+		expect(() => store.recordCritique(critique(created.id, { verdict: "maybe" as any }))).toThrow(
+			"Invalid critique verdict",
+		);
+	});
+
+	test("recordSynthesis and recordCritique update mission state and emit events", () => {
+		withTempDb(dbPath => {
+			const bus = new MissionEventBus();
+			const store = new ResearchStore(dbPath, bus);
+			stores.push(store);
+			const created = store.createBrief(brief({ id: "brief-review" }));
+			const mission = store.getMissionForBrief(created.id);
+			expect(mission).toBeDefined();
+			if (!mission) throw new Error("Expected mission for brief");
+
+			const recordedSynthesis = store.recordSynthesis(synthesis(created.id, { id: "syn-review" }));
+			expect(store.getMissionForBrief(created.id)?.state).toBe("synthesizing");
+			const recordedCritique = store.recordCritique(
+				critique(created.id, { id: "crit-review", verdict: "needs-more-research", blockingCount: 0 }),
+			);
+			expect(store.getMissionForBrief(created.id)?.state).toBe("blocked");
+
+			expect(bus.snapshot().slice(1)).toEqual([
+				{
+					type: "research.synthesis.proposed",
+					missionId: mission.id,
+					briefId: created.id,
+					hypothesisCount: 2,
+					recommended: "H1",
+					ts: recordedSynthesis.createdAt,
+				},
+				{
+					type: "research.critique.completed",
+					missionId: mission.id,
+					briefId: created.id,
+					blockingCount: 0,
+					softCount: 1,
+					verdict: "needs-more-research",
+					ts: recordedCritique.createdAt,
+				},
+			]);
+		});
 	});
 
 	test("schema initialization is idempotent for file databases", () => {

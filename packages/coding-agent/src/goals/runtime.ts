@@ -1,5 +1,6 @@
 import { logger, prompt, Snowflake } from "@amaze/utils";
 import { settings } from "../config/settings";
+import { MissionStore } from "../mission/store";
 import type { EventBus as SessionEventBus } from "../observability";
 import goalBudgetLimitPrompt from "../prompts/goals/goal-budget-limit.md" with { type: "text" };
 import goalContinuationPrompt from "../prompts/goals/goal-continuation.md" with { type: "text" };
@@ -28,6 +29,37 @@ import {
  *
  * Returns paths relative to the cwd as-given by `git status` — model-visible form.
  */
+
+export function recordMissionVerificationFromGoalObjective(args: {
+	objective: string;
+	verdict: VerificationVerdict | { verdict: "force"; failedCount: number; uncertainCount: number; results: unknown[] };
+	summary: string;
+	dbPath?: string;
+}): void {
+	const store = new MissionStore(args.dbPath);
+	try {
+		const mission = store.findLatestMissionByTitle(args.objective);
+		if (!mission) return;
+		const status = args.verdict.verdict;
+		store.recordVerification({
+			missionId: mission.id,
+			status,
+			failedCount: args.verdict.failedCount,
+			uncertainCount: args.verdict.uncertainCount,
+			summary: args.summary,
+		});
+		store.updateMission(mission.id, {
+			state:
+				status === "pass" || status === "force"
+					? "completed"
+					: args.verdict.uncertainCount > 0 && args.verdict.failedCount === 0
+						? "verifying"
+						: "blocked",
+		});
+	} finally {
+		store.close();
+	}
+}
 async function collectChangedFilesFromGit(cwd: string): Promise<string[]> {
 	try {
 		const proc = Bun.spawn(["git", "status", "--porcelain=v1", "-z"], {
@@ -725,6 +757,13 @@ export class GoalRuntime {
 			await this.#commitState(state, { persist: "goal" });
 			const failedCount = verdict?.failedCount ?? 0;
 			const uncertainCount = verdict?.uncertainCount ?? 0;
+			recordMissionVerificationFromGoalObjective({
+				objective: state.goal.objective,
+				verdict: options?.force
+					? { verdict: "force", failedCount: 0, uncertainCount: 0, results: [] }
+					: (verdict ?? summarize([], criteria)),
+				summary: options?.force ? "Goal completion forced." : JSON.stringify(verdict ?? summarize([], criteria)),
+			});
 			this.#emitSessionEvent({
 				type: "goal.complete",
 				sessionId: this.#host.getSessionId?.() ?? "session",

@@ -66,6 +66,39 @@ export interface DecisionRecord {
 export type NewDecisionRecord = Omit<DecisionRecord, "id" | "createdAt"> & {
 	id?: string;
 };
+export const CRITIQUE_VERDICTS = ["accept", "accept-with-modifications", "reject", "needs-more-research"] as const;
+export type CritiqueVerdict = (typeof CRITIQUE_VERDICTS)[number];
+
+export interface SynthesisRecord {
+	id: string;
+	briefId: string;
+	hypothesisCount: number;
+	recommended: string | null;
+	summary: string;
+	rawOutput: string;
+	createdAt: number;
+}
+
+export type NewSynthesisRecord = Omit<SynthesisRecord, "id" | "createdAt"> & {
+	id?: string;
+	createdAt?: number;
+};
+
+export interface CritiqueRecord {
+	id: string;
+	briefId: string;
+	blockingCount: number;
+	softCount: number;
+	verdict: CritiqueVerdict;
+	summary: string;
+	rawOutput: string;
+	createdAt: number;
+}
+
+export type NewCritiqueRecord = Omit<CritiqueRecord, "id" | "createdAt"> & {
+	id?: string;
+	createdAt?: number;
+};
 
 export interface ComplementarityScore {
 	briefId: string;

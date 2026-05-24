@@ -1,10 +1,14 @@
 import * as fs from "node:fs";
+import { MissionStore } from "../mission/store";
+import type { EpistemicRole } from "../mission/types";
 import { renderCriticPrompt, renderSynthesizerPrompt } from "../research/prompts";
 import { scoreComplementarity } from "../research/scoring";
 import { ResearchStore } from "../research/store";
 import {
 	CONFIDENCE_LEVELS,
 	type ConfidenceLevel,
+	CRITIQUE_VERDICTS,
+	type CritiqueVerdict,
 	EVIDENCE_GRADES,
 	type EvidenceGrade,
 	RESEARCH_LANES,
@@ -56,6 +60,63 @@ export async function runResearchBriefCommand(
 	}
 }
 
+export async function runResearchRunCommand(
+	opts: ResearchCommandOptionsBase & {
+		briefId: string;
+		json?: boolean;
+	},
+): Promise<void> {
+	const research = new ResearchStore(opts.db);
+	const missions = new MissionStore(opts.db);
+	try {
+		const brief = requireBrief(research, opts.briefId);
+		const mission = research.getMissionForBrief(brief.id);
+		if (!mission) throw new Error(`Mission not found for research brief: ${brief.id}`);
+		const run = missions.createResearchRun({
+			missionId: mission.id,
+			briefId: brief.id,
+			objectiveId: brief.objectiveId,
+			status: "running",
+			completedAt: null,
+		});
+		const laneRuns = brief.lanes.map(lane =>
+			missions.createLaneRun({
+				missionId: mission.id,
+				lane,
+				agent: agentForLane(lane),
+				epistemicRole: epistemicRoleForLane(lane),
+				status: "pending",
+				evidenceCount: 0,
+				emptyReason: null,
+				taskId: null,
+				startedAt: null,
+				endedAt: null,
+			}),
+		);
+		missions.updateMission(mission.id, { state: "researching" });
+		const output = {
+			missionId: mission.id,
+			runId: run.id,
+			laneRunIds: laneRuns.map(laneRun => laneRun.id),
+			lanes: laneRuns.map(laneRun => laneRun.lane),
+		};
+		if (opts.json) {
+			writeJson(output);
+			return;
+		}
+		const lines = [
+			`started research run: ${run.id} for mission ${mission.id}`,
+			...laneRuns.map(
+				laneRun => `  lane ${laneRun.lane}: ${laneRun.id} (${laneRun.agent}/${laneRun.epistemicRole})`,
+			),
+		];
+		process.stdout.write(`${lines.join("\n")}\n`);
+	} finally {
+		missions.close();
+		research.close();
+	}
+}
+
 export async function runResearchListCommand(
 	opts: ResearchCommandOptionsBase & {
 		objectiveId?: string;
@@ -90,8 +151,10 @@ export async function runResearchShowCommand(
 		const brief = requireBrief(store, opts.id);
 		const evidence = store.listEvidence(brief.id);
 		const decision = store.getDecision(brief.id);
+		const synthesis = store.getLatestSynthesis(brief.id);
+		const critique = store.getLatestCritique(brief.id);
 		if (opts.json) {
-			writeJson({ brief, evidence, decision });
+			writeJson({ brief, evidence, decision, synthesis, critique });
 			return;
 		}
 		const lines = [
@@ -109,6 +172,16 @@ export async function runResearchShowCommand(
 				card =>
 					`  ${card.id}  ${card.lane}/${card.grade}  ${card.sourceRef}  excerpt: ${truncate(card.excerpt, 80)}`,
 			),
+			``,
+			`synthesis:`,
+			synthesis
+				? `  ${synthesis.id}  hypotheses=${synthesis.hypothesisCount}  recommended=${synthesis.recommended ?? "<none>"}  summary: ${truncate(synthesis.summary, 80)}`
+				: "  <none>",
+			``,
+			`critique:`,
+			critique
+				? `  ${critique.id}  verdict=${critique.verdict}  blocking=${critique.blockingCount} soft=${critique.softCount}  summary: ${truncate(critique.summary, 80)}`
+				: "  <none>",
 			``,
 		];
 		if (decision) {
@@ -294,6 +367,69 @@ export async function runResearchCritiqueCommand(
 	}
 }
 
+export async function runResearchRecordSynthesisCommand(
+	opts: ResearchCommandOptionsBase & {
+		briefId: string;
+		hypothesisCount: number;
+		summary: string;
+		recommended?: string;
+		rawFile?: string;
+		rawText?: string;
+		json?: boolean;
+	},
+): Promise<void> {
+	const store = new ResearchStore(opts.db);
+	try {
+		const synthesis = store.recordSynthesis({
+			briefId: opts.briefId,
+			hypothesisCount: opts.hypothesisCount,
+			recommended: opts.recommended ?? null,
+			summary: opts.summary,
+			rawOutput: resolveRawOutput(opts.summary, opts.rawText, opts.rawFile),
+		});
+		if (opts.json) {
+			writeJson(synthesis);
+			return;
+		}
+		process.stdout.write(`recorded synthesis: ${synthesis.id} on brief ${synthesis.briefId}\n`);
+	} finally {
+		store.close();
+	}
+}
+
+export async function runResearchRecordCritiqueCommand(
+	opts: ResearchCommandOptionsBase & {
+		briefId: string;
+		blockingCount: number;
+		softCount: number;
+		verdict: string;
+		summary: string;
+		rawFile?: string;
+		rawText?: string;
+		json?: boolean;
+	},
+): Promise<void> {
+	validateCritiqueVerdict(opts.verdict);
+	const store = new ResearchStore(opts.db);
+	try {
+		const critique = store.recordCritique({
+			briefId: opts.briefId,
+			blockingCount: opts.blockingCount,
+			softCount: opts.softCount,
+			verdict: opts.verdict as CritiqueVerdict,
+			summary: opts.summary,
+			rawOutput: resolveRawOutput(opts.summary, opts.rawText, opts.rawFile),
+		});
+		if (opts.json) {
+			writeJson(critique);
+			return;
+		}
+		process.stdout.write(`recorded critique: ${critique.id} on brief ${critique.briefId}\n`);
+	} finally {
+		store.close();
+	}
+}
+
 function requireBrief(store: ResearchStore, id: string) {
 	const brief = store.getBrief(id);
 	if (!brief) throw new Error(`Research brief not found: ${id}`);
@@ -302,6 +438,20 @@ function requireBrief(store: ResearchStore, id: string) {
 
 function writeJson(value: unknown): void {
 	process.stdout.write(`${JSON.stringify(value)}\n`);
+}
+
+function agentForLane(lane: ResearchLane): string {
+	if (lane === "repo") return "explore";
+	if (lane === "source") return "source_scout";
+	if (lane === "social") return "x_researcher";
+	return "memory_scout";
+}
+
+function epistemicRoleForLane(lane: ResearchLane): EpistemicRole {
+	if (lane === "repo") return "repo_truth";
+	if (lane === "source") return "source_harvest";
+	if (lane === "social") return "social_signal";
+	return "memory_prior";
 }
 
 function parseList(value: string | undefined): string[] {
@@ -337,6 +487,12 @@ function resolveSynthesis(inline: string | undefined, file: string | undefined):
 	throw new Error("critique requires --synthesis <text> or --synthesis-file <path>");
 }
 
+function resolveRawOutput(summary: string, inline: string | undefined, file: string | undefined): string {
+	if (inline !== undefined) return inline;
+	if (file !== undefined) return fs.readFileSync(file, "utf8");
+	return summary;
+}
+
 function validateLane(value: string): void {
 	if (!RESEARCH_LANES.includes(value as ResearchLane)) throw new Error(`Invalid lane: ${value}`);
 }
@@ -351,6 +507,10 @@ function validateRisk(value: string): void {
 
 function validateConfidence(value: string): void {
 	if (!CONFIDENCE_LEVELS.includes(value as ConfidenceLevel)) throw new Error(`Invalid confidence: ${value}`);
+}
+
+function validateCritiqueVerdict(value: string): void {
+	if (!CRITIQUE_VERDICTS.includes(value as CritiqueVerdict)) throw new Error(`Invalid verdict: ${value}`);
 }
 
 function truncate(value: string, length: number): string {

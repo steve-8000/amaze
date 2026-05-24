@@ -6,7 +6,7 @@ import { ObjectiveStore } from "../../src/autonomy/store";
 import { type NewLearningProposal, ProposalStore } from "../../src/learning";
 import { buildMissionView, MissionReadModel } from "../../src/mission/read-model";
 import { MissionStore } from "../../src/mission/store";
-import type { Mission, MissionLaneRun } from "../../src/mission/types";
+import type { Mission, MissionLaneRun, ResearchRun } from "../../src/mission/types";
 import { ResearchStore } from "../../src/research/store";
 import type { DecisionRecord, EvidenceCard, ResearchBrief } from "../../src/research/types";
 
@@ -107,6 +107,19 @@ function laneRun(overrides: Partial<MissionLaneRun> = {}): MissionLaneRun {
 	};
 }
 
+function researchRun(overrides: Partial<ResearchRun> = {}): ResearchRun {
+	return {
+		id: "research-run-1",
+		missionId: "mission-1",
+		briefId: "brief-1",
+		objectiveId: "objective-1",
+		status: "running",
+		startedAt: 3,
+		completedAt: null,
+		...overrides,
+	};
+}
+
 function memoryProposal(overrides: Partial<NewLearningProposal> = {}): NewLearningProposal {
 	return {
 		type: "memory",
@@ -165,6 +178,7 @@ describe("buildMissionView", () => {
 			contracts: [],
 			latestVerification: undefined,
 			rollbacks: [],
+			researchRun: researchRun(),
 		});
 
 		expect(view.objective).toEqual({ id: "objective-1", title: "Improve autonomy", status: "active", updatedAt: 0 });
@@ -198,6 +212,7 @@ describe("buildMissionView", () => {
 		expect(view.contracts).toEqual([]);
 		expect(view.latestVerification).toBeNull();
 		expect(view.rollbacks).toEqual([]);
+		expect(view.researchRun).toEqual(researchRun());
 	});
 });
 
@@ -262,6 +277,22 @@ describe("MissionReadModel", () => {
 			mustProduce: ["changed files"],
 			createdAt: 10,
 		});
+		const oldRun = missionStore.createResearchRun({
+			missionId: mission.id,
+			briefId: createdBrief.id,
+			objectiveId: objective.id,
+			status: "completed",
+			startedAt: 10,
+			completedAt: 15,
+		});
+		const latestRun = missionStore.createResearchRun({
+			missionId: mission.id,
+			briefId: createdBrief.id,
+			objectiveId: objective.id,
+			status: "running",
+			startedAt: 20,
+			completedAt: null,
+		});
 		const verification = missionStore.recordVerification({
 			missionId: mission.id,
 			status: "fail",
@@ -303,6 +334,8 @@ describe("MissionReadModel", () => {
 		expect(view?.contracts).toEqual([contract]);
 		expect(view?.latestVerification).toEqual(verification);
 		expect(view?.rollbacks).toEqual([rollback]);
+		expect(view?.researchRun).toEqual(latestRun);
+		expect(view?.researchRun?.id).not.toBe(oldRun.id);
 	});
 
 	test("listMissionViews filters by objectiveId and state", () => {

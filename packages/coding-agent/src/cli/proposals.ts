@@ -2,6 +2,7 @@ import { Database } from "bun:sqlite";
 import type { LearningProposal, LearningProposalType, ProposalStatus } from "../learning";
 import { ProposalStore } from "../learning";
 import { ApplyProposalRejectedError, applyProposal } from "../learning/apply";
+import { MissionStore } from "../mission/store";
 
 export interface ProposalsListArgs {
 	db?: string;
@@ -85,6 +86,7 @@ export async function runProposalsApplyCommand(args: ProposalApplyArgs): Promise
 			skillsDir: args.skillsDir,
 			rulesDir: args.rulesDir,
 		});
+		recordProposalApplyRollbackAnchor(store, args.id, result);
 		process.stdout.write(`applied ${args.id} ${result.version}\n`);
 	} catch (error) {
 		if (error instanceof ApplyProposalRejectedError) {
@@ -104,7 +106,9 @@ export async function runProposalsRollbackCommand(args: ProposalIdArgs): Promise
 	const store = new ProposalStore(args.db);
 	const db = new Database(store.dbPath, { create: true, strict: true });
 	try {
+		const proposal = store.get(args.id);
 		await rollbackProposal({ store, db, proposalId: args.id });
+		recordProposalRollbackAnchor(store, args.id, proposal?.provenance);
 		process.stdout.write(`rolled-back ${args.id}\n`);
 	} finally {
 		db.close();
@@ -125,6 +129,57 @@ export async function runProposalsDiffCommand(args: ProposalIdArgs): Promise<voi
 		}
 		throw new Error(`proposals diff only supports settings and skill proposals, got ${proposal.type}`);
 	});
+}
+
+export function recordProposalApplyRollbackAnchor(
+	store: ProposalStore,
+	proposalId: string,
+	result: { snapshotRef: string; version: string },
+): void {
+	const proposal = store.get(proposalId);
+	const objectiveId = proposalObjectiveId(proposal?.provenance);
+	if (!objectiveId) return;
+	const missionStore = new MissionStore(store.dbPath);
+	try {
+		const mission = missionStore.findLatestMissionByObjectiveId(objectiveId);
+		if (!mission) return;
+		missionStore.updateMission(mission.id, { snapshotRef: result.snapshotRef, state: "executing" });
+		missionStore.recordRollback({
+			missionId: mission.id,
+			targetType: "proposal",
+			targetId: proposalId,
+			snapshotRef: result.snapshotRef,
+			summary: `Applied proposal ${proposalId} version ${result.version}`,
+		});
+	} finally {
+		missionStore.close();
+	}
+}
+
+export function recordProposalRollbackAnchor(store: ProposalStore, proposalId: string, provenance: unknown): void {
+	const objectiveId = proposalObjectiveId(provenance);
+	if (!objectiveId) return;
+	const missionStore = new MissionStore(store.dbPath);
+	try {
+		const mission = missionStore.findLatestMissionByObjectiveId(objectiveId);
+		if (!mission) return;
+		missionStore.recordRollback({
+			missionId: mission.id,
+			targetType: "proposal",
+			targetId: proposalId,
+			snapshotRef: null,
+			summary: `Rolled back proposal ${proposalId}`,
+		});
+		missionStore.updateMission(mission.id, { state: "rolled_back" });
+	} finally {
+		missionStore.close();
+	}
+}
+
+function proposalObjectiveId(provenance: unknown): string | undefined {
+	if (!provenance || typeof provenance !== "object") return undefined;
+	const objectiveId = (provenance as { objectiveId?: unknown }).objectiveId;
+	return typeof objectiveId === "string" && objectiveId.length > 0 ? objectiveId : undefined;
 }
 
 function withStore<T>(dbPath: string | undefined, callback: (store: ProposalStore) => T): T {

@@ -27,6 +27,9 @@ export const EPISTEMIC_ROLES = [
 export type EpistemicRole = (typeof EPISTEMIC_ROLES)[number];
 
 export const MISSION_LANE_STATUSES = ["pending", "running", "completed", "empty", "failed", "aborted"] as const;
+export const RESEARCH_RUN_STATUSES = ["running", "completed", "blocked", "cancelled"] as const;
+export type ResearchRunStatus = (typeof RESEARCH_RUN_STATUSES)[number];
+
 export type MissionLaneStatus = (typeof MISSION_LANE_STATUSES)[number];
 
 export interface Mission {
@@ -63,6 +66,21 @@ export interface MissionLaneRun {
 
 export type NewMissionLaneRun = Omit<MissionLaneRun, "id"> & {
 	id?: string;
+};
+
+export interface ResearchRun {
+	id: string;
+	missionId: string;
+	briefId: string;
+	objectiveId: string | null;
+	status: ResearchRunStatus;
+	startedAt: number;
+	completedAt: number | null;
+}
+
+export type NewResearchRun = Omit<ResearchRun, "id" | "startedAt"> & {
+	id?: string;
+	startedAt?: number;
 };
 export interface MissionContractRecord {
 	id: string;

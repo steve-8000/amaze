@@ -9,16 +9,22 @@ import type { Mission } from "../mission/types";
 import {
 	CONFIDENCE_LEVELS,
 	type ConfidenceLevel,
+	CRITIQUE_VERDICTS,
+	type CritiqueRecord,
+	type CritiqueVerdict,
 	type DecisionRecord,
 	EVIDENCE_GRADES,
 	type EvidenceCard,
 	type EvidenceGrade,
+	type NewCritiqueRecord,
 	type NewDecisionRecord,
 	type NewEvidenceCard,
 	type NewResearchBrief,
+	type NewSynthesisRecord,
 	RESEARCH_LANES,
 	type ResearchBrief,
 	type ResearchLane,
+	type SynthesisRecord,
 } from "./types";
 
 export const DEFAULT_DB_PATH = path.join(os.homedir(), ".amaze", "autonomy", "autonomy.db");
@@ -26,6 +32,7 @@ export const DEFAULT_DB_PATH = path.join(os.homedir(), ".amaze", "autonomy", "au
 const VALID_LANES = new Set<ResearchLane>(RESEARCH_LANES);
 const VALID_GRADES = new Set<EvidenceGrade>(EVIDENCE_GRADES);
 const VALID_CONFIDENCE = new Set<ConfidenceLevel>(CONFIDENCE_LEVELS);
+const VALID_CRITIQUE_VERDICTS = new Set<CritiqueVerdict>(CRITIQUE_VERDICTS);
 
 type ResearchBriefRow = {
 	id: string;
@@ -64,6 +71,27 @@ type DecisionRecordRow = {
 	evidence_refs: string;
 	rejected_options: string;
 	next_actions: string;
+	created_at: number;
+};
+
+type SynthesisRecordRow = {
+	id: string;
+	brief_id: string;
+	hypothesis_count: number;
+	recommended: string | null;
+	summary: string;
+	raw_output: string;
+	created_at: number;
+};
+
+type CritiqueRecordRow = {
+	id: string;
+	brief_id: string;
+	blocking_count: number;
+	soft_count: number;
+	verdict: CritiqueVerdict;
+	summary: string;
+	raw_output: string;
 	created_at: number;
 };
 
@@ -264,6 +292,134 @@ export class ResearchStore {
 		return decision;
 	}
 
+	recordSynthesis(input: NewSynthesisRecord): SynthesisRecord {
+		if (!this.getBrief(input.briefId)) {
+			throw new Error(`Research brief not found: ${input.briefId}`);
+		}
+		const now = Date.now();
+		const synthesis: SynthesisRecord = {
+			...input,
+			id: input.id ?? generateId("syn", now),
+			createdAt: input.createdAt ?? now,
+		};
+		this.#db
+			.query(
+				`INSERT INTO research_syntheses
+					(id, brief_id, hypothesis_count, recommended, summary, raw_output, created_at)
+				VALUES (?, ?, ?, ?, ?, ?, ?)`,
+			)
+			.run(
+				synthesis.id,
+				synthesis.briefId,
+				synthesis.hypothesisCount,
+				synthesis.recommended,
+				synthesis.summary,
+				synthesis.rawOutput,
+				synthesis.createdAt,
+			);
+		const mission = this.getMissionForBrief(synthesis.briefId);
+		if (mission) {
+			const missions = new MissionStore(this.dbPath);
+			try {
+				missions.updateMission(mission.id, { state: "synthesizing" });
+				this.#missionEventBus?.emit({
+					type: "research.synthesis.proposed",
+					missionId: mission.id,
+					briefId: synthesis.briefId,
+					hypothesisCount: synthesis.hypothesisCount,
+					recommended: synthesis.recommended,
+					ts: synthesis.createdAt,
+				});
+			} finally {
+				missions.close();
+			}
+		}
+		return synthesis;
+	}
+
+	getLatestSynthesis(briefId: string): SynthesisRecord | undefined {
+		const row = this.#db
+			.query("SELECT * FROM research_syntheses WHERE brief_id = ? ORDER BY created_at DESC, id DESC LIMIT 1")
+			.get(briefId) as SynthesisRecordRow | null;
+		return row ? rowToSynthesis(row) : undefined;
+	}
+
+	listSyntheses(briefId: string): SynthesisRecord[] {
+		const rows = this.#db
+			.query("SELECT * FROM research_syntheses WHERE brief_id = ? ORDER BY created_at ASC, id ASC")
+			.all(briefId) as SynthesisRecordRow[];
+		return rows.map(rowToSynthesis);
+	}
+
+	recordCritique(input: NewCritiqueRecord): CritiqueRecord {
+		if (!this.getBrief(input.briefId)) {
+			throw new Error(`Research brief not found: ${input.briefId}`);
+		}
+		assertCritiqueVerdict(input.verdict);
+		const now = Date.now();
+		const critique: CritiqueRecord = {
+			...input,
+			id: input.id ?? generateId("crit", now),
+			createdAt: input.createdAt ?? now,
+		};
+		this.#db
+			.query(
+				`INSERT INTO research_critiques
+					(id, brief_id, blocking_count, soft_count, verdict, summary, raw_output, created_at)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+			)
+			.run(
+				critique.id,
+				critique.briefId,
+				critique.blockingCount,
+				critique.softCount,
+				critique.verdict,
+				critique.summary,
+				critique.rawOutput,
+				critique.createdAt,
+			);
+		const mission = this.getMissionForBrief(critique.briefId);
+		if (mission) {
+			const missions = new MissionStore(this.dbPath);
+			try {
+				missions.updateMission(mission.id, {
+					state:
+						critique.blockingCount > 0 ||
+						critique.verdict === "reject" ||
+						critique.verdict === "needs-more-research"
+							? "blocked"
+							: "critiquing",
+				});
+				this.#missionEventBus?.emit({
+					type: "research.critique.completed",
+					missionId: mission.id,
+					briefId: critique.briefId,
+					blockingCount: critique.blockingCount,
+					softCount: critique.softCount,
+					verdict: critique.verdict,
+					ts: critique.createdAt,
+				});
+			} finally {
+				missions.close();
+			}
+		}
+		return critique;
+	}
+
+	getLatestCritique(briefId: string): CritiqueRecord | undefined {
+		const row = this.#db
+			.query("SELECT * FROM research_critiques WHERE brief_id = ? ORDER BY created_at DESC, id DESC LIMIT 1")
+			.get(briefId) as CritiqueRecordRow | null;
+		return row ? rowToCritique(row) : undefined;
+	}
+
+	listCritiques(briefId: string): CritiqueRecord[] {
+		const rows = this.#db
+			.query("SELECT * FROM research_critiques WHERE brief_id = ? ORDER BY created_at ASC, id ASC")
+			.all(briefId) as CritiqueRecordRow[];
+		return rows.map(rowToCritique);
+	}
+
 	getDecision(briefId: string): DecisionRecord | undefined {
 		const row = this.#db
 			.query("SELECT * FROM decision_records WHERE brief_id = ? ORDER BY created_at DESC, id DESC LIMIT 1")
@@ -343,6 +499,31 @@ export class ResearchStore {
 				FOREIGN KEY (brief_id) REFERENCES research_briefs(id) ON DELETE CASCADE
 			);
 			CREATE INDEX IF NOT EXISTS decision_records_brief_idx ON decision_records(brief_id);
+
+			CREATE TABLE IF NOT EXISTS research_syntheses (
+				id TEXT PRIMARY KEY,
+				brief_id TEXT NOT NULL,
+				hypothesis_count INTEGER NOT NULL,
+				recommended TEXT,
+				summary TEXT NOT NULL,
+				raw_output TEXT NOT NULL,
+				created_at INTEGER NOT NULL,
+				FOREIGN KEY (brief_id) REFERENCES research_briefs(id) ON DELETE CASCADE
+			);
+			CREATE INDEX IF NOT EXISTS research_syntheses_brief_idx ON research_syntheses(brief_id);
+
+			CREATE TABLE IF NOT EXISTS research_critiques (
+				id TEXT PRIMARY KEY,
+				brief_id TEXT NOT NULL,
+				blocking_count INTEGER NOT NULL,
+				soft_count INTEGER NOT NULL,
+				verdict TEXT NOT NULL,
+				summary TEXT NOT NULL,
+				raw_output TEXT NOT NULL,
+				created_at INTEGER NOT NULL,
+				FOREIGN KEY (brief_id) REFERENCES research_briefs(id) ON DELETE CASCADE
+			);
+			CREATE INDEX IF NOT EXISTS research_critiques_brief_idx ON research_critiques(brief_id);
 		`);
 	}
 }
@@ -366,6 +547,12 @@ function assertEvidenceGrade(grade: EvidenceGrade): void {
 function assertConfidence(confidence: ConfidenceLevel): void {
 	if (!VALID_CONFIDENCE.has(confidence)) {
 		throw new Error(`Invalid decision confidence: ${confidence}`);
+	}
+}
+
+function assertCritiqueVerdict(verdict: CritiqueVerdict): void {
+	if (!VALID_CRITIQUE_VERDICTS.has(verdict)) {
+		throw new Error(`Invalid critique verdict: ${verdict}`);
 	}
 }
 
@@ -415,6 +602,31 @@ function rowToDecision(row: DecisionRecordRow): DecisionRecord {
 		evidenceRefs: JSON.parse(row.evidence_refs) as string[],
 		rejectedOptions: JSON.parse(row.rejected_options) as Array<{ id: string; reason: string }>,
 		nextActions: JSON.parse(row.next_actions) as string[],
+		createdAt: row.created_at,
+	};
+}
+
+function rowToSynthesis(row: SynthesisRecordRow): SynthesisRecord {
+	return {
+		id: row.id,
+		briefId: row.brief_id,
+		hypothesisCount: row.hypothesis_count,
+		recommended: row.recommended,
+		summary: row.summary,
+		rawOutput: row.raw_output,
+		createdAt: row.created_at,
+	};
+}
+
+function rowToCritique(row: CritiqueRecordRow): CritiqueRecord {
+	return {
+		id: row.id,
+		briefId: row.brief_id,
+		blockingCount: row.blocking_count,
+		softCount: row.soft_count,
+		verdict: row.verdict,
+		summary: row.summary,
+		rawOutput: row.raw_output,
 		createdAt: row.created_at,
 	};
 }

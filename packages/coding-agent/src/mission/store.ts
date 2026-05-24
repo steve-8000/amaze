@@ -29,6 +29,10 @@ import {
 	type NewMissionLaneRun,
 	type NewMissionRollbackRecord,
 	type NewMissionVerificationRecord,
+	type NewResearchRun,
+	RESEARCH_RUN_STATUSES,
+	type ResearchRun,
+	type ResearchRunStatus,
 } from "./types";
 
 export const DEFAULT_DB_PATH = path.join(os.homedir(), ".amaze", "autonomy", "autonomy.db");
@@ -36,6 +40,7 @@ export const DEFAULT_DB_PATH = path.join(os.homedir(), ".amaze", "autonomy", "au
 const VALID_MISSION_STATES = new Set<MissionState>(MISSION_STATES);
 const VALID_EPISTEMIC_ROLES = new Set<EpistemicRole>(EPISTEMIC_ROLES);
 const VALID_LANE_STATUSES = new Set<MissionLaneStatus>(MISSION_LANE_STATUSES);
+const VALID_RESEARCH_RUN_STATUSES = new Set<ResearchRunStatus>(RESEARCH_RUN_STATUSES);
 const VALID_LANES = new Set<ResearchLane>(RESEARCH_LANES);
 const VALID_RISK_LEVELS = new Set<RiskLevel>(RISK_LEVELS);
 const VALID_CONFIDENCE = new Set<ConfidenceLevel>(CONFIDENCE_LEVELS);
@@ -66,6 +71,16 @@ type MissionLaneRunRow = {
 	task_id: string | null;
 	started_at: number | null;
 	ended_at: number | null;
+};
+
+type ResearchRunRow = {
+	id: string;
+	mission_id: string;
+	brief_id: string;
+	objective_id: string | null;
+	status: ResearchRunStatus;
+	started_at: number;
+	completed_at: number | null;
 };
 
 type MissionContractRow = {
@@ -187,6 +202,27 @@ export class MissionStore {
 		return rows.map(rowToMission);
 	}
 
+	findLatestMissionByObjectiveId(objectiveId: string): Mission | undefined {
+		const row = this.#db
+			.query("SELECT * FROM missions WHERE objective_id = ? ORDER BY created_at DESC, id DESC LIMIT 1")
+			.get(objectiveId) as MissionRow | null;
+		return row ? rowToMission(row) : undefined;
+	}
+
+	findLatestMissionByBriefId(briefId: string): Mission | undefined {
+		const row = this.#db
+			.query("SELECT * FROM missions WHERE brief_id = ? ORDER BY created_at DESC, id DESC LIMIT 1")
+			.get(briefId) as MissionRow | null;
+		return row ? rowToMission(row) : undefined;
+	}
+
+	findLatestMissionByTitle(title: string): Mission | undefined {
+		const row = this.#db
+			.query("SELECT * FROM missions WHERE title = ? ORDER BY created_at DESC, id DESC LIMIT 1")
+			.get(title) as MissionRow | null;
+		return row ? rowToMission(row) : undefined;
+	}
+
 	updateMission(
 		id: string,
 		patch: Partial<Pick<Mission, "state" | "confidence" | "decisionId" | "snapshotRef">>,
@@ -264,6 +300,82 @@ export class MissionStore {
 		return rows.map(rowToLaneRun);
 	}
 
+	createResearchRun(input: NewResearchRun): ResearchRun {
+		if (!this.getMission(input.missionId)) {
+			throw new Error(`Mission not found: ${input.missionId}`);
+		}
+		assertResearchRunStatus(input.status);
+		const now = Date.now();
+		const run: ResearchRun = {
+			...input,
+			id: input.id ?? generateId("research-run", now),
+			startedAt: input.startedAt ?? now,
+		};
+		this.#db
+			.query(
+				`INSERT INTO research_runs
+					(id, mission_id, brief_id, objective_id, status, started_at, completed_at)
+				VALUES (?, ?, ?, ?, ?, ?, ?)`,
+			)
+			.run(run.id, run.missionId, run.briefId, run.objectiveId, run.status, run.startedAt, run.completedAt);
+		return run;
+	}
+
+	getResearchRun(id: string): ResearchRun | undefined {
+		const row = this.#db.query("SELECT * FROM research_runs WHERE id = ?").get(id) as ResearchRunRow | null;
+		return row ? rowToResearchRun(row) : undefined;
+	}
+
+	getLatestResearchRunForMission(missionId: string): ResearchRun | undefined {
+		const row = this.#db
+			.query("SELECT * FROM research_runs WHERE mission_id = ? ORDER BY started_at DESC, id DESC LIMIT 1")
+			.get(missionId) as ResearchRunRow | null;
+		return row ? rowToResearchRun(row) : undefined;
+	}
+
+	listResearchRuns(opts: { missionId?: string; briefId?: string; status?: ResearchRunStatus } = {}): ResearchRun[] {
+		const clauses: string[] = [];
+		const params: string[] = [];
+		if (opts.missionId !== undefined) {
+			clauses.push("mission_id = ?");
+			params.push(opts.missionId);
+		}
+		if (opts.briefId !== undefined) {
+			clauses.push("brief_id = ?");
+			params.push(opts.briefId);
+		}
+		if (opts.status !== undefined) {
+			assertResearchRunStatus(opts.status);
+			clauses.push("status = ?");
+			params.push(opts.status);
+		}
+		const where = clauses.length > 0 ? ` WHERE ${clauses.join(" AND ")}` : "";
+		const rows = this.#db
+			.query(`SELECT * FROM research_runs${where} ORDER BY started_at DESC, id DESC`)
+			.all(...params) as ResearchRunRow[];
+		return rows.map(rowToResearchRun);
+	}
+
+	updateResearchRun(id: string, patch: Partial<Pick<ResearchRun, "status" | "completedAt">>): ResearchRun {
+		const existing = this.getResearchRun(id);
+		if (!existing) {
+			throw new Error(`Research run not found: ${id}`);
+		}
+		const next: ResearchRun = {
+			...existing,
+			...patch,
+		};
+		assertResearchRunStatus(next.status);
+		this.#db
+			.query(
+				`UPDATE research_runs
+				SET status = ?, completed_at = ?
+				WHERE id = ?`,
+			)
+			.run(next.status, next.completedAt, id);
+		return next;
+	}
+
 	recordContract(input: NewMissionContractRecord): MissionContractRecord {
 		if (!this.getMission(input.missionId)) throw new Error(`Mission not found: ${input.missionId}`);
 		const now = input.createdAt ?? Date.now();
@@ -296,6 +408,13 @@ export class MissionStore {
 				JSON.stringify(record.mustProduce),
 				record.createdAt,
 			);
+		this.#eventBus?.emit({
+			type: "contract.created",
+			missionId: record.missionId,
+			contractId: record.id,
+			role: record.role,
+			ts: record.createdAt,
+		});
 		return record;
 	}
 
@@ -329,6 +448,15 @@ export class MissionStore {
 				record.summary,
 				record.createdAt,
 			);
+		this.#eventBus?.emit({
+			type: "verification.completed",
+			missionId: record.missionId,
+			verificationId: record.id,
+			status: record.status,
+			failedCount: record.failedCount,
+			uncertainCount: record.uncertainCount,
+			ts: record.createdAt,
+		});
 		return record;
 	}
 
@@ -362,6 +490,15 @@ export class MissionStore {
 				record.summary,
 				record.createdAt,
 			);
+		this.#eventBus?.emit({
+			type: "rollback.snapshot.created",
+			missionId: record.missionId,
+			rollbackId: record.id,
+			targetType: record.targetType,
+			targetId: record.targetId,
+			snapshotRef: record.snapshotRef,
+			ts: record.createdAt,
+		});
 		return record;
 	}
 
@@ -445,6 +582,20 @@ export class MissionStore {
 			CREATE INDEX IF NOT EXISTS mission_lane_runs_mission_idx ON mission_lane_runs(mission_id);
 			CREATE INDEX IF NOT EXISTS mission_lane_runs_status_idx ON mission_lane_runs(mission_id, status);
 
+			CREATE TABLE IF NOT EXISTS research_runs (
+				id TEXT PRIMARY KEY,
+				mission_id TEXT NOT NULL,
+				brief_id TEXT NOT NULL,
+				objective_id TEXT,
+				status TEXT NOT NULL,
+				started_at INTEGER NOT NULL,
+				completed_at INTEGER,
+				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
+			);
+			CREATE INDEX IF NOT EXISTS research_runs_mission_idx ON research_runs(mission_id);
+			CREATE INDEX IF NOT EXISTS research_runs_brief_idx ON research_runs(brief_id);
+			CREATE INDEX IF NOT EXISTS research_runs_status_idx ON research_runs(status);
+
 			CREATE TABLE IF NOT EXISTS mission_contracts (
 				id TEXT PRIMARY KEY,
 				mission_id TEXT NOT NULL,
@@ -510,6 +661,12 @@ function assertLaneStatus(status: MissionLaneStatus): void {
 	}
 }
 
+function assertResearchRunStatus(status: ResearchRunStatus): void {
+	if (!VALID_RESEARCH_RUN_STATUSES.has(status)) {
+		throw new Error(`Invalid research run status: ${status}`);
+	}
+}
+
 function assertResearchLane(lane: ResearchLane): void {
 	if (!VALID_LANES.has(lane)) {
 		throw new Error(`Invalid research lane: ${lane}`);
@@ -561,6 +718,18 @@ function rowToLaneRun(row: MissionLaneRunRow): MissionLaneRun {
 		taskId: row.task_id,
 		startedAt: row.started_at,
 		endedAt: row.ended_at,
+	};
+}
+
+function rowToResearchRun(row: ResearchRunRow): ResearchRun {
+	return {
+		id: row.id,
+		missionId: row.mission_id,
+		briefId: row.brief_id,
+		objectiveId: row.objective_id,
+		status: row.status,
+		startedAt: row.started_at,
+		completedAt: row.completed_at,
 	};
 }
 

@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
+import { MissionEventBus } from "../../src/mission/event-bus";
 import { MissionStore } from "../../src/mission/store";
 import type { NewMission } from "../../src/mission/types";
 
@@ -99,5 +100,85 @@ describe("MissionStore contract persistence", () => {
 		});
 
 		expect(store.listRollbacks(createdMission.id)).toEqual([first, second]);
+	});
+
+	test("finds latest missions by objective, brief, and exact title", () => {
+		const store = createStore();
+		const first = store.createMission(
+			mission({ id: "mission-first", title: "Shared", objectiveId: "objective-x", briefId: "brief-x" }),
+		);
+		const second = store.createMission(
+			mission({ id: "mission-second", title: "Shared", objectiveId: "objective-x", briefId: "brief-x" }),
+		);
+		store.createMission(
+			mission({ id: "mission-other", title: "Other", objectiveId: "objective-y", briefId: "brief-y" }),
+		);
+
+		expect(store.findLatestMissionByObjectiveId("objective-x")?.id).toBe(second.id);
+		expect(store.findLatestMissionByBriefId("brief-x")?.id).toBe(second.id);
+		expect(store.findLatestMissionByTitle("Shared")?.id).toBe(second.id);
+		expect(store.findLatestMissionByTitle("Missing")).toBeUndefined();
+		expect(first.id).toBe("mission-first");
+	});
+
+	test("emits contract verification and rollback events", () => {
+		const bus = new MissionEventBus();
+		const store = new MissionStore(":memory:", bus);
+		stores.push(store);
+		const createdMission = store.createMission(mission({ id: "mission-events" }));
+
+		const contract = store.recordContract({
+			id: "contract-event",
+			missionId: createdMission.id,
+			role: "producer",
+			parentContractRevision: null,
+			include: ["src/**"],
+			exclude: [],
+			successCriteria: ["check"],
+			escalation: { onUncertainty: "ask-parent", budgetCap: 1000 },
+			inputArtifact: null,
+			mustProduce: ["notes"],
+			createdAt: 30,
+		});
+		const verification = store.recordVerification({
+			id: "verification-event",
+			missionId: createdMission.id,
+			status: "pass",
+			failedCount: 0,
+			uncertainCount: 0,
+			summary: "ok",
+			createdAt: 40,
+		});
+		const rollback = store.recordRollback({
+			id: "rollback-event",
+			missionId: createdMission.id,
+			targetType: "proposal",
+			targetId: "proposal-1",
+			snapshotRef: "snapshot-1",
+			summary: "applied",
+			createdAt: 50,
+		});
+
+		expect(bus.snapshot()).toEqual([
+			{ type: "contract.created", missionId: createdMission.id, contractId: contract.id, role: "producer", ts: 30 },
+			{
+				type: "verification.completed",
+				missionId: createdMission.id,
+				verificationId: verification.id,
+				status: "pass",
+				failedCount: 0,
+				uncertainCount: 0,
+				ts: 40,
+			},
+			{
+				type: "rollback.snapshot.created",
+				missionId: createdMission.id,
+				rollbackId: rollback.id,
+				targetType: "proposal",
+				targetId: "proposal-1",
+				snapshotRef: "snapshot-1",
+				ts: 50,
+			},
+		]);
 	});
 });
