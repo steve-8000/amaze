@@ -3,7 +3,10 @@ import type { MissionEventBus, Unsubscribe } from "../../mission/event-bus";
 import { MissionReadModel, type MissionView } from "../../mission/read-model";
 import { getMissionEventBus } from "../../mission/runtime";
 
-export type MissionControlDisplayMode = "compact" | "expanded";
+export type MissionControlDisplayMode = "off" | "compact" | "expanded";
+
+/** Cycle order for the on-demand toggle. */
+const DISPLAY_MODE_CYCLE: readonly MissionControlDisplayMode[] = ["off", "compact", "expanded"];
 
 export class MissionControlView implements Component {
 	#readModel: MissionReadModel;
@@ -15,7 +18,7 @@ export class MissionControlView implements Component {
 	#selectedMissionId: string | undefined;
 	#unsubscribe: Unsubscribe | undefined;
 	#disposed = false;
-	#displayMode: MissionControlDisplayMode = "compact";
+	#displayMode: MissionControlDisplayMode = "off";
 
 	constructor(
 		opts: {
@@ -23,10 +26,12 @@ export class MissionControlView implements Component {
 			getPreferredMissionInput?: () => { objectiveId?: string; briefId?: string; title?: string } | undefined;
 			missionEventBus?: MissionEventBus;
 			onRefresh?: () => void;
+			initialMode?: MissionControlDisplayMode;
 		} = {},
 	) {
 		this.#readModel = new MissionReadModel({ dbPath: opts.dbPath });
 		this.#getPreferredMissionInput = opts.getPreferredMissionInput;
+		if (opts.initialMode) this.#displayMode = opts.initialMode;
 		const bus = opts.missionEventBus ?? getMissionEventBus();
 		if (bus) {
 			this.#unsubscribe = bus.subscribe(event => {
@@ -74,7 +79,10 @@ export class MissionControlView implements Component {
 	}
 
 	toggleDisplayMode(): MissionControlDisplayMode {
-		this.#displayMode = this.#displayMode === "compact" ? "expanded" : "compact";
+		// Cycle off → compact → expanded → off. "off" renders nothing, keeping the terminal lean;
+		// mission data continues to flow to the headless gateway regardless of this surface toggle.
+		const next = (DISPLAY_MODE_CYCLE.indexOf(this.#displayMode) + 1) % DISPLAY_MODE_CYCLE.length;
+		this.#displayMode = DISPLAY_MODE_CYCLE[next] ?? "off";
 		return this.#displayMode;
 	}
 
@@ -112,6 +120,8 @@ export class MissionControlView implements Component {
 	invalidate(): void {}
 
 	render(width: number): string[] {
+		// "off": render nothing — no box, full vertical space reclaimed for the tool-centric stream.
+		if (this.#displayMode === "off") return [];
 		const innerWidth = Math.max(20, width - 2);
 		const lines = this.#mission
 			? buildMissionControlLines(this.#mission, {

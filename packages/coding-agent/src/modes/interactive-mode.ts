@@ -359,6 +359,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		this.missionControlView = new MissionControlView({
 			missionEventBus: missionRuntime.bus,
 			onRefresh: () => this.ui.requestRender(),
+			initialMode: session.settings.get("mission.terminalPanel"),
 			getPreferredMissionInput: () => {
 				const goal = this.session.getGoalModeState()?.goal;
 				return goal?.missionId ? { objectiveId: goal.missionId } : undefined;

@@ -249,6 +249,7 @@ export interface InteractiveModeContext {
 	showSessionObserver(): void;
 	selectNextMission(): void;
 	selectPreviousMission(): void;
+	toggleMissionControlDisplayMode(): void;
 	resetObserverRegistry(): void;
 
 	// Input handling

@@ -79,7 +79,7 @@ describe("MissionControlView", () => {
 			() => research.close(),
 		);
 
-		const view = new MissionControlView({ dbPath });
+		const view = new MissionControlView({ dbPath, initialMode: "compact" });
 		cleanup.push(() => view.dispose());
 		const rendered = Bun.stripANSI(view.render(100).join("\n"));
 
@@ -134,7 +134,11 @@ describe("MissionControlView", () => {
 			() => research.close(),
 		);
 
-		const view = new MissionControlView({ dbPath, getPreferredMissionInput: () => ({ title: "First mission" }) });
+		const view = new MissionControlView({
+			dbPath,
+			initialMode: "compact",
+			getPreferredMissionInput: () => ({ title: "First mission" }),
+		});
 		cleanup.push(() => view.dispose());
 
 		let rendered = Bun.stripANSI(view.render(120).join("\n"));
@@ -282,7 +286,7 @@ describe("MissionControlView", () => {
 			() => research.close(),
 		);
 
-		const view = new MissionControlView({ dbPath });
+		const view = new MissionControlView({ dbPath, initialMode: "compact" });
 		cleanup.push(() => view.dispose());
 		let rendered = Bun.stripANSI(view.render(140).join("\n"));
 
@@ -331,7 +335,7 @@ describe("MissionControlView", () => {
 
 	test("renders empty state when no mission exists", () => {
 		const dbPath = tempDb();
-		const view = new MissionControlView({ dbPath });
+		const view = new MissionControlView({ dbPath, initialMode: "compact" });
 		cleanup.push(() => view.dispose());
 
 		const rendered = Bun.stripANSI(view.render(100).join("\n"));
@@ -339,5 +343,28 @@ describe("MissionControlView", () => {
 		expect(rendered).toContain("Mission Control");
 		expect(rendered).toContain("No active mission yet.");
 		expect(rendered).toContain("Mission Inspector: Ctrl+S for tool traces, artifacts, and subagent details");
+	});
+
+	test("defaults to off — renders nothing on the terminal surface", () => {
+		const dbPath = tempDb();
+		const view = new MissionControlView({ dbPath });
+		cleanup.push(() => view.dispose());
+
+		// Default surface is off: no box, no lines — terminal stays lean/tool-centric.
+		expect(view.getDisplayMode()).toBe("off");
+		expect(view.render(100)).toEqual([]);
+	});
+
+	test("toggle cycles off -> compact -> expanded -> off", () => {
+		const dbPath = tempDb();
+		const view = new MissionControlView({ dbPath });
+		cleanup.push(() => view.dispose());
+
+		expect(view.getDisplayMode()).toBe("off");
+		expect(view.toggleDisplayMode()).toBe("compact");
+		expect(view.render(100).length).toBeGreaterThan(0);
+		expect(view.toggleDisplayMode()).toBe("expanded");
+		expect(view.toggleDisplayMode()).toBe("off");
+		expect(view.render(100)).toEqual([]);
 	});
 });

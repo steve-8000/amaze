@@ -1071,6 +1071,22 @@ export const SETTINGS_SCHEMA = {
 			],
 		},
 	},
+	"mission.terminalPanel": {
+		type: "enum",
+		values: ["off", "compact", "expanded"] as const,
+		default: "off",
+		ui: {
+			tab: "appearance",
+			label: "Mission Control Panel",
+			description:
+				"Mission Control surface in the terminal. 'off' keeps the terminal lean and tool-centric; mission/runtime data still flows to the headless gateway (and the future web dashboard) regardless. Cycle on-demand with the Mission Control toggle key.",
+			options: [
+				{ value: "off", label: "Off", description: "Hidden — lean, tool-centric terminal (default)" },
+				{ value: "compact", label: "Compact", description: "One-glance mission summary strip" },
+				{ value: "expanded", label: "Expanded", description: "Full mission dashboard" },
+			],
+		},
+	},
 	"prompt.cache.orchestratorRetention": {
 		type: "enum",
 		values: ["default", "long", "short", "none"] as const,
