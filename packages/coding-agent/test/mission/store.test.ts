@@ -163,6 +163,21 @@ describe("MissionStore", () => {
 		expect(store.getResearchRun("run-1")).toEqual(updated);
 	});
 
+	test("finds latest lane runs by mission and lane", () => {
+		const store = createStore();
+		const createdMission = store.createMission(mission({ id: "mission-latest" }));
+		const first = store.createLaneRun(laneRun(createdMission.id, { id: "lane-first", lane: "repo" }));
+		const source = store.createLaneRun(
+			laneRun(createdMission.id, { id: "lane-source", lane: "source", epistemicRole: "source_harvest" }),
+		);
+		const latest = store.createLaneRun(laneRun(createdMission.id, { id: "lane-latest", lane: "repo" }));
+
+		expect(store.getLatestLaneRunForMissionLane(createdMission.id, "repo")).toEqual(latest);
+		expect(store.getLatestLaneRunForMissionLane(createdMission.id, "source")).toEqual(source);
+		expect(store.listLatestLaneRunsForMissionLanes(createdMission.id, ["repo", "source"])).toEqual([latest, source]);
+		expect(first.id).toBe("lane-first");
+	});
+
 	test("validates mission enums and lane run enums", () => {
 		const store = createStore();
 		expect(() => store.createMission(mission({ state: "unknown" as any }))).toThrow("Invalid mission state");

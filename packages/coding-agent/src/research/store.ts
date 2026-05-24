@@ -211,6 +211,7 @@ export class ResearchStore {
 			);
 		const mission = this.getMissionForBrief(evidence.briefId);
 		if (mission) {
+			this.#updateLiveLaneRunForEvidence(mission.id, evidence.briefId, evidence.lane, evidence.capturedAt);
 			this.#missionEventBus?.emit({
 				type: "research.evidence.added",
 				missionId: mission.id,
@@ -322,6 +323,7 @@ export class ResearchStore {
 			const missions = new MissionStore(this.dbPath);
 			try {
 				missions.updateMission(mission.id, { state: "synthesizing" });
+				this.#finalizeLatestResearchRun(missions, mission.id, synthesis.briefId, "completed", synthesis.createdAt);
 				this.#missionEventBus?.emit({
 					type: "research.synthesis.proposed",
 					missionId: mission.id,
@@ -382,14 +384,14 @@ export class ResearchStore {
 		if (mission) {
 			const missions = new MissionStore(this.dbPath);
 			try {
+				const runStatus =
+					critique.blockingCount > 0 || critique.verdict === "reject" || critique.verdict === "needs-more-research"
+						? "blocked"
+						: "completed";
 				missions.updateMission(mission.id, {
-					state:
-						critique.blockingCount > 0 ||
-						critique.verdict === "reject" ||
-						critique.verdict === "needs-more-research"
-							? "blocked"
-							: "critiquing",
+					state: runStatus === "blocked" ? "blocked" : "critiquing",
 				});
+				this.#finalizeLatestResearchRun(missions, mission.id, critique.briefId, runStatus, critique.createdAt);
 				this.#missionEventBus?.emit({
 					type: "research.critique.completed",
 					missionId: mission.id,
@@ -432,6 +434,61 @@ export class ResearchStore {
 			.query("SELECT * FROM decision_records WHERE brief_id = ? ORDER BY created_at ASC, id ASC")
 			.all(briefId) as DecisionRecordRow[];
 		return rows.map(rowToDecision);
+	}
+
+	#updateLiveLaneRunForEvidence(missionId: string, briefId: string, lane: ResearchLane, ts: number): void {
+		const missions = new MissionStore(this.dbPath);
+		try {
+			const run = missions.getLatestResearchRunForMissionBrief(missionId, briefId);
+			if (!run || run.status !== "running") return;
+			const laneRun = missions.getLatestLaneRunForMissionLane(missionId, lane);
+			if (!laneRun) return;
+			const evidenceCount = this.#countEvidenceForLane(briefId, lane);
+			missions.updateLaneRun(laneRun.id, {
+				status: laneRun.status === "pending" ? "running" : laneRun.status,
+				evidenceCount,
+				startedAt: laneRun.startedAt ?? ts,
+				emptyReason: evidenceCount > 0 ? null : laneRun.emptyReason,
+			});
+		} finally {
+			missions.close();
+		}
+	}
+
+	#finalizeLatestResearchRun(
+		missions: MissionStore,
+		missionId: string,
+		briefId: string,
+		status: "completed" | "blocked",
+		completedAt: number,
+	): void {
+		const run = missions.getLatestResearchRunForMissionBrief(missionId, briefId);
+		if (!run || run.status !== "running") return;
+		const brief = this.getBrief(briefId);
+		if (!brief) return;
+		for (const laneRun of missions.listLatestLaneRunsForMissionLanes(missionId, brief.lanes)) {
+			if (laneRun.status === "completed" || laneRun.status === "empty") continue;
+			if (laneRun.evidenceCount > 0) {
+				missions.updateLaneRun(laneRun.id, {
+					status: "completed",
+					endedAt: laneRun.endedAt ?? completedAt,
+				});
+			} else {
+				missions.updateLaneRun(laneRun.id, {
+					status: "empty",
+					emptyReason: laneRun.emptyReason ?? "no evidence recorded",
+					endedAt: laneRun.endedAt ?? completedAt,
+				});
+			}
+		}
+		missions.updateResearchRun(run.id, { status, completedAt: run.completedAt ?? completedAt });
+	}
+
+	#countEvidenceForLane(briefId: string, lane: ResearchLane): number {
+		const row = this.#db
+			.query("SELECT COUNT(*) AS count FROM evidence_cards WHERE brief_id = ? AND lane = ?")
+			.get(briefId, lane) as { count: number } | null;
+		return row?.count ?? 0;
 	}
 
 	#createMissionForBrief(brief: ResearchBrief): Mission {

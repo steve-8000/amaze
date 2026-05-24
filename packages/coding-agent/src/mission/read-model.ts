@@ -155,6 +155,13 @@ export class MissionReadModel {
 		return this.#missions.listMissions(opts).map(mission => this.#buildViewForMission(mission));
 	}
 
+	getPreferredMissionView(
+		opts: { objectiveId?: string; briefId?: string; title?: string } = {},
+	): MissionView | undefined {
+		const mission = this.#missions.getPreferredMission(opts);
+		return mission ? this.#buildViewForMission(mission) : undefined;
+	}
+
 	#buildViewForMission(mission: Mission): MissionView {
 		const brief = mission.briefId ? this.#research.getBrief(mission.briefId) : undefined;
 		const decision = brief ? this.#getDecisionForMission(mission, brief.id) : undefined;

@@ -2,7 +2,12 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { runResearchBriefCommand, runResearchRunCommand } from "../../src/cli/research";
+import {
+	runResearchAddEvidenceCommand,
+	runResearchBriefCommand,
+	runResearchRecordSynthesisCommand,
+	runResearchRunCommand,
+} from "../../src/cli/research";
 import { MissionReadModel } from "../../src/mission/read-model";
 import { MissionStore } from "../../src/mission/store";
 
@@ -118,6 +123,68 @@ describe("research run CLI helper", () => {
 			expect(firstText).toContain("  lane memory:");
 		} finally {
 			readModel.close();
+			missions.close();
+		}
+	});
+
+	it("finalizes repeated runs independently through evidence and synthesis", async () => {
+		const db = testDb();
+		const brief = await createBrief(db, "Do repeated runs finalize independently?", "repo,source");
+		const first = JSON.parse(
+			await captureStdout(async () => {
+				await runResearchRunCommand({ db, briefId: brief.id, json: true });
+			}),
+		);
+		const second = JSON.parse(
+			await captureStdout(async () => {
+				await runResearchRunCommand({ db, briefId: brief.id, json: true });
+			}),
+		);
+
+		await captureStdout(async () => {
+			await runResearchAddEvidenceCommand({
+				db,
+				briefId: brief.id,
+				lane: "repo",
+				grade: "A",
+				source: "repo://live",
+				excerpt: "Current run has evidence",
+				claim: "claim",
+				directness: 1,
+				specificity: 1,
+				recency: 1,
+				reproducibility: 1,
+				json: true,
+			});
+		});
+		await runResearchRecordSynthesisCommand({
+			db,
+			briefId: brief.id,
+			hypothesisCount: 1,
+			summary: "done",
+			rawText: "done",
+			json: true,
+		});
+
+		const missions = new MissionStore(db);
+		try {
+			const firstRun = missions.getResearchRun(first.runId);
+			const secondRun = missions.getResearchRun(second.runId);
+			expect(firstRun?.status).toBe("running");
+			expect(firstRun?.completedAt).toBeNull();
+			expect(secondRun).toMatchObject({ status: "completed" });
+			expect(secondRun?.completedAt).toBeNumber();
+			expect(missions.getLatestLaneRunForMissionLane(second.missionId, "repo")).toMatchObject({
+				id: second.laneRunIds[0],
+				status: "completed",
+				evidenceCount: 1,
+			});
+			expect(missions.getLatestLaneRunForMissionLane(second.missionId, "source")).toMatchObject({
+				id: second.laneRunIds[1],
+				status: "empty",
+				emptyReason: "no evidence recorded",
+			});
+		} finally {
 			missions.close();
 		}
 	});

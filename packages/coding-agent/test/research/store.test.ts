@@ -3,6 +3,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { MissionEventBus } from "../../src/mission/event-bus";
+import { MissionStore } from "../../src/mission/store";
 import { ResearchStore } from "../../src/research/store";
 import type {
 	NewCritiqueRecord,
@@ -207,6 +208,176 @@ describe("ResearchStore", () => {
 	test("recordDecision requires an existing brief", () => {
 		const store = createStore();
 		expect(() => store.recordDecision(decision("missing"))).toThrow("Research brief not found");
+	});
+
+	test("addEvidence moves the latest lane run to running and updates evidence count", () => {
+		withTempDb(dbPath => {
+			const store = createStore(dbPath);
+			const created = store.createBrief(brief({ id: "brief-live", lanes: ["repo", "source"] }));
+			const mission = store.getMissionForBrief(created.id);
+			if (!mission) throw new Error("Expected mission for brief");
+			const missions = new MissionStore(dbPath);
+			try {
+				missions.createResearchRun({
+					id: "run-live",
+					missionId: mission.id,
+					briefId: created.id,
+					objectiveId: created.objectiveId,
+					status: "running",
+					startedAt: 10,
+					completedAt: null,
+				});
+				const lane = missions.createLaneRun({
+					id: "lane-live",
+					missionId: mission.id,
+					lane: "repo",
+					agent: "explore",
+					epistemicRole: "repo_truth",
+					status: "pending",
+					evidenceCount: 0,
+					emptyReason: null,
+					taskId: null,
+					startedAt: null,
+					endedAt: null,
+				});
+
+				store.addEvidence(evidence(created.id, { id: "ev-live-1", lane: "repo", capturedAt: 100 }));
+				expect(missions.getLatestLaneRunForMissionLane(mission.id, "repo")).toMatchObject({
+					id: lane.id,
+					status: "running",
+					evidenceCount: 1,
+					startedAt: 100,
+				});
+
+				store.addEvidence(evidence(created.id, { id: "ev-live-2", lane: "repo", capturedAt: 200 }));
+				expect(missions.getLatestLaneRunForMissionLane(mission.id, "repo")).toMatchObject({
+					id: lane.id,
+					status: "running",
+					evidenceCount: 2,
+					startedAt: 100,
+				});
+			} finally {
+				missions.close();
+			}
+		});
+	});
+
+	test("synthesis finalizes live run lanes and marks lanes without evidence empty", () => {
+		withTempDb(dbPath => {
+			const store = createStore(dbPath);
+			const created = store.createBrief(brief({ id: "brief-finalize", lanes: ["repo", "source"] }));
+			const mission = store.getMissionForBrief(created.id);
+			if (!mission) throw new Error("Expected mission for brief");
+			const missions = new MissionStore(dbPath);
+			try {
+				missions.createResearchRun({
+					id: "run-finalize",
+					missionId: mission.id,
+					briefId: created.id,
+					objectiveId: created.objectiveId,
+					status: "running",
+					startedAt: 10,
+					completedAt: null,
+				});
+				missions.createLaneRun({
+					id: "lane-finalize-repo",
+					missionId: mission.id,
+					lane: "repo",
+					agent: "explore",
+					epistemicRole: "repo_truth",
+					status: "pending",
+					evidenceCount: 0,
+					emptyReason: null,
+					taskId: null,
+					startedAt: null,
+					endedAt: null,
+				});
+				missions.createLaneRun({
+					id: "lane-finalize-source",
+					missionId: mission.id,
+					lane: "source",
+					agent: "source_scout",
+					epistemicRole: "source_harvest",
+					status: "pending",
+					evidenceCount: 0,
+					emptyReason: null,
+					taskId: null,
+					startedAt: null,
+					endedAt: null,
+				});
+
+				store.addEvidence(evidence(created.id, { id: "ev-finalize", lane: "repo", capturedAt: 100 }));
+				store.recordSynthesis(synthesis(created.id, { id: "syn-finalize", createdAt: 300 }));
+
+				expect(missions.getResearchRun("run-finalize")).toMatchObject({
+					status: "completed",
+					completedAt: 300,
+				});
+				expect(missions.getLatestLaneRunForMissionLane(mission.id, "repo")).toMatchObject({
+					status: "completed",
+					evidenceCount: 1,
+					endedAt: 300,
+				});
+				expect(missions.getLatestLaneRunForMissionLane(mission.id, "source")).toMatchObject({
+					status: "empty",
+					evidenceCount: 0,
+					emptyReason: "no evidence recorded",
+					endedAt: 300,
+				});
+			} finally {
+				missions.close();
+			}
+		});
+	});
+
+	test("rejecting critique finalizes the live run as blocked", () => {
+		withTempDb(dbPath => {
+			const store = createStore(dbPath);
+			const created = store.createBrief(brief({ id: "brief-blocked", lanes: ["repo"] }));
+			const mission = store.getMissionForBrief(created.id);
+			if (!mission) throw new Error("Expected mission for brief");
+			const missions = new MissionStore(dbPath);
+			try {
+				missions.createResearchRun({
+					id: "run-blocked",
+					missionId: mission.id,
+					briefId: created.id,
+					objectiveId: created.objectiveId,
+					status: "running",
+					startedAt: 10,
+					completedAt: null,
+				});
+				missions.createLaneRun({
+					id: "lane-blocked",
+					missionId: mission.id,
+					lane: "repo",
+					agent: "explore",
+					epistemicRole: "repo_truth",
+					status: "pending",
+					evidenceCount: 0,
+					emptyReason: null,
+					taskId: null,
+					startedAt: null,
+					endedAt: null,
+				});
+
+				store.recordCritique(
+					critique(created.id, { id: "crit-blocked", verdict: "reject", blockingCount: 0, createdAt: 400 }),
+				);
+
+				expect(missions.getResearchRun("run-blocked")).toMatchObject({
+					status: "blocked",
+					completedAt: 400,
+				});
+				expect(missions.getLatestLaneRunForMissionLane(mission.id, "repo")).toMatchObject({
+					status: "empty",
+					emptyReason: "no evidence recorded",
+					endedAt: 400,
+				});
+			} finally {
+				missions.close();
+			}
+		});
 	});
 
 	test("records syntheses and critiques with latest and list accessors", () => {

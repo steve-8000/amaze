@@ -352,7 +352,14 @@ export class InteractiveMode implements InteractiveModeContext {
 		this.editorContainer.addChild(this.editor);
 		this.statusLine = new StatusLineComponent(session);
 		this.statusLine.setAutoCompactEnabled(session.autoCompactionEnabled);
-		this.missionControlView = new MissionControlView();
+		this.missionControlView = new MissionControlView({
+			getPreferredMissionInput: () => {
+				const objective = this.session.getGoalModeState()?.goal?.objective.trim();
+				return objective
+					? ({ title: objective } as unknown as { objectiveId?: string; briefId?: string })
+					: undefined;
+			},
+		});
 
 		this.hideThinkingBlock = settings.get("hideThinkingBlock");
 

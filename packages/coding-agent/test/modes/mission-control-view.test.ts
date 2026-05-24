@@ -232,11 +232,15 @@ describe("MissionControlView", () => {
 		expect(rendered).toContain("Rollback: restore prior decision | snapshots 1");
 	});
 
-	test("returns no lines when no mission exists", () => {
+	test("renders empty state when no mission exists", () => {
 		const dbPath = tempDb();
 		const view = new MissionControlView({ dbPath });
 		cleanup.push(() => view.dispose());
 
-		expect(view.render(100)).toEqual([]);
+		const rendered = Bun.stripANSI(view.render(100).join("\n"));
+
+		expect(rendered).toContain("Mission Control");
+		expect(rendered).toContain("No active mission yet.");
+		expect(rendered).toContain("Mission Inspector: Ctrl+S for tool traces, artifacts, and subagent details");
 	});
 });

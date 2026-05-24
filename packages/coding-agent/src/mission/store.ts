@@ -202,6 +202,36 @@ export class MissionStore {
 		return rows.map(rowToMission);
 	}
 
+	getPreferredMission(opts: { objectiveId?: string; briefId?: string; title?: string } = {}): Mission | undefined {
+		const clauses: string[] = [];
+		const params: string[] = [];
+		if (opts.objectiveId !== undefined) {
+			clauses.push("objective_id = ?");
+			params.push(opts.objectiveId);
+		}
+		if (opts.briefId !== undefined) {
+			clauses.push("brief_id = ?");
+			params.push(opts.briefId);
+		}
+		if (opts.title !== undefined) {
+			clauses.push("title = ?");
+			params.push(opts.title);
+		}
+		const where = clauses.length > 0 ? ` WHERE ${clauses.join(" AND ")}` : "";
+		const row = this.#db
+			.query(
+				`SELECT * FROM missions${where}
+				ORDER BY
+					CASE WHEN state IN ('completed', 'rolled_back', 'blocked', 'cancelled') THEN 1 ELSE 0 END ASC,
+					updated_at DESC,
+					created_at DESC,
+					id DESC
+				LIMIT 1`,
+			)
+			.get(...params) as MissionRow | null;
+		return row ? rowToMission(row) : undefined;
+	}
+
 	findLatestMissionByObjectiveId(objectiveId: string): Mission | undefined {
 		const row = this.#db
 			.query("SELECT * FROM missions WHERE objective_id = ? ORDER BY created_at DESC, id DESC LIMIT 1")
@@ -300,6 +330,20 @@ export class MissionStore {
 		return rows.map(rowToLaneRun);
 	}
 
+	getLatestLaneRunForMissionLane(missionId: string, lane: ResearchLane): MissionLaneRun | undefined {
+		assertResearchLane(lane);
+		const row = this.#db
+			.query("SELECT * FROM mission_lane_runs WHERE mission_id = ? AND lane = ? ORDER BY rowid DESC LIMIT 1")
+			.get(missionId, lane) as MissionLaneRunRow | null;
+		return row ? rowToLaneRun(row) : undefined;
+	}
+
+	listLatestLaneRunsForMissionLanes(missionId: string, lanes: ResearchLane[]): MissionLaneRun[] {
+		return lanes
+			.map(lane => this.getLatestLaneRunForMissionLane(missionId, lane))
+			.filter((run): run is MissionLaneRun => run !== undefined);
+	}
+
 	createResearchRun(input: NewResearchRun): ResearchRun {
 		if (!this.getMission(input.missionId)) {
 			throw new Error(`Mission not found: ${input.missionId}`);
@@ -330,6 +374,15 @@ export class MissionStore {
 		const row = this.#db
 			.query("SELECT * FROM research_runs WHERE mission_id = ? ORDER BY started_at DESC, id DESC LIMIT 1")
 			.get(missionId) as ResearchRunRow | null;
+		return row ? rowToResearchRun(row) : undefined;
+	}
+
+	getLatestResearchRunForMissionBrief(missionId: string, briefId: string): ResearchRun | undefined {
+		const row = this.#db
+			.query(
+				"SELECT * FROM research_runs WHERE mission_id = ? AND brief_id = ? ORDER BY started_at DESC, id DESC LIMIT 1",
+			)
+			.get(missionId, briefId) as ResearchRunRow | null;
 		return row ? rowToResearchRun(row) : undefined;
 	}
 

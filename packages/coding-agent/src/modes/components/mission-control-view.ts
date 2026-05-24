@@ -3,17 +3,24 @@ import { MissionReadModel, type MissionView } from "../../mission/read-model";
 
 export class MissionControlView implements Component {
 	#readModel: MissionReadModel;
+	#getPreferredMissionInput: (() => { objectiveId?: string; briefId?: string } | undefined) | undefined;
 	#mission: MissionView | null = null;
 	#disposed = false;
 
-	constructor(opts: { dbPath?: string } = {}) {
+	constructor(
+		opts: {
+			dbPath?: string;
+			getPreferredMissionInput?: () => { objectiveId?: string; briefId?: string } | undefined;
+		} = {},
+	) {
 		this.#readModel = new MissionReadModel({ dbPath: opts.dbPath });
+		this.#getPreferredMissionInput = opts.getPreferredMissionInput;
 		this.refresh();
 	}
 
 	refresh(): void {
 		if (this.#disposed) return;
-		this.#mission = this.#readModel.listMissionViews()[0] ?? null;
+		this.#mission = this.#readModel.getPreferredMissionView(this.#getPreferredMissionInput?.()) ?? null;
 	}
 
 	dispose(): void {
@@ -25,16 +32,22 @@ export class MissionControlView implements Component {
 	invalidate(): void {}
 
 	render(width: number): string[] {
-		if (!this.#mission) return [];
-
 		const innerWidth = Math.max(20, width - 2);
-		const lines = buildMissionControlLines(this.#mission);
+		const lines = this.#mission ? buildMissionControlLines(this.#mission) : buildMissionControlEmptyLines();
 		return [
 			`┌${"─".repeat(innerWidth)}┐`,
 			...lines.map(line => `│${padLine(line, innerWidth)}│`),
 			`└${"─".repeat(innerWidth)}┘`,
 		];
 	}
+}
+
+export function buildMissionControlEmptyLines(): string[] {
+	return [
+		"Mission Control",
+		"No active mission yet.",
+		"Mission Inspector: Ctrl+S for tool traces, artifacts, and subagent details",
+	];
 }
 
 export function buildMissionControlLines(view: MissionView): string[] {

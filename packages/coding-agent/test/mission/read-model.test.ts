@@ -355,6 +355,36 @@ describe("MissionReadModel", () => {
 		).toEqual([target.id]);
 	});
 
+	test("getPreferredMissionView favors active mission over newer terminal mission", () => {
+		const dbPath = tempDb();
+		const missions = new MissionStore(dbPath);
+		cleanup.push(() => missions.close());
+		const active = missions.createMission(
+			mission({ id: "mission-active", title: "Keep working", state: "researching", createdAt: 10, updatedAt: 10 }),
+		);
+		missions.createMission(
+			mission({ id: "mission-terminal", title: "Done later", state: "completed", createdAt: 20, updatedAt: 20 }),
+		);
+		const readModel = new MissionReadModel({ dbPath });
+		cleanup.push(() => readModel.close());
+
+		expect(readModel.getPreferredMissionView()?.mission.id).toBe(active.id);
+	});
+
+	test("getPreferredMissionView title preference selects matching mission", () => {
+		const dbPath = tempDb();
+		const missions = new MissionStore(dbPath);
+		cleanup.push(() => missions.close());
+		missions.createMission(mission({ id: "mission-other", title: "Other mission", createdAt: 20, updatedAt: 20 }));
+		const matching = missions.createMission(
+			mission({ id: "mission-matching-title", title: "Match this goal", createdAt: 10, updatedAt: 10 }),
+		);
+		const readModel = new MissionReadModel({ dbPath });
+		cleanup.push(() => readModel.close());
+
+		expect(readModel.getPreferredMissionView({ title: "Match this goal" })?.mission.id).toBe(matching.id);
+	});
+
 	test("mission without brief yields empty evidence and proposals", () => {
 		const dbPath = tempDb();
 		const missions = new MissionStore(dbPath);
