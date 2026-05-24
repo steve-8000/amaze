@@ -455,6 +455,19 @@ describe("resolveModelRoleValue", () => {
 		expect(result.warning).toBeUndefined();
 	});
 
+	test("resolves pi/local_scout through configured local scout role", () => {
+		const settings = {
+			getModelRole: (role: string) => (role === "local_scout" ? "openrouter/qwen/qwen3-coder:exacto" : undefined),
+		} as NonNullable<Parameters<typeof resolveModelRoleValue>[2]>["settings"];
+
+		const result = resolveModelRoleValue("pi/local_scout:low", allModels, { settings });
+
+		expect(result.model?.provider).toBe("openrouter");
+		expect(result.model?.id).toBe("qwen/qwen3-coder:exacto");
+		expect(result.thinkingLevel).toBe(Effort.Low);
+		expect(result.explicitThinkingLevel).toBe(true);
+	});
+
 	test("does not resolve exact codex role values to codex-spark via substring matching", () => {
 		const providerQualified = resolveModelRoleValue("openai-codex/gpt-5.3-codex:xhigh", allModels);
 		expect(providerQualified.model?.provider).toBe("openai-codex");
@@ -508,6 +521,24 @@ describe("resolveAgentModelPatterns", () => {
 		});
 
 		expect(result).toEqual(["anthropic/claude-sonnet-4-5:high"]);
+	});
+
+	test("uses configured local scout role for scout agents", () => {
+		const settings = Settings.isolated({
+			modelRoles: {
+				default: "openai/gpt-4o",
+				local_scout: "openrouter/qwen/qwen3-coder:exacto",
+			},
+		});
+
+		const result = resolveAgentModelPatterns({
+			settingsOverride: "pi/local_scout",
+			agentModel: "pi/local_scout",
+			settings,
+			activeModelPattern: "openai/gpt-4o",
+		});
+
+		expect(result).toEqual(["openrouter/qwen/qwen3-coder:exacto"]);
 	});
 });
 

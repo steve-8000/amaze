@@ -193,6 +193,14 @@
 			"types": "./src/config/*.ts",
 			"import": "./src/config/*.ts"
 		},
+		"./local-llm": {
+			"types": "./src/local-llm/index.ts",
+			"import": "./src/local-llm/index.ts"
+		},
+		"./local-llm/*": {
+			"types": "./src/local-llm/*.ts",
+			"import": "./src/local-llm/*.ts"
+		},
 		"./dap": {
 			"types": "./src/dap/index.ts",
 			"import": "./src/dap/index.ts"

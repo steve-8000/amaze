@@ -378,6 +378,7 @@ If a role points at another role, the target model still inherits normally and a
 Related settings:
 
 - `modelRoles` (record)
+- `localLlm.*` (local scout prepass role and fallback policy)
 - `enabledModels` (scoped pattern list)
 - `modelProviderOrder` (global canonical-provider precedence)
 - `providers.kimiApiFormat` (`openai` or `anthropic` request format)
@@ -387,6 +388,24 @@ Related settings:
 
 - `provider/modelId` to pin a concrete provider variant
 - a canonical id such as `gpt-5.3-codex` to allow provider coalescing
+
+
+Local scout prepass uses the `local_scout` model role when `localLlm.enabled` is true. This role is intentionally provider-agnostic: point it at vLLM, Ollama, LM Studio, llama.cpp, or any OpenAI-compatible local endpoint. The runtime treats local scout output as candidate evidence only; remote reasoning and repo tools remain authoritative.
+
+```yaml
+localLlm:
+  enabled: true
+  required: false
+  modelRole: local_scout
+  structuredOutput: true
+  disableThinking: true
+  useForSourceScout: true
+  useForMemoryScout: true
+  useForLogSummarizer: true
+  useForContextCompressor: true
+modelRoles:
+  local_scout: vllm/Roy-llm
+```
 
 For `enabledModels` and CLI `--models`:
 
@@ -569,6 +588,22 @@ providers:
       - id: Qwen/Qwen2.5-Coder-32B-Instruct
         name: Qwen 2.5 Coder 32B (local)
 ```
+
+For Qwen-style local servers that otherwise return hidden reasoning instead of assistant content, configure model compatibility rather than hardcoding model-specific behavior:
+
+```yaml
+providers:
+  vllm:
+    baseUrl: http://127.0.0.1:8000/v1
+    api: openai-completions
+    apiKey: VLLM_API_KEY
+    modelOverrides:
+      Roy-llm:
+        reasoning: true
+        compat:
+          thinkingFormat: qwen-chat-template
+```
+
 
 ### Hosted proxy with env-based key
 

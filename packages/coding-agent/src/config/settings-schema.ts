@@ -1245,6 +1245,30 @@ export const SETTINGS_SCHEMA = {
 		},
 	},
 
+	// Local LLM scout prepass. Model selection is role-based so projects can
+	// point local_scout at vLLM, Ollama, LM Studio, llama.cpp, or any compatible
+	// local endpoint without hardcoding a model id in task routing.
+	"localLlm.enabled": {
+		type: "boolean",
+		default: false,
+		ui: {
+			tab: "context",
+			label: "Local LLM Prepass",
+			description: "Use a configurable local model role for scout/compression prepasses before remote reasoning.",
+		},
+	},
+	"localLlm.required": { type: "boolean", default: false },
+	"localLlm.modelRole": { type: "string", default: "local_scout" },
+	"localLlm.structuredOutput": { type: "boolean", default: true },
+	"localLlm.disableThinking": { type: "boolean", default: true },
+	"localLlm.maxInputTokens": { type: "number", default: 12000 },
+	"localLlm.maxOutputTokens": { type: "number", default: 1200 },
+	"localLlm.timeoutMs": { type: "number", default: 30000 },
+	"localLlm.useForSourceScout": { type: "boolean", default: true },
+	"localLlm.useForMemoryScout": { type: "boolean", default: true },
+	"localLlm.useForLogSummarizer": { type: "boolean", default: true },
+	"localLlm.useForContextCompressor": { type: "boolean", default: true },
+
 	"compaction.reserveTokens": { type: "number", default: 16384 },
 
 	"compaction.keepRecentTokens": { type: "number", default: 20000 },
@@ -2904,6 +2928,21 @@ export interface TtsrSettings {
 	repeatGap: number;
 }
 
+export interface LocalLlmSettings {
+	enabled: boolean;
+	required: boolean;
+	modelRole: string;
+	structuredOutput: boolean;
+	disableThinking: boolean;
+	maxInputTokens: number;
+	maxOutputTokens: number;
+	timeoutMs: number;
+	useForSourceScout: boolean;
+	useForMemoryScout: boolean;
+	useForLogSummarizer: boolean;
+	useForContextCompressor: boolean;
+}
+
 export interface ExaSettings {
 	enabled: boolean;
 	enableSearch: boolean;
@@ -2962,6 +3001,7 @@ export interface GroupTypeMap {
 	skills: SkillsSettings;
 	commit: CommitSettings;
 	ttsr: TtsrSettings;
+	localLlm: LocalLlmSettings;
 	exa: ExaSettings;
 	statusLine: StatusLineSettings;
 	thinkingBudgets: ThinkingBudgetsSettings;

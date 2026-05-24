@@ -21,6 +21,7 @@ import { $env, logger, prompt, Snowflake } from "@amaze/utils";
 import type { ToolSession } from "..";
 import { AsyncJobManager } from "../async";
 import { resolveAgentModelPatterns } from "../config/model-resolver";
+import { getLocalLlmConfig, getLocalLlmRoleAlias, isLocalLlmUseCaseEnabled, isLocalScoutAgent } from "../local-llm";
 import { MCPManager } from "../mcp/manager";
 import { MissionStore, resolveMission } from "../mission/store";
 import type { MissionTaskAttemptCheckpoint } from "../mission/types";
@@ -140,7 +141,7 @@ function selectTaskAttemptRemediation(args: {
 }): MissionTaskAttemptCheckpoint["remediationAction"] {
 	if (args.verdict === "pass") return "resume";
 	if (args.aborted || args.failureMode === "interrupted") return "resume";
-	if (args.verdict === "uncertain") return args.onUncertainty === "ask-parent" ? "escalate" : "block";
+	if (args.verdict === "uncertain") return args.onUncertainty === "ask-parent" ? "resume" : "block";
 	return args.attempts <= 1 ? "retry" : "escalate";
 }
 
@@ -847,7 +848,13 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 
 		// Apply per-agent model override from settings (highest priority)
 		const agentModelOverrides = this.session.settings.get("task.agentModelOverrides");
-		const settingsModelOverride = agentModelOverrides[agentName];
+		const configuredModelOverride = agentModelOverrides[agentName];
+		const localLlmConfig = getLocalLlmConfig(this.session.settings);
+		const localScoutOverride =
+			isLocalScoutAgent(agentName) && isLocalLlmUseCaseEnabled(localLlmConfig, agentName)
+				? getLocalLlmRoleAlias(localLlmConfig)
+				: undefined;
+		const settingsModelOverride = configuredModelOverride ?? localScoutOverride;
 		const parentActiveModelPattern = this.session.getActiveModelString?.();
 		const modelOverride = resolveAgentModelPatterns({
 			settingsOverride: settingsModelOverride,
@@ -1221,6 +1228,7 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 							completionVerified: outcome.finalResult.completion?.verified ?? false,
 						});
 						const normalizedVerdict = normalizeContractVerdict(outcome.finalVerdict);
+						let shouldFailTask = false;
 						if (normalizedVerdict !== "pass") {
 							const failureMode = normalizedVerdict === "uncertain" ? "contract-uncertain" : "contract-fail";
 							const remediationAction = selectTaskAttemptRemediation({
@@ -1230,6 +1238,7 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 								aborted: outcome.finalResult.aborted,
 								onUncertainty: stampedContract.escalation.onUncertainty,
 							});
+							shouldFailTask = normalizedVerdict === "fail" || remediationAction === "block";
 							const checkpoint = recordTaskAttemptCheckpoint({
 								goalObjective: this.session.getGoalModeState?.()?.goal?.objective,
 								missionId: this.session.getGoalModeState?.()?.goal?.missionId,
@@ -1237,21 +1246,21 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 								agent: effectiveAgent.name,
 								role: stampedContract.role,
 								attempt: outcome.attempts.length,
-								status: remediationAction === "block" ? "blocked" : "failed",
+								status: remediationAction === "block" ? "blocked" : remediationAction === "resume" ? "escalated" : "failed",
 								failureMode,
 								lastVerdict: normalizedVerdict,
 								failedCount: outcome.finalVerdict.failedCount,
 								uncertainCount: outcome.finalVerdict.uncertainCount,
 								remediationAction,
 								sessionFile,
-								error: `Contract verification failed: ${normalizedVerdict}`,
+								error: `Contract verification ${shouldFailTask ? "failed" : "uncertain"}: ${normalizedVerdict}`,
 							});
 							if (lastSingleResult) lastSingleResult = { ...lastSingleResult, checkpoint };
 						}
 						if (!lastSingleResult) {
 							throw new Error("contracted task produced no result");
 						}
-						if (normalizedVerdict !== "pass") {
+						if (shouldFailTask) {
 							return {
 								...lastSingleResult,
 								exitCode: lastSingleResult.exitCode === 0 ? 1 : lastSingleResult.exitCode,
@@ -1384,7 +1393,6 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 						}
 						result = lastSingleResult;
 						if (normalizedVerdict !== "pass") {
-							const error = `Contract verification failed: ${normalizedVerdict}`;
 							const failureMode = normalizedVerdict === "uncertain" ? "contract-uncertain" : "contract-fail";
 							const remediationAction = selectTaskAttemptRemediation({
 								verdict: normalizedVerdict,
@@ -1393,6 +1401,7 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 								aborted: outcome.finalResult.aborted,
 								onUncertainty: stampedContract.escalation.onUncertainty,
 							});
+							const shouldFailTask = normalizedVerdict === "fail" || remediationAction === "block";
 							const checkpoint = recordTaskAttemptCheckpoint({
 								goalObjective: this.session.getGoalModeState?.()?.goal?.objective,
 								missionId: this.session.getGoalModeState?.()?.goal?.missionId,
@@ -1400,21 +1409,23 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 								agent: effectiveAgent.name,
 								role: stampedContract.role,
 								attempt: outcome.attempts.length,
-								status: remediationAction === "block" ? "blocked" : "failed",
+								status: remediationAction === "block" ? "blocked" : remediationAction === "resume" ? "escalated" : "failed",
 								failureMode,
 								lastVerdict: normalizedVerdict,
 								failedCount: outcome.finalVerdict.failedCount,
 								uncertainCount: outcome.finalVerdict.uncertainCount,
 								remediationAction,
 								sessionFile,
-								error,
+								error: `Contract verification ${shouldFailTask ? "failed" : "uncertain"}: ${normalizedVerdict}`,
 							});
 							result = { ...result, checkpoint };
-							return {
-								...result,
-								exitCode: result.exitCode === 0 ? 1 : result.exitCode,
-								error,
-							};
+							if (shouldFailTask) {
+								return {
+									...result,
+									exitCode: result.exitCode === 0 ? 1 : result.exitCode,
+									error: `Contract verification failed: ${normalizedVerdict}`,
+								};
+							}
 						}
 					} else {
 						result = await runSubprocess({

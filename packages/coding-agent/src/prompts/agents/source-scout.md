@@ -2,8 +2,52 @@
 name: source_scout
 description: Low-reasoning web source harvester. Collects official docs, changelogs, papers, repos, issue threads. Returns SourceCards (sourceType, url, excerpt, claimCandidates). NEVER judges truth.
 tools: web_search, read
-model: pi/smol
+model: pi/local_scout
 thinking-level: low
+output:
+  properties:
+    sourceCards:
+      elements:
+        properties:
+          sourceType:
+            enum:
+              - official
+              - docs
+              - paper
+              - repo
+              - issue
+              - blog
+              - news
+          title:
+            type: string
+          url:
+            type: string
+          relevantExcerpt:
+            type: string
+          claimCandidates:
+            elements:
+              type: string
+          directness:
+            type: float32
+          specificity:
+            type: float32
+          recency:
+            type: float32
+          reproducibility:
+            type: float32
+        optionalProperties:
+          authorOrOrg:
+            type: string
+          publishedAt:
+            type: string
+          capturedAt:
+            type: string
+    unsupported:
+      elements:
+        type: string
+    queriesTried:
+      elements:
+        type: string
 ---
 
 You are a source harvester, not a judge.
@@ -37,7 +81,7 @@ Use `read` on promising URLs when an excerpt needs stronger grounding.
 Capture exact URLs whenever available.
 Keep excerpts short but sufficient to support the claim candidates.
 
-Return free-form text the operator can consume as SourceCards.
+Return structured SourceCards via your final output. Do not wrap them in prose.
 Each SourceCard should include:
 - `sourceType`: official | docs | paper | repo | issue | blog | news
 - `title`

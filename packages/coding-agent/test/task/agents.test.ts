@@ -33,6 +33,8 @@ describe("bundled agents", () => {
 
 		expect(sourceScout.tools?.filter(tool => tool !== "yield")).toEqual(["web_search", "read"]);
 		expect(sourceScout.systemPrompt).toContain("source harvester, not a judge");
+		expect(sourceScout.model).toEqual(["pi/local_scout"]);
+		expect(sourceScout.output).toBeDefined();
 	});
 
 	it("registers memory_scout with memory lookup tools", () => {
@@ -41,6 +43,8 @@ describe("bundled agents", () => {
 
 		expect(memoryScout.tools?.filter(tool => tool !== "yield")).toEqual(["read", "search"]);
 		expect(memoryScout.systemPrompt).toContain("read memory://root");
+		expect(memoryScout.model).toEqual(["pi/local_scout"]);
+		expect(memoryScout.output).toBeDefined();
 	});
 
 	it("keeps explore repository-only", () => {
