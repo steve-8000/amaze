@@ -90,5 +90,6 @@ describe("MissionControlView", () => {
 		expect(rendered).toContain("Verification: not yet recorded");
 		expect(rendered).toContain("Rollback: 0 recorded | snapshot unavailable");
 		expect(rendered).toContain("Ship the compact panel");
+		expect(rendered).toContain("Inspector: Ctrl+S for tool traces, artifacts, and subagent details");
 	});
 });

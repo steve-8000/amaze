@@ -193,7 +193,7 @@ export class SessionObserverOverlayComponent extends Container {
 		const statsLine = this.#buildStatsLine(session);
 		if (statsLine) this.#viewerFooterLines.push(statsLine);
 		this.#viewerFooterLines.push(
-			theme.fg("dim", "j/k:scroll  Enter:expand  [/]/←→:cycle agents  Esc/Ctrl+S:close  g/G:top/bottom"),
+			theme.fg("dim", "j/k:scroll  Enter:inspect  [/]/←→:cycle agents  Esc/Ctrl+S:close inspector  g/G:top/bottom"),
 		);
 
 		// Auto-scroll to bottom if we were at bottom
@@ -253,7 +253,7 @@ export class SessionObserverOverlayComponent extends Container {
 	}
 
 	#buildBreadcrumb(session: ObservableSession | undefined): string {
-		const parts: string[] = ["Session Observer"];
+		const parts: string[] = ["Mission Inspector"];
 		for (const item of this.#navigationStack) {
 			parts.push(item.label);
 		}

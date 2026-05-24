@@ -147,7 +147,7 @@ export const KEYBINDINGS = {
 	},
 	"app.session.observe": {
 		defaultKeys: "ctrl+s",
-		description: "Observe subagent sessions",
+		description: "Open Mission Inspector",
 	},
 	"app.session.togglePath": {
 		defaultKeys: "ctrl+p",

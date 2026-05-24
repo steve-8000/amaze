@@ -70,6 +70,7 @@ export function buildMissionControlLines(view: MissionView): string[] {
 
 	lines.push(`Layer 7 Decision: ${decision}`);
 	lines.push(`Verification: ${verification} | rollbacks ${view.rollbacks.length} | snapshot ${rollback}`);
+	lines.push("Inspector: Ctrl+S for tool traces, artifacts, and subagent details");
 	return lines;
 }
 

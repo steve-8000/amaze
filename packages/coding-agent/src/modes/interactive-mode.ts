@@ -2592,7 +2592,7 @@ export class InteractiveMode implements InteractiveModeContext {
 	showSessionObserver(): void {
 		const sessions = this.#observerRegistry.getSessions();
 		if (sessions.length <= 1) {
-			this.showStatus("No active subagent sessions");
+			this.showStatus("No Mission Inspector sessions available");
 			return;
 		}
 		this.#selectorController.showSessionObserver(this.#observerRegistry);
