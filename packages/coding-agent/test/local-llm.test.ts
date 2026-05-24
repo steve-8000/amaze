@@ -1,0 +1,76 @@
+import { describe, expect, test } from "bun:test";
+import { Settings } from "@amaze/coding-agent/config/settings";
+import {
+	buildLocalLlmScoutPrompt,
+	createEmptyLocalEvidenceBundle,
+	LOCAL_LLM_STABLE_SCOUT_SYSTEM_PROMPT,
+	getLocalLlmConfig,
+	getLocalLlmRoleAlias,
+	isLocalLlmUseCaseEnabled,
+	validateLocalEvidenceBundle,
+} from "@amaze/coding-agent/local-llm";
+
+describe("local LLM config", () => {
+	test("defaults to disabled local_scout role", () => {
+		const settings = Settings.isolated();
+		const config = getLocalLlmConfig(settings);
+
+		expect(config.enabled).toBe(false);
+		expect(config.required).toBe(false);
+		expect(config.modelRole).toBe("local_scout");
+		expect(getLocalLlmRoleAlias(config)).toBe("pi/local_scout");
+		expect(isLocalLlmUseCaseEnabled(config, "source_scout")).toBe(false);
+	});
+
+	test("enables configured scout use cases", () => {
+		const settings = Settings.isolated({
+			"localLlm.enabled": true,
+			"localLlm.modelRole": "custom_local",
+			"localLlm.useForMemoryScout": false,
+		});
+		const config = getLocalLlmConfig(settings);
+
+		expect(getLocalLlmRoleAlias(config)).toBe("pi/custom_local");
+		expect(isLocalLlmUseCaseEnabled(config, "source_scout")).toBe(true);
+		expect(isLocalLlmUseCaseEnabled(config, "memory_scout")).toBe(false);
+	});
+});
+
+describe("local evidence bundle", () => {
+	test("validates evidence refs conservatively", () => {
+		const bundle = createEmptyLocalEvidenceBundle("context_compressor", 1000);
+		bundle.claims.push({ claim: "A grounded claim", evidenceRefs: ["E1"], confidence: "high" });
+		bundle.relevantFiles.push({ path: "src/a.ts", reason: "Referenced by E1", evidenceRefs: ["E1"], confidence: "medium" });
+
+		expect(validateLocalEvidenceBundle(bundle)).toEqual([]);
+
+		bundle.risks.push({ risk: "Uncited risk", evidenceRefs: [] });
+		expect(validateLocalEvidenceBundle(bundle)).toContain("risks[0].evidenceRefs must contain at least one evidence reference");
+	});
+
+	test("rejects invalid confidence and negative compression counts", () => {
+		const bundle = createEmptyLocalEvidenceBundle("source_scout", -1);
+		bundle.compression.outputChars = -5;
+		bundle.claims.push({ claim: "Bad confidence", evidenceRefs: ["E1"], confidence: "certain" as "high" });
+
+		const errors = validateLocalEvidenceBundle(bundle);
+		expect(errors).toContain("compression.estimatedRawChars must be non-negative");
+		expect(errors).toContain("compression.outputChars must be non-negative");
+		expect(errors).toContain("claims[0].confidence must be one of low, medium, high");
+	});
+});
+
+describe("local LLM prompt", () => {
+	test("keeps stable scout contract separate from volatile evidence", () => {
+		const prompt = buildLocalLlmScoutPrompt({
+			useCase: "context_compressor",
+			objective: "Compress evidence",
+			evidence: "[E1] src/a.ts says cache prefix is stable",
+		});
+
+		expect(LOCAL_LLM_STABLE_SCOUT_SYSTEM_PROMPT).toContain("Use only supplied evidence");
+		expect(LOCAL_LLM_STABLE_SCOUT_SYSTEM_PROMPT).not.toContain("[E1]");
+		expect(prompt).toContain("Use case: context_compressor");
+		expect(prompt).toContain("[E1] src/a.ts");
+	});
+});

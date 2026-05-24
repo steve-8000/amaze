@@ -103,6 +103,30 @@ describe("runRevisionLoop", () => {
 		expect(result.attempts).toHaveLength(1);
 	});
 
+	it("does not retry uncertain-only verifier results", async () => {
+		let calls = 0;
+		const result = await runRevisionLoop({
+			contract: baseContract({
+				successCriteria: [
+					{
+						id: "manual",
+						description: "manual operator judgment",
+						check: { type: "manual", description: "judge externally" },
+						blocking: "fail-only",
+					},
+				],
+			}),
+			attempt: async () => {
+				calls++;
+				return { role: "r", cwd: "/tmp", changedFiles: [] };
+			},
+		});
+
+		expect(calls).toBe(1);
+		expect(result.finalVerdict.verdict).toBe("pass");
+		expect(result.finalVerdict.uncertainCount).toBe(1);
+	});
+
 	it("PHASE-T4-G ACCEPTANCE: revision request carries criterion id, description, and evidence", async () => {
 		let observedRevision: RevisionRequest | undefined;
 		await runRevisionLoop({

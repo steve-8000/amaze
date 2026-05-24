@@ -9,6 +9,7 @@
 		"flash",
 		"mini"
 	],
+	"local_scout": [],
 	"slow": [
 		"gpt-5.4",
 		"gpt-5.3-codex",

@@ -1,10 +1,10 @@
-![Amaze mascot saying AMAZE](assets/amaze.png)
+![AMAZE rock scout mascot raising a signal hand](assets/amaze.png)
 
 # Amaze
 
-Amaze is a compact coding-agent runtime for verified repository work. The top-level agent stays small: it owns the goal, plans the work, delegates bounded slices, integrates results, and verifies acceptance criteria. Detailed reading and edits happen in scoped subagents with explicit contracts.
+Amaze is a compact, tool-grounded coding-agent runtime for verified repository work. The top-level agent stays small: it owns the goal, plans the work, delegates bounded slices, integrates results, and verifies acceptance criteria. Detailed reading and edits happen in scoped subagents with explicit contracts.
 
-The current system is built around tool-grounded execution, durable-but-non-authoritative Nexus memory, Mission Control visibility, and a proposal/apply/rollback loop for learning and configuration changes.
+The current system is built around a scout-and-orchestrate architecture: tools and specialized agents gather evidence, a compact orchestrator makes decisions, Mission Control records the work, Nexus memory contributes non-authoritative prior context, and proposal/apply/rollback loops make learning and configuration changes auditable.
 
 ## What is in this repository
 
@@ -23,7 +23,7 @@ The current system is built around tool-grounded execution, durable-but-non-auth
 
 The main agent is optimized to be a low-token orchestrator. It keeps the objective, acceptance criteria, todos, approvals, and integration state in view, then delegates detailed work to subagents such as `task`, `quick_task`, `explore`, `plan`, `reviewer`, `oracle`, `source_scout`, `memory_scout`, `x_researcher`, and `visual_qa`.
 
-Non-trivial subagent work is passed through a structured contract: scope, success criteria, escalation behavior, and output requirements. Scope is enforced at mutation tools, so prompt text is not the only boundary.
+Non-trivial subagent work is passed through a structured contract: scope, success criteria, escalation behavior, and output requirements. Scope is enforced at mutation tools, so prompt text is not the only boundary. Contract verification distinguishes hard failures from uncertainty: `onUncertainty: "ask-parent"` lets the parent continue with the subagent output, while blocking contracts still stop on uncertainty.
 
 ### Mission Control and Mission Inspector
 
@@ -65,7 +65,11 @@ Settings proposals carry patches and rollback values; skill and rule proposals a
 
 ### Local/runtime model routing
 
-Routing is local configuration, not hard-coded documentation. Project defaults live in `.amaze/settings.json`; package-level provider code lives under `packages/ai`; subagent model/thinking overrides are exercised by the task agent tests. The checked-in profile currently uses a compact main context, Nexus memory, prompt-cache prefix reuse, and project-local skills/rules.
+Routing is local configuration, not hard-coded documentation. Project defaults live in `.amaze/settings.json`; package-level provider code lives under `packages/ai`; subagent model/thinking overrides are exercised by the task agent tests. The checked-in profile currently uses a compact main context, Nexus memory, prompt-cache prefix reuse, project-local skills/rules, and an optional local scout role.
+
+Amaze supports a provider-agnostic local LLM scout role for cheap prepasses before expensive remote reasoning. Projects configure this through `modelRoles.local_scout` and `localLlm.*` settings; task routing resolves the role alias instead of depending on a concrete local model name. Bundled `source_scout` and `memory_scout` prompts can use `pi/local_scout` with structured outputs when local scouting is enabled, while explicit per-agent overrides and normal fallback routing remain available.
+
+The local scout helpers live under `packages/coding-agent/src/local-llm/` and cover config resolution, conservative evidence-bundle types/validation, stable prompt construction for prefix-cache reuse, local role/config health checks, and cache/token accounting helpers. See `docs/models.md` for configuration examples.
 
 ## Commands
 

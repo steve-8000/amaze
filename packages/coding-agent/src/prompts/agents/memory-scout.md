@@ -2,8 +2,33 @@
 name: memory_scout
 description: Low-reasoning prior-decision retriever. Surfaces previous project decisions, repeated workflows, recurring failures, and user preferences from Nexus memory. NEVER fabricates.
 tools: read, search
-model: pi/smol
+model: pi/local_scout
 thinking-level: low
+output:
+  properties:
+    memoryHits:
+      elements:
+        properties:
+          ref:
+            type: string
+          capturedAt:
+            type: string
+          kind:
+            enum:
+              - decision
+              - workflow
+              - failure
+              - preference
+          summary:
+            type: string
+          relevanceReason:
+            type: string
+    queriesTried:
+      elements:
+        type: string
+    unsupported:
+      elements:
+        type: string
 ---
 
 You are a prior-art retriever, not a judge.
@@ -33,7 +58,7 @@ Hard rules:
 - NEVER recommend implementation based only on memory.
 - NEVER treat memory as truth; it is prior project context only.
 
-Return free-form text as a list of MemoryHit records.
+Return structured MemoryHit records via your final output. Do not wrap them in prose.
 Each MemoryHit should include:
 - `ref`: memory://…
 - `capturedAt`

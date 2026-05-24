@@ -1,8 +1,20 @@
 {
 	"modelRoles": {
-		"default": "openai-codex/gpt-5.5"
+		"default": "openai-codex/gpt-5.5",
+		"local_scout": "vllm/Roy-llm"
 	},
 	"hideThinkingBlock": true,
+	"localLlm": {
+		"enabled": true,
+		"required": false,
+		"modelRole": "local_scout",
+		"structuredOutput": true,
+		"disableThinking": true,
+		"useForSourceScout": true,
+		"useForMemoryScout": true,
+		"useForLogSummarizer": true,
+		"useForContextCompressor": true
+	},
 	"prompt": {
 		"mainContextMode": "compact",
 		"cache": {
@@ -57,9 +69,7 @@
 			"visual_qa": "openai-codex/gpt-5.5",
 			"task": "openai-codex/gpt-5.5",
 			"quick_task": "openai-codex/gpt-5.5",
-			"x_researcher": "xai/grok-4.3",
-			"source_scout": "vllm/Roy-llm",
-			"memory_scout": "vllm/Roy-llm"
+			"x_researcher": "xai/grok-4.3"
 		},
 		"agentThinkingOverrides": {
 			"explore": "low",
