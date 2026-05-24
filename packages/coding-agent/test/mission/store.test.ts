@@ -4,7 +4,12 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { MissionEventBus } from "../../src/mission/event-bus";
 import { MissionStore } from "../../src/mission/store";
-import type { NewMission, NewMissionLaneRun, NewResearchRun } from "../../src/mission/types";
+import type {
+	NewMission,
+	NewMissionLaneRun,
+	NewMissionWorldModelRecord,
+	NewResearchRun,
+} from "../../src/mission/types";
 
 const stores: MissionStore[] = [];
 
@@ -57,6 +62,24 @@ function researchRun(missionId: string, overrides: Partial<NewResearchRun> = {})
 		objectiveId: "objective-1",
 		status: "running",
 		completedAt: null,
+		...overrides,
+	};
+}
+
+function worldModel(
+	missionId: string,
+	overrides: Partial<NewMissionWorldModelRecord> = {},
+): NewMissionWorldModelRecord {
+	return {
+		missionId,
+		kind: "outcome",
+		source: "task-attempt",
+		sourceId: "task-1",
+		claim: "explore completed after contract retry",
+		evidenceRefs: ["verification-1", "task-attempt-1"],
+		links: [],
+		outcomeStatus: "pass",
+		verified: true,
 		...overrides,
 	};
 }
@@ -161,6 +184,39 @@ describe("MissionStore", () => {
 		const updated = store.updateResearchRun("run-1", { status: "completed", completedAt: 30 });
 		expect(updated).toEqual({ ...first, status: "completed", completedAt: 30 });
 		expect(store.getResearchRun("run-1")).toEqual(updated);
+	});
+
+	test("persists and round-trips world-model records", () => {
+		const store = createStore();
+		const createdMission = store.createMission(mission({ id: "mission-world" }));
+
+		const record = store.recordWorldModel(
+			worldModel(createdMission.id, {
+				id: "world-1",
+				kind: "claim",
+				source: "decision",
+				sourceId: "decision-1",
+				claim: "Decision was supported by repo evidence",
+				evidenceRefs: ["ev-1"],
+				verified: false,
+				createdAt: 100,
+			}),
+		);
+
+		expect(store.listWorldModel(createdMission.id)).toEqual([record]);
+		expect(record).toEqual({
+			id: "world-1",
+			missionId: createdMission.id,
+			kind: "claim",
+			source: "decision",
+			sourceId: "decision-1",
+			claim: "Decision was supported by repo evidence",
+			evidenceRefs: ["ev-1"],
+			links: [],
+			outcomeStatus: "pass",
+			verified: false,
+			createdAt: 100,
+		});
 	});
 
 	test("finds latest lane runs by mission and lane", () => {

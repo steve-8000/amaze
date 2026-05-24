@@ -298,7 +298,7 @@ describe("MissionControlView", () => {
 			"Critique: accept-with-modifications | blockers 1 | soft concerns 2 | Keep inspector visible",
 		);
 		expect(rendered).toContain("── Runtime Critic ──");
-		expect(rendered).toContain("Checks: 1 total | blocked 1 | soft 0");
+		expect(rendered).toContain("Checks: 4 total | blocked 2 | soft 2");
 		expect(rendered).toContain("Dialogue: 2 turns | latest inner-critic: missing repo evidence");
 		expect(rendered).toContain("Decision: select | medium | Adopt panelized text console");
 		expect(rendered).toContain("Evidence refs: ev-rich-1 | rejected options 1 | next actions 2");

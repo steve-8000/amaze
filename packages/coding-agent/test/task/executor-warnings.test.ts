@@ -36,6 +36,41 @@ describe("subagent warning injection", () => {
 		expect(result.hasYield).toBe(false);
 	});
 
+	it("fails null-data yield when a contract requires structured completion", () => {
+		const result = finalizeSubprocessOutput({
+			rawOutput: "partial output",
+			exitCode: 0,
+			stderr: "",
+			doneAborted: false,
+			signalAborted: false,
+			yieldItems: [{ status: "success" }],
+			outputSchema: undefined,
+			requireStructuredYield: true,
+		});
+
+		expect(result.exitCode).toBe(1);
+		expect(result.stderr).toBe(SUBAGENT_WARNING_NULL_YIELD);
+		expect(result.completionVerified).toBe(false);
+	});
+
+	it("fails missing yield when structured yield is required even if raw JSON matches schema", () => {
+		const result = finalizeSubprocessOutput({
+			rawOutput: '{"data":{"ok":true}}',
+			exitCode: 0,
+			stderr: "",
+			doneAborted: false,
+			signalAborted: false,
+			yieldItems: undefined,
+			outputSchema: { type: "object", properties: { ok: { type: "boolean" } }, required: ["ok"] },
+			requireStructuredYield: true,
+		});
+
+		expect(result.rawOutput).toBe(`${SUBAGENT_WARNING_MISSING_YIELD}\n\n{"data":{"ok":true}}`);
+		expect(result.exitCode).toBe(1);
+		expect(result.stderr).toBe(SUBAGENT_WARNING_MISSING_YIELD);
+		expect(result.completionVerified).toBe(false);
+	});
+
 	it("does not inject missing-submit warning when fallback completion is recoverable", () => {
 		const result = finalizeSubprocessOutput({
 			rawOutput: '{"data":{"ok":true}}',
@@ -49,6 +84,7 @@ describe("subagent warning injection", () => {
 
 		expect(result.rawOutput).toBe('{\n  "ok": true\n}');
 		expect(result.rawOutput.includes("SYSTEM WARNING")).toBe(false);
+		expect(result.completionVerified).toBe(true);
 	});
 
 	it("prefixes missing-submit warning on stop outputs", () => {
@@ -114,6 +150,7 @@ describe("subagent warning injection", () => {
 		expect(result.exitCode).toBe(0);
 		expect(result.stderr).toBe("");
 		expect(result.rawOutput.includes("SYSTEM WARNING")).toBe(false);
+		expect(result.completionVerified).toBe(true);
 	});
 
 	it("does not inject missing-submit warning when no schema and raw text exists", () => {

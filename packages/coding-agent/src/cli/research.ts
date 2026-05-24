@@ -156,8 +156,9 @@ export async function runResearchShowCommand(
 		const decision = store.getDecision(brief.id);
 		const synthesis = store.getLatestSynthesis(brief.id);
 		const critique = store.getLatestCritique(brief.id);
+		const runtimeCriticChecks = store.deriveRuntimeCriticChecks(brief.id);
 		if (opts.json) {
-			writeJson({ brief, evidence, decision, synthesis, critique });
+			writeJson({ brief, evidence, decision, synthesis, critique, runtimeCriticChecks });
 			return;
 		}
 		const lines = [
@@ -183,9 +184,20 @@ export async function runResearchShowCommand(
 			``,
 			`critique:`,
 			critique
-				? `  ${critique.id}  verdict=${critique.verdict}  blocking=${critique.blockingCount} soft=${critique.softCount}  summary: ${truncate(critique.summary, 80)}`
+				? [
+						`  ${critique.id}  verdict=${critique.verdict}  blocking=${critique.blockingCount} soft=${critique.softCount}  summary: ${truncate(critique.summary, 80)}`,
+						...critique.findings.map(
+							finding =>
+								`  finding ${finding.id}  ${finding.severity}/${finding.requiredAction}  evidence=${finding.evidenceRefs.join(",") || "<none>"}  ${truncate(finding.message, 80)}`,
+						),
+					].join("\n")
 				: "  <none>",
 			``,
+			`runtime critic checks (${runtimeCriticChecks.length}):`,
+			...runtimeCriticChecks.map(
+				check =>
+					`  ${check.id}  ${check.trigger}/${check.severity}/${check.requiredAction}  ${truncate(check.message, 80)}`,
+			),
 		];
 		if (decision) {
 			lines.push(
@@ -455,6 +467,7 @@ export async function runResearchRecordCritiqueCommand(
 		summary: string;
 		rawFile?: string;
 		rawText?: string;
+		findings?: string;
 		json?: boolean;
 	},
 ): Promise<void> {
@@ -468,6 +481,7 @@ export async function runResearchRecordCritiqueCommand(
 			verdict: opts.verdict as CritiqueVerdict,
 			summary: opts.summary,
 			rawOutput: resolveRawOutput(opts.summary, opts.rawText, opts.rawFile),
+			findings: parseCritiqueFindings(opts.findings),
 		});
 		if (opts.json) {
 			writeJson(critique);
@@ -527,6 +541,42 @@ function parseRejected(value: string | undefined): Array<{ id: string; reason: s
 		const id = index === -1 ? item.trim() : item.slice(0, index).trim();
 		const reason = index === -1 ? "" : item.slice(index + 1).trim();
 		return { id, reason };
+	});
+}
+
+function parseCritiqueFindings(value: string | undefined):
+	| Array<{
+			id: string;
+			severity: "soft" | "blocking";
+			message: string;
+			evidenceRefs: string[];
+			requiredAction: "collect-evidence" | "resolve-conflict" | "run-critique" | "defer";
+	  }>
+	| undefined {
+	if (!value) return undefined;
+	return parseSemicolonList(value).map((item, index) => {
+		const [severity, requiredAction, evidenceText, ...messageParts] = item.split(":");
+		const message = messageParts.join(":").trim();
+		const normalizedSeverity = severity?.trim() as "soft" | "blocking";
+		const normalizedAction = requiredAction?.trim() as
+			| "collect-evidence"
+			| "resolve-conflict"
+			| "run-critique"
+			| "defer";
+		if (normalizedSeverity !== "soft" && normalizedSeverity !== "blocking") {
+			throw new Error(`Invalid critique finding severity: ${severity}`);
+		}
+		if (!["collect-evidence", "resolve-conflict", "run-critique", "defer"].includes(normalizedAction)) {
+			throw new Error(`Invalid critique finding required action: ${requiredAction}`);
+		}
+		if (!message) throw new Error("Critique finding requires message");
+		return {
+			id: `finding-${index + 1}`,
+			severity: normalizedSeverity,
+			requiredAction: normalizedAction,
+			evidenceRefs: parseList(evidenceText),
+			message,
+		};
 	});
 }
 

@@ -19,6 +19,7 @@ export type GoalDesignAnswers = Record<string, string>;
 export interface Goal {
 	id: string;
 	objective: string;
+	missionId?: string | null;
 	status: GoalStatus;
 	tokenBudget?: number;
 	tokensUsed: number;

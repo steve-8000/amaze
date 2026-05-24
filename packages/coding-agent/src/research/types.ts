@@ -88,6 +88,24 @@ export type NewSynthesisRecord = Omit<SynthesisRecord, "id" | "createdAt"> & {
 	id?: string;
 	createdAt?: number;
 };
+export const CRITIQUE_FINDING_SEVERITIES = ["soft", "blocking"] as const;
+export type CritiqueFindingSeverity = (typeof CRITIQUE_FINDING_SEVERITIES)[number];
+
+export const CRITIQUE_FINDING_REQUIRED_ACTIONS = [
+	"collect-evidence",
+	"resolve-conflict",
+	"run-critique",
+	"defer",
+] as const;
+export type CritiqueFindingRequiredAction = (typeof CRITIQUE_FINDING_REQUIRED_ACTIONS)[number];
+
+export interface CritiqueFinding {
+	id: string;
+	severity: CritiqueFindingSeverity;
+	message: string;
+	evidenceRefs: string[];
+	requiredAction: CritiqueFindingRequiredAction;
+}
 
 export interface CritiqueRecord {
 	id: string;
@@ -97,12 +115,14 @@ export interface CritiqueRecord {
 	verdict: CritiqueVerdict;
 	summary: string;
 	rawOutput: string;
+	findings: CritiqueFinding[];
 	createdAt: number;
 }
 
-export type NewCritiqueRecord = Omit<CritiqueRecord, "id" | "createdAt"> & {
+export type NewCritiqueRecord = Omit<CritiqueRecord, "id" | "createdAt" | "findings"> & {
 	id?: string;
 	createdAt?: number;
+	findings?: CritiqueFinding[];
 };
 
 export const RESEARCH_READINESS = [
@@ -130,6 +150,10 @@ export const RUNTIME_CRITIC_TRIGGERS = [
 	"speculative-evidence",
 	"conflicting-evidence",
 	"blocked-assessment",
+	"critique-finding",
+	"policy-required-evidence",
+	"policy-disallowed-evidence",
+	"policy-stop-criteria",
 ] as const;
 export type RuntimeCriticTrigger = (typeof RUNTIME_CRITIC_TRIGGERS)[number];
 

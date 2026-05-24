@@ -39,7 +39,7 @@ export function recordMissionVerificationFromGoalObjective(args: {
 }): void {
 	const store = new MissionStore(args.dbPath);
 	try {
-		const mission = resolveMission(store, { missionId: args.missionId, title: args.objective });
+		const mission = resolveMission(store, { missionId: args.missionId });
 		if (!mission) return;
 		const status = args.verdict.verdict;
 		store.recordVerification({
@@ -616,6 +616,7 @@ export class GoalRuntime {
 			const goal: Goal = {
 				id: String(Snowflake.next()),
 				objective,
+				missionId: undefined,
 				status: "active",
 				tokenBudget: input.tokenBudget,
 				tokensUsed: 0,
@@ -771,7 +772,7 @@ export class GoalRuntime {
 			const uncertainCount = verdict?.uncertainCount ?? 0;
 			recordMissionVerificationFromGoalObjective({
 				objective: state.goal.objective,
-				missionId: state.goal.id,
+				missionId: state.goal.missionId,
 				verdict: options?.force
 					? { verdict: "force", failedCount: 0, uncertainCount: 0, results: [] }
 					: (verdict ?? summarize([], criteria)),

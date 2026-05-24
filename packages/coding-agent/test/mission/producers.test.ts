@@ -36,7 +36,7 @@ function mission(overrides: Partial<NewMission> = {}): NewMission {
 }
 
 describe("mission write-side producers", () => {
-	test("records task contracts from goal objective", async () => {
+	test("does not record task contracts by title without an exact mission link", async () => {
 		cleanupRoot = await fs.mkdtemp(path.join(os.tmpdir(), "amaze-mission-task-producer-"));
 		const db = path.join(cleanupRoot, "autonomy.db");
 		const store = new MissionStore(db);
@@ -60,7 +60,7 @@ describe("mission write-side producers", () => {
 				outputContract: { mustProduce: ["changed files"] },
 			},
 			db,
-			{ taskId: "producer-task", sessionFile: "/tmp/producer-task.jsonl" },
+			{ taskId: "producer-task", sessionFile: "/tmp/producer-task.jsonl", missionId: createdMission.id },
 		);
 
 		expect(store.listContracts(createdMission.id)).toMatchObject([
@@ -109,9 +109,75 @@ describe("mission write-side producers", () => {
 		expect(gate).toEqual({
 			ok: false,
 			reason:
-				"Runtime critic blocked task: Required research lane has no evidence: repo. Required action: collect-evidence.",
+				"Runtime critic blocked task from runtime critic check: Required research lane has no evidence: repo. Required action: collect-evidence.",
 		});
 		expect(store.listCriticDialogue(mission.id)).toHaveLength(2);
+	});
+
+	test("runtime critic gate prefers persisted structured critique blockers", async () => {
+		cleanupRoot = await fs.mkdtemp(path.join(os.tmpdir(), "amaze-mission-structured-critic-gate-"));
+		const db = path.join(cleanupRoot, "autonomy.db");
+		const research = new ResearchStore(db);
+		const brief = research.createBrief({
+			id: "brief-structured-critic-gate",
+			objectiveId: "objective-structured-critic-gate",
+			question: "Should execution proceed?",
+			lanes: ["repo", "source"],
+			requiredEvidence: [],
+			disallowedEvidence: [],
+			riskLevel: "medium",
+			stopCriteria: [],
+		});
+		research.addEvidence({
+			briefId: brief.id,
+			id: "ev-repo",
+			lane: "repo",
+			grade: "A",
+			sourceRef: "src/file.ts:1",
+			excerpt: "Repo evidence exists.",
+			claims: ["repo evidence"],
+			directness: 1,
+			specificity: 1,
+			recency: 1,
+			reproducibility: 1,
+		});
+		research.recordCritique({
+			briefId: brief.id,
+			blockingCount: 0,
+			softCount: 0,
+			verdict: "needs-more-research",
+			summary: "Need source proof.",
+			rawOutput: "raw",
+			findings: [
+				{
+					id: "finding-source-proof",
+					severity: "blocking",
+					message: "Structured critique requires source proof before delegation.",
+					evidenceRefs: ["ev-repo"],
+					requiredAction: "collect-evidence",
+				},
+			],
+		});
+		research.close();
+		const store = new MissionStore(db);
+		stores.push(store);
+		const mission = store.listMissions({ briefId: brief.id })[0]!;
+
+		const gate = evaluateRuntimeCriticGate({
+			goalObjective: mission.title,
+			missionId: mission.id,
+			dbPath: db,
+			action: "task",
+		});
+
+		expect(gate).toEqual({
+			ok: false,
+			reason:
+				"Runtime critic blocked task from structured critique finding: Structured critique requires source proof before delegation. Required action: collect-evidence.",
+		});
+		expect(store.listCriticDialogue(mission.id).at(-1)).toMatchObject({
+			summary: "critique-finding: Structured critique requires source proof before delegation.",
+		});
 	});
 
 	test("records goal verification and updates mission state", async () => {
@@ -126,6 +192,7 @@ describe("mission write-side producers", () => {
 		recordMissionVerificationFromGoalObjective({
 			objective: "Goal objective",
 			dbPath: db,
+			missionId: createdMission.id,
 			verdict: { verdict: "pass", failedCount: 0, uncertainCount: 0, passedCount: 1, results: [] },
 			summary: "passed",
 		});
@@ -194,7 +261,7 @@ describe("mission write-side producers", () => {
 		expect(store.getMission(byId.id)?.state).toBe("blocked");
 	});
 
-	test("falls back to title when explicit task mission id is missing", async () => {
+	test("does not fall back to title when explicit task mission id is missing", async () => {
 		cleanupRoot = await fs.mkdtemp(path.join(os.tmpdir(), "amaze-mission-task-id-fallback-"));
 		const db = path.join(cleanupRoot, "autonomy.db");
 		const store = new MissionStore(db);
@@ -216,10 +283,10 @@ describe("mission write-side producers", () => {
 			{ missionId: "missing-mission" },
 		);
 
-		expect(store.listContracts(byTitle.id)).toMatchObject([{ missionId: byTitle.id, role: "producer" }]);
+		expect(store.listContracts(byTitle.id)).toHaveLength(0);
 	});
 
-	test("falls back to title when explicit verification mission id is missing", async () => {
+	test("does not fall back to title when explicit verification mission id is missing", async () => {
 		cleanupRoot = await fs.mkdtemp(path.join(os.tmpdir(), "amaze-mission-goal-id-fallback-"));
 		const db = path.join(cleanupRoot, "autonomy.db");
 		const store = new MissionStore(db);
@@ -236,11 +303,8 @@ describe("mission write-side producers", () => {
 			summary: "",
 		});
 
-		expect(store.getLatestVerification(byTitle.id)).toMatchObject({
-			missionId: byTitle.id,
-			status: "pass",
-		});
-		expect(store.getMission(byTitle.id)?.state).toBe("completed");
+		expect(store.getLatestVerification(byTitle.id)).toBeUndefined();
+		expect(store.getMission(byTitle.id)?.state).toBe("verifying");
 	});
 
 	test("records proposal apply and rollback anchors by objective provenance", async () => {

@@ -11,7 +11,10 @@ import { evidenceContradictsAny } from "./scoring";
 import {
 	CONFIDENCE_LEVELS,
 	type ConfidenceLevel,
+	CRITIQUE_FINDING_REQUIRED_ACTIONS,
+	CRITIQUE_FINDING_SEVERITIES,
 	CRITIQUE_VERDICTS,
+	type CritiqueFinding,
 	type CritiqueRecord,
 	type CritiqueVerdict,
 	DECISION_KINDS,
@@ -52,6 +55,8 @@ const VALID_CRITIQUE_VERDICTS = new Set<CritiqueVerdict>(CRITIQUE_VERDICTS);
 const VALID_CRITIC_TRIGGERS = new Set<RuntimeCriticTrigger>(RUNTIME_CRITIC_TRIGGERS);
 const VALID_CRITIC_SEVERITIES = new Set<RuntimeCriticSeverity>(RUNTIME_CRITIC_SEVERITIES);
 const VALID_CRITIC_ACTIONS = new Set<RuntimeCriticRequiredAction>(RUNTIME_CRITIC_REQUIRED_ACTIONS);
+const VALID_CRITIQUE_FINDING_SEVERITIES = new Set(CRITIQUE_FINDING_SEVERITIES);
+const VALID_CRITIQUE_FINDING_ACTIONS = new Set(CRITIQUE_FINDING_REQUIRED_ACTIONS);
 
 type ResearchBriefRow = {
 	id: string;
@@ -113,6 +118,7 @@ type CritiqueRecordRow = {
 	summary: string;
 	raw_output: string;
 	created_at: number;
+	findings: string;
 };
 
 type RuntimeCriticCheckRow = {
@@ -391,17 +397,21 @@ export class ResearchStore {
 			throw new Error(`Research brief not found: ${input.briefId}`);
 		}
 		assertCritiqueVerdict(input.verdict);
+		const findings = normalizeCritiqueFindings(input);
 		const now = Date.now();
 		const critique: CritiqueRecord = {
 			...input,
+			blockingCount: findings.filter(finding => finding.severity === "blocking").length,
+			softCount: findings.filter(finding => finding.severity === "soft").length,
+			findings,
 			id: input.id ?? generateId("crit", now),
 			createdAt: input.createdAt ?? now,
 		};
 		this.#db
 			.query(
 				`INSERT INTO research_critiques
-					(id, brief_id, blocking_count, soft_count, verdict, summary, raw_output, created_at)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+					(id, brief_id, blocking_count, soft_count, verdict, summary, raw_output, findings, created_at)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			)
 			.run(
 				critique.id,
@@ -411,6 +421,7 @@ export class ResearchStore {
 				critique.verdict,
 				critique.summary,
 				critique.rawOutput,
+				JSON.stringify(critique.findings),
 				critique.createdAt,
 			);
 		const mission = this.getMissionForBrief(critique.briefId);
@@ -478,14 +489,23 @@ export class ResearchStore {
 		const synthesis = this.getLatestSynthesis(brief.id);
 		const critique = this.getLatestCritique(brief.id);
 		const decision = this.getDecision(brief.id);
-		const incompleteLanes = brief.lanes.filter(lane => !evidence.some(card => card.lane === lane));
-		const speculativeEvidenceIds = evidence
-			.filter(card => card.grade === "D" || card.grade === "E" || card.directness < 0.4 || card.specificity < 0.4)
-			.map(card => card.id);
+		const policyIssues = assessBriefPolicy(brief, evidence);
+		const incompleteLanes = [
+			...brief.lanes.filter(lane => !evidence.some(card => card.lane === lane)),
+			...policyIssues.requiredMissingLanes,
+		].filter((lane, index, lanes) => lanes.indexOf(lane) === index);
+		const speculativeEvidenceIds = [
+			...evidence
+				.filter(card => card.grade === "D" || card.grade === "E" || card.directness < 0.4 || card.specificity < 0.4)
+				.map(card => card.id),
+			...policyIssues.disallowedEvidenceIds,
+		].filter((id, index, ids) => ids.indexOf(id) === index);
 		const conflictingEvidenceIds = evidence
 			.filter(card => evidenceContradictsAny(card, evidence))
 			.map(card => card.id);
-		const blockingCount = critique?.blockingCount ?? 0;
+		const blockingCount =
+			(critique?.findings.filter(finding => finding.severity === "blocking").length ?? 0) +
+			policyIssues.blockingCount;
 
 		if (decision) {
 			return {
@@ -500,16 +520,19 @@ export class ResearchStore {
 		}
 		if (
 			critique &&
-			(critique.blockingCount > 0 || critique.verdict === "reject" || critique.verdict === "needs-more-research")
+			(critique.findings.some(finding => finding.severity === "blocking") ||
+				critique.verdict === "reject" ||
+				critique.verdict === "needs-more-research")
 		) {
+			const action = critique.findings.find(finding => finding.severity === "blocking")?.requiredAction;
 			return {
 				briefId: brief.id,
 				readiness: "blocked",
 				incompleteLanes,
 				speculativeEvidenceIds,
 				conflictingEvidenceIds,
-				blockingCount: critique.blockingCount,
-				recommendedNextAction: critique.verdict === "reject" ? "defer" : "collect-evidence",
+				blockingCount,
+				recommendedNextAction: action === "defer" || critique.verdict === "reject" ? "defer" : "collect-evidence",
 			};
 		}
 		if (critique && (critique.verdict === "accept" || critique.verdict === "accept-with-modifications")) {
@@ -521,6 +544,17 @@ export class ResearchStore {
 				conflictingEvidenceIds,
 				blockingCount,
 				recommendedNextAction: "record-decision",
+			};
+		}
+		if (policyIssues.blockingCount > 0) {
+			return {
+				briefId: brief.id,
+				readiness: "insufficient",
+				incompleteLanes,
+				speculativeEvidenceIds,
+				conflictingEvidenceIds,
+				blockingCount,
+				recommendedNextAction: policyIssues.stopCriteriaMet ? "run-synthesis" : "collect-evidence",
 			};
 		}
 		if (synthesis) {
@@ -563,6 +597,8 @@ export class ResearchStore {
 		const mission = this.getMissionForBrief(briefId);
 		const evidence = this.listEvidence(briefId);
 		const now = Date.now();
+		const policyIssues = assessBriefPolicy(brief, evidence);
+		const critique = this.getLatestCritique(briefId);
 		const checks: RuntimeCriticCheck[] = [];
 		for (const lane of assessment.incompleteLanes) {
 			checks.push({
@@ -608,6 +644,66 @@ export class ResearchStore {
 				source: "research-assessment",
 				message: `Evidence conflicts with another captured source: ${evidenceId}`,
 				evidenceRefs: [evidenceId],
+				createdAt: now,
+			});
+		}
+		for (const issue of policyIssues.requiredMissing) {
+			checks.push({
+				id: `runtime-critic:${briefId}:policy-required-evidence:${issue.id}`,
+				briefId,
+				missionId: mission?.id ?? null,
+				lane: issue.lane,
+				trigger: "policy-required-evidence",
+				severity: "blocking",
+				requiredAction: "collect-evidence",
+				source: "research-assessment",
+				message: `Required evidence not satisfied: ${issue.requirement}`,
+				evidenceRefs: [],
+				createdAt: now,
+			});
+		}
+		for (const issue of policyIssues.disallowedHits) {
+			checks.push({
+				id: `runtime-critic:${briefId}:policy-disallowed-evidence:${issue.evidenceId}`,
+				briefId,
+				missionId: mission?.id ?? null,
+				lane: issue.lane,
+				trigger: "policy-disallowed-evidence",
+				severity: "blocking",
+				requiredAction: "collect-evidence",
+				source: "research-assessment",
+				message: `Disallowed evidence matched policy "${issue.policy}": ${issue.evidenceId}`,
+				evidenceRefs: [issue.evidenceId],
+				createdAt: now,
+			});
+		}
+		for (const issue of policyIssues.unmetStopCriteria) {
+			checks.push({
+				id: `runtime-critic:${briefId}:policy-stop-criteria:${issue.id}`,
+				briefId,
+				missionId: mission?.id ?? null,
+				lane: null,
+				trigger: "policy-stop-criteria",
+				severity: "blocking",
+				requiredAction: "collect-evidence",
+				source: "research-assessment",
+				message: `Stop criterion not satisfied: ${issue.criterion}`,
+				evidenceRefs: [],
+				createdAt: now,
+			});
+		}
+		for (const finding of critique?.findings ?? []) {
+			checks.push({
+				id: `runtime-critic:${briefId}:critique-finding:${finding.id}`,
+				briefId,
+				missionId: mission?.id ?? null,
+				lane: null,
+				trigger: "critique-finding",
+				severity: finding.severity,
+				requiredAction: finding.requiredAction,
+				source: "research-assessment",
+				message: finding.message,
+				evidenceRefs: finding.evidenceRefs,
 				createdAt: now,
 			});
 		}
@@ -765,6 +861,16 @@ export class ResearchStore {
 	#createMissionForBrief(brief: ResearchBrief): Mission {
 		const missions = this.#createMissionStore();
 		try {
+			const linkedMission = brief.objectiveId ? missions.getMission(brief.objectiveId) : undefined;
+			if (linkedMission) {
+				return missions.updateMission(linkedMission.id, {
+					title: brief.question,
+					objectiveId: linkedMission.objectiveId ?? brief.objectiveId,
+					briefId: linkedMission.briefId ?? brief.id,
+					riskLevel: brief.riskLevel,
+					state: linkedMission.state === "drafting" ? "researching" : linkedMission.state,
+				});
+			}
 			return missions.createMission({
 				title: brief.question,
 				objectiveId: brief.objectiveId,
@@ -882,6 +988,7 @@ export class ResearchStore {
 				verdict TEXT NOT NULL,
 				summary TEXT NOT NULL,
 				raw_output TEXT NOT NULL,
+				findings TEXT NOT NULL DEFAULT '[]',
 				created_at INTEGER NOT NULL,
 				FOREIGN KEY (brief_id) REFERENCES research_briefs(id) ON DELETE CASCADE
 			);
@@ -904,12 +1011,20 @@ export class ResearchStore {
 			CREATE INDEX IF NOT EXISTS runtime_critic_checks_brief_idx ON runtime_critic_checks(brief_id);
 		`);
 		this.#ensureDecisionKindColumn();
+		this.#ensureCritiqueFindingsColumn();
 	}
 
 	#ensureDecisionKindColumn(): void {
 		const columns = this.#db.query("PRAGMA table_info(decision_records)").all() as Array<{ name: string }>;
 		if (!columns.some(column => column.name === "kind")) {
 			this.#db.run("ALTER TABLE decision_records ADD COLUMN kind TEXT NOT NULL DEFAULT 'select'");
+		}
+	}
+
+	#ensureCritiqueFindingsColumn(): void {
+		const columns = this.#db.query("PRAGMA table_info(research_critiques)").all() as Array<{ name: string }>;
+		if (!columns.some(column => column.name === "findings")) {
+			this.#db.run("ALTER TABLE research_critiques ADD COLUMN findings TEXT NOT NULL DEFAULT '[]'");
 		}
 	}
 }
@@ -964,6 +1079,117 @@ function assertCriticAction(action: RuntimeCriticRequiredAction): void {
 	if (!VALID_CRITIC_ACTIONS.has(action)) {
 		throw new Error(`Invalid runtime critic required action: ${action}`);
 	}
+}
+
+function assertCritiqueFinding(finding: CritiqueFinding): void {
+	if (!VALID_CRITIQUE_FINDING_SEVERITIES.has(finding.severity)) {
+		throw new Error(`Invalid critique finding severity: ${finding.severity}`);
+	}
+	if (!VALID_CRITIQUE_FINDING_ACTIONS.has(finding.requiredAction)) {
+		throw new Error(`Invalid critique finding required action: ${finding.requiredAction}`);
+	}
+}
+
+function normalizeCritiqueFindings(input: NewCritiqueRecord): CritiqueFinding[] {
+	const explicit = (input.findings ?? []).map(finding => ({
+		...finding,
+		evidenceRefs: [...finding.evidenceRefs],
+	}));
+	if (explicit.length === 0 && (input.blockingCount > 0 || input.softCount > 0)) {
+		for (let index = 0; index < input.blockingCount; index += 1) {
+			explicit.push({
+				id: `blocking-${index + 1}`,
+				severity: "blocking",
+				message: input.summary,
+				evidenceRefs: [],
+				requiredAction: input.verdict === "reject" ? "defer" : "run-critique",
+			});
+		}
+		for (let index = 0; index < input.softCount; index += 1) {
+			explicit.push({
+				id: `soft-${index + 1}`,
+				severity: "soft",
+				message: input.summary,
+				evidenceRefs: [],
+				requiredAction: "run-critique",
+			});
+		}
+	}
+	for (const finding of explicit) assertCritiqueFinding(finding);
+	return explicit;
+}
+
+type BriefPolicyAssessment = {
+	requiredMissing: Array<{ id: string; requirement: string; lane: ResearchLane }>;
+	requiredMissingLanes: ResearchLane[];
+	disallowedHits: Array<{ policy: string; evidenceId: string; lane: ResearchLane }>;
+	disallowedEvidenceIds: string[];
+	unmetStopCriteria: Array<{ id: string; criterion: string }>;
+	stopCriteriaMet: boolean;
+	blockingCount: number;
+};
+
+function assessBriefPolicy(brief: ResearchBrief, evidence: EvidenceCard[]): BriefPolicyAssessment {
+	const requiredMissing = brief.requiredEvidence
+		.filter(requirement => !evidence.some(card => evidenceMatchesPolicy(card, requirement)))
+		.map((requirement, index) => ({
+			id: slugPolicy(requirement, index),
+			requirement,
+			lane: laneForPolicyRequirement(brief, requirement, index),
+		}));
+	const requiredMissingLanes = requiredMissing.map(issue => issue.lane);
+	const disallowedHits = brief.disallowedEvidence.flatMap(policy =>
+		evidence
+			.filter(card => evidenceMatchesPolicy(card, policy))
+			.map(card => ({ policy, evidenceId: card.id, lane: card.lane })),
+	);
+	const unmetStopCriteria = brief.stopCriteria
+		.filter(criterion => !stopCriterionSatisfied(criterion, brief, evidence))
+		.map((criterion, index) => ({ id: slugPolicy(criterion, index), criterion }));
+	return {
+		requiredMissing,
+		requiredMissingLanes,
+		disallowedHits,
+		disallowedEvidenceIds: disallowedHits.map(hit => hit.evidenceId),
+		unmetStopCriteria,
+		stopCriteriaMet: unmetStopCriteria.length === 0,
+		blockingCount: requiredMissing.length + disallowedHits.length + unmetStopCriteria.length,
+	};
+}
+
+function evidenceMatchesPolicy(card: EvidenceCard, policy: string): boolean {
+	const needle = normalizePolicyText(policy);
+	if (needle.length === 0) return false;
+	const haystack = normalizePolicyText([card.sourceRef, card.excerpt, ...card.claims].join(" "));
+	return haystack.includes(needle);
+}
+
+function stopCriterionSatisfied(criterion: string, brief: ResearchBrief, evidence: EvidenceCard[]): boolean {
+	if (evidence.some(card => evidenceMatchesPolicy(card, criterion))) return true;
+	const text = normalizePolicyText(criterion);
+	const laneCoverageMatch = text.match(/(\d+)\s+lanes?\s+covered/);
+	if (laneCoverageMatch) {
+		const requiredCount = Number.parseInt(laneCoverageMatch[1] ?? "0", 10);
+		const covered = new Set(evidence.map(card => card.lane));
+		return brief.lanes.filter(lane => covered.has(lane)).length >= requiredCount;
+	}
+	return false;
+}
+
+function laneForPolicyRequirement(brief: ResearchBrief, requirement: string, index: number): ResearchLane {
+	const text = normalizePolicyText(requirement);
+	return brief.lanes.find(lane => text.includes(lane)) ?? brief.lanes[index % brief.lanes.length] ?? "repo";
+}
+
+function normalizePolicyText(value: string): string {
+	return value.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+function slugPolicy(value: string, index: number): string {
+	const slug = normalizePolicyText(value)
+		.replace(/[^a-z0-9]+/g, "-")
+		.replace(/^-|-$/g, "");
+	return slug || `policy-${index + 1}`;
 }
 
 function clamp01(value: number): number {
@@ -1030,14 +1256,16 @@ function rowToSynthesis(row: SynthesisRecordRow): SynthesisRecord {
 }
 
 function rowToCritique(row: CritiqueRecordRow): CritiqueRecord {
+	const findings = JSON.parse(row.findings ?? "[]") as CritiqueFinding[];
 	return {
 		id: row.id,
 		briefId: row.brief_id,
-		blockingCount: row.blocking_count,
-		softCount: row.soft_count,
+		blockingCount: findings.filter(finding => finding.severity === "blocking").length || row.blocking_count,
+		softCount: findings.filter(finding => finding.severity === "soft").length || row.soft_count,
 		verdict: row.verdict,
 		summary: row.summary,
 		rawOutput: row.raw_output,
+		findings,
 		createdAt: row.created_at,
 	};
 }

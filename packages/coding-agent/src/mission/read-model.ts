@@ -22,9 +22,12 @@ import type {
 	MissionContractRecord,
 	MissionCriticDialogueTurn,
 	MissionLaneRun,
+	MissionPolicyGuidance,
 	MissionRollbackRecord,
 	MissionState,
+	MissionTaskAttemptCheckpoint,
 	MissionVerificationRecord,
+	MissionWorldModelRecord,
 	ResearchRun,
 } from "./types";
 
@@ -69,8 +72,11 @@ export interface MissionView extends MissionProjectionView {
 	proposals: MissionProposalSummary[];
 	contracts: MissionContractRecord[];
 	latestVerification: MissionVerificationRecord | null;
+	taskAttemptCheckpoints: MissionTaskAttemptCheckpoint[];
 	rollbacks: MissionRollbackRecord[];
 	researchRun: ResearchRun | null;
+	worldModel: MissionWorldModelRecord[];
+	policyGuidance: MissionPolicyGuidance;
 	evidenceCards: EvidenceCard[];
 	latestSynthesis: SynthesisRecord | null;
 	latestCritique: CritiqueRecord | null;
@@ -91,6 +97,7 @@ export function buildMissionView(input: {
 	proposals: LearningProposal[];
 	contracts: MissionContractRecord[];
 	latestVerification: MissionVerificationRecord | undefined;
+	taskAttemptCheckpoints?: MissionTaskAttemptCheckpoint[] | undefined;
 	rollbacks: MissionRollbackRecord[];
 	researchRun: ResearchRun | undefined;
 	latestSynthesis?: SynthesisRecord | undefined;
@@ -98,6 +105,8 @@ export function buildMissionView(input: {
 	runtimeCriticChecks?: RuntimeCriticCheck[] | undefined;
 	uncertaintyMap?: UncertaintyMap | undefined;
 	criticDialogue?: MissionCriticDialogueTurn[] | undefined;
+	worldModel?: MissionWorldModelRecord[] | undefined;
+	policyGuidance?: MissionPolicyGuidance | undefined;
 }): MissionView {
 	const projection = projectMissionView({
 		mission: input.mission,
@@ -143,6 +152,16 @@ export function buildMissionView(input: {
 		evidenceCards: [...input.evidence].sort((a, b) => b.capturedAt - a.capturedAt || b.id.localeCompare(a.id)),
 		contracts: [...input.contracts],
 		latestVerification: input.latestVerification ?? null,
+		taskAttemptCheckpoints: [...(input.taskAttemptCheckpoints ?? [])],
+		worldModel: [...(input.worldModel ?? [])],
+		policyGuidance:
+			input.policyGuidance ??
+			deriveMissionPolicyGuidance(
+				input.mission.id,
+				input.worldModel ?? [],
+				input.taskAttemptCheckpoints ?? [],
+				input.laneRuns,
+			),
 		researchRun: input.researchRun ?? null,
 		latestSynthesis: input.latestSynthesis ?? null,
 		latestCritique: input.latestCritique ?? null,
@@ -184,6 +203,50 @@ function getMissionInspectorTargets(
 function formatInspectorTargetLabel(target: Omit<MissionInspectorTarget, "label">): string {
 	const trace = target.taskId ?? target.sessionFile ?? "linked trace";
 	return `${target.source === "contract" ? "contract" : "lane"}:${trace}`;
+}
+
+export function deriveMissionPolicyGuidance(
+	missionId: string,
+	worldModel: MissionWorldModelRecord[],
+	taskAttempts: MissionTaskAttemptCheckpoint[],
+	laneRuns: MissionLaneRun[],
+): MissionPolicyGuidance {
+	const verifiedOutcomes = worldModel.filter(record => record.kind === "outcome" && record.verified);
+	const verifiedSourceIds = new Set(verifiedOutcomes.map(record => record.sourceId));
+	const completedAttempts = taskAttempts.filter(
+		attempt => attempt.status === "completed" && verifiedSourceIds.has(attempt.taskId),
+	);
+	const failedAttempts = taskAttempts.filter(
+		attempt => attempt.status === "failed" && verifiedSourceIds.has(attempt.taskId),
+	);
+	const recommendedAgents = uniqueSorted(completedAttempts.map(attempt => attempt.agent));
+	const successfulTaskIds = new Set(completedAttempts.map(attempt => attempt.taskId));
+	const laneMix = uniqueSorted(
+		laneRuns
+			.filter(run => run.status === "completed" && run.taskId !== null && successfulTaskIds.has(run.taskId))
+			.map(run => run.lane),
+	);
+	const rationale = verifiedOutcomes.map(record => record.claim);
+	const retryPolicy = failedAttempts.some(
+		attempt => attempt.failureMode === "contract-fail" && attempt.remediationAction === "retry",
+	)
+		? "retry-on-contract-fail"
+		: failedAttempts.length > 0
+			? "escalate-on-failure"
+			: "standard";
+
+	return {
+		missionId,
+		verifiedOutcomeCount: verifiedOutcomes.length,
+		recommendedAgents,
+		retryPolicy,
+		laneMix,
+		rationale,
+	};
+}
+
+function uniqueSorted(values: string[]): string[] {
+	return [...new Set(values)].sort((a, b) => a.localeCompare(b));
 }
 
 export class MissionReadModel {
@@ -232,7 +295,10 @@ export class MissionReadModel {
 		const contracts = this.#missions.listContracts(mission.id);
 		const latestVerification = this.#missions.getLatestVerification(mission.id);
 		const rollbacks = this.#missions.listRollbacks(mission.id);
+		const taskAttemptCheckpoints = this.#missions.listTaskAttemptCheckpoints(mission.id);
 		const criticDialogue = this.#missions.listCriticDialogue(mission.id);
+		const worldModel = this.#missions.listWorldModel(mission.id);
+		const policyGuidance = deriveMissionPolicyGuidance(mission.id, worldModel, taskAttemptCheckpoints, laneRuns);
 		const researchRun = this.#missions.getLatestResearchRunForMission(mission.id);
 		const latestSynthesis = brief ? this.#research.getLatestSynthesis(brief.id) : undefined;
 		const latestCritique = brief ? this.#research.getLatestCritique(brief.id) : undefined;
@@ -260,12 +326,15 @@ export class MissionReadModel {
 			contracts,
 			latestVerification,
 			rollbacks,
+			taskAttemptCheckpoints,
 			researchRun,
 			latestSynthesis,
 			latestCritique,
 			runtimeCriticChecks,
 			uncertaintyMap,
 			criticDialogue,
+			worldModel,
+			policyGuidance,
 		});
 	}
 

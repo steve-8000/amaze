@@ -468,21 +468,20 @@ export async function buildSystemPrompt(options: BuildSystemPromptOptions = {}):
 		contextFiles: options.contextFiles,
 		appendSystemPrompt: options.appendPrompt,
 		repeatToolDescriptions: options.repeatToolDescriptions,
-		activeMission: getActiveMissionPacket({
-			missionId: options.activeMissionId,
-			title: options.activeMissionTitle,
-		}),
+		activeMission: options.activeMissionId
+			? getActiveMissionPacket({
+					missionId: options.activeMissionId,
+				})
+			: null,
 	});
 }
 
 // Internal Helpers
-function getActiveMissionPacket(input: { missionId?: string | null; title?: string | null } | undefined) {
-	if (!input?.missionId && !input?.title) return null;
+function getActiveMissionPacket(input: { missionId?: string | null } | undefined) {
+	if (!input?.missionId) return null;
 	const readModel = new MissionReadModel();
 	try {
-		const view =
-			(input.missionId ? readModel.getMissionView(input.missionId) : undefined) ??
-			readModel.getPreferredMissionView({ title: input.title ?? undefined });
+		const view = readModel.getMissionView(input.missionId);
 		return view ? buildActiveMissionPacket(view) : null;
 	} finally {
 		readModel.close();
@@ -1581,7 +1580,7 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 			// lifecycle transitions: next rebuild after `completeGoalFromTool`/`dropGoal` emits
 			// the empty sentinel and the goal anchor disappears from attention.
 			const activeGoal = session?.getGoalModeState()?.goal ?? null;
-			const activeMissionInput = activeGoal ? { missionId: activeGoal.id, title: activeGoal.objective } : undefined;
+			const activeMissionInput = activeGoal?.missionId ? { missionId: activeGoal.missionId } : undefined;
 			const defaultPrompt = await buildSystemPromptInternal({
 				cwd,
 				skills,

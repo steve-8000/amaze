@@ -120,6 +120,13 @@ export async function runRevisionLoop(args: {
 	contract: SubagentContract;
 	attempt: (revisionRequest: RevisionRequest | undefined) => Promise<SubagentCompletion>;
 	maxRetries?: number;
+	criticActions?: Array<{
+		id: string;
+		description: string;
+		requiredAction: string;
+		evidence?: string;
+		severity?: string;
+	}>;
 }): Promise<{
 	finalVerdict: import("../goals/verifier").VerificationVerdict;
 	finalCompletion: SubagentCompletion;
@@ -145,6 +152,16 @@ export async function runRevisionLoop(args: {
 			attemptNumber: attemptIndex + 1,
 			failedCriteria: failed.map(r => ({ id: r.id, description: r.description, evidence: r.evidence })),
 		};
+		if (args.criticActions?.length) {
+			for (const action of args.criticActions) {
+				if (revisionRequest.failedCriteria.some(criterion => criterion.id === action.id)) continue;
+				revisionRequest.failedCriteria.push({
+					id: action.id,
+					description: `${action.description} Required action: ${action.requiredAction}.`,
+					evidence: action.evidence ?? `critic action severity: ${action.severity ?? "unknown"}`,
+				});
+			}
+		}
 	}
 	const last = history[history.length - 1];
 	return { finalVerdict: last.verdict, finalCompletion: last.completion, attempts: history };

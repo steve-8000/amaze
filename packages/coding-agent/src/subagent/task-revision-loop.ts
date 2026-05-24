@@ -36,6 +36,8 @@ export interface TaskAttemptResult {
 	changedFiles: string[];
 	/** Working directory the subagent ran in (for verifier lookups). */
 	cwd: string;
+	/** Executor-level structured handoff state; contracted tasks require verified completion. */
+	completion?: { hasYield: boolean; verified: boolean };
 }
 
 export interface ExecuteContractedTaskOptions {
@@ -57,6 +59,7 @@ export interface ExecuteContractedTaskOptions {
 	 * courtesy, not an open-ended fix-it loop. Set to 0 to disable retry (single-pass).
 	 */
 	maxRetries?: number;
+	criticActions?: CriticActionRequest[];
 }
 
 export interface ExecuteContractedTaskOutcome {
@@ -66,6 +69,14 @@ export interface ExecuteContractedTaskOutcome {
 		result: TaskAttemptResult;
 		verdict: import("../goals/verifier").VerificationVerdict;
 	}>;
+}
+
+export interface CriticActionRequest {
+	id: string;
+	description: string;
+	requiredAction: "collect-evidence" | "resolve-conflict" | "run-critique" | "defer";
+	evidence?: string;
+	severity?: "soft" | "blocking";
 }
 
 /**
@@ -88,11 +99,15 @@ export async function executeContractedTask(
 	const loopOutcome = await runRevisionLoop({
 		contract,
 		maxRetries,
+		criticActions: options.criticActions,
 		attempt: async revisionRequest => {
 			const composedAssignment = revisionRequest
 				? `${renderRevisionRequest(revisionRequest)}\n\n---\n\n${baseAssignment}`
 				: baseAssignment;
 			const result = await runOnce({ baseAssignment, revisionRequest, composedAssignment });
+			if (result.completion && !result.completion.verified) {
+				result.changedFiles = [];
+			}
 			lastResult = result;
 			const completion: SubagentCompletion = {
 				role: contract.role,

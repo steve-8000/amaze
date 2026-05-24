@@ -312,6 +312,21 @@ export interface SingleResult {
 	nestedPatches?: NestedRepoPatch[];
 	/** Data extracted by registered subprocess tool handlers (keyed by tool name) */
 	extractedToolData?: Record<string, unknown[]>;
+	/** Caller-visible handoff verification from the executor seam. */
+	completion?: { hasYield: boolean; verified: boolean };
+	/** Contract supervisor checkpoint state for bounded self-healing/resume inspection. */
+	checkpoint?: {
+		attempt: number;
+		status: import("../mission/types").TaskAttemptStatus;
+		failureMode: import("../mission/types").TaskAttemptFailureMode | null;
+		lastVerdict: import("../mission/types").MissionTaskAttemptCheckpoint["lastVerdict"];
+		failedCount: number;
+		uncertainCount: number;
+		remediationAction: import("../mission/types").TaskAttemptRemediationAction;
+		sessionFile: string | null;
+		artifactRefs: string[];
+		error: string | null;
+	};
 	/** Output metadata for agent:// URL integration */
 	outputMeta?: { lineCount: number; charCount: number };
 }

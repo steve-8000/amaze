@@ -287,6 +287,7 @@ interface FinalizeSubprocessOutputArgs {
 	yieldItems?: YieldItem[];
 	reportFindings?: ReviewFinding[];
 	outputSchema: unknown;
+	requireStructuredYield?: boolean;
 }
 
 interface FinalizeSubprocessOutputResult {
@@ -295,6 +296,7 @@ interface FinalizeSubprocessOutputResult {
 	stderr: string;
 	abortedViaYield: boolean;
 	hasYield: boolean;
+	completionVerified: boolean;
 }
 
 export const SUBAGENT_WARNING_NULL_YIELD = "SYSTEM WARNING: Subagent called yield with null data.";
@@ -306,6 +308,8 @@ export function finalizeSubprocessOutput(args: FinalizeSubprocessOutputArgs): Fi
 	const { yieldItems, reportFindings, doneAborted, signalAborted, outputSchema } = args;
 	let abortedViaYield = false;
 	const hasYield = Array.isArray(yieldItems) && yieldItems.length > 0;
+	const requireStructuredYield = args.requireStructuredYield === true;
+	let completionVerified = false;
 
 	if (hasYield) {
 		const lastYield = yieldItems[yieldItems.length - 1];
@@ -320,8 +324,13 @@ export function finalizeSubprocessOutput(args: FinalizeSubprocessOutputArgs): Fi
 			}
 		} else {
 			const submitData = lastYield?.data;
-			if (submitData === null || submitData === undefined) {
+			completionVerified = submitData !== null && submitData !== undefined;
+			if (!completionVerified) {
 				rawOutput = rawOutput ? `${SUBAGENT_WARNING_NULL_YIELD}\n\n${rawOutput}` : SUBAGENT_WARNING_NULL_YIELD;
+				if (requireStructuredYield && exitCode === 0) {
+					exitCode = 1;
+					stderr = SUBAGENT_WARNING_NULL_YIELD;
+				}
 			} else {
 				const completeData = normalizeCompleteData(submitData, reportFindings);
 				try {
@@ -335,7 +344,7 @@ export function finalizeSubprocessOutput(args: FinalizeSubprocessOutputArgs): Fi
 			}
 		}
 	} else {
-		const allowFallback = exitCode === 0 && !doneAborted && !signalAborted;
+		const allowFallback = exitCode === 0 && !doneAborted && !signalAborted && !requireStructuredYield;
 		const { normalized: normalizedSchema, error: schemaError } = normalizeSchema(outputSchema);
 		const hasOutputSchema = normalizedSchema !== undefined && !schemaError;
 		const fallback = allowFallback ? resolveFallbackCompletion(rawOutput, outputSchema) : null;
@@ -349,20 +358,21 @@ export function finalizeSubprocessOutput(args: FinalizeSubprocessOutputArgs): Fi
 			}
 			exitCode = 0;
 			stderr = "";
+			completionVerified = true;
 		} else if (!hasOutputSchema && allowFallback && rawOutput.trim().length > 0) {
 			exitCode = 0;
 			stderr = "";
 		} else if (exitCode === 0) {
 			const hasRawOutput = rawOutput.trim().length > 0;
 			rawOutput = rawOutput ? `${SUBAGENT_WARNING_MISSING_YIELD}\n\n${rawOutput}` : SUBAGENT_WARNING_MISSING_YIELD;
-			if (hasOutputSchema || !hasRawOutput) {
+			if (requireStructuredYield || hasOutputSchema || !hasRawOutput) {
 				exitCode = 1;
 				stderr = SUBAGENT_WARNING_MISSING_YIELD;
 			}
 		}
 	}
 
-	return { rawOutput, exitCode, stderr, abortedViaYield, hasYield };
+	return { rawOutput, exitCode, stderr, abortedViaYield, hasYield, completionVerified };
 }
 
 /**
@@ -1435,13 +1445,14 @@ export async function runSubprocess(options: ExecutorOptions): Promise<SingleRes
 		yieldItems,
 		reportFindings,
 		outputSchema,
+		requireStructuredYield: Boolean(options.contract),
 	});
 	rawOutput = finalized.rawOutput;
 	exitCode = finalized.exitCode;
 	stderr = finalized.stderr;
 	const lastYield = yieldItems?.[yieldItems.length - 1];
 	const yieldAbortReason = lastYield?.status === "aborted" ? lastYield.error || "Subagent aborted task" : undefined;
-	const { abortedViaYield, hasYield } = finalized;
+	const { abortedViaYield, hasYield, completionVerified } = finalized;
 	const { content: truncatedOutput, truncated } = truncateTail(rawOutput, {
 		maxBytes: MAX_OUTPUT_BYTES,
 		maxLines: MAX_OUTPUT_LINES,
@@ -1536,6 +1547,7 @@ export async function runSubprocess(options: ExecutorOptions): Promise<SingleRes
 		usage: hasUsage ? accumulatedUsage : undefined,
 		outputPath,
 		extractedToolData: progress.extractedToolData,
+		completion: { hasYield, verified: completionVerified },
 		outputMeta,
 	};
 }

@@ -65,6 +65,10 @@ export default class Research extends Command {
 		recommended: Flags.string({ description: "Recommended hypothesis id/name for recorded synthesis" }),
 		blockingCount: Flags.string({ description: "Number of blocking critique findings" }),
 		softCount: Flags.string({ description: "Number of soft critique findings" }),
+		findings: Flags.string({
+			description:
+				"Structured critique findings: 'blocking:collect-evidence:ev-1,ev-2:message;soft:run-critique::message'",
+		}),
 		verdict: Flags.string({
 			description: "Critique verdict: accept|accept-with-modifications|reject|needs-more-research",
 		}),
@@ -227,6 +231,7 @@ export default class Research extends Command {
 				summary: flags.summary,
 				rawFile: flags.rawFile,
 				rawText: flags.rawText,
+				findings: flags.findings,
 				json: flags.json,
 			});
 			return;

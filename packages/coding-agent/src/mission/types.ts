@@ -98,6 +98,41 @@ export interface MissionContractRecord {
 	createdAt: number;
 }
 
+export type TaskAttemptFailureMode =
+	| "contract-fail"
+	| "contract-uncertain"
+	| "executor-error"
+	| "aborted"
+	| "interrupted";
+export type TaskAttemptStatus = "running" | "failed" | "blocked" | "escalated" | "completed";
+export type TaskAttemptRemediationAction = "retry" | "resume" | "escalate" | "block";
+
+export interface MissionTaskAttemptCheckpoint {
+	id: string;
+	missionId: string;
+	taskId: string;
+	agent: string;
+	role: string;
+	attempt: number;
+	status: TaskAttemptStatus;
+	failureMode: TaskAttemptFailureMode | null;
+	lastVerdict: "pass" | "fail" | "uncertain" | null;
+	failedCount: number;
+	uncertainCount: number;
+	remediationAction: TaskAttemptRemediationAction;
+	sessionFile: string | null;
+	artifactRefs: string[];
+	error: string | null;
+	createdAt: number;
+	updatedAt: number;
+}
+
+export type NewMissionTaskAttemptCheckpoint = Omit<MissionTaskAttemptCheckpoint, "id" | "createdAt" | "updatedAt"> & {
+	id?: string;
+	createdAt?: number;
+	updatedAt?: number;
+};
+
 export type NewMissionContractRecord = Omit<MissionContractRecord, "id" | "createdAt" | "taskId" | "sessionFile"> & {
 	id?: string;
 	createdAt?: number;
@@ -150,3 +185,45 @@ export type NewMissionCriticDialogueTurn = Omit<MissionCriticDialogueTurn, "id" 
 	id?: string;
 	createdAt?: number;
 };
+
+export type MissionWorldModelRecordKind = "claim" | "action" | "outcome" | "critic";
+export type MissionWorldModelRecordSource = "decision" | "evidence" | "task-attempt" | "verification" | "critic";
+export type MissionWorldModelLinkType = "supports" | "contradicts" | "evidence-for" | "outcome-of";
+
+export interface MissionWorldModelLink {
+	targetId: string;
+	type: MissionWorldModelLinkType;
+}
+
+export interface MissionWorldModelRecord {
+	id: string;
+	missionId: string;
+	kind: MissionWorldModelRecordKind;
+	source: MissionWorldModelRecordSource;
+	sourceId: string;
+	claim: string;
+	evidenceRefs: string[];
+	links: MissionWorldModelLink[];
+	outcomeStatus: "pass" | "fail" | "uncertain" | "blocked" | null;
+	verified: boolean;
+	createdAt: number;
+}
+
+export type NewMissionWorldModelRecord = Omit<
+	MissionWorldModelRecord,
+	"id" | "createdAt" | "links" | "outcomeStatus"
+> & {
+	id?: string;
+	createdAt?: number;
+	links?: MissionWorldModelLink[];
+	outcomeStatus?: MissionWorldModelRecord["outcomeStatus"];
+};
+
+export interface MissionPolicyGuidance {
+	missionId: string;
+	verifiedOutcomeCount: number;
+	recommendedAgents: string[];
+	retryPolicy: "standard" | "retry-on-contract-fail" | "escalate-on-failure";
+	laneMix: string[];
+	rationale: string[];
+}

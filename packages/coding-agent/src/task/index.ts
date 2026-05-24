@@ -23,6 +23,7 @@ import { AsyncJobManager } from "../async";
 import { resolveAgentModelPatterns } from "../config/model-resolver";
 import { MCPManager } from "../mcp/manager";
 import { MissionStore, resolveMission } from "../mission/store";
+import type { MissionTaskAttemptCheckpoint } from "../mission/types";
 import type { Theme } from "../modes/theme/theme";
 import { getSessionEventBus } from "../observability/session-bus";
 import planModeSubagentPrompt from "../prompts/system/plan-mode-subagent.md" with { type: "text" };
@@ -30,6 +31,7 @@ import subagentUserPromptTemplate from "../prompts/system/subagent-user-prompt.m
 import taskDescriptionTemplate from "../prompts/tools/task.md" with { type: "text" };
 import taskSummaryTemplate from "../prompts/tools/task-summary.md" with { type: "text" };
 import { ResearchStore } from "../research/store";
+import type { RuntimeCriticCheck } from "../research/types";
 import { type SubagentContract, stampContractRevision } from "../subagent/contract";
 import {
 	diffDirtySnapshots,
@@ -93,7 +95,7 @@ export function recordTaskMissionContract(
 	if (!goalObjective && !linkage.missionId) return;
 	const store = new MissionStore(dbPath);
 	try {
-		const mission = resolveMission(store, { missionId: linkage.missionId, title: goalObjective });
+		const mission = resolveMission(store, { missionId: linkage.missionId });
 		if (!mission) return;
 		store.recordContract({
 			missionId: mission.id,
@@ -119,6 +121,130 @@ function summarizeContractCriterion(criterion: SubagentContract["successCriteria
 	return JSON.stringify(criterion);
 }
 
+function normalizeContractVerdict(verdict: {
+	verdict: "pass" | "fail";
+	failedCount: number;
+	uncertainCount: number;
+}): "pass" | "fail" | "uncertain" {
+	if (verdict.failedCount > 0) return "fail";
+	if (verdict.uncertainCount > 0) return "uncertain";
+	return verdict.verdict;
+}
+
+function selectTaskAttemptRemediation(args: {
+	verdict: "pass" | "fail" | "uncertain";
+	failureMode: MissionTaskAttemptCheckpoint["failureMode"];
+	attempts: number;
+	aborted?: boolean;
+	onUncertainty: SubagentContract["escalation"]["onUncertainty"];
+}): MissionTaskAttemptCheckpoint["remediationAction"] {
+	if (args.verdict === "pass") return "resume";
+	if (args.aborted || args.failureMode === "interrupted") return "resume";
+	if (args.verdict === "uncertain") return args.onUncertainty === "ask-parent" ? "escalate" : "block";
+	return args.attempts <= 1 ? "retry" : "escalate";
+}
+
+function buildTaskAttemptCheckpoint(args: {
+	attempt: number;
+	status: MissionTaskAttemptCheckpoint["status"];
+	failureMode: MissionTaskAttemptCheckpoint["failureMode"];
+	lastVerdict: MissionTaskAttemptCheckpoint["lastVerdict"];
+	failedCount: number;
+	uncertainCount: number;
+	remediationAction: MissionTaskAttemptCheckpoint["remediationAction"];
+	sessionFile?: string | null;
+	artifactRefs?: string[];
+	error?: string | null;
+}): NonNullable<SingleResult["checkpoint"]> {
+	return {
+		attempt: args.attempt,
+		status: args.status,
+		failureMode: args.failureMode,
+		lastVerdict: args.lastVerdict,
+		failedCount: args.failedCount,
+		uncertainCount: args.uncertainCount,
+		remediationAction: args.remediationAction,
+		sessionFile: args.sessionFile ?? null,
+		artifactRefs: args.artifactRefs ?? [],
+		error: args.error ?? null,
+	};
+}
+
+function recordTaskAttemptCheckpoint(
+	args: Parameters<typeof buildTaskAttemptCheckpoint>[0] & {
+		goalObjective: string | undefined;
+		missionId?: string | null;
+		dbPath?: string;
+		taskId: string;
+		agent: string;
+		role: string;
+	},
+): NonNullable<SingleResult["checkpoint"]> {
+	const checkpoint = buildTaskAttemptCheckpoint(args);
+	if (!args.goalObjective && !args.missionId) return checkpoint;
+	const store = new MissionStore(args.dbPath);
+	try {
+		const mission = resolveMission(store, { missionId: args.missionId, objective: args.goalObjective });
+		if (!mission) return checkpoint;
+		store.recordTaskAttemptCheckpoint({
+			missionId: mission.id,
+			taskId: args.taskId,
+			agent: args.agent,
+			role: args.role,
+			attempt: args.attempt,
+			status: args.status,
+			failureMode: args.failureMode,
+			lastVerdict: args.lastVerdict,
+			failedCount: args.failedCount,
+			uncertainCount: args.uncertainCount,
+			remediationAction: args.remediationAction,
+			sessionFile: args.sessionFile ?? null,
+			artifactRefs: args.artifactRefs ?? [],
+			error: args.error ?? null,
+		});
+		store.recordWorldModel({
+			missionId: mission.id,
+			kind: args.status === "completed" ? "outcome" : "action",
+			source: "task-attempt",
+			sourceId: args.taskId,
+			claim: formatTaskAttemptWorldModelClaim(args),
+			evidenceRefs: [...(args.artifactRefs ?? []), ...(args.sessionFile ? [args.sessionFile] : [])],
+			links: [],
+			outcomeStatus:
+				args.status === "completed"
+					? "pass"
+					: args.status === "failed"
+						? "fail"
+						: args.status === "blocked"
+							? "blocked"
+							: args.status === "escalated"
+								? "uncertain"
+								: null,
+			verified: args.status === "completed" && args.lastVerdict === "pass",
+		});
+	} finally {
+		store.close();
+	}
+	return checkpoint;
+}
+
+function formatTaskAttemptWorldModelClaim(
+	args: Parameters<typeof buildTaskAttemptCheckpoint>[0] & {
+		taskId: string;
+		agent: string;
+		role: string;
+	},
+): string {
+	const verdict = args.lastVerdict ? ` with ${args.lastVerdict} verifier verdict` : "";
+	const failure = args.failureMode ? ` (${args.failureMode})` : "";
+	return `${args.agent}/${args.role} task ${args.taskId} ${args.status}${verdict}${failure}; remediation=${args.remediationAction}`;
+}
+
+function selectRuntimeCriticBlocker(checks: RuntimeCriticCheck[]): RuntimeCriticCheck | undefined {
+	const blocking = checks.filter(check => check.severity === "blocking");
+	return blocking.find(check => check.trigger === "critique-finding") ?? blocking[0];
+}
+
 export function evaluateRuntimeCriticGate(args: {
 	goalObjective?: string;
 	missionId?: string | null;
@@ -129,22 +255,23 @@ export function evaluateRuntimeCriticGate(args: {
 	const missions = new MissionStore(args.dbPath);
 	const research = new ResearchStore(args.dbPath);
 	try {
-		const mission = resolveMission(missions, { missionId: args.missionId, title: args.goalObjective });
+		const mission = resolveMission(missions, { missionId: args.missionId });
 		if (!mission?.briefId) return { ok: true };
 		const checks = research.refreshRuntimeCriticChecks(mission.briefId);
 		const blocking = checks.filter(check => check.severity === "blocking");
-		if (blocking.length === 0) return { ok: true };
+		const first = selectRuntimeCriticBlocker(checks);
+		if (!first) return { ok: true };
 		missions.recordCriticDialogueExchange({
 			missionId: mission.id,
 			orchestratorSummary: `${args.action} gate requested while runtime critic has ${blocking.length} blocking check(s).`,
-			criticSummary: blocking.map(check => `${check.trigger}: ${check.message}`).join("; "),
+			criticSummary: `${first.trigger}: ${first.message}`,
 			checkIds: checks.map(check => check.id),
-			blockingCheckIds: blocking.map(check => check.id),
+			blockingCheckIds: [first.id],
 		});
-		const first = blocking[0]!;
+		const source = first.trigger === "critique-finding" ? "structured critique finding" : "runtime critic check";
 		return {
 			ok: false,
-			reason: `Runtime critic blocked ${args.action}: ${first.message}. Required action: ${first.requiredAction}.`,
+			reason: `Runtime critic blocked ${args.action} from ${source}: ${first.message.replace(/[.!?]+$/, "")}. Required action: ${first.requiredAction}.`,
 		};
 	} finally {
 		research.close();
@@ -827,9 +954,10 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 
 		const preferredIsolationBackend = parseIsolationMode(isolationMode);
 
+		const activeGoal = this.session.getGoalModeState?.()?.goal;
 		const criticGate = evaluateRuntimeCriticGate({
-			goalObjective: this.session.getGoalModeState?.()?.goal?.objective,
-			missionId: this.session.getGoalModeState?.()?.goal?.id,
+			goalObjective: activeGoal?.objective,
+			missionId: activeGoal?.missionId,
 			action: "task",
 		});
 		if (!criticGate.ok) {
@@ -1037,7 +1165,7 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 							{
 								taskId: task.id,
 								sessionFile,
-								missionId: this.session.getGoalModeState?.()?.goal?.id,
+								missionId: this.session.getGoalModeState?.()?.goal?.missionId,
 							},
 						);
 						const cwdBefore = new Set(await snapshotGitChangedFiles(this.session.cwd));
@@ -1071,6 +1199,7 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 									aborted: result.aborted ?? false,
 									changedFiles,
 									cwd: this.session.cwd,
+									completion: result.completion,
 								};
 							},
 						});
@@ -1082,9 +1211,45 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 							failed: outcome.finalVerdict.failedCount,
 							uncertain: outcome.finalVerdict.uncertainCount,
 							attempts: outcome.attempts.length,
+							completionVerified: outcome.finalResult.completion?.verified ?? false,
 						});
+						const normalizedVerdict = normalizeContractVerdict(outcome.finalVerdict);
+						if (normalizedVerdict !== "pass") {
+							const failureMode = normalizedVerdict === "uncertain" ? "contract-uncertain" : "contract-fail";
+							const remediationAction = selectTaskAttemptRemediation({
+								verdict: normalizedVerdict,
+								failureMode,
+								attempts: outcome.attempts.length,
+								aborted: outcome.finalResult.aborted,
+								onUncertainty: stampedContract.escalation.onUncertainty,
+							});
+							const checkpoint = recordTaskAttemptCheckpoint({
+								goalObjective: this.session.getGoalModeState?.()?.goal?.objective,
+								missionId: this.session.getGoalModeState?.()?.goal?.missionId,
+								taskId: task.id,
+								agent: effectiveAgent.name,
+								role: stampedContract.role,
+								attempt: outcome.attempts.length,
+								status: remediationAction === "block" ? "blocked" : "failed",
+								failureMode,
+								lastVerdict: normalizedVerdict,
+								failedCount: outcome.finalVerdict.failedCount,
+								uncertainCount: outcome.finalVerdict.uncertainCount,
+								remediationAction,
+								sessionFile,
+								error: `Contract verification failed: ${normalizedVerdict}`,
+							});
+							if (lastSingleResult) lastSingleResult = { ...lastSingleResult, checkpoint };
+						}
 						if (!lastSingleResult) {
 							throw new Error("contracted task produced no result");
+						}
+						if (normalizedVerdict !== "pass") {
+							return {
+								...lastSingleResult,
+								exitCode: lastSingleResult.exitCode === 0 ? 1 : lastSingleResult.exitCode,
+								error: `Contract verification failed: ${normalizedVerdict}`,
+							};
 						}
 						return lastSingleResult;
 					}
@@ -1161,7 +1326,7 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 							{
 								taskId: task.id,
 								sessionFile,
-								missionId: this.session.getGoalModeState?.()?.goal?.id,
+								missionId: this.session.getGoalModeState?.()?.goal?.missionId,
 							},
 						);
 						const gitBefore = new Set(await snapshotGitChangedFiles(isolationDir));
@@ -1192,6 +1357,7 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 									aborted: attemptResult.aborted ?? false,
 									changedFiles,
 									cwd: isolationDir,
+									completion: attemptResult.completion,
 								};
 							},
 						});
@@ -1203,13 +1369,40 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 							failed: outcome.finalVerdict.failedCount,
 							uncertain: outcome.finalVerdict.uncertainCount,
 							attempts: outcome.attempts.length,
+							completionVerified: outcome.finalResult.completion?.verified ?? false,
 						});
+						const normalizedVerdict = normalizeContractVerdict(outcome.finalVerdict);
 						if (!lastSingleResult) {
 							throw new Error("contracted task produced no result");
 						}
 						result = lastSingleResult;
-						if (outcome.finalVerdict.verdict !== "pass") {
-							const error = `Contract verification failed: ${outcome.finalVerdict.verdict}`;
+						if (normalizedVerdict !== "pass") {
+							const error = `Contract verification failed: ${normalizedVerdict}`;
+							const failureMode = normalizedVerdict === "uncertain" ? "contract-uncertain" : "contract-fail";
+							const remediationAction = selectTaskAttemptRemediation({
+								verdict: normalizedVerdict,
+								failureMode,
+								attempts: outcome.attempts.length,
+								aborted: outcome.finalResult.aborted,
+								onUncertainty: stampedContract.escalation.onUncertainty,
+							});
+							const checkpoint = recordTaskAttemptCheckpoint({
+								goalObjective: this.session.getGoalModeState?.()?.goal?.objective,
+								missionId: this.session.getGoalModeState?.()?.goal?.missionId,
+								taskId: task.id,
+								agent: effectiveAgent.name,
+								role: stampedContract.role,
+								attempt: outcome.attempts.length,
+								status: remediationAction === "block" ? "blocked" : "failed",
+								failureMode,
+								lastVerdict: normalizedVerdict,
+								failedCount: outcome.finalVerdict.failedCount,
+								uncertainCount: outcome.finalVerdict.uncertainCount,
+								remediationAction,
+								sessionFile,
+								error,
+							});
+							result = { ...result, checkpoint };
 							return {
 								...result,
 								exitCode: result.exitCode === 0 ? 1 : result.exitCode,

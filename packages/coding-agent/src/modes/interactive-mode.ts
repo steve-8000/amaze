@@ -360,8 +360,8 @@ export class InteractiveMode implements InteractiveModeContext {
 			missionEventBus: missionRuntime.bus,
 			onRefresh: () => this.ui.requestRender(),
 			getPreferredMissionInput: () => {
-				const objective = this.session.getGoalModeState()?.goal?.objective.trim();
-				return objective ? { title: objective } : undefined;
+				const goal = this.session.getGoalModeState()?.goal;
+				return goal?.missionId ? { objectiveId: goal.missionId } : undefined;
 			},
 		});
 
@@ -1079,7 +1079,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		const missions = new MissionStore();
 		const research = new ResearchStore();
 		try {
-			const mission = resolveMission(missions, { missionId: goal.id, title: goal.objective });
+			const mission = resolveMission(missions, { missionId: goal.missionId });
 			if (!mission?.briefId) return null;
 			const checks = research.refreshRuntimeCriticChecks(mission.briefId);
 			const blocking = checks.filter(check => check.severity === "blocking");

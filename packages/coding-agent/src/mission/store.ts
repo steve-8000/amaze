@@ -26,13 +26,20 @@ import {
 	type MissionLaneStatus,
 	type MissionRollbackRecord,
 	type MissionState,
+	type MissionTaskAttemptCheckpoint,
 	type MissionVerificationRecord,
+	type MissionWorldModelLink,
+	type MissionWorldModelRecord,
+	type MissionWorldModelRecordKind,
+	type MissionWorldModelRecordSource,
 	type NewMission,
 	type NewMissionContractRecord,
 	type NewMissionCriticDialogueTurn,
 	type NewMissionLaneRun,
 	type NewMissionRollbackRecord,
+	type NewMissionTaskAttemptCheckpoint,
 	type NewMissionVerificationRecord,
+	type NewMissionWorldModelRecord,
 	type NewResearchRun,
 	RESEARCH_RUN_STATUSES,
 	type ResearchRun,
@@ -123,12 +130,46 @@ type MissionRollbackRow = {
 	created_at: number;
 };
 
+type MissionTaskAttemptCheckpointRow = {
+	id: string;
+	mission_id: string;
+	task_id: string;
+	agent: string;
+	role: string;
+	attempt: number;
+	status: MissionTaskAttemptCheckpoint["status"];
+	failure_mode: MissionTaskAttemptCheckpoint["failureMode"];
+	last_verdict: MissionTaskAttemptCheckpoint["lastVerdict"];
+	failed_count: number;
+	uncertain_count: number;
+	remediation_action: MissionTaskAttemptCheckpoint["remediationAction"];
+	session_file: string | null;
+	artifact_refs_json: string;
+	error: string | null;
+	created_at: number;
+	updated_at: number;
+};
+
 type MissionCriticDialogueTurnRow = {
 	id: string;
 	mission_id: string;
 	role: CriticDialogueRole;
 	summary: string;
 	check_ids_json: string;
+	created_at: number;
+};
+
+type MissionWorldModelRow = {
+	id: string;
+	mission_id: string;
+	kind: MissionWorldModelRecordKind;
+	source: MissionWorldModelRecordSource;
+	source_id: string;
+	claim: string;
+	evidence_refs_json: string;
+	links_json?: string;
+	outcome_status?: MissionWorldModelRecord["outcomeStatus"];
+	verified: number;
 	created_at: number;
 };
 export class MissionStore {
@@ -269,7 +310,12 @@ export class MissionStore {
 
 	updateMission(
 		id: string,
-		patch: Partial<Pick<Mission, "state" | "confidence" | "decisionId" | "snapshotRef">>,
+		patch: Partial<
+			Pick<
+				Mission,
+				"title" | "state" | "confidence" | "decisionId" | "snapshotRef" | "objectiveId" | "briefId" | "riskLevel"
+			>
+		>,
 	): Mission {
 		const existing = this.getMission(id);
 		if (!existing) {
@@ -281,16 +327,28 @@ export class MissionStore {
 			updatedAt: Date.now(),
 		};
 		assertMissionState(next.state);
+		assertRiskLevel(next.riskLevel);
 		if (next.confidence !== null) {
 			assertConfidence(next.confidence);
 		}
 		this.#db
 			.query(
 				`UPDATE missions
-				SET state = ?, confidence = ?, decision_id = ?, snapshot_ref = ?, updated_at = ?
+				SET title = ?, state = ?, confidence = ?, decision_id = ?, snapshot_ref = ?, objective_id = ?, brief_id = ?, risk_level = ?, updated_at = ?
 				WHERE id = ?`,
 			)
-			.run(next.state, next.confidence, next.decisionId, next.snapshotRef, next.updatedAt, id);
+			.run(
+				next.title,
+				next.state,
+				next.confidence,
+				next.decisionId,
+				next.snapshotRef,
+				next.objectiveId,
+				next.briefId,
+				next.riskLevel,
+				next.updatedAt,
+				id,
+			);
 		return next;
 	}
 
@@ -538,6 +596,60 @@ export class MissionStore {
 		return row ? rowToVerification(row) : undefined;
 	}
 
+	recordTaskAttemptCheckpoint(input: NewMissionTaskAttemptCheckpoint): MissionTaskAttemptCheckpoint {
+		if (!this.getMission(input.missionId)) throw new Error(`Mission not found: ${input.missionId}`);
+		const now = input.createdAt ?? Date.now();
+		const record: MissionTaskAttemptCheckpoint = {
+			...input,
+			id: input.id ?? generateId("task-attempt", now),
+			artifactRefs: [...input.artifactRefs],
+			createdAt: now,
+			updatedAt: input.updatedAt ?? now,
+		};
+		this.#db
+			.query(
+				`INSERT INTO mission_task_attempt_checkpoints
+					(id, mission_id, task_id, agent, role, attempt, status, failure_mode, last_verdict, failed_count, uncertain_count, remediation_action, session_file, artifact_refs_json, error, created_at, updated_at)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			)
+			.run(
+				record.id,
+				record.missionId,
+				record.taskId,
+				record.agent,
+				record.role,
+				record.attempt,
+				record.status,
+				record.failureMode,
+				record.lastVerdict,
+				record.failedCount,
+				record.uncertainCount,
+				record.remediationAction,
+				record.sessionFile,
+				JSON.stringify(record.artifactRefs),
+				record.error,
+				record.createdAt,
+				record.updatedAt,
+			);
+		return record;
+	}
+
+	listTaskAttemptCheckpoints(missionId: string): MissionTaskAttemptCheckpoint[] {
+		const rows = this.#db
+			.query("SELECT * FROM mission_task_attempt_checkpoints WHERE mission_id = ? ORDER BY created_at ASC, id ASC")
+			.all(missionId) as MissionTaskAttemptCheckpointRow[];
+		return rows.map(rowToTaskAttemptCheckpoint);
+	}
+
+	getLatestTaskAttemptCheckpoint(missionId: string, taskId: string): MissionTaskAttemptCheckpoint | undefined {
+		const row = this.#db
+			.query(
+				"SELECT * FROM mission_task_attempt_checkpoints WHERE mission_id = ? AND task_id = ? ORDER BY created_at DESC, id DESC LIMIT 1",
+			)
+			.get(missionId, taskId) as MissionTaskAttemptCheckpointRow | null;
+		return row ? rowToTaskAttemptCheckpoint(row) : undefined;
+	}
+
 	recordCriticDialogueTurn(input: NewMissionCriticDialogueTurn): MissionCriticDialogueTurn {
 		if (!this.getMission(input.missionId)) throw new Error(`Mission not found: ${input.missionId}`);
 		assertCriticDialogueRole(input.role);
@@ -603,6 +715,46 @@ export class MissionStore {
 			.query("SELECT * FROM mission_critic_dialogue WHERE mission_id = ? ORDER BY created_at ASC, id ASC")
 			.all(missionId) as MissionCriticDialogueTurnRow[];
 		return rows.map(rowToCriticDialogueTurn);
+	}
+
+	recordWorldModel(input: NewMissionWorldModelRecord): MissionWorldModelRecord {
+		if (!this.getMission(input.missionId)) throw new Error(`Mission not found: ${input.missionId}`);
+		const now = input.createdAt ?? Date.now();
+		const record: MissionWorldModelRecord = {
+			...input,
+			id: input.id ?? generateId("world-model", now),
+			evidenceRefs: [...input.evidenceRefs],
+			links: [...(input.links ?? [])],
+			outcomeStatus: input.outcomeStatus ?? null,
+			createdAt: now,
+		};
+		this.#db
+			.query(
+				`INSERT INTO mission_world_model
+					(id, mission_id, kind, source, source_id, claim, evidence_refs_json, links_json, outcome_status, verified, created_at)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			)
+			.run(
+				record.id,
+				record.missionId,
+				record.kind,
+				record.source,
+				record.sourceId,
+				record.claim,
+				JSON.stringify(record.evidenceRefs),
+				JSON.stringify(record.links),
+				record.outcomeStatus,
+				record.verified ? 1 : 0,
+				record.createdAt,
+			);
+		return record;
+	}
+
+	listWorldModel(missionId: string): MissionWorldModelRecord[] {
+		const rows = this.#db
+			.query("SELECT * FROM mission_world_model WHERE mission_id = ? ORDER BY created_at ASC, id ASC")
+			.all(missionId) as MissionWorldModelRow[];
+		return rows.map(rowToWorldModel);
 	}
 
 	recordRollback(input: NewMissionRollbackRecord): MissionRollbackRecord {
@@ -764,6 +916,30 @@ export class MissionStore {
 			);
 			CREATE INDEX IF NOT EXISTS mission_verifications_mission_idx ON mission_verifications(mission_id);
 
+			CREATE TABLE IF NOT EXISTS mission_task_attempt_checkpoints (
+				id TEXT PRIMARY KEY,
+				mission_id TEXT NOT NULL,
+				task_id TEXT NOT NULL,
+				agent TEXT NOT NULL,
+				role TEXT NOT NULL,
+				attempt INTEGER NOT NULL,
+				status TEXT NOT NULL,
+				failure_mode TEXT,
+				last_verdict TEXT,
+				failed_count INTEGER NOT NULL,
+				uncertain_count INTEGER NOT NULL,
+				remediation_action TEXT NOT NULL,
+				session_file TEXT,
+				artifact_refs_json TEXT NOT NULL CHECK (json_valid(artifact_refs_json)),
+				error TEXT,
+				created_at INTEGER NOT NULL,
+				updated_at INTEGER NOT NULL,
+				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
+			);
+			CREATE INDEX IF NOT EXISTS mission_task_attempt_checkpoints_mission_idx ON mission_task_attempt_checkpoints(mission_id);
+			CREATE INDEX IF NOT EXISTS mission_task_attempt_checkpoints_task_idx ON mission_task_attempt_checkpoints(mission_id, task_id);
+
+
 			CREATE TABLE IF NOT EXISTS mission_rollbacks (
 				id TEXT PRIMARY KEY,
 				mission_id TEXT NOT NULL,
@@ -787,9 +963,32 @@ export class MissionStore {
 				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
 			);
 			CREATE INDEX IF NOT EXISTS mission_critic_dialogue_mission_idx ON mission_critic_dialogue(mission_id);
+
+
+			CREATE TABLE IF NOT EXISTS mission_world_model (
+				id TEXT PRIMARY KEY,
+				mission_id TEXT NOT NULL,
+				kind TEXT NOT NULL,
+				source TEXT NOT NULL,
+				source_id TEXT NOT NULL,
+				claim TEXT NOT NULL,
+				evidence_refs_json TEXT NOT NULL CHECK (json_valid(evidence_refs_json)),
+				links_json TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(links_json)),
+				outcome_status TEXT,
+				verified INTEGER NOT NULL,
+				created_at INTEGER NOT NULL,
+				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
+			);
+			CREATE INDEX IF NOT EXISTS mission_world_model_mission_idx ON mission_world_model(mission_id);
 		`);
 		this.#ensureColumn("mission_contracts", "task_id", "TEXT");
 		this.#ensureColumn("mission_contracts", "session_file", "TEXT");
+		this.#ensureColumn(
+			"mission_world_model",
+			"links_json",
+			"TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(links_json))",
+		);
+		this.#ensureColumn("mission_world_model", "outcome_status", "TEXT");
 	}
 
 	#ensureColumn(table: string, column: string, definition: string): void {
@@ -801,10 +1000,14 @@ export class MissionStore {
 
 export function resolveMission(
 	store: MissionStore,
-	lookup: { missionId?: string | null; title?: string | null; objective?: string | null },
+	lookup: { missionId?: string | null; title?: string | null; objective?: string | null; objectiveId?: string | null },
 ): Mission | undefined {
 	if (lookup.missionId) {
 		const exact = store.getMission(lookup.missionId);
+		if (exact) return exact;
+	}
+	if (lookup.objectiveId) {
+		const exact = store.findLatestMissionByObjectiveId(lookup.objectiveId);
 		if (exact) return exact;
 	}
 	const title = lookup.title ?? lookup.objective;
@@ -941,6 +1144,28 @@ function rowToVerification(row: MissionVerificationRow): MissionVerificationReco
 	};
 }
 
+function rowToTaskAttemptCheckpoint(row: MissionTaskAttemptCheckpointRow): MissionTaskAttemptCheckpoint {
+	return {
+		id: row.id,
+		missionId: row.mission_id,
+		taskId: row.task_id,
+		agent: row.agent,
+		role: row.role,
+		attempt: row.attempt,
+		status: row.status,
+		failureMode: row.failure_mode,
+		lastVerdict: row.last_verdict,
+		failedCount: row.failed_count,
+		uncertainCount: row.uncertain_count,
+		remediationAction: row.remediation_action,
+		sessionFile: row.session_file,
+		artifactRefs: parseStringArray(row.artifact_refs_json, "artifact_refs_json"),
+		error: row.error,
+		createdAt: row.created_at,
+		updatedAt: row.updated_at,
+	};
+}
+
 function rowToRollback(row: MissionRollbackRow): MissionRollbackRecord {
 	return {
 		id: row.id,
@@ -964,12 +1189,47 @@ function rowToCriticDialogueTurn(row: MissionCriticDialogueTurnRow): MissionCrit
 	};
 }
 
+function rowToWorldModel(row: MissionWorldModelRow): MissionWorldModelRecord {
+	return {
+		id: row.id,
+		missionId: row.mission_id,
+		kind: row.kind,
+		source: row.source,
+		sourceId: row.source_id,
+		claim: row.claim,
+		evidenceRefs: parseStringArray(row.evidence_refs_json, "evidence_refs_json"),
+		links: parseWorldModelLinks(row.links_json ?? "[]"),
+		outcomeStatus: row.outcome_status ?? null,
+		verified: row.verified === 1,
+		createdAt: row.created_at,
+	};
+}
+
 function parseStringArray(value: string, column: string): string[] {
 	const parsed = JSON.parse(value) as unknown;
 	if (!Array.isArray(parsed) || !parsed.every(item => typeof item === "string")) {
 		throw new Error(`Invalid mission contract JSON column: ${column}`);
 	}
 	return parsed;
+}
+
+function parseWorldModelLinks(value: string): MissionWorldModelLink[] {
+	const parsed = JSON.parse(value) as unknown;
+	if (!Array.isArray(parsed)) {
+		throw new Error("Invalid JSON array in links_json");
+	}
+	return parsed.map((link, index) => {
+		if (
+			typeof link !== "object" ||
+			link === null ||
+			typeof (link as { targetId?: unknown }).targetId !== "string" ||
+			typeof (link as { type?: unknown }).type !== "string"
+		) {
+			throw new Error(`Invalid world-model link at index ${index}`);
+		}
+		const typed = link as MissionWorldModelLink;
+		return { targetId: typed.targetId, type: typed.type };
+	});
 }
 
 function parseEscalation(value: string): MissionContractRecord["escalation"] {

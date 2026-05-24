@@ -129,6 +129,45 @@ describe("ResearchStore", () => {
 		});
 	});
 
+	test("createBrief backfills exact mission link from objectiveId when it names an active goal mission", () => {
+		withTempDb(dbPath => {
+			const missions = new MissionStore(dbPath);
+			const activeGoalMission = missions.createMission({
+				id: "goal-1",
+				title: "Original goal title",
+				objectiveId: null,
+				briefId: null,
+				decisionId: null,
+				riskLevel: "low",
+				state: "drafting",
+				confidence: null,
+				snapshotRef: null,
+			});
+			missions.createMission({
+				id: "wrong-title",
+				title: "Which lane is grounded?",
+				objectiveId: "other-goal",
+				briefId: "other-brief",
+				decisionId: null,
+				riskLevel: "medium",
+				state: "researching",
+				confidence: null,
+				snapshotRef: null,
+			});
+			missions.close();
+
+			const store = createStore(dbPath);
+			const created = store.createBrief(brief({ id: "brief-linked", objectiveId: activeGoalMission.id }));
+			const mission = store.getMissionForBrief(created.id);
+
+			expect(mission?.id).toBe(activeGoalMission.id);
+			expect(mission?.briefId).toBe(created.id);
+			expect(mission?.objectiveId).toBe(activeGoalMission.id);
+			expect(mission?.title).toBe(created.question);
+			expect(mission?.state).toBe("researching");
+		});
+	});
+
 	test("createBrief throws on unknown lane", () => {
 		const store = createStore();
 		expect(() => store.createBrief(brief({ lanes: ["repo", "bogus" as any] }))).toThrow("Invalid research lane");
@@ -628,7 +667,15 @@ describe("ResearchStore", () => {
 
 	test("derives conservative deterministic assessment from research records", () => {
 		const store = createStore();
-		const created = store.createBrief(brief({ id: "research-assess", lanes: ["repo", "source"] }));
+		const created = store.createBrief(
+			brief({
+				id: "research-assess",
+				lanes: ["repo", "source"],
+				requiredEvidence: [],
+				disallowedEvidence: [],
+				stopCriteria: [],
+			}),
+		);
 
 		expect(store.assessBrief(created.id)).toEqual({
 			briefId: created.id,
@@ -679,7 +726,15 @@ describe("ResearchStore", () => {
 
 	test("persists deterministic runtime critic checks and builds selective uncertainty maps", () => {
 		const store = createStore();
-		const created = store.createBrief(brief({ id: "research-critic", lanes: ["repo", "source", "memory"] }));
+		const created = store.createBrief(
+			brief({
+				id: "research-critic",
+				lanes: ["repo", "source", "memory"],
+				requiredEvidence: [],
+				disallowedEvidence: [],
+				stopCriteria: [],
+			}),
+		);
 		const weak = store.addEvidence(
 			evidence(created.id, {
 				id: "ev-weak",
@@ -718,5 +773,98 @@ describe("ResearchStore", () => {
 				status: "uncertain",
 			}),
 		]);
+	});
+
+	test("brief policy requirements affect readiness and runtime critic checks", () => {
+		const store = createStore();
+		const created = store.createBrief(
+			brief({
+				id: "research-policy",
+				lanes: ["repo", "source"],
+				requiredEvidence: ["primary source"],
+				disallowedEvidence: ["uncited claim"],
+				stopCriteria: ["two lanes covered"],
+			}),
+		);
+		const badEvidence = store.addEvidence(
+			evidence(created.id, {
+				id: "ev-policy",
+				lane: "repo",
+				excerpt: "This uncited claim is only repo-local.",
+				claims: ["uncited claim"],
+			}),
+		);
+
+		expect(store.assessBrief(created.id)).toMatchObject({
+			readiness: "insufficient",
+			recommendedNextAction: "collect-evidence",
+			blockingCount: 3,
+			incompleteLanes: ["source"],
+			speculativeEvidenceIds: [badEvidence.id],
+		});
+
+		store.addEvidence(
+			evidence(created.id, {
+				id: "ev-source-policy",
+				lane: "source",
+				excerpt: "Primary source confirms two lanes covered.",
+				claims: ["primary source", "two lanes covered"],
+			}),
+		);
+		expect(store.assessBrief(created.id)).toMatchObject({
+			readiness: "insufficient",
+			recommendedNextAction: "run-synthesis",
+			blockingCount: 1,
+		});
+
+		const checks = store.refreshRuntimeCriticChecks(created.id);
+		expect(
+			checks.some(
+				check => check.trigger === "policy-disallowed-evidence" && check.evidenceRefs.includes(badEvidence.id),
+			),
+		).toBe(true);
+	});
+
+	test("structured critique findings persist and drive runtime critic checks", () => {
+		const store = createStore();
+		const created = store.createBrief(
+			brief({ id: "research-findings", requiredEvidence: [], disallowedEvidence: [], stopCriteria: [] }),
+		);
+		const card = store.addEvidence(evidence(created.id, { id: "ev-finding" }));
+		const recorded = store.recordCritique(
+			critique(created.id, {
+				id: "crit-findings",
+				blockingCount: 0,
+				softCount: 0,
+				verdict: "needs-more-research",
+				findings: [
+					{
+						id: "finding-blocker",
+						severity: "blocking",
+						requiredAction: "collect-evidence",
+						message: "Persisted blocker requires source proof.",
+						evidenceRefs: [card.id],
+					},
+				],
+			}),
+		);
+
+		expect(store.getLatestCritique(created.id)).toEqual(recorded);
+		expect(store.listCritiques(created.id)[0]?.findings).toEqual(recorded.findings);
+		expect(store.assessBrief(created.id)).toMatchObject({
+			readiness: "blocked",
+			blockingCount: 1,
+			recommendedNextAction: "collect-evidence",
+		});
+		expect(store.deriveRuntimeCriticChecks(created.id)).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					trigger: "critique-finding",
+					severity: "blocking",
+					message: "Persisted blocker requires source proof.",
+					evidenceRefs: [card.id],
+				}),
+			]),
+		);
 	});
 });

@@ -4,9 +4,9 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { ObjectiveStore } from "../../src/autonomy/store";
 import { type NewLearningProposal, ProposalStore } from "../../src/learning";
-import { buildMissionView, MissionReadModel } from "../../src/mission/read-model";
+import { buildMissionView, deriveMissionPolicyGuidance, MissionReadModel } from "../../src/mission/read-model";
 import { MissionStore } from "../../src/mission/store";
-import type { Mission, MissionLaneRun, ResearchRun } from "../../src/mission/types";
+import type { Mission, MissionLaneRun, MissionWorldModelRecord, ResearchRun } from "../../src/mission/types";
 import { ResearchStore } from "../../src/research/store";
 import type { DecisionRecord, EvidenceCard, ResearchBrief } from "../../src/research/types";
 
@@ -101,9 +101,26 @@ function laneRun(overrides: Partial<MissionLaneRun> = {}): MissionLaneRun {
 		status: "completed",
 		evidenceCount: 1,
 		emptyReason: null,
-		taskId: null,
+		taskId: "task-1",
 		startedAt: 1,
 		endedAt: 2,
+		...overrides,
+	};
+}
+
+function worldModelRecord(overrides: Partial<MissionWorldModelRecord> = {}): MissionWorldModelRecord {
+	return {
+		id: "world-1",
+		missionId: "mission-1",
+		kind: "outcome",
+		source: "task-attempt",
+		sourceId: "task-1",
+		claim: "explore completed with passing verification",
+		evidenceRefs: ["verification-1"],
+		links: [],
+		outcomeStatus: "pass",
+		verified: true,
+		createdAt: 4,
 		...overrides,
 	};
 }
@@ -180,6 +197,28 @@ describe("buildMissionView", () => {
 			latestVerification: undefined,
 			rollbacks: [],
 			researchRun: researchRun(),
+			worldModel: [worldModelRecord()],
+			taskAttemptCheckpoints: [
+				{
+					id: "attempt-1",
+					missionId: "mission-1",
+					taskId: "task-1",
+					agent: "explore",
+					role: "repo scout",
+					attempt: 1,
+					status: "completed",
+					failureMode: null,
+					lastVerdict: "pass",
+					failedCount: 0,
+					uncertainCount: 0,
+					remediationAction: "resume",
+					sessionFile: null,
+					artifactRefs: [],
+					error: null,
+					createdAt: 4,
+					updatedAt: 4,
+				},
+			],
 		});
 
 		expect(view.objective).toEqual({ id: "objective-1", title: "Improve autonomy", status: "active", updatedAt: 0 });
@@ -217,6 +256,89 @@ describe("buildMissionView", () => {
 		expect(view.researchRun).toEqual(researchRun());
 		expect(view.runtimeCriticChecks).toEqual([]);
 		expect(view.uncertaintyMap).toBeNull();
+		expect(view.worldModel).toEqual([worldModelRecord()]);
+		expect(view.policyGuidance).toEqual({
+			missionId: "mission-1",
+			verifiedOutcomeCount: 1,
+			recommendedAgents: ["explore"],
+			retryPolicy: "standard",
+			laneMix: ["repo"],
+			rationale: ["explore completed with passing verification"],
+		});
+	});
+});
+
+describe("deriveMissionPolicyGuidance", () => {
+	test("uses verified outcomes and ignores speculative world-model inputs", () => {
+		const guidance = deriveMissionPolicyGuidance(
+			"mission-1",
+			[
+				worldModelRecord({
+					sourceId: "task-good",
+					verified: true,
+					claim: "repo lane succeeded after verification",
+				}),
+				worldModelRecord({
+					id: "world-speculative",
+					sourceId: "task-speculative",
+					verified: false,
+					claim: "source lane might be useful",
+				}),
+			],
+			[
+				{
+					id: "attempt-good",
+					missionId: "mission-1",
+					taskId: "task-good",
+					agent: "explore",
+					role: "repo scout",
+					attempt: 1,
+					status: "completed",
+					failureMode: null,
+					lastVerdict: "pass",
+					failedCount: 0,
+					uncertainCount: 0,
+					remediationAction: "resume",
+					sessionFile: null,
+					artifactRefs: [],
+					error: null,
+					createdAt: 1,
+					updatedAt: 1,
+				},
+				{
+					id: "attempt-speculative",
+					missionId: "mission-1",
+					taskId: "task-speculative",
+					agent: "source_scout",
+					role: "source scout",
+					attempt: 1,
+					status: "completed",
+					failureMode: null,
+					lastVerdict: null,
+					failedCount: 0,
+					uncertainCount: 0,
+					remediationAction: "resume",
+					sessionFile: null,
+					artifactRefs: [],
+					error: null,
+					createdAt: 2,
+					updatedAt: 2,
+				},
+			],
+			[
+				laneRun({ id: "lane-good", taskId: "task-good", lane: "repo" }),
+				laneRun({ id: "lane-speculative", taskId: "task-speculative", lane: "source" }),
+			],
+		);
+
+		expect(guidance).toEqual({
+			missionId: "mission-1",
+			verifiedOutcomeCount: 1,
+			recommendedAgents: ["explore"],
+			retryPolicy: "standard",
+			laneMix: ["repo"],
+			rationale: ["repo lane succeeded after verification"],
+		});
 	});
 });
 
@@ -314,6 +436,47 @@ describe("MissionReadModel", () => {
 			summary: "rollback proposal",
 			createdAt: 30,
 		});
+		missionStore.recordTaskAttemptCheckpoint({
+			missionId: mission.id,
+			taskId: "task-verified",
+			agent: "explore",
+			role: "repo scout",
+			attempt: 1,
+			status: "completed",
+			failureMode: null,
+			lastVerdict: "pass",
+			failedCount: 0,
+			uncertainCount: 0,
+			remediationAction: "resume",
+			sessionFile: null,
+			artifactRefs: [verification.id],
+			error: null,
+			createdAt: 40,
+		});
+		missionStore.createLaneRun({
+			missionId: mission.id,
+			lane: "repo",
+			agent: "explore",
+			epistemicRole: "repo_truth",
+			status: "completed",
+			evidenceCount: 1,
+			emptyReason: null,
+			taskId: "task-verified",
+			startedAt: 35,
+			endedAt: 40,
+		});
+		const worldModel = missionStore.recordWorldModel({
+			missionId: mission.id,
+			kind: "outcome",
+			source: "task-attempt",
+			sourceId: "task-verified",
+			claim: "explore completed the verified repo task",
+			evidenceRefs: [verification.id],
+			links: [{ targetId: verification.id, type: "evidence-for" }],
+			outcomeStatus: "pass",
+			verified: true,
+			createdAt: 45,
+		});
 
 		const readModel = new MissionReadModel({ dbPath });
 		cleanup.push(() => readModel.close());
@@ -345,6 +508,15 @@ describe("MissionReadModel", () => {
 		expect(view?.uncertaintyMap?.parts).toEqual([
 			expect.objectContaining({ lane: "repo", status: "satisfied", evidenceCount: 1 }),
 		]);
+		expect(view?.worldModel).toEqual([worldModel]);
+		expect(view?.policyGuidance).toEqual({
+			missionId: mission.id,
+			verifiedOutcomeCount: 1,
+			recommendedAgents: ["explore"],
+			retryPolicy: "standard",
+			laneMix: ["repo"],
+			rationale: ["explore completed the verified repo task"],
+		});
 	});
 	test("derives runtime critic data without persisting read-side mutations", () => {
 		const dbPath = tempDb();
