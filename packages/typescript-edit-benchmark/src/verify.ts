@@ -257,7 +257,7 @@ function restoreWhitespaceOnlyLineDiffs(expected: string, actual: string): strin
 			continue;
 		}
 
-		if (expectedLine !== actualLine && equalsIgnoringWhitespace(expectedLine, actualLine)) {
+		if (expectedLine !== actualLine && equalsIgnoringBoundaryWhitespace(expectedLine, actualLine)) {
 			out[i] = expectedLine;
 		} else {
 			out[i] = actualLine;
@@ -267,8 +267,8 @@ function restoreWhitespaceOnlyLineDiffs(expected: string, actual: string): strin
 	return out.join("\n");
 }
 
-function equalsIgnoringWhitespace(a: string, b: string): boolean {
-	return a.replace(/\s+/g, "") === b.replace(/\s+/g, "");
+function equalsIgnoringBoundaryWhitespace(a: string, b: string): boolean {
+	return a.trim() === b.trim();
 }
 
 function splitLines(value: string): string[] {

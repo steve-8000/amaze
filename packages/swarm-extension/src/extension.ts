@@ -154,7 +154,7 @@ async function handleRun(yamlPath: string, ctx: ExtensionCommandContext, pi: Ext
 
 	const result = await controller.run({
 		workspace,
-		onProgress: () => updateWidget(),
+		onProgress: updateWidget,
 		authStorage,
 		modelRegistry: ctx.modelRegistry,
 		settings: pi.pi.settings,

@@ -118,7 +118,7 @@ async function applyProposalPayload(proposal: LearningProposal, opts: ApplyPropo
 			const current = JSON.parse(await Bun.file(settingsPath).text()) as Record<string, unknown>;
 			await writeFileAtomically(
 				settingsPath,
-				`${JSON.stringify(applyObjectPatch(current, proposal.patch), null, "\t")}\n`,
+				`${JSON.stringify(mergeObjects(current, proposal.patch), null, "\t")}\n`,
 			);
 			return;
 		}
@@ -196,10 +196,6 @@ function canonicalJson(value: unknown): string {
 			.join(",")}}`;
 	}
 	return JSON.stringify(value);
-}
-
-function applyObjectPatch(current: Record<string, unknown>, patch: Record<string, unknown>): Record<string, unknown> {
-	return mergeObjects(current, patch);
 }
 
 function mergeObjects(current: Record<string, unknown>, patch: Record<string, unknown>): Record<string, unknown> {

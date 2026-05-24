@@ -409,8 +409,7 @@ function isModelInputArray(value: unknown): value is ("text" | "image")[] {
 	if (!Array.isArray(value) || value.length === 0) {
 		return false;
 	}
-	for (let i = 0; i < value.length; i++) {
-		const item = value[i];
+	for (const item of value) {
 		if (item !== "text" && item !== "image") {
 			return false;
 		}

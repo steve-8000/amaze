@@ -10,56 +10,56 @@ import type {
 
 const API_BASE = "/api";
 
+async function fetchJson<T>(path: string, errorMessage: string): Promise<T> {
+	const res = await fetch(`${API_BASE}${path}`);
+	if (!res.ok) throw new Error(errorMessage);
+	return res.json() as Promise<T>;
+}
+
 export async function getStats(range = "24h"): Promise<DashboardStats> {
-	const res = await fetch(`${API_BASE}/stats?range=${encodeURIComponent(range)}`);
-	if (!res.ok) throw new Error("Failed to fetch stats");
-	return res.json() as Promise<DashboardStats>;
+	return fetchJson<DashboardStats>(`/stats?range=${encodeURIComponent(range)}`, "Failed to fetch stats");
 }
 
 export async function getOverviewStats(range = "24h"): Promise<OverviewStats> {
-	const res = await fetch(`${API_BASE}/stats/overview?range=${encodeURIComponent(range)}`);
-	if (!res.ok) throw new Error("Failed to fetch overview stats");
-	return res.json() as Promise<OverviewStats>;
+	return fetchJson<OverviewStats>(
+		`/stats/overview?range=${encodeURIComponent(range)}`,
+		"Failed to fetch overview stats",
+	);
 }
 
 export async function getModelDashboardStats(range = "24h"): Promise<ModelDashboardStats> {
-	const res = await fetch(`${API_BASE}/stats/model-dashboard?range=${encodeURIComponent(range)}`);
-	if (!res.ok) throw new Error("Failed to fetch model stats");
-	return res.json() as Promise<ModelDashboardStats>;
+	return fetchJson<ModelDashboardStats>(
+		`/stats/model-dashboard?range=${encodeURIComponent(range)}`,
+		"Failed to fetch model stats",
+	);
 }
 
 export async function getCostDashboardStats(range = "24h"): Promise<CostDashboardStats> {
-	const res = await fetch(`${API_BASE}/stats/costs?range=${encodeURIComponent(range)}`);
-	if (!res.ok) throw new Error("Failed to fetch cost stats");
-	return res.json() as Promise<CostDashboardStats>;
+	return fetchJson<CostDashboardStats>(
+		`/stats/costs?range=${encodeURIComponent(range)}`,
+		"Failed to fetch cost stats",
+	);
 }
 
 export async function getRecentRequests(limit = 50): Promise<MessageStats[]> {
-	const res = await fetch(`${API_BASE}/stats/recent?limit=${limit}`);
-	if (!res.ok) throw new Error("Failed to fetch recent requests");
-	return res.json() as Promise<MessageStats[]>;
+	return fetchJson<MessageStats[]>(`/stats/recent?limit=${limit}`, "Failed to fetch recent requests");
 }
 
 export async function getRecentErrors(limit = 50): Promise<MessageStats[]> {
-	const res = await fetch(`${API_BASE}/stats/errors?limit=${limit}`);
-	if (!res.ok) throw new Error("Failed to fetch recent errors");
-	return res.json() as Promise<MessageStats[]>;
+	return fetchJson<MessageStats[]>(`/stats/errors?limit=${limit}`, "Failed to fetch recent errors");
 }
 
 export async function getRequestDetails(id: number): Promise<RequestDetails> {
-	const res = await fetch(`${API_BASE}/request/${id}`);
-	if (!res.ok) throw new Error("Failed to fetch request details");
-	return res.json() as Promise<RequestDetails>;
+	return fetchJson<RequestDetails>(`/request/${id}`, "Failed to fetch request details");
 }
 
-export async function sync(): Promise<any> {
-	const res = await fetch(`${API_BASE}/sync`);
-	if (!res.ok) throw new Error("Failed to sync");
-	return res.json();
+export async function sync(): Promise<unknown> {
+	return fetchJson<unknown>("/sync", "Failed to sync");
 }
 
 export async function getBehaviorDashboardStats(range = "24h"): Promise<BehaviorDashboardStats> {
-	const res = await fetch(`${API_BASE}/stats/behavior?range=${encodeURIComponent(range)}`);
-	if (!res.ok) throw new Error("Failed to fetch behavior stats");
-	return res.json() as Promise<BehaviorDashboardStats>;
+	return fetchJson<BehaviorDashboardStats>(
+		`/stats/behavior?range=${encodeURIComponent(range)}`,
+		"Failed to fetch behavior stats",
+	);
 }

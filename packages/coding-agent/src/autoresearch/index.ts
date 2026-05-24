@@ -7,7 +7,7 @@ import * as git from "../utils/git";
 import commandResumeTemplate from "./command-resume.md" with { type: "text" };
 import { createDashboardController } from "./dashboard";
 import { ensureAutoresearchBranch } from "./git";
-import { formatNum } from "./helpers";
+import { formatNum, isBetter } from "./helpers";
 import promptTemplate from "./prompt.md" with { type: "text" };
 import setupPromptTemplate from "./prompt-setup.md" with { type: "text" };
 import resumeMessageTemplate from "./resume-message.md" with { type: "text" };
@@ -517,12 +517,9 @@ function bestKeptResult(
 	let best: ExperimentResult | null = null;
 	for (const result of results) {
 		if (result.segment !== segment || result.status !== "keep" || result.flagged) continue;
-		if (!best) {
+		if (!best || isBetter(result.metric, best.metric, direction)) {
 			best = result;
-			continue;
 		}
-		const better = direction === "lower" ? result.metric < best.metric : result.metric > best.metric;
-		if (better) best = result;
 	}
 	return best;
 }

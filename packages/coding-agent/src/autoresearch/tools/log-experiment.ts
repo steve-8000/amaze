@@ -96,7 +96,7 @@ export function createLogExperimentTool(
 				flaggedRuns.push({ runId: flag.run_id, reason: flag.reason });
 			}
 
-			const branchName = await getCurrentAutoresearchBranch(options.pi, ctx.cwd);
+			const branchName = await getCurrentAutoresearchBranch(ctx.cwd);
 			const onAutoresearchBranch = branchName !== null;
 
 			let allModified: string[];

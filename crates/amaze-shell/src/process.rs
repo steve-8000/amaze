@@ -149,7 +149,7 @@ mod platform {
 			// unless it exits concurrently. If it exits, `getpgid` reports failure rather
 			// than dereferencing caller-owned memory.
 			let pgid = unsafe { libc::getpgid(self.pid) };
-			if pgid > 0 { Some(pgid) } else { None }
+			(pgid > 0).then_some(pgid)
 		}
 
 		pub fn status(&self) -> ProcessStatus {
@@ -534,10 +534,10 @@ mod platform {
 				continue;
 			}
 			let path_bytes = &path_buf[..len as usize];
-			let path_bytes = match path_bytes.iter().position(|byte| *byte == 0) {
-				Some(end) => &path_bytes[..end],
-				None => path_bytes,
-			};
+			let path_bytes = path_bytes
+				.iter()
+				.position(|byte| *byte == 0)
+				.map_or(path_bytes, |end| &path_bytes[..end]);
 			let Ok(path) = std::str::from_utf8(path_bytes) else {
 				continue;
 			};

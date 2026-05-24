@@ -5,7 +5,13 @@ import type { AgentMessage } from "@amaze/agent-core";
 import { formatSessionDumpText, SessionManager } from "@amaze/coding-agent";
 import { TempDir } from "@amaze/utils";
 import { generateReport } from "../src/report";
-import { buildBenchmarkResult, type TaskRunResult, writeConversationDump } from "../src/runner";
+import {
+	appendNoChangeMutationHint,
+	buildBenchmarkResult,
+	getEditPathFromArgs,
+	type TaskRunResult,
+	writeConversationDump,
+} from "../src/runner";
 import type { EditTask } from "../src/tasks";
 
 const tempDirs: TempDir[] = [];
@@ -176,6 +182,61 @@ describe("buildBenchmarkResult", () => {
 		const report = generateReport(result);
 		expect(report).toContain("| range-continuation | 1 | 100.0% |");
 		expect(report).toContain("- Category: range-continuation");
+	});
+
+	it("appends no-change mutation hints for nested edit paths", async () => {
+		const workDir = await createTempDir("@typescript-edit-benchmark-work-");
+		const targetPath = path.join(workDir.absolute(), "src/target.ts");
+		const original = "const value = 1;\n";
+		await fs.mkdir(path.dirname(targetPath), { recursive: true });
+		await Bun.write(targetPath, original);
+		const originalFiles = new Map([[targetPath, original]]);
+		await Bun.write(targetPath, "const value = 2;\n");
+		const nestedArgs = {
+			edits: [
+				{
+					path: "src/target.ts",
+					input: "1aa=const value = 1;",
+				},
+			],
+		};
+
+		expect(getEditPathFromArgs(nestedArgs)).toBe("src/target.ts");
+		const error = await appendNoChangeMutationHint("No changes made", nestedArgs, workDir.absolute(), originalFiles);
+
+		expect(error).toContain("The file differs from the original fixture at these lines:");
+		expect(error).toContain("1#");
+		expect(error).toContain("-const value = 1;");
+		expect(error).toContain("+const value = 2;");
+	});
+
+	it("counts write-only mutations as applied edits in summaries", () => {
+		const task = createTask("write-only");
+		const writeRun: TaskRunResult = {
+			...createRun(0, true),
+			patchApplied: true,
+			toolCalls: {
+				...createRun(0, true).toolCalls,
+				edit: 0,
+				write: 1,
+			},
+		};
+		const result = buildBenchmarkResult({
+			tasks: [task],
+			config: {
+				provider: "anthropic",
+				model: "claude",
+				runsPerTask: 1,
+				timeout: 1000,
+				taskConcurrency: 1,
+			},
+			resultsByTask: new Map([[task.id, [writeRun]]]),
+			startTime: "2026-04-28T00:00:00.000Z",
+			endTime: "2026-04-28T00:00:01.000Z",
+		});
+
+		expect(result.summary.editToolRuns).toBe(1);
+		expect(generateReport(result)).toContain("| Edit Tool Usage Rate | 100.0% (1/1) |");
 	});
 });
 

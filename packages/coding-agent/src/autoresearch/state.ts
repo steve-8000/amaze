@@ -83,8 +83,7 @@ export function findBaselineResult(results: ExperimentResult[], segment: number)
 }
 
 export function findBaselineMetric(results: ExperimentResult[], segment: number): number | null {
-	const baseline = findBaselineResult(results, segment);
-	return baseline ? baseline.metric : null;
+	return findBaselineResult(results, segment)?.metric ?? null;
 }
 
 export function findBestKeptMetric(

@@ -171,6 +171,154 @@ describe("legacy migration", () => {
 		}
 	});
 
+	test("imports legacy proposals and events when legacy snapshots exist without a destination snapshot table", () => {
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "amaze-proposal-migration-"));
+		const legacyPath = path.join(root, ".amaze", "learning", "proposals.db");
+		const defaultPath = path.join(root, ".amaze", "autonomy", "autonomy.db");
+		const legacyStore = createTempStore(legacyPath);
+		const legacyProposal = legacyStore.create(memoryProposal());
+		legacyStore.approve(legacyProposal.id, "reviewer");
+		legacyStore.close();
+		stores.splice(stores.indexOf(legacyStore), 1);
+
+		const legacyDb = new Database(legacyPath, { create: true, strict: true });
+		try {
+			legacyDb.exec(`
+				CREATE TABLE promotion_snapshots (
+					id TEXT PRIMARY KEY,
+					payload TEXT NOT NULL
+				);
+				INSERT INTO promotion_snapshots (id, payload) VALUES ('snapshot-1', '{}');
+			`);
+		} finally {
+			legacyDb.close();
+		}
+
+		fs.mkdirSync(path.dirname(defaultPath), { recursive: true });
+		const db = new Database(defaultPath, { create: true, strict: true });
+		try {
+			db.exec(`
+				CREATE TABLE IF NOT EXISTS learning_proposals (
+					id TEXT PRIMARY KEY,
+					type TEXT NOT NULL,
+					status TEXT NOT NULL,
+					gate TEXT NOT NULL,
+					payload TEXT NOT NULL CHECK (json_valid(payload)),
+					evidence TEXT NOT NULL CHECK (json_valid(evidence)),
+					provenance TEXT NOT NULL CHECK (json_valid(provenance)),
+					created_at INTEGER NOT NULL,
+					updated_at INTEGER NOT NULL,
+					expires_at INTEGER NULL
+				);
+
+				CREATE TABLE IF NOT EXISTS learning_proposal_events (
+					proposal_id TEXT NOT NULL,
+					ts INTEGER NOT NULL,
+					kind TEXT NOT NULL,
+					payload TEXT NOT NULL CHECK (json_valid(payload)),
+					FOREIGN KEY (proposal_id) REFERENCES learning_proposals(id) ON DELETE CASCADE
+				);
+			`);
+			__test.migrateLegacyIfNeeded(db, defaultPath, { defaultDbPath: defaultPath, legacyDbPath: legacyPath });
+			expect((db.query("SELECT COUNT(*) AS count FROM learning_proposals").get() as { count: number }).count).toBe(
+				1,
+			);
+			expect((db.query("SELECT id FROM learning_proposals").get() as { id: string }).id).toBe(legacyProposal.id);
+			expect(
+				db.query("SELECT kind FROM learning_proposal_events ORDER BY ts ASC, kind ASC").all() as Array<{
+					kind: string;
+				}>,
+			).toEqual([{ kind: "created" }, { kind: "approved" }]);
+		} finally {
+			db.close();
+			fs.rmSync(root, { recursive: true, force: true });
+		}
+	});
+
+	test("imports compatible legacy promotion snapshots using explicit destination columns", () => {
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "amaze-proposal-migration-"));
+		const legacyPath = path.join(root, ".amaze", "learning", "proposals.db");
+		const defaultPath = path.join(root, ".amaze", "autonomy", "autonomy.db");
+		const legacyStore = createTempStore(legacyPath);
+		const legacyProposal = legacyStore.create(memoryProposal());
+		legacyStore.close();
+		stores.splice(stores.indexOf(legacyStore), 1);
+
+		const legacyDb = new Database(legacyPath, { create: true, strict: true });
+		try {
+			legacyDb.exec(`
+				CREATE TABLE promotion_snapshots (
+					legacy_order_marker TEXT NOT NULL,
+					applied_at INTEGER NOT NULL,
+					snapshot_blob TEXT NOT NULL CHECK (json_valid(snapshot_blob)),
+					type TEXT NOT NULL,
+					version TEXT NOT NULL,
+					proposal_id TEXT NOT NULL,
+					id TEXT PRIMARY KEY
+				);
+				INSERT INTO promotion_snapshots
+					(legacy_order_marker, applied_at, snapshot_blob, type, version, proposal_id, id)
+				VALUES
+					('legacy-only', 1234, '{"before":"state"}', 'memory', 'v1', '${legacyProposal.id}', 'snapshot-1');
+			`);
+		} finally {
+			legacyDb.close();
+		}
+
+		fs.mkdirSync(path.dirname(defaultPath), { recursive: true });
+		const db = new Database(defaultPath, { create: true, strict: true });
+		try {
+			db.exec(`
+				CREATE TABLE IF NOT EXISTS learning_proposals (
+					id TEXT PRIMARY KEY,
+					type TEXT NOT NULL,
+					status TEXT NOT NULL,
+					gate TEXT NOT NULL,
+					payload TEXT NOT NULL CHECK (json_valid(payload)),
+					evidence TEXT NOT NULL CHECK (json_valid(evidence)),
+					provenance TEXT NOT NULL CHECK (json_valid(provenance)),
+					created_at INTEGER NOT NULL,
+					updated_at INTEGER NOT NULL,
+					expires_at INTEGER NULL
+				);
+
+				CREATE TABLE IF NOT EXISTS learning_proposal_events (
+					proposal_id TEXT NOT NULL,
+					ts INTEGER NOT NULL,
+					kind TEXT NOT NULL,
+					payload TEXT NOT NULL CHECK (json_valid(payload)),
+					FOREIGN KEY (proposal_id) REFERENCES learning_proposals(id) ON DELETE CASCADE
+				);
+
+				CREATE TABLE promotion_snapshots (
+					id TEXT PRIMARY KEY,
+					proposal_id TEXT NOT NULL,
+					version TEXT NOT NULL,
+					type TEXT NOT NULL,
+					snapshot_blob TEXT NOT NULL CHECK (json_valid(snapshot_blob)),
+					applied_at INTEGER NOT NULL,
+					FOREIGN KEY (proposal_id) REFERENCES learning_proposals(id) ON DELETE CASCADE
+				);
+			`);
+			__test.migrateLegacyIfNeeded(db, defaultPath, { defaultDbPath: defaultPath, legacyDbPath: legacyPath });
+			expect(
+				db.query("SELECT id, proposal_id, version, type, snapshot_blob, applied_at FROM promotion_snapshots").all(),
+			).toEqual([
+				{
+					id: "snapshot-1",
+					proposal_id: legacyProposal.id,
+					version: "v1",
+					type: "memory",
+					snapshot_blob: '{"before":"state"}',
+					applied_at: 1234,
+				},
+			]);
+		} finally {
+			db.close();
+			fs.rmSync(root, { recursive: true, force: true });
+		}
+	});
+
 	test("does not re-import legacy proposals on a second construction", () => {
 		const root = fs.mkdtempSync(path.join(os.tmpdir(), "amaze-proposal-migration-"));
 		const legacyPath = path.join(root, ".amaze", "learning", "proposals.db");

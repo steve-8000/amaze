@@ -86,7 +86,7 @@ async function getCompiledClientDir(): Promise<string> {
 async function getLatestMtime(dir: string): Promise<number> {
 	const entries = await fs.readdir(dir, { withFileTypes: true });
 
-	const promises = [];
+	const promises: Promise<number>[] = [];
 	for (const entry of entries) {
 		const fullPath = path.join(dir, entry.name);
 		if (entry.isDirectory()) {
@@ -97,13 +97,12 @@ async function getLatestMtime(dir: string): Promise<number> {
 	}
 
 	let latest = 0;
-	await Promise.allSettled(promises).then(results => {
-		for (const result of results) {
-			if (result.status === "fulfilled") {
-				latest = Math.max(latest, result.value);
-			}
+	const results = await Promise.allSettled(promises);
+	for (const result of results) {
+		if (result.status === "fulfilled") {
+			latest = Math.max(latest, result.value);
 		}
-	});
+	}
 	return latest;
 }
 

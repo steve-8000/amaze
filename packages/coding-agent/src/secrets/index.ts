@@ -55,8 +55,7 @@ async function loadSecretsFile(filePath: string): Promise<SecretEntry[]> {
 			return [];
 		}
 		const entries: SecretEntry[] = [];
-		for (let i = 0; i < raw.length; i++) {
-			const entry = raw[i];
+		for (const [i, entry] of raw.entries()) {
 			if (!validateEntry(entry, filePath, i)) continue;
 			entries.push({
 				type: entry.type,

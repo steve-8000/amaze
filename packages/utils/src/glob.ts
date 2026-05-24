@@ -71,19 +71,10 @@ function parseGitignorePatterns(content: string, gitignoreDir: string, baseDir: 
 				patterns.push(pattern);
 			}
 		} else {
-			// Unrooted pattern: match anywhere in the tree
-			if (pattern.includes("/")) {
-				// Contains slash: match from any directory level
-				patterns.push(`**/${pattern}`);
-				if (isDirectoryOnly) {
-					patterns.push(`**/${pattern}/**`);
-				}
-			} else {
-				// No slash: match file/dir name anywhere
-				patterns.push(`**/${pattern}`);
-				if (isDirectoryOnly) {
-					patterns.push(`**/${pattern}/**`);
-				}
+			// Unrooted pattern: match file/dir anywhere in the tree
+			patterns.push(`**/${pattern}`);
+			if (isDirectoryOnly) {
+				patterns.push(`**/${pattern}/**`);
 			}
 		}
 	}

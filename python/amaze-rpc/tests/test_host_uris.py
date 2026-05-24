@@ -2,12 +2,11 @@ from __future__ import annotations
 
 import sys
 import textwrap
-import threading
 import time
 import unittest
 
 from amaze_rpc import RpcClient, host_uri
-from amaze_rpc.host_uris import HostUri, normalize_read_result
+from amaze_rpc.host_uris import normalize_read_result
 
 
 URI_SERVER = textwrap.dedent(

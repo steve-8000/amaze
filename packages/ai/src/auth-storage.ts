@@ -486,7 +486,7 @@ function storedCredentialArraysEqual(left: StoredCredential[], right: StoredCred
 // ─────────────────────────────────────────────────────────────────────────────
 
 class AuthStorageUsageCache implements UsageCache {
-	constructor(private store: AuthCredentialStore) {}
+	constructor(private readonly store: AuthCredentialStore) {}
 
 	get<T>(key: string): UsageCacheEntry<T> | undefined {
 		const raw = this.store.getCache(`${USAGE_CACHE_PREFIX}${key}`);

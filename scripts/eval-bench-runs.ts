@@ -18,6 +18,8 @@ interface ReportRow {
 	totalTasks: number;
 	totalRuns: number;
 	successfulRuns: number;
+	verifiedRuns: number;
+	verifiedAttempts: number;
 	taskSuccessPct: number;
 	verifiedPct: number;
 	editToolUsagePct: number;
@@ -57,28 +59,45 @@ const SEPARATOR_DISPLAY: Record<string, string> = {
 
 const args = process.argv.slice(2);
 const dirs: string[] = [];
-let format: "table" | "md" | "csv" | "json" = "table";
-let sortBy: "sep" | "model" | "task" | "edit" | "tokens" = "sep";
+const VALID_FORMATS = ["table", "md", "csv", "json"] as const;
+const VALID_SORTS = ["sep", "model", "task", "edit", "tokens"] as const;
+let format: (typeof VALID_FORMATS)[number] = "table";
+let sortBy: (typeof VALID_SORTS)[number] = "sep";
 let aggregate = false;
+
+function failUsage(message: string): never {
+	console.error(message);
+	console.error(
+		"usage: bun scripts/eval-bench-runs.ts <runs-dir> [<runs-dir>...] [--aggregate] [--format table|md|csv|json] [--sort sep|model|task|edit|tokens]",
+	);
+	process.exit(2);
+}
 
 for (let i = 0; i < args.length; i++) {
 	const a = args[i];
 	if (a === "--format") {
-		format = args[++i] as typeof format;
+		const value = args[++i];
+		if (!value || !VALID_FORMATS.includes(value as (typeof VALID_FORMATS)[number])) {
+			failUsage(`invalid --format value: ${value ?? "(missing)"}`);
+		}
+		format = value;
 	} else if (a === "--sort") {
-		sortBy = args[++i] as typeof sortBy;
+		const value = args[++i];
+		if (!value || !VALID_SORTS.includes(value as (typeof VALID_SORTS)[number])) {
+			failUsage(`invalid --sort value: ${value ?? "(missing)"}`);
+		}
+		sortBy = value;
 	} else if (a === "--aggregate") {
 		aggregate = true;
-	} else if (!a.startsWith("--")) {
+	} else if (a.startsWith("--")) {
+		failUsage(`unknown option: ${a}`);
+	} else {
 		dirs.push(a);
 	}
 }
 
 if (dirs.length === 0) {
-	console.error(
-		"usage: bun scripts/eval-bench-runs.ts <runs-dir> [<runs-dir>...] [--aggregate] [--format table|md|csv|json] [--sort sep|model|task|edit|tokens]",
-	);
-	process.exit(2);
+	failUsage("missing runs directory");
 }
 
 const resolvedDirs = dirs.map(d => path.resolve(d));
@@ -123,11 +142,6 @@ function parseRatePair(value: string | null): { numerator: number; denominator: 
 	};
 }
 
-function parseFraction(value: string | null): { num: number; denom: number } {
-	if (!value) return { num: 0, denom: 0 };
-	const m = value.match(/([0-9,]+)\s*\/\s*([0-9,]+)/);
-	return m ? { num: parseNumber(m[1]), denom: parseNumber(m[2]) } : { num: 0, denom: 0 };
-}
 
 async function parseReport(file: string): Promise<ReportRow> {
 	const text = await Bun.file(file).text();
@@ -136,19 +150,19 @@ async function parseReport(file: string): Promise<ReportRow> {
 	const [sepSlug, ...modelParts] = base.split("__");
 	const model = modelParts.join("__").replace(/_/g, "/");
 
-	const totalTasks = Number.parseInt(getCell(text, "Total Tasks") ?? "0", 10);
-	const totalRuns = Number.parseInt(getCell(text, "Total Runs") ?? "0", 10);
-	const successfulRuns = Number.parseInt(getCell(text, "Successful Runs") ?? "0", 10);
+	const totalTasks = Math.trunc(parseNumber(getCell(text, "Total Tasks") ?? "0"));
+	const totalRuns = Math.trunc(parseNumber(getCell(text, "Total Runs") ?? "0"));
+	const successfulRuns = Math.trunc(parseNumber(getCell(text, "Successful Runs") ?? "0"));
 	const taskSuccessPct = parsePercent(getCell(text, "Task Success Rate"));
-	const verifiedPct = parsePercent(getCell(text, "Verified Rate"));
+	const verified = parseRatePair(getCell(text, "Verified Rate"));
 	const editTool = parseRatePair(getCell(text, "Edit Tool Usage Rate"));
 	const editSuccessPct = parsePercent(getCell(text, "Edit Success Rate"));
 	const patchFailure = parseRatePair(getCell(text, "Patch Failure Rate"));
 	const mutationIntentPct = parsePercent(getCell(text, "Mutation Intent Match Rate"));
 	const autocorrectFreePct = parsePercent(getCell(text, "Autocorrect-Free Success Rate"));
-	const tasksAllPassing = Number.parseInt(getCell(text, "Tasks All Passing") ?? "0", 10);
-	const tasksFlakyFailing = Number.parseInt(getCell(text, "Tasks Flaky/Failing") ?? "0", 10);
-	const timeoutRuns = Number.parseInt(getCell(text, "Timeout Runs") ?? "0", 10);
+	const tasksAllPassing = Math.trunc(parseNumber(getCell(text, "Tasks All Passing") ?? "0"));
+	const tasksFlakyFailing = Math.trunc(parseNumber(getCell(text, "Tasks Flaky/Failing") ?? "0"));
+	const timeoutRuns = Math.trunc(parseNumber(getCell(text, "Timeout Runs") ?? "0"));
 
 	const inRow = getRow(text, "Input Tokens") ?? ["0", "0"];
 	const outRow = getRow(text, "Output Tokens") ?? ["0", "0"];
@@ -170,7 +184,9 @@ async function parseReport(file: string): Promise<ReportRow> {
 		totalRuns,
 		successfulRuns,
 		taskSuccessPct,
-		verifiedPct,
+		verifiedRuns: verified.numerator,
+		verifiedAttempts: verified.denominator,
+		verifiedPct: verified.pct,
 		editToolUsagePct: editTool.pct,
 		editSuccessPct,
 		patchFailurePct: patchFailure.pct,
@@ -211,6 +227,10 @@ function shortModel(model: string): string {
 
 function sortRows(rows: ReportRow[], by: typeof sortBy): ReportRow[] {
 	const sepOrder = ["gt", "plus", "div", "pipe", "bslash", "tilde", "pct", "colon"];
+	const sepRank = (slug: string) => {
+		const index = sepOrder.indexOf(slug);
+		return index === -1 ? sepOrder.length : index;
+	};
 	const modelOrder = (m: string) => {
 		if (m.includes("glm")) return 0;
 		if (m.includes("gpt")) return 1;
@@ -219,11 +239,13 @@ function sortRows(rows: ReportRow[], by: typeof sortBy): ReportRow[] {
 	};
 	const cmp: Record<typeof sortBy, (a: ReportRow, b: ReportRow) => number> = {
 		sep: (a, b) =>
-			sepOrder.indexOf(a.sepSlug) - sepOrder.indexOf(b.sepSlug) ||
+			sepRank(a.sepSlug) - sepRank(b.sepSlug) ||
+			a.sepSlug.localeCompare(b.sepSlug) ||
 			modelOrder(a.model) - modelOrder(b.model),
 		model: (a, b) =>
 			modelOrder(a.model) - modelOrder(b.model) ||
-			sepOrder.indexOf(a.sepSlug) - sepOrder.indexOf(b.sepSlug),
+			sepRank(a.sepSlug) - sepRank(b.sepSlug) ||
+			a.sepSlug.localeCompare(b.sepSlug),
 		task: (a, b) => b.taskSuccessPct - a.taskSuccessPct,
 		edit: (a, b) => b.editSuccessPct - a.editSuccessPct,
 		tokens: (a, b) => a.totalTokensAvg - b.totalTokensAvg,
@@ -261,6 +283,8 @@ function mergeRows(input: ReportRow[]): ReportRow[] {
 		}
 		const totalRuns = sumField(list, r => r.totalRuns);
 		const successfulRuns = sumField(list, r => r.successfulRuns);
+		const verifiedRuns = sumField(list, r => r.verifiedRuns);
+		const verifiedAttempts = sumField(list, r => r.verifiedAttempts);
 		const patchFailures = sumField(list, r => r.patchFailures);
 		const patchAttempts = sumField(list, r => r.patchAttempts);
 		const totalTokens = sumField(list, r => r.totalTokens);
@@ -280,8 +304,10 @@ function mergeRows(input: ReportRow[]): ReportRow[] {
 			totalRuns,
 			successfulRuns,
 			taskSuccessPct: ratio(successfulRuns, totalRuns),
-			verifiedPct: ratio(successfulRuns, totalRuns),
-			editToolUsagePct: ratio(sumField(list, r => Math.round((r.editToolUsagePct / 100) * r.totalRuns)), totalRuns),
+			verifiedPct: ratio(verifiedRuns, verifiedAttempts),
+			verifiedRuns,
+			verifiedAttempts,
+			editToolUsagePct: ratio(editTotal, totalRuns),
 			editSuccessPct: ratio(patchAttempts - patchFailures, patchAttempts),
 			patchFailurePct: ratio(patchFailures, patchAttempts),
 			patchFailures,
@@ -324,6 +350,7 @@ if (format === "csv") {
 		"totalRuns",
 		"successfulRuns",
 		"taskSuccessPct",
+		"verifiedPct",
 		"editToolUsagePct",
 		"editSuccessPct",
 		"patchFailurePct",

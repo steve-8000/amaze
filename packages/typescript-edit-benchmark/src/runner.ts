@@ -18,7 +18,7 @@ import benchmarkRetryPrompt from "./prompts/benchmark-retry.md" with { type: "te
 import benchmarkSystemPrompt from "./prompts/benchmark-system.md" with { type: "text" };
 import benchmarkTaskPrompt from "./prompts/benchmark-task.md" with { type: "text" };
 import type { EditTask } from "./tasks";
-import { verifyExpectedFileSubset, verifyExpectedFiles } from "./verify";
+import { verifyExpectedFileSubset } from "./verify";
 
 const REPO_ROOT = path.resolve(import.meta.dir, "..", "..", "..");
 const RUNS_DIR = path.join(REPO_ROOT, "runs");
@@ -176,10 +176,22 @@ function splitLines(value: string): string[] {
 	return value.split("\n").filter((line, idx, arr) => idx < arr.length - 1 || line);
 }
 
-function getEditPathFromArgs(args: unknown): string | null {
+export function getEditPathFromArgs(args: unknown): string | null {
 	if (!args || typeof args !== "object") return null;
+
 	const pathValue = (args as { path?: unknown }).path;
-	return typeof pathValue === "string" && pathValue.length > 0 ? pathValue : null;
+	if (typeof pathValue === "string" && pathValue.length > 0) return pathValue;
+
+	const edits = (args as { edits?: unknown }).edits;
+	if (Array.isArray(edits)) {
+		for (const edit of edits) {
+			if (!edit || typeof edit !== "object") continue;
+			const nestedPathValue = (edit as { path?: unknown }).path;
+			if (typeof nestedPathValue === "string" && nestedPathValue.length > 0) return nestedPathValue;
+		}
+	}
+
+	return null;
 }
 
 function getEditPayloadFromArgs(args: unknown): string {
@@ -252,7 +264,7 @@ const BENCHMARK_TOOL_NAMES = ["read", "edit", "write", "apply_patch"] as const;
 const EDIT_TOOL_NAMES = ["edit", "apply_patch"] as const;
 
 function isEditTool(toolName: unknown): toolName is (typeof EDIT_TOOL_NAMES)[number] {
-	return toolName === "edit" || toolName === "vim" || toolName === "apply_patch";
+	return EDIT_TOOL_NAMES.includes(toolName as (typeof EDIT_TOOL_NAMES)[number]);
 }
 
 function isMutationTool(toolName: unknown): boolean {
@@ -321,7 +333,7 @@ function buildMutationPreviewAgainstOriginal(original: string, current: string):
 	return preview.length > 0 ? preview.join("\n") : null;
 }
 
-async function appendNoChangeMutationHint(
+export async function appendNoChangeMutationHint(
 	error: string,
 	args: unknown,
 	cwd: string,
@@ -656,7 +668,7 @@ async function buildGuidedContext(
 function buildInstructions(config: BenchmarkConfig): string {
 	return config.noEditRequired
 		? "Read the relevant files first, then apply the fix."
-		: "Read the relevant files first, then use the edit or vim tool to apply the fix.";
+		: "Read the relevant files first, then use the edit tool to apply the fix.";
 }
 
 type BenchmarkPromptDelivery = {
@@ -860,6 +872,7 @@ export interface BenchmarkSummary {
 	totalToolCalls: ToolCallStats;
 	avgToolCallsPerRun: ToolCallStats;
 	editSuccessRate: number;
+	editToolRuns: number;
 	autocorrectFreeSuccessfulRuns: number;
 	autocorrectFreeSuccessRate: number;
 	autocorrectedRuns: number;
@@ -1226,16 +1239,16 @@ async function runSingleTask(
 				if (!madeEditAttempt && zeroToolRetries < noOpRetryLimit) {
 					zeroToolRetries++;
 					await logEvent({ type: "zero_tool_retry", attempt: attempt + 1, retryNumber: zeroToolRetries });
-					retryContext = `Previous attempt read files but made no edit attempt — you must use the edit or vim tool to apply the fix. Retry ${zeroToolRetries}/${noOpRetryLimit}.`;
+					retryContext = `Previous attempt read files but made no edit attempt — you must use the edit tool to apply the fix. Retry ${zeroToolRetries}/${noOpRetryLimit}.`;
 					attempt--; // Don't consume a regular attempt slot
 					continue;
 				}
 
-				patchApplied = toolStats.edit > 0;
-				const verification = await verifyExpectedFiles(expectedDir, cwd);
+				patchApplied = madeEditAttempt;
 				if (config.autoFormat) {
 					await formatDirectory(cwd);
 				}
+				const verification = await verifyExpectedFileSubset(expectedDir, cwd);
 
 				verificationPassed = verification.success;
 				indentScore = verification.indentScore;
@@ -1787,6 +1800,7 @@ export function buildBenchmarkResult(params: {
 	};
 
 	const editSuccessRate = totalToolCalls.edit > 0 ? totalToolCalls.editSuccesses / totalToolCalls.edit : 1;
+	const editToolRuns = nonGhostRuns.filter(run => run.patchApplied).length;
 	const autocorrectFreeSuccessfulRuns = nonGhostRuns.filter(
 		run => run.success && run.editAutocorrectCount === 0,
 	).length;
@@ -1845,6 +1859,7 @@ export function buildBenchmarkResult(params: {
 			totalInputChars: totalToolCalls.totalInputChars / denom,
 		},
 		editSuccessRate,
+		editToolRuns,
 		autocorrectFreeSuccessfulRuns,
 		autocorrectFreeSuccessRate: autocorrectFreeSuccessfulRuns / denom,
 		autocorrectedRuns,

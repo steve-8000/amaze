@@ -53,13 +53,14 @@ export function normalizeResponsesToolCallId(
 	return { callId: normalizedCallId, itemId: `${itemPrefix}_${hash}` };
 }
 
+const ID_PREFIX_REGEX = /^([a-zA-Z][a-zA-Z0-9]*)_/;
+
 function getIdPrefix(id: string, fallback: string): string {
-	const prefix = id.match(/^([a-zA-Z][a-zA-Z0-9]*)_/)?.[1];
-	return prefix || fallback;
+	return id.match(ID_PREFIX_REGEX)?.[1] || fallback;
 }
 
 function getExplicitIdPrefix(id: string): string | undefined {
-	return id.match(/^([a-zA-Z][a-zA-Z0-9]*)_/)?.[1];
+	return id.match(ID_PREFIX_REGEX)?.[1];
 }
 
 function normalizeResponsesItemId(itemId: string, fallbackPrefix: ResponsesToolItemIdPrefix): string {

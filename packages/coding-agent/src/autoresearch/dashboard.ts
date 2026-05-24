@@ -435,8 +435,7 @@ function renderModeStatus(runtime: AutoresearchRuntime, state: ExperimentState):
 
 function findBestResult(state: ExperimentState): { index: number; result: ExperimentResult } | null {
 	let best: { index: number; result: ExperimentResult } | null = null;
-	for (let index = 0; index < state.results.length; index += 1) {
-		const result = state.results[index];
+	for (const [index, result] of state.results.entries()) {
 		if (result.segment !== state.currentSegment || result.status !== "keep" || result.metric <= 0) continue;
 		if (!best || isBetter(result.metric, best.result.metric, state.bestDirection)) {
 			best = { index, result };

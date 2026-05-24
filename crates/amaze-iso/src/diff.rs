@@ -328,18 +328,23 @@ fn walk(root: &Path, dir: &Path, out: &mut BTreeMap<PathBuf, Metadata>) -> IsoRe
 		let entry =
 			entry.map_err(|err| IsoError::other(format!("dir entry in {}: {err}", dir.display())))?;
 		let path = entry.path();
-		let meta = entry
-			.metadata()
-			.map_err(|err| IsoError::other(format!("metadata {}: {err}", path.display())))?;
-		if meta.is_symlink() {
+		let file_type = entry
+			.file_type()
+			.map_err(|err| IsoError::other(format!("file_type {}: {err}", path.display())))?;
+		if file_type.is_symlink() {
+			let meta = std::fs::symlink_metadata(&path)
+				.map_err(|err| IsoError::other(format!("symlink_metadata {}: {err}", path.display())))?;
 			let rel = path.strip_prefix(root).unwrap_or(&path).to_path_buf();
 			out.insert(rel, meta);
 			continue;
 		}
-		if meta.is_dir() {
+		if file_type.is_dir() {
 			walk(root, &path, out)?;
 			continue;
 		}
+		let meta = entry
+			.metadata()
+			.map_err(|err| IsoError::other(format!("metadata {}: {err}", path.display())))?;
 		let rel = path.strip_prefix(root).unwrap_or(&path).to_path_buf();
 		out.insert(rel, meta);
 	}
@@ -421,4 +426,62 @@ fn render_unified(rel: &Path, op: ChangeKind, old: &str, new: &str) -> String {
 
 fn looks_binary(bytes: &[u8]) -> bool {
 	bytes.iter().take(8192).any(|&b| b == 0)
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+	use super::*;
+	use std::{
+		fs,
+		path::{Path, PathBuf},
+		time::{SystemTime, UNIX_EPOCH},
+	};
+
+	struct TestTree {
+		root: PathBuf,
+	}
+
+	impl TestTree {
+		fn new(prefix: &str) -> Self {
+			let unique = SystemTime::now()
+				.duration_since(UNIX_EPOCH)
+				.expect("system clock before unix epoch")
+				.as_nanos();
+			let root = std::env::temp_dir().join(format!("amaze-iso-{prefix}-{unique}"));
+			fs::create_dir_all(&root).expect("create temp root");
+			Self { root }
+		}
+
+		fn path(&self) -> &Path {
+			&self.root
+		}
+	}
+
+	impl Drop for TestTree {
+		fn drop(&mut self) {
+			let _ = fs::remove_dir_all(&self.root);
+		}
+	}
+
+	#[test]
+	fn index_tree_keeps_symlink_entries_without_descending() {
+		let tree = TestTree::new("symlink-walk");
+		let target_dir = tree.path().join("target-dir");
+		fs::create_dir_all(&target_dir).expect("create target dir");
+		fs::write(target_dir.join("nested.txt"), "nested").expect("write nested target");
+		let link_path = tree.path().join("linked-dir");
+		std::os::unix::fs::symlink(&target_dir, &link_path).expect("create directory symlink");
+
+		let indexed = index_tree(tree.path()).expect("index tree");
+
+		assert!(indexed.contains_key(Path::new("linked-dir")));
+		assert!(!indexed.contains_key(Path::new("linked-dir/nested.txt")));
+		assert!(
+			indexed
+				.get(Path::new("linked-dir"))
+				.expect("symlink entry present")
+				.file_type()
+				.is_symlink()
+		);
+	}
 }

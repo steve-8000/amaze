@@ -560,7 +560,7 @@ describe("autoresearch slash command", () => {
 		expect(checkout?.args[2]).toMatch(/^autoresearch\/reduce-edit-benchmark-runtime-variance-\d{8}$/);
 	});
 
-	it("aborts with an error when the worktree is dirty", async () => {
+	it("continues with a warning when the worktree is dirty", async () => {
 		const dir = makeTempDir();
 		const harness = createCommandHarness(dir, async (_command, args) => {
 			if (args[0] === "rev-parse") return { code: 0, stderr: "", stdout: `${dir}\n` };
@@ -569,12 +569,29 @@ describe("autoresearch slash command", () => {
 			if (args[0] === "show-ref") return { code: 1, stderr: "", stdout: "" };
 			return { code: 0, stderr: "", stdout: "" };
 		});
-		await harness.command.handler("", harness.ctx);
-		expect(harness.notifications.some(n => n.type === "error" && n.message.includes("dirty"))).toBe(true);
-		// Should abort: no enabled notification, no checkout, no message sent
+		await harness.command.handler("optimize the dirty tree", harness.ctx);
+		expect(harness.notifications.some(n => n.type === "warning" && n.message.includes("dirty"))).toBe(true);
+		expect(harness.notifications.some(n => n.type === "error" && n.message.includes("dirty"))).toBe(false);
 		expect(harness.notifications.some(n => n.message.includes("Autoresearch enabled"))).toBe(false);
 		expect(harness.execCalls.find(c => c.command === "git" && c.args[0] === "checkout")).toBeUndefined();
-		expect(harness.sentMessages).toEqual([]);
+		expect(harness.sentMessages).toEqual(["optimize the dirty tree"]);
+	});
+
+	it("resumes an existing autoresearch branch without dirty-worktree gating", async () => {
+		const dir = makeTempDir();
+		const harness = createCommandHarness(dir, async (_command, args) => {
+			if (args[0] === "rev-parse") return { code: 0, stderr: "", stdout: `${dir}\n` };
+			if (args[0] === "branch" && args[1] === "--show-current") {
+				return { code: 0, stderr: "", stdout: "autoresearch/reduce-edit-benchmark-runtime-variance-20260524\n" };
+			}
+			if (args[0] === "status") return { code: 0, stderr: "", stdout: " M ../unrelated-dirty-file.ts\0" };
+			return { code: 0, stderr: "", stdout: "" };
+		});
+		await harness.command.handler("continue the run", harness.ctx);
+		expect(harness.notifications.some(n => n.type === "error" && n.message.includes("dirty"))).toBe(false);
+		expect(harness.sentMessages).toEqual(["continue the run"]);
+		expect(harness.execCalls.find(c => c.command === "git" && c.args[0] === "status")).toBeUndefined();
+		expect(harness.execCalls.find(c => c.command === "git" && c.args[0] === "checkout")).toBeUndefined();
 	});
 });
 

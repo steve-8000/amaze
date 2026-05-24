@@ -243,17 +243,15 @@ function migrateLegacyIfNeeded(
 				SELECT proposal_id, ts, kind, payload
 				FROM legacy.learning_proposal_events;
 			`);
-
-			const promotionSnapshots = db
-				.query("SELECT 1 FROM legacy.sqlite_master WHERE type = 'table' AND name = 'promotion_snapshots'")
-				.get();
-			if (promotionSnapshots) {
-				db.exec(`
-					INSERT OR IGNORE INTO promotion_snapshots
-					SELECT * FROM legacy.promotion_snapshots;
-				`);
-			}
 		})();
+
+		try {
+			migrateLegacyPromotionSnapshotsIfSafe(db);
+		} catch (error) {
+			process.stderr.write(
+				`promotion_snapshots legacy migration skipped: ${error instanceof Error ? error.message : String(error)}\n`,
+			);
+		}
 	} catch (error) {
 		process.stderr.write(`autonomy-db migration failed: ${error instanceof Error ? error.message : String(error)}\n`);
 	} finally {
@@ -265,6 +263,25 @@ function migrateLegacyIfNeeded(
 			}
 		}
 	}
+}
+
+function migrateLegacyPromotionSnapshotsIfSafe(db: Database): void {
+	const hasLegacyPromotionSnapshots = db
+		.query("SELECT 1 FROM legacy.sqlite_master WHERE type = 'table' AND name = 'promotion_snapshots'")
+		.get();
+	if (!hasLegacyPromotionSnapshots) return;
+
+	const hasPromotionSnapshots = db
+		.query("SELECT 1 FROM main.sqlite_master WHERE type = 'table' AND name = 'promotion_snapshots'")
+		.get();
+	if (!hasPromotionSnapshots) return;
+
+	db.exec(`
+		INSERT OR IGNORE INTO promotion_snapshots
+			(id, proposal_id, version, type, snapshot_blob, applied_at)
+		SELECT id, proposal_id, version, type, snapshot_blob, applied_at
+		FROM legacy.promotion_snapshots;
+	`);
 }
 
 export const __test = { DEFAULT_DB_PATH, LEGACY_DB_PATH, migrateLegacyIfNeeded };
