@@ -197,10 +197,10 @@ describe("mission control dogfood", () => {
 			expect(rollbackStdout).toContain("Snapshot: snapshot-dogfood-1");
 
 			const controlLines = buildMissionControlLines(view!).join("\n");
-			expect(controlLines).toContain("Verification: pass (dogfood passed)");
-			expect(controlLines).toContain("Rollback: 1 recorded | snapshot available");
-			expect(controlLines).toContain("repo: [repo truth] repo_truth | completed | evidence 1");
-			expect(controlLines).toContain("source: [source] source_harvest | completed | evidence 1");
+			expect(controlLines).toContain("Verification: pass | failed 0 | uncertain 0 | dogfood passed");
+			expect(controlLines).toContain("Rollback: restore pre-decision state | snapshots 1");
+			expect(controlLines).toContain("[repo truth] explore | repo | completed | evidence 1");
+			expect(controlLines).toContain("[source] source_scout | source | completed | evidence 1");
 		} finally {
 			readModel.close();
 			missions.close();
