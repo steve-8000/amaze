@@ -27,6 +27,7 @@ import { buildContextReportText } from "./helpers/context-report";
 import { formatDuration } from "./helpers/format";
 import { createMarketplaceManager } from "./helpers/marketplace-manager";
 import { handleMcpAcp } from "./helpers/mcp";
+import { MISSION_SUBCOMMANDS, runMissionSlashCommand } from "./helpers/mission-command";
 import { commandConsumed, errorMessage, parseSlashCommand, parseSubcommand, usage } from "./helpers/parse";
 import { handleSshAcp } from "./helpers/ssh";
 import { handleTodoAcp } from "./helpers/todo";
@@ -79,20 +80,38 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "goal",
-		description: "Toggle goal mode (persistent autonomous objective for this session)",
+		description:
+			"Toggle goal mode (persistent autonomous objective). Deprecated; use /mission. " +
+			"set→/mission create, show→/mission show, drop→/mission cancel, complete→/mission complete, block→/mission block.",
 		subcommands: [
-			{ name: "set", description: "Set or replace the goal", usage: "<objective>" },
-			{ name: "show", description: "Show current goal details" },
+			{ name: "set", description: "Set or replace the goal (alias of /mission create)", usage: "<objective>" },
+			{ name: "show", description: "Show current goal details (alias of /mission show)" },
 			{ name: "pause", description: "Pause the current goal" },
 			{ name: "resume", description: "Resume a paused goal" },
-			{ name: "drop", description: "Drop the current goal" },
+			{ name: "drop", description: "Drop the current goal (alias of /mission cancel)" },
 			{ name: "budget", description: "Adjust the token budget", usage: "<N|off>" },
 		],
 		inlineHint: "[objective]",
 		allowArgs: true,
 		handleTui: async (command, runtime) => {
+			// Deprecated alias for /mission — behavior is unchanged: it still
+			// drives goal mode through the session. Only the help text carries
+			// the deprecation/mapping hint.
 			await runtime.ctx.handleGoalModeCommand(command.args || undefined);
 			runtime.ctx.editor.setText("");
+		},
+	},
+	{
+		name: "mission",
+		description: "Inspect and operate the mission runtime (canonical surface; /goal is the legacy alias)",
+		acpDescription: "Inspect missions",
+		acpInputHint: "<subcommand> <missionId>",
+		subcommands: [...MISSION_SUBCOMMANDS],
+		allowArgs: true,
+		handle: async (command, runtime) => {
+			const result = await runMissionSlashCommand(command.args || "");
+			await runtime.output(result.output);
+			return commandConsumed();
 		},
 	},
 	{
