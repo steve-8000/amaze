@@ -234,12 +234,7 @@ export class ResearchStore {
 	}
 
 	getMissionForBrief(briefId: string): Mission | undefined {
-		const missions = new MissionStore(this.dbPath);
-		try {
-			return missions.listMissions({ briefId })[0];
-		} finally {
-			missions.close();
-		}
+		return this.#withMissionStore(missions => missions.listMissions({ briefId })[0]);
 	}
 
 	recordDecision(input: NewDecisionRecord): DecisionRecord {
@@ -247,6 +242,8 @@ export class ResearchStore {
 			throw new Error(`Research brief not found: ${input.briefId}`);
 		}
 		assertConfidence(input.confidence);
+		const mission = this.getMissionForBrief(input.briefId);
+		this.#assertNoLiveResearchRunForDecision(mission?.id, input.briefId);
 		const now = Date.now();
 		const decision: DecisionRecord = {
 			...input,
@@ -270,9 +267,8 @@ export class ResearchStore {
 				JSON.stringify(decision.nextActions),
 				decision.createdAt,
 			);
-		const mission = this.getMissionForBrief(decision.briefId);
 		if (mission) {
-			const missions = new MissionStore(this.dbPath);
+			const missions = this.#createMissionStore();
 			try {
 				missions.updateMission(mission.id, {
 					decisionId: decision.id,
@@ -321,10 +317,9 @@ export class ResearchStore {
 			);
 		const mission = this.getMissionForBrief(synthesis.briefId);
 		if (mission) {
-			const missions = new MissionStore(this.dbPath);
+			const missions = this.#createMissionStore();
 			try {
 				missions.updateMission(mission.id, { state: "synthesizing" });
-				this.#finalizeLatestResearchRun(missions, mission.id, synthesis.briefId, "completed", synthesis.createdAt);
 				this.#missionEventBus?.emit({
 					type: "research.synthesis.proposed",
 					missionId: mission.id,
@@ -383,7 +378,7 @@ export class ResearchStore {
 			);
 		const mission = this.getMissionForBrief(critique.briefId);
 		if (mission) {
-			const missions = new MissionStore(this.dbPath);
+			const missions = this.#createMissionStore();
 			try {
 				const runStatus =
 					critique.blockingCount > 0 || critique.verdict === "reject" || critique.verdict === "needs-more-research"
@@ -438,7 +433,7 @@ export class ResearchStore {
 	}
 
 	#updateLiveLaneRunForEvidence(missionId: string, briefId: string, lane: ResearchLane, ts: number): void {
-		const missions = new MissionStore(this.dbPath);
+		const missions = this.#createMissionStore();
 		try {
 			const run = missions.getLatestResearchRunForMissionBrief(missionId, briefId);
 			if (!run || run.status !== "running") return;
@@ -493,7 +488,7 @@ export class ResearchStore {
 	}
 
 	#createMissionForBrief(brief: ResearchBrief): Mission {
-		const missions = new MissionStore(this.dbPath);
+		const missions = this.#createMissionStore();
 		try {
 			return missions.createMission({
 				title: brief.question,
@@ -508,6 +503,29 @@ export class ResearchStore {
 		} finally {
 			missions.close();
 		}
+	}
+
+	#createMissionStore(): MissionStore {
+		return new MissionStore(this.dbPath, this.#missionEventBus);
+	}
+
+	#withMissionStore<T>(run: (missions: MissionStore) => T): T {
+		const missions = this.#createMissionStore();
+		try {
+			return run(missions);
+		} finally {
+			missions.close();
+		}
+	}
+
+	#assertNoLiveResearchRunForDecision(missionId: string | undefined, briefId: string): void {
+		if (!missionId) return;
+		this.#withMissionStore(missions => {
+			const run = missions.getLatestResearchRunForMissionBrief(missionId, briefId);
+			if (run && run.status !== "completed") {
+				throw new Error(`Cannot record decision while research run is ${run.status}`);
+			}
+		});
 	}
 
 	#init(): void {

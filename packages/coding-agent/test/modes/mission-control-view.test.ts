@@ -137,15 +137,15 @@ describe("MissionControlView", () => {
 		cleanup.push(() => view.dispose());
 
 		let rendered = Bun.stripANSI(view.render(120).join("\n"));
-		expect(rendered).toContain("Missions: 2 active | selected 2/2 | First mission");
+		expect(rendered).toContain("Missions: 2 total | selected 2/2 | First mission");
 		expect(rendered).toContain("Objective: First mission");
 		expect(view.selectNextMission()).toBe(true);
 		rendered = Bun.stripANSI(view.render(120).join("\n"));
-		expect(rendered).toContain("Missions: 2 active | selected 1/2 | Second mission");
+		expect(rendered).toContain("Missions: 2 total | selected 1/2 | Second mission");
 		expect(rendered).toContain("Objective: Second mission");
 		expect(view.selectPreviousMission()).toBe(true);
 		rendered = Bun.stripANSI(view.render(120).join("\n"));
-		expect(rendered).toContain("Missions: 2 active | selected 2/2 | First mission");
+		expect(rendered).toContain("Missions: 2 total | selected 2/2 | First mission");
 	});
 
 	test("renders synthesis critique decision contract and rollback details", () => {

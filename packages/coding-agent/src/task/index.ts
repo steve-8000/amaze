@@ -87,12 +87,14 @@ export function recordTaskMissionContract(
 	goalObjective: string | undefined,
 	contract: SubagentContract,
 	dbPath?: string,
-	linkage: { taskId?: string | null; sessionFile?: string | null } = {},
+	linkage: { taskId?: string | null; sessionFile?: string | null; missionId?: string | null } = {},
 ): void {
-	if (!goalObjective) return;
+	if (!goalObjective && !linkage.missionId) return;
 	const store = new MissionStore(dbPath);
 	try {
-		const mission = store.findLatestMissionByTitle(goalObjective);
+		const mission = linkage.missionId
+			? store.getMission(linkage.missionId)
+			: store.findLatestMissionByTitle(goalObjective ?? "");
 		if (!mission) return;
 		store.recordContract({
 			missionId: mission.id,
@@ -987,6 +989,7 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 							{
 								taskId: task.id,
 								sessionFile,
+								missionId: this.session.getGoalModeState?.()?.goal?.id,
 							},
 						);
 						const cwdBefore = new Set(await snapshotGitChangedFiles(this.session.cwd));
@@ -1110,6 +1113,7 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 							{
 								taskId: task.id,
 								sessionFile,
+								missionId: this.session.getGoalModeState?.()?.goal?.id,
 							},
 						);
 						const gitBefore = new Set(await snapshotGitChangedFiles(isolationDir));

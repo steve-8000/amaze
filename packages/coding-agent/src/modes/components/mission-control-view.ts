@@ -239,7 +239,7 @@ function getMissionStrip(missions: MissionView[], selected: MissionView): string
 	if (missions.length <= 1) return undefined;
 	const index = missions.findIndex(view => view.mission.id === selected.mission.id);
 	const position = index >= 0 ? index + 1 : 1;
-	return `Missions: ${missions.length} active | selected ${position}/${missions.length} | ${selected.mission.title}`;
+	return `Missions: ${missions.length} total | selected ${position}/${missions.length} | ${selected.mission.title}`;
 }
 
 function summarizeLaneRuns(view: MissionView): string {

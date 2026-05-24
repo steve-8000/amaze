@@ -508,6 +508,19 @@ function eventSummary(event: { type: string } & Record<string, unknown>): string
 	if (event.type === "decision.recorded") return `brief=${event.briefId} decision=${event.decisionId}`;
 	if (event.type === "research.lane.started") return `lane=${event.lane} run=${event.laneRunId}`;
 	if (event.type === "research.lane.completed") return `lane=${event.lane} status=${event.status}`;
+	if (event.type === "contract.created") return `contract=${event.contractId} role=${event.role}`;
+	if (event.type === "verification.completed") {
+		return `verification=${event.verificationId} status=${event.status} failed=${event.failedCount} uncertain=${event.uncertainCount}`;
+	}
+	if (event.type === "rollback.snapshot.created") {
+		return `rollback=${event.rollbackId} target=${event.targetType}:${event.targetId} snapshot=${event.snapshotRef ?? "<none>"}`;
+	}
+	if (event.type === "research.synthesis.proposed") {
+		return `brief=${event.briefId} hypotheses=${event.hypothesisCount} recommended=${event.recommended ?? "<none>"}`;
+	}
+	if (event.type === "research.critique.completed") {
+		return `brief=${event.briefId} verdict=${event.verdict} blocking=${event.blockingCount} soft=${event.softCount}`;
+	}
 	return "";
 }
 

@@ -35,10 +35,13 @@ export function recordMissionVerificationFromGoalObjective(args: {
 	verdict: VerificationVerdict | { verdict: "force"; failedCount: number; uncertainCount: number; results: unknown[] };
 	summary: string;
 	dbPath?: string;
+	missionId?: string | null;
 }): void {
 	const store = new MissionStore(args.dbPath);
 	try {
-		const mission = store.findLatestMissionByTitle(args.objective);
+		const mission = args.missionId
+			? store.getMission(args.missionId)
+			: store.findLatestMissionByTitle(args.objective);
 		if (!mission) return;
 		const status = args.verdict.verdict;
 		store.recordVerification({
@@ -46,7 +49,7 @@ export function recordMissionVerificationFromGoalObjective(args: {
 			status,
 			failedCount: args.verdict.failedCount,
 			uncertainCount: args.verdict.uncertainCount,
-			summary: args.summary,
+			summary: humanVerificationSummary(args.verdict, args.summary),
 		});
 		store.updateMission(mission.id, {
 			state:
@@ -59,6 +62,17 @@ export function recordMissionVerificationFromGoalObjective(args: {
 	} finally {
 		store.close();
 	}
+}
+
+function humanVerificationSummary(
+	verdict: VerificationVerdict | { verdict: "force"; failedCount: number; uncertainCount: number; results: unknown[] },
+	fallback: string,
+): string {
+	if (verdict.verdict === "force") return fallback || "Goal completion forced.";
+	const parts = [`${verdict.verdict} verification`];
+	parts.push(`${verdict.failedCount} failed`);
+	parts.push(`${verdict.uncertainCount} uncertain`);
+	return parts.join("; ");
 }
 async function collectChangedFilesFromGit(cwd: string): Promise<string[]> {
 	try {
@@ -759,10 +773,11 @@ export class GoalRuntime {
 			const uncertainCount = verdict?.uncertainCount ?? 0;
 			recordMissionVerificationFromGoalObjective({
 				objective: state.goal.objective,
+				missionId: state.goal.id,
 				verdict: options?.force
 					? { verdict: "force", failedCount: 0, uncertainCount: 0, results: [] }
 					: (verdict ?? summarize([], criteria)),
-				summary: options?.force ? "Goal completion forced." : JSON.stringify(verdict ?? summarize([], criteria)),
+				summary: options?.force ? "Goal completion forced." : "",
 			});
 			this.#emitSessionEvent({
 				type: "goal.complete",

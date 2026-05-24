@@ -262,7 +262,7 @@ describe("ResearchStore", () => {
 		});
 	});
 
-	test("synthesis finalizes live run lanes and marks lanes without evidence empty", () => {
+	test("critique finalizes live run lanes and marks lanes without evidence empty", () => {
 		withTempDb(dbPath => {
 			const store = createStore(dbPath);
 			const created = store.createBrief(brief({ id: "brief-finalize", lanes: ["repo", "source"] }));
@@ -307,7 +307,9 @@ describe("ResearchStore", () => {
 				});
 
 				store.addEvidence(evidence(created.id, { id: "ev-finalize", lane: "repo", capturedAt: 100 }));
-				store.recordSynthesis(synthesis(created.id, { id: "syn-finalize", createdAt: 300 }));
+				store.recordCritique(
+					critique(created.id, { id: "crit-finalize", verdict: "accept", blockingCount: 0, createdAt: 300 }),
+				);
 
 				expect(missions.getResearchRun("run-finalize")).toMatchObject({
 					status: "completed",
@@ -324,6 +326,64 @@ describe("ResearchStore", () => {
 					emptyReason: "no evidence recorded",
 					endedAt: 300,
 				});
+			} finally {
+				missions.close();
+			}
+		});
+	});
+
+	test("synthesis leaves live run open and decision remains blocked until critique completes", () => {
+		withTempDb(dbPath => {
+			const store = createStore(dbPath);
+			const created = store.createBrief(brief({ id: "brief-synthesis-open", lanes: ["repo"] }));
+			const mission = store.getMissionForBrief(created.id);
+			if (!mission) throw new Error("Expected mission for brief");
+			const missions = new MissionStore(dbPath);
+			try {
+				missions.createResearchRun({
+					id: "run-synthesis-open",
+					missionId: mission.id,
+					briefId: created.id,
+					objectiveId: created.objectiveId,
+					status: "running",
+					startedAt: 10,
+					completedAt: null,
+				});
+				missions.createLaneRun({
+					id: "lane-synthesis-open",
+					missionId: mission.id,
+					lane: "repo",
+					agent: "explore",
+					epistemicRole: "repo_truth",
+					status: "pending",
+					evidenceCount: 0,
+					emptyReason: null,
+					taskId: null,
+					startedAt: null,
+					endedAt: null,
+				});
+
+				store.addEvidence(evidence(created.id, { id: "ev-synthesis-open", lane: "repo", capturedAt: 100 }));
+				store.recordSynthesis(synthesis(created.id, { id: "syn-synthesis-open", createdAt: 200 }));
+
+				expect(missions.getResearchRun("run-synthesis-open")).toMatchObject({
+					status: "running",
+					completedAt: null,
+				});
+				expect(() => store.recordDecision(decision(created.id, { id: "dec-too-early" }))).toThrow(
+					"Cannot record decision while research run is running",
+				);
+
+				store.recordCritique(
+					critique(created.id, { id: "crit-synthesis-open", verdict: "accept", createdAt: 300 }),
+				);
+				expect(missions.getResearchRun("run-synthesis-open")).toMatchObject({
+					status: "completed",
+					completedAt: 300,
+				});
+				expect(store.recordDecision(decision(created.id, { id: "dec-after-critique" })).id).toBe(
+					"dec-after-critique",
+				);
 			} finally {
 				missions.close();
 			}

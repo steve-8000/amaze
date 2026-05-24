@@ -100,9 +100,63 @@ describe("mission write-side producers", () => {
 			status: "pass",
 			failedCount: 0,
 			uncertainCount: 0,
-			summary: "passed",
+			summary: "pass verification; 0 failed; 0 uncertain",
 		});
 		expect(store.getMission(createdMission.id)?.state).toBe("completed");
+	});
+
+	test("records task contracts by explicit mission id before title lookup", async () => {
+		cleanupRoot = await fs.mkdtemp(path.join(os.tmpdir(), "amaze-mission-task-id-producer-"));
+		const db = path.join(cleanupRoot, "autonomy.db");
+		const store = new MissionStore(db);
+		stores.push(store);
+		const byTitle = store.createMission(mission({ id: "mission-title", title: "Shared objective" }));
+		const byId = store.createMission(mission({ id: "mission-id", title: "Different objective" }));
+
+		recordTaskMissionContract(
+			"Shared objective",
+			{
+				role: "producer",
+				parentContractRevision: 2,
+				scope: { include: ["src/**"], exclude: [] },
+				successCriteria: [],
+				escalation: { onUncertainty: "ask-parent", budgetCap: 42 },
+				inputArtifact: undefined,
+				outputContract: { mustProduce: [] },
+			},
+			db,
+			{ missionId: byId.id },
+		);
+
+		expect(store.listContracts(byTitle.id)).toHaveLength(0);
+		expect(store.listContracts(byId.id)).toMatchObject([{ missionId: byId.id, role: "producer" }]);
+	});
+
+	test("records goal verification by explicit mission id before title lookup", async () => {
+		cleanupRoot = await fs.mkdtemp(path.join(os.tmpdir(), "amaze-mission-goal-id-producer-"));
+		const db = path.join(cleanupRoot, "autonomy.db");
+		const store = new MissionStore(db);
+		stores.push(store);
+		const byTitle = store.createMission(mission({ id: "mission-verify-title", title: "Shared objective" }));
+		const byId = store.createMission(
+			mission({ id: "mission-verify-id", title: "Different objective", state: "verifying" }),
+		);
+
+		recordMissionVerificationFromGoalObjective({
+			objective: "Shared objective",
+			missionId: byId.id,
+			dbPath: db,
+			verdict: { verdict: "fail", failedCount: 1, uncertainCount: 0, passedCount: 0, results: [] },
+			summary: "",
+		});
+
+		expect(store.getLatestVerification(byTitle.id)).toBeUndefined();
+		expect(store.getLatestVerification(byId.id)).toMatchObject({
+			missionId: byId.id,
+			status: "fail",
+			summary: "fail verification; 1 failed; 0 uncertain",
+		});
+		expect(store.getMission(byId.id)?.state).toBe("blocked");
 	});
 
 	test("records proposal apply and rollback anchors by objective provenance", async () => {

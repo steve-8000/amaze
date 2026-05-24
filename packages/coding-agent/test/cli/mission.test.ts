@@ -329,6 +329,67 @@ describe("mission CLI", () => {
 		expect(lines.some(event => event.type === "research.evidence.added")).toBe(true);
 	});
 
+	test("mission stream text summarizes mission lifecycle events", async () => {
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "amaze-mission-stream-text-"));
+		roots.push(root);
+		const eventsDir = path.join(root, "events");
+		const missionId = "mission-stream-text-1";
+		fs.mkdirSync(eventsDir, { recursive: true });
+		fs.appendFileSync(
+			path.join(eventsDir, `${missionId}.jsonl`),
+			`${[
+				{ type: "contract.created", missionId, contractId: "contract-1", role: "worker", ts: 1 },
+				{
+					type: "verification.completed",
+					missionId,
+					verificationId: "verify-1",
+					status: "fail",
+					failedCount: 1,
+					uncertainCount: 2,
+					ts: 2,
+				},
+				{
+					type: "rollback.snapshot.created",
+					missionId,
+					rollbackId: "rollback-1",
+					targetType: "decision",
+					targetId: "decision-1",
+					snapshotRef: "snapshot-1",
+					ts: 3,
+				},
+				{
+					type: "research.synthesis.proposed",
+					missionId,
+					briefId: "brief-1",
+					hypothesisCount: 2,
+					recommended: "H1",
+					ts: 4,
+				},
+				{
+					type: "research.critique.completed",
+					missionId,
+					briefId: "brief-1",
+					blockingCount: 1,
+					softCount: 3,
+					verdict: "needs-more-research",
+					ts: 5,
+				},
+			]
+				.map(event => JSON.stringify(event))
+				.join("\n")}\n`,
+		);
+
+		const stdout = await captureStdout(() =>
+			streamMissionEvents(missionId, { baseDir: eventsDir, pollIntervalMs: 5, idleTimeoutMs: 20, once: true }),
+		);
+
+		expect(stdout).toContain("contract=contract-1 role=worker");
+		expect(stdout).toContain("verification=verify-1 status=fail failed=1 uncertain=2");
+		expect(stdout).toContain("rollback=rollback-1 target=decision:decision-1 snapshot=snapshot-1");
+		expect(stdout).toContain("brief=brief-1 hypotheses=2 recommended=H1");
+		expect(stdout).toContain("brief=brief-1 verdict=needs-more-research blocking=1 soft=3");
+	});
+
 	test("mission verify surfaces non-decision mission events in related events", async () => {
 		const fixture = await createFixture();
 		try {
