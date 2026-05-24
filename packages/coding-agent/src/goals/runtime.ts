@@ -1,5 +1,6 @@
 import { logger, prompt, Snowflake } from "@amaze/utils";
 import { settings } from "../config/settings";
+import { missionTokenDelta } from "../mission/core/mission-runtime";
 import { MissionStore, resolveMission } from "../mission/store";
 import type { Mission } from "../mission/types";
 import type { EventBus as SessionEventBus } from "../observability";
@@ -443,17 +444,17 @@ export function renderTrustedObjective(objective: string): string {
 }
 
 export function goalTokenDelta(current: GoalTokenUsage, baseline: GoalTokenUsage): number {
-	// Diverges from codex-rs: codex omits cache creation because its target providers
-	// do not bill cache writes distinctly through the token-usage stream. Amaze receives
-	// cacheWrite separately on Anthropic/Bedrock; rotating a 1h ephemeral cache or
-	// re-anchoring a changed system prompt can write 100K+ tokens, which the goal
-	// budget must account for. cacheRead is excluded because it is reused prefix,
-	// not new work consumed by the goal.
-	return (
-		Math.max(0, current.input - baseline.input) +
-		Math.max(0, current.cacheWrite - baseline.cacheWrite) +
-		Math.max(0, current.output - baseline.output)
-	);
+	// Token accounting is canonically owned by MissionRuntime. This delegates to
+	// `missionTokenDelta` (mission/core/mission-runtime.ts) rather than duplicating the
+	// formula — the two were byte-identical (`missionTokenDelta` was originally ported from
+	// here) and `GoalTokenUsage` is structurally `MissionTokenUsage`, so the delegation is
+	// behavior-preserving. The accounting model (kept documented on the canonical fn):
+	//   - counts input + cacheWrite + output, excludes cacheRead.
+	//   - diverges from codex-rs (which omits cache creation) because Amaze receives
+	//     cacheWrite separately on Anthropic/Bedrock; rotating a 1h ephemeral cache or
+	//     re-anchoring a changed system prompt can write 100K+ tokens the goal budget
+	//     must account for. cacheRead is reused prefix, not new work.
+	return missionTokenDelta(current, baseline);
 }
 
 export function renderGoalPrompt(kind: GoalPromptKind, goal: Goal): string {
@@ -531,6 +532,23 @@ export interface GoalRuntimeOptions {
 	missionDbPath?: string;
 }
 
+/**
+ * Live execution controller for goal mode and the user-facing `/goal` surface.
+ *
+ * @deprecated as the *canonical* execution owner. `MissionRuntime`
+ * (`mission/core/mission-runtime.ts`) is the canonical mission/goal execution runtime;
+ * this class remains the stable compatibility surface for goal mode and its public
+ * API/behavior is frozen (token accounting, state transitions, acceptance verification via
+ * `GoalAcceptanceFailureError`, forced completion, and `renderGoalBlock` prompt rendering
+ * are all observable contracts that must not change here).
+ *
+ * Shared, provably-identical internals are delegated to the canonical implementation rather
+ * than duplicated — currently the token-delta accounting model (`goalTokenDelta` →
+ * `missionTokenDelta`). Logic that differs even slightly from MissionRuntime (the
+ * `AcceptanceVerifier`-driven closing-audit verdict, goal `GoalModeState` lifecycle, the
+ * budget-limit steering machinery, and the resilient `recordMission*FromGoal` dual-write
+ * seam) is intentionally NOT delegated and stays owned here to preserve exact behavior.
+ */
 export class GoalRuntime {
 	readonly #host: GoalRuntimeHost;
 	readonly #missionDbPath: string | undefined;
