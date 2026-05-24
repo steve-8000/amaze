@@ -4,6 +4,7 @@ import type { MissionBudget, MissionContextBudget } from "./mission-budget";
 import type { MissionInput, MissionMode } from "./mission-input";
 import type { MissionOutcome } from "./mission-outcome";
 import type { MissionScopeGuard } from "./mission-scope";
+import type { MissionTask, MissionTaskStatus } from "./mission-task";
 
 /**
  * The full lifecycle a mission progresses through. Ordered roughly by the
@@ -48,21 +49,11 @@ export interface MissionPlan {
 }
 
 /**
- * Status of a unit of work owned by a mission.
+ * Re-exported from {@link ./mission-task}. The canonical task type now lives there
+ * (workplan §10) as a superset of the original minimal record; this re-export keeps
+ * existing `from "./mission"` / `mission/core` imports stable.
  */
-export type MissionTaskStatus = "pending" | "running" | "completed" | "failed" | "blocked" | "cancelled";
-
-/**
- * A unit of work owned by a mission. The core type is deliberately small; the
- * existing mission task/attempt records carry the operational detail.
- */
-export interface MissionTask {
-	id: string;
-	title: string;
-	status: MissionTaskStatus;
-	planStepId?: string;
-	evidenceRefs?: string[];
-}
+export type { MissionTask, MissionTaskStatus };
 
 /**
  * Verification outcome attached to a mission.
