@@ -3,6 +3,8 @@ import type { MissionEventBus, Unsubscribe } from "../../mission/event-bus";
 import { MissionReadModel, type MissionView } from "../../mission/read-model";
 import { getMissionEventBus } from "../../mission/runtime";
 
+export type MissionControlDisplayMode = "compact" | "expanded";
+
 export class MissionControlView implements Component {
 	#readModel: MissionReadModel;
 	#getPreferredMissionInput:
@@ -13,6 +15,7 @@ export class MissionControlView implements Component {
 	#selectedMissionId: string | undefined;
 	#unsubscribe: Unsubscribe | undefined;
 	#disposed = false;
+	#displayMode: MissionControlDisplayMode = "compact";
 
 	constructor(
 		opts: {
@@ -66,6 +69,15 @@ export class MissionControlView implements Component {
 		return `${position} ${this.#mission.mission.title}`;
 	}
 
+	getDisplayMode(): MissionControlDisplayMode {
+		return this.#displayMode;
+	}
+
+	toggleDisplayMode(): MissionControlDisplayMode {
+		this.#displayMode = this.#displayMode === "compact" ? "expanded" : "compact";
+		return this.#displayMode;
+	}
+
 	#selectMission(direction: 1 | -1): boolean {
 		this.refresh();
 		if (this.#missions.length <= 1 || !this.#mission) return false;
@@ -81,7 +93,7 @@ export class MissionControlView implements Component {
 	}
 
 	getPreferredInspectorTarget(): { sessionId?: string; sessionFile?: string } | undefined {
-		const target = this.#mission?.inspectorTarget;
+		const target = this.#mission?.preferredInspectorTarget;
 		if (!target) return undefined;
 		return {
 			sessionId: target.taskId ?? undefined,
@@ -102,7 +114,10 @@ export class MissionControlView implements Component {
 	render(width: number): string[] {
 		const innerWidth = Math.max(20, width - 2);
 		const lines = this.#mission
-			? buildMissionControlLines(this.#mission, getMissionStrip(this.#missions, this.#mission))
+			? buildMissionControlLines(this.#mission, {
+					missionStrip: getMissionStrip(this.#missions, this.#mission),
+					mode: this.#displayMode,
+				})
 			: buildMissionControlEmptyLines();
 		return [
 			`┌${"─".repeat(innerWidth)}┐`,
@@ -120,7 +135,10 @@ export function buildMissionControlEmptyLines(): string[] {
 	];
 }
 
-export function buildMissionControlLines(view: MissionView, missionStrip?: string): string[] {
+export function buildMissionControlLines(
+	view: MissionView,
+	opts: string | { missionStrip?: string; mode?: MissionControlDisplayMode } = {},
+): string[] {
 	const mission = view.mission;
 	const objective = view.objective?.title ?? mission.title;
 	const confidence = mission.confidence ?? "unknown";
@@ -128,6 +146,8 @@ export function buildMissionControlLines(view: MissionView, missionStrip?: strin
 	const researchRun = view.researchRun ? `${view.researchRun.status} (${view.researchRun.id})` : "<none>";
 	const laneSummary = summarizeLaneRuns(view);
 	const evidenceSummary = summarizeEvidence(view);
+	const mode = typeof opts === "string" ? "compact" : (opts.mode ?? "compact");
+	const missionStrip = typeof opts === "string" ? opts : opts.missionStrip;
 	const lines: string[] = [
 		`Mission Control — ${objective}`,
 		...(missionStrip ? [missionStrip] : []),
@@ -153,12 +173,13 @@ export function buildMissionControlLines(view: MissionView, missionStrip?: strin
 	lines.push(`  Summary: ${laneSummary}`);
 
 	lines.push(section("Evidence Board"));
-	const evidenceCards = view.evidenceCards.slice(0, 4);
+	const evidenceLimit = mode === "expanded" ? 8 : 4;
+	const evidenceCards = view.evidenceCards.slice(0, evidenceLimit);
 	if (evidenceCards.length === 0) {
 		lines.push("  <none>");
 	} else {
 		for (const card of evidenceCards) {
-			lines.push(`  ${laneBadge(card.lane)} ${card.id} | grade ${card.grade} | ${card.sourceRef}`);
+			lines.push(formatEvidenceCard(card, mode));
 		}
 	}
 	lines.push(`  Summary: ${evidenceSummary}`);
@@ -171,18 +192,25 @@ export function buildMissionControlLines(view: MissionView, missionStrip?: strin
 	);
 	lines.push(
 		view.latestCritique
-			? `  Critique: ${view.latestCritique.verdict} | blocking ${view.latestCritique.blockingCount} | soft ${view.latestCritique.softCount} | ${view.latestCritique.summary}`
+			? `  Critique: ${view.latestCritique.verdict} | blockers ${view.latestCritique.blockingCount} | soft concerns ${view.latestCritique.softCount} | ${view.latestCritique.summary}`
 			: "  Critique: <none>",
 	);
 
 	lines.push(section("Decision Contract"));
 	if (view.decisionSummary) {
-		lines.push(`  Decision: ${view.decisionSummary.confidence} | ${view.decisionSummary.hypothesis}`);
 		lines.push(
-			`  Evidence refs: ${formatList(view.decisionSummary.evidenceRefs)} | rejected ${view.decision?.rejectedOptions.length ?? 0}`,
+			`  Decision: ${view.decisionSummary.kind} | ${view.decisionSummary.confidence} | ${view.decisionSummary.hypothesis}`,
 		);
+		lines.push(
+			`  Evidence refs: ${formatList(view.decisionSummary.evidenceRefs)} | rejected options ${view.decision?.rejectedOptions.length ?? 0} | next actions ${view.decision?.nextActions.length ?? 0}`,
+		);
+		if (mode === "expanded" && view.decision?.rejectedOptions.length) {
+			for (const option of view.decision.rejectedOptions.slice(0, 3)) {
+				lines.push(`    Rejected ${option.id}: ${option.reason}`);
+			}
+		}
 		if (view.decision?.nextActions.length) {
-			lines.push(`  Next actions: ${formatList(view.decision.nextActions)}`);
+			lines.push(`  Next actions (${view.decision.nextActions.length}): ${formatList(view.decision.nextActions)}`);
 		}
 	} else {
 		lines.push("  Decision: <none>");
@@ -190,12 +218,27 @@ export function buildMissionControlLines(view: MissionView, missionStrip?: strin
 	const latestContract = view.contracts.at(-1);
 	lines.push(
 		latestContract
-			? `  Execution contract: ${latestContract.role} | scope +${latestContract.include.length}/-${latestContract.exclude.length} | criteria ${latestContract.successCriteria.length} | escalation ${latestContract.escalation.onUncertainty}`
+			? `  Execution contract: ${latestContract.role} | scope +${latestContract.include.length}/-${latestContract.exclude.length} | criteria ${latestContract.successCriteria.length} | outputs ${latestContract.mustProduce.length} | escalation ${latestContract.escalation.onUncertainty}`
 			: "  Execution contract: <none>",
 	);
-	if (view.inspectorTarget) {
-		const label = view.inspectorTarget.taskId ?? view.inspectorTarget.sessionFile ?? "linked trace";
-		lines.push(`  Linked trace: ${label}`);
+	if (mode === "expanded" && latestContract) {
+		lines.push(`    Outputs: ${formatList(latestContract.mustProduce)}`);
+		lines.push(`    Criteria: ${formatList(latestContract.successCriteria)}`);
+	}
+	if (view.preferredInspectorTarget) {
+		lines.push(`  Linked trace: ${view.preferredInspectorTarget.label}`);
+	}
+	if (mode === "expanded") {
+		lines.push(section("Inspector Targets"));
+		if (view.inspectorTargets.length === 0) {
+			lines.push("  <none>");
+		} else {
+			view.inspectorTargets.forEach((target, index) => {
+				const preferred = index === 0 ? "preferred" : "available";
+				const file = target.sessionFile ? ` | file ${target.sessionFile}` : "";
+				lines.push(`  ${index + 1}. ${target.label} | ${preferred} | source ${target.source}${file}`);
+			});
+		}
 	}
 
 	lines.push(section("Verification / Rollback"));
@@ -211,7 +254,7 @@ export function buildMissionControlLines(view: MissionView, missionStrip?: strin
 			: `  Rollback: <none> | snapshots ${countRollbackSnapshots(view.rollbacks)}`,
 	);
 	lines.push(
-		view.inspectorTarget
+		view.preferredInspectorTarget
 			? "Mission Inspector: Ctrl+S opens linked contract trace first"
 			: "Mission Inspector: Ctrl+S for tool traces, artifacts, and subagent details",
 	);
@@ -233,6 +276,14 @@ function formatList(items: string[]): string {
 
 function countRollbackSnapshots(rollbacks: MissionView["rollbacks"]): number {
 	return rollbacks.filter(rollback => rollback.snapshotRef).length;
+}
+
+function formatEvidenceCard(card: MissionView["evidenceCards"][number], mode: MissionControlDisplayMode): string {
+	const base = `  ${laneBadge(card.lane)} ${card.id} | grade ${card.grade} | ${card.sourceRef}`;
+	if (mode === "compact") return base;
+	const claims = card.claims.length > 0 ? ` | claims ${card.claims.slice(0, 2).join("; ")}` : "";
+	const excerpt = card.excerpt ? ` | ${card.excerpt}` : "";
+	return `${base}${claims}${excerpt}`;
 }
 
 function getMissionStrip(missions: MissionView[], selected: MissionView): string | undefined {

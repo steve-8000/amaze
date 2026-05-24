@@ -13,6 +13,8 @@ import {
 	CRITIQUE_VERDICTS,
 	type CritiqueRecord,
 	type CritiqueVerdict,
+	DECISION_KINDS,
+	type DecisionKind,
 	type DecisionRecord,
 	EVIDENCE_GRADES,
 	type EvidenceCard,
@@ -33,6 +35,7 @@ export const DEFAULT_DB_PATH = path.join(os.homedir(), ".amaze", "autonomy", "au
 const VALID_LANES = new Set<ResearchLane>(RESEARCH_LANES);
 const VALID_GRADES = new Set<EvidenceGrade>(EVIDENCE_GRADES);
 const VALID_CONFIDENCE = new Set<ConfidenceLevel>(CONFIDENCE_LEVELS);
+const VALID_DECISION_KINDS = new Set<DecisionKind>(DECISION_KINDS);
 const VALID_CRITIQUE_VERDICTS = new Set<CritiqueVerdict>(CRITIQUE_VERDICTS);
 
 type ResearchBriefRow = {
@@ -68,6 +71,7 @@ type DecisionRecordRow = {
 	brief_id: string;
 	hypothesis: string;
 	rationale: string;
+	kind: DecisionKind;
 	confidence: ConfidenceLevel;
 	evidence_refs: string;
 	rejected_options: string;
@@ -241,26 +245,30 @@ export class ResearchStore {
 		if (!this.getBrief(input.briefId)) {
 			throw new Error(`Research brief not found: ${input.briefId}`);
 		}
+		const kind = input.kind ?? "select";
 		assertConfidence(input.confidence);
+		assertDecisionKind(kind);
 		const mission = this.getMissionForBrief(input.briefId);
-		this.#assertNoLiveResearchRunForDecision(mission?.id, input.briefId);
+		this.#assertResearchRunAllowsDecision(mission?.id, input.briefId, kind);
 		const now = Date.now();
 		const decision: DecisionRecord = {
 			...input,
+			kind,
 			id: input.id ?? generateId("dec", now),
 			createdAt: now,
 		};
 		this.#db
 			.query(
 				`INSERT INTO decision_records
-					(id, brief_id, hypothesis, rationale, confidence, evidence_refs, rejected_options, next_actions, created_at)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+					(id, brief_id, hypothesis, rationale, kind, confidence, evidence_refs, rejected_options, next_actions, created_at)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			)
 			.run(
 				decision.id,
 				decision.briefId,
 				decision.hypothesis,
 				decision.rationale,
+				decision.kind,
 				decision.confidence,
 				JSON.stringify(decision.evidenceRefs),
 				JSON.stringify(decision.rejectedOptions),
@@ -518,12 +526,22 @@ export class ResearchStore {
 		}
 	}
 
-	#assertNoLiveResearchRunForDecision(missionId: string | undefined, briefId: string): void {
+	#assertResearchRunAllowsDecision(missionId: string | undefined, briefId: string, kind: DecisionKind): void {
 		if (!missionId) return;
 		this.#withMissionStore(missions => {
 			const run = missions.getLatestResearchRunForMissionBrief(missionId, briefId);
-			if (run && run.status !== "completed") {
-				throw new Error(`Cannot record decision while research run is ${run.status}`);
+			if (!run) return;
+			if (run.status === "running") {
+				throw new Error("Cannot record decision while research run is running");
+			}
+			if (run.status === "completed" && kind !== "select") {
+				throw new Error(`Decision kind ${kind} is not allowed for completed research run`);
+			}
+			if (run.status === "blocked" && kind === "select") {
+				throw new Error("Decision kind select is not allowed for blocked research run");
+			}
+			if (run.status === "cancelled") {
+				throw new Error("Cannot record decision while research run is cancelled");
 			}
 		});
 	}
@@ -568,6 +586,7 @@ export class ResearchStore {
 				hypothesis TEXT NOT NULL,
 				rationale TEXT NOT NULL,
 				confidence TEXT NOT NULL,
+				kind TEXT NOT NULL DEFAULT 'select',
 				evidence_refs TEXT NOT NULL,
 				rejected_options TEXT NOT NULL,
 				next_actions TEXT NOT NULL,
@@ -601,6 +620,14 @@ export class ResearchStore {
 			);
 			CREATE INDEX IF NOT EXISTS research_critiques_brief_idx ON research_critiques(brief_id);
 		`);
+		this.#ensureDecisionKindColumn();
+	}
+
+	#ensureDecisionKindColumn(): void {
+		const columns = this.#db.query("PRAGMA table_info(decision_records)").all() as Array<{ name: string }>;
+		if (!columns.some(column => column.name === "kind")) {
+			this.#db.run("ALTER TABLE decision_records ADD COLUMN kind TEXT NOT NULL DEFAULT 'select'");
+		}
 	}
 }
 
@@ -623,6 +650,12 @@ function assertEvidenceGrade(grade: EvidenceGrade): void {
 function assertConfidence(confidence: ConfidenceLevel): void {
 	if (!VALID_CONFIDENCE.has(confidence)) {
 		throw new Error(`Invalid decision confidence: ${confidence}`);
+	}
+}
+
+function assertDecisionKind(kind: DecisionKind): void {
+	if (!VALID_DECISION_KINDS.has(kind)) {
+		throw new Error(`Invalid decision kind: ${kind}`);
 	}
 }
 
@@ -674,6 +707,7 @@ function rowToDecision(row: DecisionRecordRow): DecisionRecord {
 		briefId: row.brief_id,
 		hypothesis: row.hypothesis,
 		rationale: row.rationale,
+		kind: row.kind ?? "select",
 		confidence: row.confidence,
 		evidenceRefs: JSON.parse(row.evidence_refs) as string[],
 		rejectedOptions: JSON.parse(row.rejected_options) as Array<{ id: string; reason: string }>,

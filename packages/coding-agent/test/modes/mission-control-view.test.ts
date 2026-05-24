@@ -52,10 +52,11 @@ describe("MissionControlView", () => {
 			briefId: brief.id,
 			hypothesis: "Ship the compact panel",
 			rationale: "Evidence supports it",
+			kind: "select",
 			confidence: "high",
 			evidenceRefs: ["ev-1"],
-			rejectedOptions: [],
-			nextActions: [],
+			rejectedOptions: [{ id: "dense-overlay", reason: "Too heavy for compact view" }],
+			nextActions: ["Check Mission Control render"],
 		});
 		const missions = new MissionStore(dbPath);
 		const mission = missions.listMissions({ briefId: brief.id })[0];
@@ -95,8 +96,8 @@ describe("MissionControlView", () => {
 		expect(rendered).toContain("Synthesis: <none>");
 		expect(rendered).toContain("Critique: <none>");
 		expect(rendered).toContain("── Decision Contract ──");
-		expect(rendered).toContain("Decision: high | Ship the compact panel");
-		expect(rendered).toContain("Evidence refs: ev-1");
+		expect(rendered).toContain("Decision: select | high | Ship the compact panel");
+		expect(rendered).toContain("Evidence refs: ev-1 | rejected options 1 | next actions 1");
 		expect(rendered).toContain("Execution contract: <none>");
 		expect(rendered).toContain("── Verification / Rollback ──");
 		expect(rendered).toContain("Verification: <none>");
@@ -199,10 +200,11 @@ describe("MissionControlView", () => {
 			briefId: brief.id,
 			hypothesis: "Adopt panelized text console",
 			rationale: "Evidence supports it",
+			kind: "select",
 			confidence: "medium",
 			evidenceRefs: ["ev-rich-1"],
-			rejectedOptions: [],
-			nextActions: ["Run focused view test"],
+			rejectedOptions: [{ id: "modal-only", reason: "Hides inline mission state" }],
+			nextActions: ["Run focused view test", "Inspect linked trace"],
 		});
 		const missions = new MissionStore(dbPath);
 		const mission = missions.listMissions({ briefId: brief.id })[0];
@@ -236,6 +238,19 @@ describe("MissionControlView", () => {
 			sessionFile: "/tmp/contract-task.jsonl",
 			createdAt: 40,
 		});
+		missions.createLaneRun({
+			id: "lane-rich",
+			missionId: mission.id,
+			lane: "repo",
+			agent: "explore",
+			epistemicRole: "repo_truth",
+			status: "completed",
+			evidenceCount: 1,
+			emptyReason: null,
+			taskId: "lane-task",
+			startedAt: 3,
+			endedAt: 4,
+		});
 		missions.recordVerification({
 			id: "verification-rich",
 			missionId: mission.id,
@@ -261,25 +276,44 @@ describe("MissionControlView", () => {
 
 		const view = new MissionControlView({ dbPath });
 		cleanup.push(() => view.dispose());
-		const rendered = Bun.stripANSI(view.render(140).join("\n"));
+		let rendered = Bun.stripANSI(view.render(140).join("\n"));
 
 		expect(rendered).toContain("Research run: completed (run-rich)");
 		expect(rendered).toContain("Snapshot: available");
 		expect(rendered).toContain("[source] ev-rich-1 | grade B | docs/ux.md:10");
+		expect(rendered).not.toContain("panel evidence");
+		expect(rendered).not.toContain("── Inspector Targets ──");
 		expect(rendered).toContain(
 			"Synthesis: Use separated operational panels | hypotheses 2 | recommended Panelized console",
 		);
-		expect(rendered).toContain("Critique: accept-with-modifications | blocking 1 | soft 2 | Keep inspector visible");
-		expect(rendered).toContain("Decision: medium | Adopt panelized text console");
-		expect(rendered).toContain("Evidence refs: ev-rich-1");
-		expect(rendered).toContain("Next actions: Run focused view test");
-		expect(rendered).toContain("Execution contract: mission-control-panelizer | scope +1/-1 | criteria 2");
-		expect(rendered).toContain("Linked trace: contract-task");
+		expect(rendered).toContain(
+			"Critique: accept-with-modifications | blockers 1 | soft concerns 2 | Keep inspector visible",
+		);
+		expect(rendered).toContain("Decision: select | medium | Adopt panelized text console");
+		expect(rendered).toContain("Evidence refs: ev-rich-1 | rejected options 1 | next actions 2");
+		expect(rendered).toContain("Next actions (2): Run focused view test, Inspect linked trace");
+		expect(rendered).toContain(
+			"Execution contract: mission-control-panelizer | scope +1/-1 | criteria 2 | outputs 1",
+		);
+		expect(rendered).toContain("Linked trace: contract:contract-task");
 		expect(rendered).toContain("Mission Inspector: Ctrl+S opens linked contract trace first");
 		expect(view.getPreferredInspectorTarget()).toEqual({
 			sessionId: "contract-task",
 			sessionFile: "/tmp/contract-task.jsonl",
 		});
+		expect(view.getDisplayMode()).toBe("compact");
+		expect(view.toggleDisplayMode()).toBe("expanded");
+		expect(view.getDisplayMode()).toBe("expanded");
+		rendered = Bun.stripANSI(view.render(180).join("\n"));
+		expect(rendered).toContain("[source] ev-rich-1 | grade B | docs/ux.md:10 | claims panel claim | panel evidence");
+		expect(rendered).toContain("Rejected modal-only: Hides inline mission state");
+		expect(rendered).toContain("Outputs: changed files");
+		expect(rendered).toContain("Criteria: checkts, panel-tests");
+		expect(rendered).toContain("── Inspector Targets ──");
+		expect(rendered).toContain(
+			"1. contract:contract-task | preferred | source contract | file /tmp/contract-task.jsonl",
+		);
+		expect(rendered).toContain("2. lane:lane-task | available | source lane-run");
 		expect(rendered).toContain("Verification: fail | failed 1 | uncertain 0 | one assertion failed");
 		expect(rendered).toContain("Rollback: restore prior decision | snapshots 1");
 	});

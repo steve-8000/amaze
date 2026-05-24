@@ -6,6 +6,7 @@ import { ResearchStore } from "../research/store";
 import type {
 	ConfidenceLevel,
 	CritiqueRecord,
+	DecisionKind,
 	DecisionRecord,
 	EvidenceCard,
 	ResearchBrief,
@@ -45,6 +46,7 @@ export interface MissionObjectiveSummary {
 export interface MissionDecisionSummary {
 	id: string;
 	confidence: ConfidenceLevel;
+	kind: DecisionKind;
 	createdAt: number;
 	evidenceRefs: string[];
 	hypothesis: string;
@@ -54,6 +56,7 @@ export interface MissionInspectorTarget {
 	taskId: string | null;
 	sessionFile: string | null;
 	source: "contract" | "lane-run";
+	label: string;
 }
 
 export interface MissionView extends MissionProjectionView {
@@ -67,7 +70,8 @@ export interface MissionView extends MissionProjectionView {
 	evidenceCards: EvidenceCard[];
 	latestSynthesis: SynthesisRecord | null;
 	latestCritique: CritiqueRecord | null;
-	inspectorTarget: MissionInspectorTarget | null;
+	inspectorTargets: MissionInspectorTarget[];
+	preferredInspectorTarget: MissionInspectorTarget | null;
 }
 
 export function buildMissionView(input: {
@@ -93,7 +97,7 @@ export function buildMissionView(input: {
 		laneRuns: input.laneRuns,
 	});
 
-	const inspectorTarget = getMissionInspectorTarget(input.contracts, input.laneRuns);
+	const inspectorTargets = getMissionInspectorTargets(input.contracts, input.laneRuns);
 
 	return {
 		...projection,
@@ -108,6 +112,7 @@ export function buildMissionView(input: {
 		decisionSummary: input.decision
 			? {
 					id: input.decision.id,
+					kind: input.decision.kind,
 					confidence: input.decision.confidence,
 					createdAt: input.decision.createdAt,
 					evidenceRefs: [...input.decision.evidenceRefs],
@@ -132,25 +137,40 @@ export function buildMissionView(input: {
 		latestSynthesis: input.latestSynthesis ?? null,
 		latestCritique: input.latestCritique ?? null,
 		rollbacks: [...input.rollbacks],
-		inspectorTarget,
+		inspectorTargets,
+		preferredInspectorTarget: inspectorTargets[0] ?? null,
 	};
 }
 
-function getMissionInspectorTarget(
+function getMissionInspectorTargets(
 	contracts: MissionContractRecord[],
 	laneRuns: MissionLaneRun[],
-): MissionInspectorTarget | null {
+): MissionInspectorTarget[] {
+	const targets: MissionInspectorTarget[] = [];
+	const seen = new Set<string>();
+	const pushTarget = (target: Omit<MissionInspectorTarget, "label">) => {
+		const key = `${target.source}:${target.taskId ?? ""}:${target.sessionFile ?? ""}`;
+		if (seen.has(key)) return;
+		seen.add(key);
+		targets.push({ ...target, label: formatInspectorTargetLabel(target) });
+	};
+
 	for (const contract of [...contracts].reverse()) {
 		if (contract.taskId || contract.sessionFile) {
-			return { taskId: contract.taskId, sessionFile: contract.sessionFile, source: "contract" };
+			pushTarget({ taskId: contract.taskId, sessionFile: contract.sessionFile, source: "contract" });
 		}
 	}
 	for (const laneRun of [...laneRuns].reverse()) {
 		if (laneRun.taskId) {
-			return { taskId: laneRun.taskId, sessionFile: null, source: "lane-run" };
+			pushTarget({ taskId: laneRun.taskId, sessionFile: null, source: "lane-run" });
 		}
 	}
-	return null;
+	return targets;
+}
+
+function formatInspectorTargetLabel(target: Omit<MissionInspectorTarget, "label">): string {
+	const trace = target.taskId ?? target.sessionFile ?? "linked trace";
+	return `${target.source === "contract" ? "contract" : "lane"}:${trace}`;
 }
 
 export class MissionReadModel {

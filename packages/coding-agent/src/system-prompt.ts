@@ -13,6 +13,7 @@ import { type ContextFile, loadCapability, type SystemPrompt as SystemPromptFile
 import { loadSkills, type Skill } from "./extensibility/skills";
 import { renderGoalBlock } from "./goals/runtime";
 import type { Goal } from "./goals/state";
+import { type ActiveMissionPacket, renderActiveMissionPacket } from "./mission/context-packet";
 import customSystemPromptTemplate from "./prompts/system/custom-system-prompt.md" with { type: "text" };
 import projectLiveTemplate from "./prompts/system/project-live.md" with { type: "text" };
 import projectStaticTemplate from "./prompts/system/project-static.md" with { type: "text" };
@@ -368,6 +369,8 @@ export interface BuildSystemPromptOptions {
 	 * byte-identical across no-goal / has-goal transitions on adjacent turns and avoids cache thrash.
 	 */
 	activeGoal?: Goal | null;
+	/** Compact Active Mission packet rendered into DYNAMIC_TAIL when present. */
+	activeMission?: ActiveMissionPacket | null;
 	/**
 	 * SubagentContract (if any) governing this session. Renders into STABLE_CORE so the role,
 	 * scope, success criteria, and escalation policy live inside the cached prefix and survive
@@ -417,6 +420,7 @@ export async function buildSystemPrompt(options: BuildSystemPromptOptions = {}):
 		projectContextMode = "full",
 		activeGoal,
 		subagentContract,
+		activeMission,
 	} = options;
 	const resolvedCwd = cwd ?? getProjectDir();
 
@@ -611,6 +615,7 @@ export async function buildSystemPrompt(options: BuildSystemPromptOptions = {}):
 		// "no goal" sentinel when activeGoal is null/missing) so the prompt structure
 		// stays byte-stable across goal entry/exit transitions.
 		goalBlock: renderGoalBlock(activeGoal ?? null),
+		activeMissionBlock: renderActiveMissionPacket(activeMission),
 		// SubagentContract presence flag — Handlebars `{{#if subagentContract}}` block in
 		// system-prompt.md uses this to render the contract-aware instruction prose. Without
 		// the field on `data`, the block evaluates false and the prose never reaches the model

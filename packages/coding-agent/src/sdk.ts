@@ -88,6 +88,8 @@ import {
 	selectDiscoverableMCPToolNamesByServer,
 } from "./mcp/discoverable-tool-metadata";
 import { resolveMemoryBackend } from "./memory-backend";
+import { buildActiveMissionPacket } from "./mission/context-packet";
+import { MissionReadModel } from "./mission/read-model";
 import { resolvePromptCachePolicy } from "./prompt-cache-policy";
 import asyncResultTemplate from "./prompts/tools/async-result.md" with { type: "text" };
 import { AgentRegistry, MAIN_AGENT_ID } from "./registry/agent-registry";
@@ -449,6 +451,8 @@ export interface BuildSystemPromptOptions {
 	cwd?: string;
 	appendPrompt?: string;
 	repeatToolDescriptions?: boolean;
+	activeMissionId?: string | null;
+	activeMissionTitle?: string | null;
 }
 
 /**
@@ -464,10 +468,26 @@ export async function buildSystemPrompt(options: BuildSystemPromptOptions = {}):
 		contextFiles: options.contextFiles,
 		appendSystemPrompt: options.appendPrompt,
 		repeatToolDescriptions: options.repeatToolDescriptions,
+		activeMission: getActiveMissionPacket({
+			missionId: options.activeMissionId,
+			title: options.activeMissionTitle,
+		}),
 	});
 }
 
 // Internal Helpers
+function getActiveMissionPacket(input: { missionId?: string | null; title?: string | null } | undefined) {
+	if (!input?.missionId && !input?.title) return null;
+	const readModel = new MissionReadModel();
+	try {
+		const view =
+			(input.missionId ? readModel.getMissionView(input.missionId) : undefined) ??
+			readModel.getPreferredMissionView({ title: input.title ?? undefined });
+		return view ? buildActiveMissionPacket(view) : null;
+	} finally {
+		readModel.close();
+	}
+}
 
 function createCustomToolContext(ctx: ExtensionContext): CustomToolContext {
 	return {
@@ -1561,6 +1581,7 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 			// lifecycle transitions: next rebuild after `completeGoalFromTool`/`dropGoal` emits
 			// the empty sentinel and the goal anchor disappears from attention.
 			const activeGoal = session?.getGoalModeState()?.goal ?? null;
+			const activeMissionInput = activeGoal ? { missionId: activeGoal.id, title: activeGoal.objective } : undefined;
 			const defaultPrompt = await buildSystemPromptInternal({
 				cwd,
 				skills,
@@ -1579,6 +1600,7 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 				workspaceTree: workspaceTreePromise,
 				projectContextMode: promptCachePolicy.projectContextMode,
 				activeGoal,
+				activeMission: getActiveMissionPacket(activeMissionInput),
 				subagentContract: options.subagentContract,
 			});
 

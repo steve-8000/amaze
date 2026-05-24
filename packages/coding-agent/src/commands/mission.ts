@@ -18,6 +18,9 @@ export default class Mission extends Command {
 		brief: Flags.string({ description: "Research brief id filter" }),
 		state: Flags.string({ description: "Mission state filter" }),
 		follow: Flags.boolean({ description: "Follow stream by polling mission event JSONL" }),
+		events: Flags.string({
+			description: "Mission event JSONL directory for replay verification (mission verify only)",
+		}),
 		lane: Flags.string({ description: "Evidence lane filter (mission evidence only)" }),
 		grade: Flags.string({ description: "Evidence grade filter (mission evidence only)" }),
 		status: Flags.string({ description: "Evidence classification filter: accepted, speculative, or conflicting" }),
@@ -86,7 +89,7 @@ export default class Mission extends Command {
 		}
 		if (action === "verify") {
 			const { runMissionVerifyCommand } = await import("../cli/mission");
-			await runMissionVerifyCommand({ db: flags.db, id, json: flags.json });
+			await runMissionVerifyCommand({ db: flags.db, id, json: flags.json, events: flags.events });
 			return;
 		}
 		const { runMissionRollbackCommand } = await import("../cli/mission");

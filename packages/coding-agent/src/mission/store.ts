@@ -200,7 +200,7 @@ export class MissionStore {
 		}
 		const where = clauses.length > 0 ? ` WHERE ${clauses.join(" AND ")}` : "";
 		const rows = this.#db
-			.query(`SELECT * FROM missions${where} ORDER BY created_at DESC, id DESC`)
+			.query(`SELECT * FROM missions${where} ORDER BY created_at DESC, rowid DESC`)
 			.all(...params) as MissionRow[];
 		return rows.map(rowToMission);
 	}
@@ -228,7 +228,7 @@ export class MissionStore {
 					CASE WHEN state IN ('completed', 'rolled_back', 'blocked', 'cancelled') THEN 1 ELSE 0 END ASC,
 					updated_at DESC,
 					created_at DESC,
-					id DESC
+					rowid DESC
 				LIMIT 1`,
 			)
 			.get(...params) as MissionRow | null;
@@ -237,21 +237,21 @@ export class MissionStore {
 
 	findLatestMissionByObjectiveId(objectiveId: string): Mission | undefined {
 		const row = this.#db
-			.query("SELECT * FROM missions WHERE objective_id = ? ORDER BY created_at DESC, id DESC LIMIT 1")
+			.query("SELECT * FROM missions WHERE objective_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 1")
 			.get(objectiveId) as MissionRow | null;
 		return row ? rowToMission(row) : undefined;
 	}
 
 	findLatestMissionByBriefId(briefId: string): Mission | undefined {
 		const row = this.#db
-			.query("SELECT * FROM missions WHERE brief_id = ? ORDER BY created_at DESC, id DESC LIMIT 1")
+			.query("SELECT * FROM missions WHERE brief_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 1")
 			.get(briefId) as MissionRow | null;
 		return row ? rowToMission(row) : undefined;
 	}
 
 	findLatestMissionByTitle(title: string): Mission | undefined {
 		const row = this.#db
-			.query("SELECT * FROM missions WHERE title = ? ORDER BY created_at DESC, id DESC LIMIT 1")
+			.query("SELECT * FROM missions WHERE title = ? ORDER BY created_at DESC, rowid DESC LIMIT 1")
 			.get(title) as MissionRow | null;
 		return row ? rowToMission(row) : undefined;
 	}
@@ -708,6 +708,18 @@ export class MissionStore {
 		if (rows.some(row => row.name === column)) return;
 		this.#db.run(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
 	}
+}
+
+export function resolveMission(
+	store: MissionStore,
+	lookup: { missionId?: string | null; title?: string | null; objective?: string | null },
+): Mission | undefined {
+	if (lookup.missionId) {
+		const exact = store.getMission(lookup.missionId);
+		if (exact) return exact;
+	}
+	const title = lookup.title ?? lookup.objective;
+	return title ? store.findLatestMissionByTitle(title) : undefined;
 }
 
 function generateId(prefix: string, now: number): string {

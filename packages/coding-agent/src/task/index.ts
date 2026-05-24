@@ -22,7 +22,7 @@ import type { ToolSession } from "..";
 import { AsyncJobManager } from "../async";
 import { resolveAgentModelPatterns } from "../config/model-resolver";
 import { MCPManager } from "../mcp/manager";
-import { MissionStore } from "../mission/store";
+import { MissionStore, resolveMission } from "../mission/store";
 import type { Theme } from "../modes/theme/theme";
 import { getSessionEventBus } from "../observability/session-bus";
 import planModeSubagentPrompt from "../prompts/system/plan-mode-subagent.md" with { type: "text" };
@@ -92,9 +92,7 @@ export function recordTaskMissionContract(
 	if (!goalObjective && !linkage.missionId) return;
 	const store = new MissionStore(dbPath);
 	try {
-		const mission = linkage.missionId
-			? store.getMission(linkage.missionId)
-			: store.findLatestMissionByTitle(goalObjective ?? "");
+		const mission = resolveMission(store, { missionId: linkage.missionId, title: goalObjective });
 		if (!mission) return;
 		store.recordContract({
 			missionId: mission.id,

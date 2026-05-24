@@ -453,6 +453,8 @@ export class InteractiveMode implements InteractiveModeContext {
 			this.ui.addChild(new Spacer(1));
 		}
 
+		this.ui.addChild(this.missionControlView);
+
 		if (!startupQuiet) {
 			// Add welcome header
 			this.#welcomeComponent = new WelcomeComponent(
@@ -486,7 +488,6 @@ export class InteractiveMode implements InteractiveModeContext {
 				this.ui.addChild(new DynamicBorder());
 			}
 		}
-		this.ui.addChild(this.missionControlView);
 
 		this.ui.addChild(this.chatContainer);
 		this.ui.addChild(this.pendingMessagesContainer);
@@ -934,6 +935,12 @@ export class InteractiveMode implements InteractiveModeContext {
 
 	selectPreviousMission(): void {
 		this.#selectMission("previous");
+	}
+
+	toggleMissionControlDisplayMode(): void {
+		const mode = this.missionControlView.toggleDisplayMode();
+		this.ui.requestRender();
+		this.showStatus(`Mission Control: ${mode}`, { dim: true });
 	}
 
 	#selectMission(direction: "next" | "previous"): void {

@@ -103,6 +103,7 @@ describe("mission control dogfood", () => {
 				briefId: brief.id,
 				hypothesis: "Ship Mission Control Wave8",
 				rationale: "Repo truth and operator surfaces are present with known speculative/conflicting annotations.",
+				kind: "select",
 				confidence: "high",
 				evidenceRefs: [repoEvidence.id, speculativeEvidence.id, conflictingEvidence.id],
 				rejectedOptions: [],

@@ -56,4 +56,41 @@ describe("readMissionEvents", () => {
 
 		expect(await readMissionEvents("mission-1", { baseDir })).toEqual(events);
 	});
+
+	test("reads rollover segments in numeric order", async () => {
+		const baseDir = tempRoot();
+		fs.mkdirSync(baseDir, { recursive: true });
+		const events: MissionEvent[] = [
+			{
+				type: "decision.recorded",
+				missionId: "mission-roll",
+				briefId: "brief-1",
+				decisionId: "decision-1",
+				confidence: "high",
+				ts: 1,
+			},
+			{
+				type: "contract.created",
+				missionId: "mission-roll",
+				contractId: "contract-1",
+				role: "worker",
+				ts: 2,
+			},
+			{
+				type: "verification.completed",
+				missionId: "mission-roll",
+				verificationId: "verification-1",
+				status: "pass",
+				failedCount: 0,
+				uncertainCount: 0,
+				ts: 3,
+			},
+		];
+		fs.writeFileSync(path.join(baseDir, "mission-roll.2.jsonl"), `${JSON.stringify(events[2])}\n`);
+		fs.writeFileSync(path.join(baseDir, "mission-roll.jsonl"), `${JSON.stringify(events[0])}\n`);
+		fs.writeFileSync(path.join(baseDir, "mission-roll.1.jsonl"), `${JSON.stringify(events[1])}\n`);
+		fs.writeFileSync(path.join(baseDir, "mission-roll.ignore.jsonl"), "{}\n");
+
+		expect(await readMissionEvents("mission-roll", { baseDir })).toEqual(events);
+	});
 });

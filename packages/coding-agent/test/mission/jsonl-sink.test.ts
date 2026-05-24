@@ -5,6 +5,7 @@ import * as path from "node:path";
 import { MissionEventBus } from "../../src/mission/event-bus";
 import type { MissionEvent } from "../../src/mission/events";
 import { MissionJsonlSink } from "../../src/mission/jsonl-sink";
+import { readMissionEvents } from "../../src/mission/reader";
 
 const roots: string[] = [];
 
@@ -71,5 +72,46 @@ describe("MissionJsonlSink", () => {
 
 		expect(mission1).toEqual([first, second]);
 		expect(mission2).toEqual([third]);
+	});
+
+	test("rolls mission files by byte size and remains reader-compatible", async () => {
+		const baseDir = tempRoot();
+		const bus = new MissionEventBus();
+		const sink = new MissionJsonlSink(bus, { baseDir, batchSize: 10, flushIntervalMs: 10_000, maxBytes: 120 });
+		const events: MissionEvent[] = [
+			{
+				type: "decision.recorded",
+				missionId: "mission-roll",
+				briefId: "brief-1",
+				decisionId: "decision-1",
+				confidence: "high",
+				ts: 1,
+			},
+			{
+				type: "contract.created",
+				missionId: "mission-roll",
+				contractId: "contract-1",
+				role: "worker",
+				ts: 2,
+			},
+			{
+				type: "rollback.snapshot.created",
+				missionId: "mission-roll",
+				rollbackId: "rollback-1",
+				targetType: "decision",
+				targetId: "decision-1",
+				snapshotRef: "snapshot-1",
+				ts: 3,
+			},
+		];
+
+		for (const event of events) bus.emit(event);
+		await new Promise(resolve => queueMicrotask(resolve));
+		await sink.flush();
+		await sink.close();
+
+		expect(fs.existsSync(path.join(baseDir, "mission-roll.jsonl"))).toBe(true);
+		expect(fs.existsSync(path.join(baseDir, "mission-roll.1.jsonl"))).toBe(true);
+		expect(await readMissionEvents("mission-roll", { baseDir })).toEqual(events);
 	});
 });

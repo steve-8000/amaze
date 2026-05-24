@@ -5,6 +5,8 @@ type MissionRuntimeOptions = {
 	baseDir?: string;
 	batchSize?: number;
 	flushIntervalMs?: number;
+	maxBytes?: number;
+	maxAgeMs?: number;
 };
 
 type MissionRuntime = {

@@ -1,6 +1,6 @@
 import { logger, prompt, Snowflake } from "@amaze/utils";
 import { settings } from "../config/settings";
-import { MissionStore } from "../mission/store";
+import { MissionStore, resolveMission } from "../mission/store";
 import type { EventBus as SessionEventBus } from "../observability";
 import goalBudgetLimitPrompt from "../prompts/goals/goal-budget-limit.md" with { type: "text" };
 import goalContinuationPrompt from "../prompts/goals/goal-continuation.md" with { type: "text" };
@@ -39,9 +39,7 @@ export function recordMissionVerificationFromGoalObjective(args: {
 }): void {
 	const store = new MissionStore(args.dbPath);
 	try {
-		const mission = args.missionId
-			? store.getMission(args.missionId)
-			: store.findLatestMissionByTitle(args.objective);
+		const mission = resolveMission(store, { missionId: args.missionId, title: args.objective });
 		if (!mission) return;
 		const status = args.verdict.verdict;
 		store.recordVerification({

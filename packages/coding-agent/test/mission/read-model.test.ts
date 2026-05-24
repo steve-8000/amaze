@@ -63,6 +63,7 @@ function decision(overrides: Partial<DecisionRecord> = {}): DecisionRecord {
 		briefId: "brief-1",
 		hypothesis: "Ship it",
 		rationale: "Evidence supports it",
+		kind: "select",
 		confidence: "high",
 		evidenceRefs: ["ev-1"],
 		rejectedOptions: [],
@@ -184,6 +185,7 @@ describe("buildMissionView", () => {
 		expect(view.objective).toEqual({ id: "objective-1", title: "Improve autonomy", status: "active", updatedAt: 0 });
 		expect(view.decisionSummary).toEqual({
 			id: "decision-1",
+			kind: "select",
 			confidence: "high",
 			createdAt: 7,
 			evidenceRefs: ["ev-1"],
@@ -254,6 +256,7 @@ describe("MissionReadModel", () => {
 			briefId: createdBrief.id,
 			hypothesis: "Ship it",
 			rationale: "Evidence supports it",
+			kind: "select",
 			confidence: "high",
 			evidenceRefs: [evidence.id],
 			rejectedOptions: [],

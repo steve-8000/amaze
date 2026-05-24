@@ -142,10 +142,15 @@ export async function runMissionDecisionCommand(opts: { db?: string; id: string;
 	}
 }
 
-export async function runMissionVerifyCommand(opts: { db?: string; id: string; json?: boolean }): Promise<void> {
+export async function runMissionVerifyCommand(opts: {
+	db?: string;
+	id: string;
+	json?: boolean;
+	events?: string;
+}): Promise<void> {
 	const { view, close } = loadMission(opts.db, opts.id);
 	try {
-		const events = await readMissionEvents(opts.id);
+		const events = await readMissionEvents(opts.id, { baseDir: opts.events });
 		const relatedEvents = filterVerifyRelatedEvents(events);
 		const laneCompleteness = view.laneRuns.map(lane => ({
 			lane: lane.lane,
@@ -160,12 +165,15 @@ export async function runMissionVerifyCommand(opts: { db?: string; id: string; j
 			laneCompleteness,
 			verification: view.latestVerification,
 			relatedEvents,
+			replay: opts.events ? verifyEventReplay(view, events) : undefined,
 		};
 		if (opts.json) {
 			writeJson(payload);
 			return;
 		}
-		process.stdout.write(`${renderVerify(view, relatedEvents)}\n`);
+		process.stdout.write(
+			`${renderVerify(view, relatedEvents, opts.events ? verifyEventReplay(view, events) : undefined)}\n`,
+		);
 	} finally {
 		close();
 	}
@@ -282,9 +290,9 @@ function renderDecision(view: MissionView): string {
 	].join("\n");
 }
 
-function renderVerify(view: MissionView, relatedEvents: unknown[]): string {
+function renderVerify(view: MissionView, relatedEvents: unknown[], replay?: MissionReplayVerification): string {
 	const counts = countProposals(view);
-	return [
+	const lines = [
 		`Mission: ${view.mission.id}`,
 		`State: ${view.mission.state}`,
 		`Decision: ${view.decisionSummary?.id ?? "<none>"}`,
@@ -296,7 +304,25 @@ function renderVerify(view: MissionView, relatedEvents: unknown[]): string {
 			: "verification: not yet recorded",
 		"Related mission events:",
 		...(relatedEvents.length > 0 ? relatedEvents.map(event => `  ${JSON.stringify(event)}`) : ["  <none>"]),
-	].join("\n");
+	];
+	if (replay) {
+		lines.push("Event replay:");
+		lines.push(`  status: ${replay.ok ? "consistent" : "inconsistent"}`);
+		lines.push(
+			`  decision: db=${replay.db.decision} events=${replay.events.decision} ${replay.matches.decision ? "ok" : "mismatch"}`,
+		);
+		lines.push(
+			`  contracts: db=${replay.db.contracts} events=${replay.events.contracts} ${replay.matches.contracts ? "ok" : "mismatch"}`,
+		);
+		lines.push(
+			`  verification: db=${replay.db.verification} events=${replay.events.verification} ${replay.matches.verification ? "ok" : "mismatch"}`,
+		);
+		lines.push(
+			`  rollbacks: db=${replay.db.rollbacks} events=${replay.events.rollbacks} ${replay.matches.rollbacks ? "ok" : "mismatch"}`,
+		);
+		lines.push(`  chronology: ${replay.events.chronological ? "ok" : "mismatch"}`);
+	}
+	return lines.join("\n");
 }
 
 function renderRollback(view: MissionView, candidateCount: number): string {
@@ -448,6 +474,42 @@ export async function streamMissionEvents(missionId: string, opts: StreamMission
 		if (opts.once && Date.now() >= deadline) return;
 		await sleep(pollIntervalMs);
 	}
+}
+
+type MissionReplayVerification = {
+	ok: boolean;
+	db: { decision: boolean; contracts: number; verification: boolean; rollbacks: number };
+	events: { decision: boolean; contracts: number; verification: boolean; rollbacks: number; chronological: boolean };
+	matches: { decision: boolean; contracts: boolean; verification: boolean; rollbacks: boolean; chronology: boolean };
+};
+
+function verifyEventReplay(view: MissionView, events: MissionEvent[]): MissionReplayVerification {
+	const eventCounts = {
+		decision: events.some(event => event.type === "decision.recorded"),
+		contracts: events.filter(event => event.type === "contract.created").length,
+		verification: events.some(event => event.type === "verification.completed"),
+		rollbacks: events.filter(event => event.type === "rollback.snapshot.created").length,
+		chronological: events.every((event, index) => index === 0 || events[index - 1]!.ts <= event.ts),
+	};
+	const dbCounts = {
+		decision: view.decision !== null,
+		contracts: view.contracts.length,
+		verification: view.latestVerification !== null,
+		rollbacks: view.rollbacks.length,
+	};
+	const matches = {
+		decision: dbCounts.decision === eventCounts.decision,
+		contracts: dbCounts.contracts === eventCounts.contracts,
+		verification: dbCounts.verification === eventCounts.verification,
+		rollbacks: dbCounts.rollbacks === eventCounts.rollbacks,
+		chronology: eventCounts.chronological,
+	};
+	return {
+		ok: Object.values(matches).every(Boolean),
+		db: dbCounts,
+		events: eventCounts,
+		matches,
+	};
 }
 
 function filterVerifyRelatedEvents(events: MissionEvent[]): MissionEvent[] {

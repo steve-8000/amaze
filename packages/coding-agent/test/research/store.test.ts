@@ -70,6 +70,7 @@ function decision(briefId: string, overrides: Partial<NewDecisionRecord> = {}): 
 		briefId,
 		hypothesis: "Use repo evidence",
 		rationale: "It is directly observed",
+		kind: "select",
 		confidence: "high",
 		evidenceRefs: ["ev-1"],
 		rejectedOptions: [{ id: "alt", reason: "unsupported" }],
@@ -185,11 +186,16 @@ describe("ResearchStore", () => {
 			"Invalid decision confidence",
 		);
 
+		expect(() => store.recordDecision(decision(created.id, { kind: "maybe" as any }))).toThrow(
+			"Invalid decision kind",
+		);
+
 		const first = store.recordDecision(decision(created.id, { id: "dec-first" }));
 		const second = store.recordDecision(decision(created.id, { id: "dec-second" }));
 
 		expect(store.getDecision(created.id)).toEqual(second);
 		expect(store.listDecisions(created.id)).toEqual([first, second]);
+		expect(first.kind).toBe("select");
 	});
 
 	test("recordDecision updates the brief mission", () => {
@@ -434,6 +440,66 @@ describe("ResearchStore", () => {
 					emptyReason: "no evidence recorded",
 					endedAt: 400,
 				});
+			} finally {
+				missions.close();
+			}
+		});
+	});
+
+	test("completed research run only allows select decisions", () => {
+		withTempDb(dbPath => {
+			const store = createStore(dbPath);
+			const created = store.createBrief(brief({ id: "brief-completed", lanes: ["repo"] }));
+			const mission = store.getMissionForBrief(created.id);
+			if (!mission) throw new Error("Expected mission for brief");
+			const missions = new MissionStore(dbPath);
+			try {
+				missions.createResearchRun({
+					id: "run-completed",
+					missionId: mission.id,
+					briefId: created.id,
+					objectiveId: created.objectiveId,
+					status: "completed",
+					startedAt: 10,
+					completedAt: 20,
+				});
+
+				expect(store.recordDecision(decision(created.id, { id: "dec-select", kind: "select" })).kind).toBe(
+					"select",
+				);
+				expect(() => store.recordDecision(decision(created.id, { id: "dec-reject", kind: "reject" }))).toThrow(
+					"Decision kind reject is not allowed for completed research run",
+				);
+			} finally {
+				missions.close();
+			}
+		});
+	});
+
+	test("blocked research run allows non-select decision kinds", () => {
+		withTempDb(dbPath => {
+			const store = createStore(dbPath);
+			const created = store.createBrief(brief({ id: "brief-blocked-decisions", lanes: ["repo"] }));
+			const mission = store.getMissionForBrief(created.id);
+			if (!mission) throw new Error("Expected mission for brief");
+			const missions = new MissionStore(dbPath);
+			try {
+				missions.createResearchRun({
+					id: "run-blocked-decisions",
+					missionId: mission.id,
+					briefId: created.id,
+					objectiveId: created.objectiveId,
+					status: "blocked",
+					startedAt: 10,
+					completedAt: 20,
+				});
+
+				for (const kind of ["reject", "defer", "needs-more-research", "scope-reduction"] as const) {
+					expect(store.recordDecision(decision(created.id, { id: `dec-${kind}`, kind })).kind).toBe(kind);
+				}
+				expect(() =>
+					store.recordDecision(decision(created.id, { id: "dec-blocked-select", kind: "select" })),
+				).toThrow("Decision kind select is not allowed for blocked research run");
 			} finally {
 				missions.close();
 			}

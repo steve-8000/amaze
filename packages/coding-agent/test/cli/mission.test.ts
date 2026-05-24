@@ -407,6 +407,76 @@ describe("mission CLI", () => {
 		}
 	});
 
+	test("mission verify --events reports replay consistency in text and json", async () => {
+		const fixture = await createFixture();
+		try {
+			addEvidenceAndDecision(fixture);
+			const missions = new MissionStore(fixture.dbPath, fixture.bus);
+			try {
+				missions.recordContract({
+					missionId: fixture.mission.id,
+					role: "worker",
+					parentContractRevision: 1,
+					include: ["src/**"],
+					exclude: [],
+					successCriteria: ["tests"],
+					escalation: { onUncertainty: "ask-parent", budgetCap: 100 },
+					inputArtifact: null,
+					mustProduce: ["notes"],
+					createdAt: Date.now() + 1,
+				});
+				missions.recordVerification({
+					missionId: fixture.mission.id,
+					status: "pass",
+					failedCount: 0,
+					uncertainCount: 0,
+					summary: "verified",
+					createdAt: Date.now() + 2,
+				});
+				missions.recordRollback({
+					id: "rollback-replay-1",
+					missionId: fixture.mission.id,
+					targetType: "decision",
+					targetId: "decision-1",
+					snapshotRef: "snapshot-replay-1",
+					summary: "snapshot ready",
+					createdAt: Date.now() + 3,
+				});
+			} finally {
+				missions.close();
+			}
+			await fixture.sink.flush();
+
+			const text = await captureStdout(() =>
+				runMissionVerifyCommand({ db: fixture.dbPath, id: fixture.mission.id, events: fixture.eventsDir }),
+			);
+			expect(text).toContain("Event replay:");
+			expect(text).toContain("status: consistent");
+			expect(text).toContain("decision: db=true events=true ok");
+			expect(text).toContain("contracts: db=1 events=1 ok");
+			expect(text).toContain("verification: db=true events=true ok");
+			expect(text).toContain("rollbacks: db=1 events=1 ok");
+
+			const json = await captureStdout(() =>
+				runMissionVerifyCommand({
+					db: fixture.dbPath,
+					id: fixture.mission.id,
+					events: fixture.eventsDir,
+					json: true,
+				}),
+			);
+			const payload = JSON.parse(json);
+			expect(payload.replay).toMatchObject({
+				ok: true,
+				db: { decision: true, contracts: 1, verification: true, rollbacks: 1 },
+				events: { decision: true, contracts: 1, verification: true, rollbacks: 1 },
+				matches: { decision: true, contracts: true, verification: true, rollbacks: true },
+			});
+		} finally {
+			await closeFixture(fixture);
+		}
+	});
+
 	test("mission rollback text says unavailable when snapshotRef is null", async () => {
 		const fixture = await createFixture();
 		try {

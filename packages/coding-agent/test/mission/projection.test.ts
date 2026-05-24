@@ -42,6 +42,7 @@ function decision(overrides: Partial<DecisionRecord> = {}): DecisionRecord {
 		briefId: "brief-1",
 		hypothesis: "Ship it",
 		rationale: "Evidence supports it",
+		kind: "select",
 		confidence: "high",
 		evidenceRefs: [],
 		rejectedOptions: [],

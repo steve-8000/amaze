@@ -20,6 +20,10 @@ Working directory layout (sorted by mtime, recent first; depth ≤ 3):
 Today is {{date}}, and the current working directory is '{{cwd}}'.
 
 {{goalBlock}}
+{{#if activeMissionBlock}}
+
+{{activeMissionBlock}}
+{{/if}}
 {{#if todoBlock}}
 
 {{todoBlock}}

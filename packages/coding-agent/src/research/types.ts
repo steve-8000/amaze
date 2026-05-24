@@ -51,11 +51,15 @@ export type NewEvidenceCard = Omit<EvidenceCard, "id" | "capturedAt"> & {
 	capturedAt?: number;
 };
 
+export const DECISION_KINDS = ["select", "reject", "defer", "needs-more-research", "scope-reduction"] as const;
+export type DecisionKind = (typeof DECISION_KINDS)[number];
+
 export interface DecisionRecord {
 	id: string;
 	briefId: string;
 	hypothesis: string;
 	rationale: string;
+	kind: DecisionKind;
 	confidence: ConfidenceLevel;
 	evidenceRefs: string[];
 	rejectedOptions: Array<{ id: string; reason: string }>;
@@ -63,8 +67,9 @@ export interface DecisionRecord {
 	createdAt: number;
 }
 
-export type NewDecisionRecord = Omit<DecisionRecord, "id" | "createdAt"> & {
+export type NewDecisionRecord = Omit<DecisionRecord, "id" | "createdAt" | "kind"> & {
 	id?: string;
+	kind?: DecisionKind;
 };
 export const CRITIQUE_VERDICTS = ["accept", "accept-with-modifications", "reject", "needs-more-research"] as const;
 export type CritiqueVerdict = (typeof CRITIQUE_VERDICTS)[number];

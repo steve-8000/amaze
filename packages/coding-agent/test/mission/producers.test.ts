@@ -159,6 +159,55 @@ describe("mission write-side producers", () => {
 		expect(store.getMission(byId.id)?.state).toBe("blocked");
 	});
 
+	test("falls back to title when explicit task mission id is missing", async () => {
+		cleanupRoot = await fs.mkdtemp(path.join(os.tmpdir(), "amaze-mission-task-id-fallback-"));
+		const db = path.join(cleanupRoot, "autonomy.db");
+		const store = new MissionStore(db);
+		stores.push(store);
+		const byTitle = store.createMission(mission({ id: "mission-task-title-fallback", title: "Fallback objective" }));
+
+		recordTaskMissionContract(
+			"Fallback objective",
+			{
+				role: "producer",
+				parentContractRevision: undefined,
+				scope: { include: ["src/**"], exclude: [] },
+				successCriteria: [],
+				escalation: { onUncertainty: "ask-parent", budgetCap: 42 },
+				inputArtifact: undefined,
+				outputContract: { mustProduce: [] },
+			},
+			db,
+			{ missionId: "missing-mission" },
+		);
+
+		expect(store.listContracts(byTitle.id)).toMatchObject([{ missionId: byTitle.id, role: "producer" }]);
+	});
+
+	test("falls back to title when explicit verification mission id is missing", async () => {
+		cleanupRoot = await fs.mkdtemp(path.join(os.tmpdir(), "amaze-mission-goal-id-fallback-"));
+		const db = path.join(cleanupRoot, "autonomy.db");
+		const store = new MissionStore(db);
+		stores.push(store);
+		const byTitle = store.createMission(
+			mission({ id: "mission-verify-title-fallback", title: "Fallback verify objective", state: "verifying" }),
+		);
+
+		recordMissionVerificationFromGoalObjective({
+			objective: "Fallback verify objective",
+			missionId: "missing-mission",
+			dbPath: db,
+			verdict: { verdict: "pass", failedCount: 0, uncertainCount: 0, passedCount: 1, results: [] },
+			summary: "",
+		});
+
+		expect(store.getLatestVerification(byTitle.id)).toMatchObject({
+			missionId: byTitle.id,
+			status: "pass",
+		});
+		expect(store.getMission(byTitle.id)?.state).toBe("completed");
+	});
+
 	test("records proposal apply and rollback anchors by objective provenance", async () => {
 		cleanupRoot = await fs.mkdtemp(path.join(os.tmpdir(), "amaze-mission-proposal-producer-"));
 		const db = path.join(cleanupRoot, "autonomy.db");
