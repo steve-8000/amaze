@@ -3,7 +3,14 @@ import type { Objective } from "../autonomy/types";
 import { ProposalStore } from "../learning/store";
 import type { LearningProposal, ProposalStatus } from "../learning/types";
 import { ResearchStore } from "../research/store";
-import type { ConfidenceLevel, DecisionRecord, EvidenceCard, ResearchBrief } from "../research/types";
+import type {
+	ConfidenceLevel,
+	CritiqueRecord,
+	DecisionRecord,
+	EvidenceCard,
+	ResearchBrief,
+	SynthesisRecord,
+} from "../research/types";
 import { type MissionProjectionView, projectMissionView } from "./projection";
 import { MissionStore } from "./store";
 import type {
@@ -51,6 +58,9 @@ export interface MissionView extends MissionProjectionView {
 	latestVerification: MissionVerificationRecord | null;
 	rollbacks: MissionRollbackRecord[];
 	researchRun: ResearchRun | null;
+	evidenceCards: EvidenceCard[];
+	latestSynthesis: SynthesisRecord | null;
+	latestCritique: CritiqueRecord | null;
 }
 
 export function buildMissionView(input: {
@@ -65,6 +75,8 @@ export function buildMissionView(input: {
 	latestVerification: MissionVerificationRecord | undefined;
 	rollbacks: MissionRollbackRecord[];
 	researchRun: ResearchRun | undefined;
+	latestSynthesis?: SynthesisRecord | undefined;
+	latestCritique?: CritiqueRecord | undefined;
 }): MissionView {
 	const projection = projectMissionView({
 		mission: input.mission,
@@ -104,9 +116,12 @@ export function buildMissionView(input: {
 				updatedAt: getProposalUpdatedAt(proposal),
 				objectiveId: getProposalObjectiveId(proposal),
 			})),
+		evidenceCards: [...input.evidence].sort((a, b) => b.capturedAt - a.capturedAt || b.id.localeCompare(a.id)),
 		contracts: [...input.contracts],
 		latestVerification: input.latestVerification ?? null,
 		researchRun: input.researchRun ?? null,
+		latestSynthesis: input.latestSynthesis ?? null,
+		latestCritique: input.latestCritique ?? null,
 		rollbacks: [...input.rollbacks],
 	};
 }
@@ -151,6 +166,8 @@ export class MissionReadModel {
 		const latestVerification = this.#missions.getLatestVerification(mission.id);
 		const rollbacks = this.#missions.listRollbacks(mission.id);
 		const researchRun = this.#missions.getLatestResearchRunForMission(mission.id);
+		const latestSynthesis = brief ? this.#research.getLatestSynthesis(brief.id) : undefined;
+		const latestCritique = brief ? this.#research.getLatestCritique(brief.id) : undefined;
 
 		return buildMissionView({
 			mission,
@@ -164,6 +181,8 @@ export class MissionReadModel {
 			latestVerification,
 			rollbacks,
 			researchRun,
+			latestSynthesis,
+			latestCritique,
 		});
 	}
 
