@@ -108,7 +108,7 @@ describe("research CLI helpers", () => {
 		).rejects.toThrow("Invalid grade: Z");
 	});
 
-	it("records and shows a decision", async () => {
+	it("records and shows a typed decision", async () => {
 		const db = testDb();
 		const brief = await createBrief(db, "What decision should be recorded?");
 		await captureStdout(async () => {
@@ -116,6 +116,7 @@ describe("research CLI helpers", () => {
 				db,
 				briefId: brief.id,
 				hypothesis: "Prefer the repo-grounded option",
+				kind: "defer",
 				confidence: "high",
 				rationale: "Repo evidence is strongest.",
 				evidence: "ev-1,ev-2",
@@ -125,6 +126,7 @@ describe("research CLI helpers", () => {
 			await runResearchShowCommand({ db, id: brief.id });
 		});
 		expect(stdout).toContain("decision:\n  hypothesis: Prefer the repo-grounded option");
+		expect(stdout).toContain("  kind: defer");
 	});
 
 	it("renders synthesizer prompt", async () => {

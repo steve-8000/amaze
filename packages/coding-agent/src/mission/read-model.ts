@@ -14,6 +14,7 @@ import type {
 	SynthesisRecord,
 	UncertaintyMap,
 } from "../research/types";
+import { buildUncertaintyMap } from "../research/uncertainty-map";
 import { type MissionProjectionView, projectMissionView } from "./projection";
 import { MissionStore } from "./store";
 import type {
@@ -235,8 +236,18 @@ export class MissionReadModel {
 		const researchRun = this.#missions.getLatestResearchRunForMission(mission.id);
 		const latestSynthesis = brief ? this.#research.getLatestSynthesis(brief.id) : undefined;
 		const latestCritique = brief ? this.#research.getLatestCritique(brief.id) : undefined;
-		const runtimeCriticChecks = brief ? this.#research.refreshRuntimeCriticChecks(brief.id) : [];
-		const uncertaintyMap = brief ? this.#research.getUncertaintyMap(brief.id) : undefined;
+		const runtimeCriticChecks = brief ? this.#research.deriveRuntimeCriticChecks(brief.id) : [];
+		const uncertaintyMap =
+			brief && runtimeCriticChecks.length > 0
+				? buildUncertaintyMap({
+						brief,
+						evidence,
+						assessment: this.#research.assessBrief(brief.id),
+						criticChecks: runtimeCriticChecks,
+					})
+				: brief
+					? this.#research.getUncertaintyMap(brief.id)
+					: undefined;
 
 		return buildMissionView({
 			mission,

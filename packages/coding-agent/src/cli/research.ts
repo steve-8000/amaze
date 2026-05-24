@@ -9,6 +9,8 @@ import {
 	type ConfidenceLevel,
 	CRITIQUE_VERDICTS,
 	type CritiqueVerdict,
+	DECISION_KINDS,
+	type DecisionKind,
 	EVIDENCE_GRADES,
 	type EvidenceGrade,
 	RESEARCH_LANES,
@@ -189,6 +191,7 @@ export async function runResearchShowCommand(
 			lines.push(
 				"decision:",
 				`  hypothesis: ${decision.hypothesis}`,
+				`  kind: ${decision.kind}`,
 				`  confidence: ${decision.confidence}`,
 				`  rationale: ${decision.rationale}`,
 				`  evidenceRefs: ${decision.evidenceRefs.join(",")}`,
@@ -271,6 +274,7 @@ export async function runResearchDecideCommand(
 	opts: ResearchCommandOptionsBase & {
 		briefId: string;
 		hypothesis: string;
+		kind?: string;
 		confidence: string;
 		rationale: string;
 		evidence?: string;
@@ -280,12 +284,14 @@ export async function runResearchDecideCommand(
 	},
 ): Promise<void> {
 	validateConfidence(opts.confidence);
+	if (opts.kind) validateDecisionKind(opts.kind);
 	const store = new ResearchStore(opts.db);
 	try {
 		const decision = store.recordDecision({
 			briefId: opts.briefId,
 			hypothesis: opts.hypothesis,
 			rationale: opts.rationale,
+			kind: opts.kind as DecisionKind | undefined,
 			confidence: opts.confidence as ConfidenceLevel,
 			evidenceRefs: parseList(opts.evidence),
 			rejectedOptions: parseRejected(opts.rejected),
@@ -550,6 +556,9 @@ function validateRisk(value: string): void {
 
 function validateConfidence(value: string): void {
 	if (!CONFIDENCE_LEVELS.includes(value as ConfidenceLevel)) throw new Error(`Invalid confidence: ${value}`);
+}
+function validateDecisionKind(value: string): void {
+	if (!DECISION_KINDS.includes(value as DecisionKind)) throw new Error(`Invalid decision kind: ${value}`);
 }
 
 function validateCritiqueVerdict(value: string): void {

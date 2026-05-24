@@ -346,6 +346,58 @@ describe("MissionReadModel", () => {
 			expect.objectContaining({ lane: "repo", status: "satisfied", evidenceCount: 1 }),
 		]);
 	});
+	test("derives runtime critic data without persisting read-side mutations", () => {
+		const dbPath = tempDb();
+		const research = new ResearchStore(dbPath);
+		const missions = new MissionStore(dbPath);
+		cleanup.push(
+			() => missions.close(),
+			() => research.close(),
+		);
+
+		const createdBrief = research.createBrief({
+			objectiveId: null,
+			question: "Do we have enough evidence?",
+			lanes: ["repo", "memory"],
+			requiredEvidence: [],
+			disallowedEvidence: [],
+			riskLevel: "medium",
+			stopCriteria: [],
+		});
+		research.addEvidence({
+			briefId: createdBrief.id,
+			lane: "repo",
+			grade: "A",
+			sourceRef: "src/file.ts:1",
+			excerpt: "repo signal",
+			claims: ["claim"],
+			directness: 1,
+			specificity: 1,
+			recency: 1,
+			reproducibility: 1,
+		});
+		const mission = missions.listMissions({ briefId: createdBrief.id })[0]!;
+
+		expect(research.listRuntimeCriticChecks(createdBrief.id)).toEqual([]);
+
+		const readModel = new MissionReadModel({ dbPath });
+		cleanup.push(() => readModel.close());
+		const view = readModel.getMissionView(mission.id);
+
+		expect(view?.runtimeCriticChecks).toEqual([
+			expect.objectContaining({
+				trigger: "missing-lane-evidence",
+				severity: "blocking",
+				requiredAction: "collect-evidence",
+				lane: "memory",
+			}),
+		]);
+		expect(view?.uncertaintyMap?.parts).toEqual([
+			expect.objectContaining({ lane: "repo", status: "satisfied", evidenceCount: 1 }),
+			expect.objectContaining({ lane: "memory", status: "uncertain", evidenceCount: 0 }),
+		]);
+		expect(research.listRuntimeCriticChecks(createdBrief.id)).toEqual([]);
+	});
 
 	test("listMissionViews filters by objectiveId and state", () => {
 		const dbPath = tempDb();
