@@ -134,3 +134,19 @@ export type NewMissionRollbackRecord = Omit<MissionRollbackRecord, "id" | "creat
 	id?: string;
 	createdAt?: number;
 };
+
+export type CriticDialogueRole = "orchestrator" | "inner-critic";
+
+export interface MissionCriticDialogueTurn {
+	id: string;
+	missionId: string;
+	role: CriticDialogueRole;
+	summary: string;
+	checkIds: string[];
+	createdAt: number;
+}
+
+export type NewMissionCriticDialogueTurn = Omit<MissionCriticDialogueTurn, "id" | "createdAt"> & {
+	id?: string;
+	createdAt?: number;
+};

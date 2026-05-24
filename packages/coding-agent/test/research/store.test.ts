@@ -625,4 +625,98 @@ describe("ResearchStore", () => {
 			]);
 		});
 	});
+
+	test("derives conservative deterministic assessment from research records", () => {
+		const store = createStore();
+		const created = store.createBrief(brief({ id: "research-assess", lanes: ["repo", "source"] }));
+
+		expect(store.assessBrief(created.id)).toEqual({
+			briefId: created.id,
+			readiness: "insufficient",
+			incompleteLanes: ["repo", "source"],
+			speculativeEvidenceIds: [],
+			conflictingEvidenceIds: [],
+			blockingCount: 0,
+			recommendedNextAction: "collect-evidence",
+		});
+
+		store.addEvidence(evidence(created.id, { id: "ev-repo", lane: "repo", claims: ["allow durable storage"] }));
+		store.addEvidence(
+			evidence(created.id, {
+				id: "ev-source",
+				lane: "source",
+				grade: "D",
+				directness: 0.3,
+				claims: ["block durable storage"],
+			}),
+		);
+		expect(store.assessBrief(created.id)).toMatchObject({
+			readiness: "researching",
+			incompleteLanes: [],
+			speculativeEvidenceIds: ["ev-source"],
+			conflictingEvidenceIds: ["ev-repo", "ev-source"],
+			recommendedNextAction: "run-synthesis",
+		});
+
+		store.recordSynthesis(synthesis(created.id, { id: "syn-assess" }));
+		expect(store.assessBrief(created.id)).toMatchObject({
+			readiness: "ready-to-critique",
+			recommendedNextAction: "run-critique",
+		});
+
+		store.recordCritique(critique(created.id, { id: "crit-assess", verdict: "accept", blockingCount: 0 }));
+		expect(store.assessBrief(created.id)).toMatchObject({
+			readiness: "ready-to-decide",
+			recommendedNextAction: "record-decision",
+		});
+
+		store.recordDecision(decision(created.id, { id: "dec-assess" }));
+		expect(store.assessBrief(created.id)).toMatchObject({
+			readiness: "decided",
+			recommendedNextAction: "none",
+		});
+	});
+
+	test("persists deterministic runtime critic checks and builds selective uncertainty maps", () => {
+		const store = createStore();
+		const created = store.createBrief(brief({ id: "research-critic", lanes: ["repo", "source", "memory"] }));
+		const weak = store.addEvidence(
+			evidence(created.id, {
+				id: "ev-weak",
+				lane: "repo",
+				grade: "D",
+				directness: 0.2,
+				specificity: 0.2,
+			}),
+		);
+
+		const checks = store.refreshRuntimeCriticChecks(created.id);
+
+		expect(checks.map(check => [check.trigger, check.severity, check.requiredAction, check.lane])).toEqual([
+			["missing-lane-evidence", "blocking", "collect-evidence", "memory"],
+			["missing-lane-evidence", "blocking", "collect-evidence", "source"],
+			["speculative-evidence", "soft", "collect-evidence", "repo"],
+		]);
+		expect(checks[2]?.evidenceRefs).toEqual([weak.id]);
+		expect(store.listRuntimeCriticChecks(created.id)).toEqual(checks);
+
+		const map = store.getUncertaintyMap(created.id, { requiredLanes: ["repo", "memory"] });
+
+		expect(map.requiredLanes).toEqual(["repo", "memory"]);
+		expect(map.parts).toEqual([
+			expect.objectContaining({
+				lane: "repo",
+				evidenceCount: 1,
+				missingEvidence: false,
+				speculativeEvidenceIds: [weak.id],
+				status: "uncertain",
+			}),
+			expect.objectContaining({
+				lane: "memory",
+				evidenceCount: 0,
+				missingEvidence: true,
+				status: "uncertain",
+			}),
+		]);
+	});
 });

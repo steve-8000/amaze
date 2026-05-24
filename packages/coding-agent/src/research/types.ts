@@ -105,6 +105,75 @@ export type NewCritiqueRecord = Omit<CritiqueRecord, "id" | "createdAt"> & {
 	createdAt?: number;
 };
 
+export const RESEARCH_READINESS = [
+	"insufficient",
+	"researching",
+	"ready-to-critique",
+	"ready-to-decide",
+	"blocked",
+	"decided",
+] as const;
+export type ResearchReadiness = (typeof RESEARCH_READINESS)[number];
+
+export const RESEARCH_NEXT_ACTIONS = [
+	"collect-evidence",
+	"run-synthesis",
+	"run-critique",
+	"record-decision",
+	"defer",
+	"none",
+] as const;
+export type ResearchNextAction = (typeof RESEARCH_NEXT_ACTIONS)[number];
+
+export const RUNTIME_CRITIC_TRIGGERS = [
+	"missing-lane-evidence",
+	"speculative-evidence",
+	"conflicting-evidence",
+	"blocked-assessment",
+] as const;
+export type RuntimeCriticTrigger = (typeof RUNTIME_CRITIC_TRIGGERS)[number];
+
+export const RUNTIME_CRITIC_SEVERITIES = ["soft", "blocking"] as const;
+export type RuntimeCriticSeverity = (typeof RUNTIME_CRITIC_SEVERITIES)[number];
+
+export const RUNTIME_CRITIC_REQUIRED_ACTIONS = [
+	"collect-evidence",
+	"resolve-conflict",
+	"run-critique",
+	"defer",
+] as const;
+export type RuntimeCriticRequiredAction = (typeof RUNTIME_CRITIC_REQUIRED_ACTIONS)[number];
+
+export interface RuntimeCriticCheck {
+	id: string;
+	briefId: string;
+	missionId: string | null;
+	lane: ResearchLane | null;
+	trigger: RuntimeCriticTrigger;
+	severity: RuntimeCriticSeverity;
+	requiredAction: RuntimeCriticRequiredAction;
+	source: "research-assessment";
+	message: string;
+	evidenceRefs: string[];
+	createdAt: number;
+}
+
+export type NewRuntimeCriticCheck = Omit<RuntimeCriticCheck, "id" | "createdAt" | "source"> & {
+	id?: string;
+	createdAt?: number;
+	source?: "research-assessment";
+};
+
+export interface ResearchAssessment {
+	briefId: string;
+	readiness: ResearchReadiness;
+	incompleteLanes: ResearchLane[];
+	speculativeEvidenceIds: string[];
+	conflictingEvidenceIds: string[];
+	blockingCount: number;
+	recommendedNextAction: ResearchNextAction;
+}
+
 export interface ComplementarityScore {
 	briefId: string;
 	total: number;
@@ -114,4 +183,26 @@ export interface ComplementarityScore {
 	stalenessPenalty: number;
 	socialOverweightPenalty: number;
 	breakdown: Array<{ lane: ResearchLane; cardCount: number; avgGradeWeight: number }>;
+}
+
+export interface UncertaintyMapPart {
+	lane: ResearchLane;
+	required: boolean;
+	evidenceCount: number;
+	missingEvidence: boolean;
+	speculativeEvidenceIds: string[];
+	conflictingEvidenceIds: string[];
+	blockingCheckIds: string[];
+	softCheckIds: string[];
+	status: "satisfied" | "uncertain";
+	reasons: string[];
+}
+
+export interface UncertaintyMap {
+	briefId: string;
+	requiredLanes: ResearchLane[];
+	parts: UncertaintyMapPart[];
+	blockingCheckIds: string[];
+	softCheckIds: string[];
+	updatedAt: number;
 }

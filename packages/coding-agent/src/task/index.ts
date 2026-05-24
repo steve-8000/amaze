@@ -29,6 +29,7 @@ import planModeSubagentPrompt from "../prompts/system/plan-mode-subagent.md" wit
 import subagentUserPromptTemplate from "../prompts/system/subagent-user-prompt.md" with { type: "text" };
 import taskDescriptionTemplate from "../prompts/tools/task.md" with { type: "text" };
 import taskSummaryTemplate from "../prompts/tools/task-summary.md" with { type: "text" };
+import { ResearchStore } from "../research/store";
 import { type SubagentContract, stampContractRevision } from "../subagent/contract";
 import {
 	diffDirtySnapshots,
@@ -116,6 +117,39 @@ function summarizeContractCriterion(criterion: SubagentContract["successCriteria
 	if (criterion.id) return criterion.id;
 	if (criterion.description) return criterion.description;
 	return JSON.stringify(criterion);
+}
+
+export function evaluateRuntimeCriticGate(args: {
+	goalObjective?: string;
+	missionId?: string | null;
+	dbPath?: string;
+	action: "task" | "plan";
+}): { ok: true } | { ok: false; reason: string } {
+	if (!args.goalObjective && !args.missionId) return { ok: true };
+	const missions = new MissionStore(args.dbPath);
+	const research = new ResearchStore(args.dbPath);
+	try {
+		const mission = resolveMission(missions, { missionId: args.missionId, title: args.goalObjective });
+		if (!mission?.briefId) return { ok: true };
+		const checks = research.refreshRuntimeCriticChecks(mission.briefId);
+		const blocking = checks.filter(check => check.severity === "blocking");
+		if (blocking.length === 0) return { ok: true };
+		missions.recordCriticDialogueExchange({
+			missionId: mission.id,
+			orchestratorSummary: `${args.action} gate requested while runtime critic has ${blocking.length} blocking check(s).`,
+			criticSummary: blocking.map(check => `${check.trigger}: ${check.message}`).join("; "),
+			checkIds: checks.map(check => check.id),
+			blockingCheckIds: blocking.map(check => check.id),
+		});
+		const first = blocking[0]!;
+		return {
+			ok: false,
+			reason: `Runtime critic blocked ${args.action}: ${first.message}. Required action: ${first.requiredAction}.`,
+		};
+	} finally {
+		research.close();
+		missions.close();
+	}
 }
 
 function renderSubagentUserPrompt(assignment: string, simpleMode: TaskSimpleMode): string {
@@ -792,6 +826,22 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 		}
 
 		const preferredIsolationBackend = parseIsolationMode(isolationMode);
+
+		const criticGate = evaluateRuntimeCriticGate({
+			goalObjective: this.session.getGoalModeState?.()?.goal?.objective,
+			missionId: this.session.getGoalModeState?.()?.goal?.id,
+			action: "task",
+		});
+		if (!criticGate.ok) {
+			return {
+				content: [{ type: "text", text: criticGate.reason }],
+				details: {
+					projectAgentsDir,
+					results: [],
+					totalDurationMs: Date.now() - startTime,
+				},
+			};
+		}
 
 		// Derive artifacts directory
 		const sessionFile = this.session.getSessionFile();

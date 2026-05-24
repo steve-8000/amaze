@@ -215,6 +215,8 @@ describe("buildMissionView", () => {
 		expect(view.latestVerification).toBeNull();
 		expect(view.rollbacks).toEqual([]);
 		expect(view.researchRun).toEqual(researchRun());
+		expect(view.runtimeCriticChecks).toEqual([]);
+		expect(view.uncertaintyMap).toBeNull();
 	});
 });
 
@@ -339,6 +341,10 @@ describe("MissionReadModel", () => {
 		expect(view?.rollbacks).toEqual([rollback]);
 		expect(view?.researchRun).toEqual(latestRun);
 		expect(view?.researchRun?.id).not.toBe(oldRun.id);
+		expect(view?.runtimeCriticChecks).toEqual([]);
+		expect(view?.uncertaintyMap?.parts).toEqual([
+			expect.objectContaining({ lane: "repo", status: "satisfied", evidenceCount: 1 }),
+		]);
 	});
 
 	test("listMissionViews filters by objectiveId and state", () => {
@@ -405,5 +411,7 @@ describe("MissionReadModel", () => {
 		expect(view?.decisionSummary).toBeNull();
 		expect(view?.evidenceCount).toBe(0);
 		expect(view?.proposals).toEqual([]);
+		expect(view?.runtimeCriticChecks).toEqual([]);
+		expect(view?.uncertaintyMap).toBeNull();
 	});
 });

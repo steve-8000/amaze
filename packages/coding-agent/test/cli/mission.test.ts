@@ -168,6 +168,7 @@ describe("mission CLI", () => {
 			expect(stdout).toContain("Contracts: 0");
 			expect(stdout).toContain("Verification: not yet recorded");
 			expect(stdout).toContain("Rollbacks: 0");
+			expect(stdout).toContain("Runtime critic: blocked checks=1 dialogue=0");
 		} finally {
 			await closeFixture(fixture);
 		}
@@ -472,6 +473,8 @@ describe("mission CLI", () => {
 				events: { decision: true, contracts: 1, verification: true, rollbacks: 1 },
 				matches: { decision: true, contracts: true, verification: true, rollbacks: true },
 			});
+			expect(payload.runtimeCritic).toMatchObject({ status: "blocked" });
+			expect(payload.runtimeCritic.checks).toHaveLength(1);
 		} finally {
 			await closeFixture(fixture);
 		}

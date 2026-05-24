@@ -35,7 +35,7 @@ Hard rules:
 
 Return free-form text as a list of MemoryHit records.
 Each MemoryHit should include:
-- `ref`: memory://...
+- `ref`: memory://…
 - `capturedAt`
 - `kind`: 'decision' | 'workflow' | 'failure' | 'preference'
 - `summary`

@@ -7,6 +7,7 @@ import type { MissionEventBus } from "../mission/event-bus";
 import { getMissionEventBus } from "../mission/runtime";
 import { MissionStore } from "../mission/store";
 import type { Mission } from "../mission/types";
+import { evidenceContradictsAny } from "./scoring";
 import {
 	CONFIDENCE_LEVELS,
 	type ConfidenceLevel,
@@ -23,12 +24,23 @@ import {
 	type NewDecisionRecord,
 	type NewEvidenceCard,
 	type NewResearchBrief,
+	type NewRuntimeCriticCheck,
 	type NewSynthesisRecord,
 	RESEARCH_LANES,
+	type ResearchAssessment,
 	type ResearchBrief,
 	type ResearchLane,
+	RUNTIME_CRITIC_REQUIRED_ACTIONS,
+	RUNTIME_CRITIC_SEVERITIES,
+	RUNTIME_CRITIC_TRIGGERS,
+	type RuntimeCriticCheck,
+	type RuntimeCriticRequiredAction,
+	type RuntimeCriticSeverity,
+	type RuntimeCriticTrigger,
 	type SynthesisRecord,
+	type UncertaintyMap,
 } from "./types";
+import { buildUncertaintyMap } from "./uncertainty-map";
 
 export const DEFAULT_DB_PATH = path.join(os.homedir(), ".amaze", "autonomy", "autonomy.db");
 
@@ -37,6 +49,9 @@ const VALID_GRADES = new Set<EvidenceGrade>(EVIDENCE_GRADES);
 const VALID_CONFIDENCE = new Set<ConfidenceLevel>(CONFIDENCE_LEVELS);
 const VALID_DECISION_KINDS = new Set<DecisionKind>(DECISION_KINDS);
 const VALID_CRITIQUE_VERDICTS = new Set<CritiqueVerdict>(CRITIQUE_VERDICTS);
+const VALID_CRITIC_TRIGGERS = new Set<RuntimeCriticTrigger>(RUNTIME_CRITIC_TRIGGERS);
+const VALID_CRITIC_SEVERITIES = new Set<RuntimeCriticSeverity>(RUNTIME_CRITIC_SEVERITIES);
+const VALID_CRITIC_ACTIONS = new Set<RuntimeCriticRequiredAction>(RUNTIME_CRITIC_REQUIRED_ACTIONS);
 
 type ResearchBriefRow = {
 	id: string;
@@ -97,6 +112,20 @@ type CritiqueRecordRow = {
 	verdict: CritiqueVerdict;
 	summary: string;
 	raw_output: string;
+	created_at: number;
+};
+
+type RuntimeCriticCheckRow = {
+	id: string;
+	brief_id: string;
+	mission_id: string | null;
+	lane: ResearchLane | null;
+	trigger: RuntimeCriticTrigger;
+	severity: RuntimeCriticSeverity;
+	required_action: RuntimeCriticRequiredAction;
+	source: "research-assessment";
+	message: string;
+	evidence_refs: string;
 	created_at: number;
 };
 
@@ -440,6 +469,244 @@ export class ResearchStore {
 		return rows.map(rowToDecision);
 	}
 
+	assessBrief(briefId: string): ResearchAssessment {
+		const brief = this.getBrief(briefId);
+		if (!brief) {
+			throw new Error(`Research brief not found: ${briefId}`);
+		}
+		const evidence = this.listEvidence(brief.id);
+		const synthesis = this.getLatestSynthesis(brief.id);
+		const critique = this.getLatestCritique(brief.id);
+		const decision = this.getDecision(brief.id);
+		const incompleteLanes = brief.lanes.filter(lane => !evidence.some(card => card.lane === lane));
+		const speculativeEvidenceIds = evidence
+			.filter(card => card.grade === "D" || card.grade === "E" || card.directness < 0.4 || card.specificity < 0.4)
+			.map(card => card.id);
+		const conflictingEvidenceIds = evidence
+			.filter(card => evidenceContradictsAny(card, evidence))
+			.map(card => card.id);
+		const blockingCount = critique?.blockingCount ?? 0;
+
+		if (decision) {
+			return {
+				briefId: brief.id,
+				readiness: "decided",
+				incompleteLanes,
+				speculativeEvidenceIds,
+				conflictingEvidenceIds,
+				blockingCount,
+				recommendedNextAction: "none",
+			};
+		}
+		if (
+			critique &&
+			(critique.blockingCount > 0 || critique.verdict === "reject" || critique.verdict === "needs-more-research")
+		) {
+			return {
+				briefId: brief.id,
+				readiness: "blocked",
+				incompleteLanes,
+				speculativeEvidenceIds,
+				conflictingEvidenceIds,
+				blockingCount: critique.blockingCount,
+				recommendedNextAction: critique.verdict === "reject" ? "defer" : "collect-evidence",
+			};
+		}
+		if (critique && (critique.verdict === "accept" || critique.verdict === "accept-with-modifications")) {
+			return {
+				briefId: brief.id,
+				readiness: "ready-to-decide",
+				incompleteLanes,
+				speculativeEvidenceIds,
+				conflictingEvidenceIds,
+				blockingCount,
+				recommendedNextAction: "record-decision",
+			};
+		}
+		if (synthesis) {
+			return {
+				briefId: brief.id,
+				readiness: "ready-to-critique",
+				incompleteLanes,
+				speculativeEvidenceIds,
+				conflictingEvidenceIds,
+				blockingCount,
+				recommendedNextAction: "run-critique",
+			};
+		}
+		if (incompleteLanes.length > 0 || evidence.length === 0) {
+			return {
+				briefId: brief.id,
+				readiness: "insufficient",
+				incompleteLanes,
+				speculativeEvidenceIds,
+				conflictingEvidenceIds,
+				blockingCount,
+				recommendedNextAction: "collect-evidence",
+			};
+		}
+		return {
+			briefId: brief.id,
+			readiness: "researching",
+			incompleteLanes,
+			speculativeEvidenceIds,
+			conflictingEvidenceIds,
+			blockingCount,
+			recommendedNextAction: "run-synthesis",
+		};
+	}
+
+	deriveRuntimeCriticChecks(briefId: string): RuntimeCriticCheck[] {
+		const brief = this.getBrief(briefId);
+		if (!brief) throw new Error(`Research brief not found: ${briefId}`);
+		const assessment = this.assessBrief(briefId);
+		const mission = this.getMissionForBrief(briefId);
+		const evidence = this.listEvidence(briefId);
+		const now = Date.now();
+		const checks: RuntimeCriticCheck[] = [];
+		for (const lane of assessment.incompleteLanes) {
+			checks.push({
+				id: `runtime-critic:${briefId}:missing-lane-evidence:${lane}`,
+				briefId,
+				missionId: mission?.id ?? null,
+				lane,
+				trigger: "missing-lane-evidence",
+				severity: "blocking",
+				requiredAction: "collect-evidence",
+				source: "research-assessment",
+				message: `Required research lane has no evidence: ${lane}`,
+				evidenceRefs: [],
+				createdAt: now,
+			});
+		}
+		for (const evidenceId of assessment.speculativeEvidenceIds) {
+			const card = evidence.find(item => item.id === evidenceId);
+			checks.push({
+				id: `runtime-critic:${briefId}:speculative-evidence:${evidenceId}`,
+				briefId,
+				missionId: mission?.id ?? null,
+				lane: card?.lane ?? null,
+				trigger: "speculative-evidence",
+				severity: "soft",
+				requiredAction: "collect-evidence",
+				source: "research-assessment",
+				message: `Evidence is too speculative for a durable decision: ${evidenceId}`,
+				evidenceRefs: [evidenceId],
+				createdAt: now,
+			});
+		}
+		for (const evidenceId of assessment.conflictingEvidenceIds) {
+			const card = evidence.find(item => item.id === evidenceId);
+			checks.push({
+				id: `runtime-critic:${briefId}:conflicting-evidence:${evidenceId}`,
+				briefId,
+				missionId: mission?.id ?? null,
+				lane: card?.lane ?? null,
+				trigger: "conflicting-evidence",
+				severity: "blocking",
+				requiredAction: "resolve-conflict",
+				source: "research-assessment",
+				message: `Evidence conflicts with another captured source: ${evidenceId}`,
+				evidenceRefs: [evidenceId],
+				createdAt: now,
+			});
+		}
+		if (assessment.readiness === "blocked" && assessment.blockingCount > 0) {
+			checks.push({
+				id: `runtime-critic:${briefId}:blocked-assessment`,
+				briefId,
+				missionId: mission?.id ?? null,
+				lane: null,
+				trigger: "blocked-assessment",
+				severity: "blocking",
+				requiredAction: assessment.recommendedNextAction === "defer" ? "defer" : "run-critique",
+				source: "research-assessment",
+				message: `Research assessment is blocked by ${assessment.blockingCount} critique finding(s)`,
+				evidenceRefs: [],
+				createdAt: now,
+			});
+		}
+		return checks;
+	}
+
+	refreshRuntimeCriticChecks(briefId: string): RuntimeCriticCheck[] {
+		if (!this.getBrief(briefId)) throw new Error(`Research brief not found: ${briefId}`);
+		const checks = this.deriveRuntimeCriticChecks(briefId);
+		this.#db
+			.query("DELETE FROM runtime_critic_checks WHERE brief_id = ? AND source = 'research-assessment'")
+			.run(briefId);
+		for (const check of checks) this.recordRuntimeCriticCheck(check);
+		const blockingCount = checks.filter(check => check.severity === "blocking").length;
+		const softCount = checks.length - blockingCount;
+		const missionId = checks.find(check => check.missionId)?.missionId ?? this.getMissionForBrief(briefId)?.id;
+		if (missionId) {
+			this.#missionEventBus?.emit({
+				type: "runtime_critic.checks.completed",
+				missionId,
+				briefId,
+				blockingCount,
+				softCount,
+				ts: Date.now(),
+			});
+		}
+		return this.listRuntimeCriticChecks(briefId);
+	}
+
+	recordRuntimeCriticCheck(input: NewRuntimeCriticCheck): RuntimeCriticCheck {
+		if (!this.getBrief(input.briefId)) throw new Error(`Research brief not found: ${input.briefId}`);
+		if (input.lane !== null) assertResearchLane(input.lane);
+		assertCriticTrigger(input.trigger);
+		assertCriticSeverity(input.severity);
+		assertCriticAction(input.requiredAction);
+		const now = Date.now();
+		const check: RuntimeCriticCheck = {
+			...input,
+			id: input.id ?? generateId("runtime-critic", now),
+			source: input.source ?? "research-assessment",
+			createdAt: input.createdAt ?? now,
+		};
+		this.#db
+			.query(
+				`INSERT OR REPLACE INTO runtime_critic_checks
+					(id, brief_id, mission_id, lane, trigger, severity, required_action, source, message, evidence_refs, created_at)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			)
+			.run(
+				check.id,
+				check.briefId,
+				check.missionId,
+				check.lane,
+				check.trigger,
+				check.severity,
+				check.requiredAction,
+				check.source,
+				check.message,
+				JSON.stringify(check.evidenceRefs),
+				check.createdAt,
+			);
+		return check;
+	}
+
+	listRuntimeCriticChecks(briefId: string): RuntimeCriticCheck[] {
+		const rows = this.#db
+			.query("SELECT * FROM runtime_critic_checks WHERE brief_id = ? ORDER BY created_at ASC, id ASC")
+			.all(briefId) as RuntimeCriticCheckRow[];
+		return rows.map(rowToRuntimeCriticCheck);
+	}
+
+	getUncertaintyMap(briefId: string, opts: { requiredLanes?: ResearchLane[] } = {}): UncertaintyMap {
+		const brief = this.getBrief(briefId);
+		if (!brief) throw new Error(`Research brief not found: ${briefId}`);
+		for (const lane of opts.requiredLanes ?? []) assertResearchLane(lane);
+		return buildUncertaintyMap({
+			brief,
+			evidence: this.listEvidence(briefId),
+			assessment: this.assessBrief(briefId),
+			criticChecks: this.listRuntimeCriticChecks(briefId),
+			requiredLanes: opts.requiredLanes,
+		});
+	}
+
 	#updateLiveLaneRunForEvidence(missionId: string, briefId: string, lane: ResearchLane, ts: number): void {
 		const missions = this.#createMissionStore();
 		try {
@@ -619,6 +886,22 @@ export class ResearchStore {
 				FOREIGN KEY (brief_id) REFERENCES research_briefs(id) ON DELETE CASCADE
 			);
 			CREATE INDEX IF NOT EXISTS research_critiques_brief_idx ON research_critiques(brief_id);
+
+			CREATE TABLE IF NOT EXISTS runtime_critic_checks (
+				id TEXT PRIMARY KEY,
+				brief_id TEXT NOT NULL,
+				mission_id TEXT,
+				lane TEXT,
+				trigger TEXT NOT NULL,
+				severity TEXT NOT NULL,
+				required_action TEXT NOT NULL,
+				source TEXT NOT NULL,
+				message TEXT NOT NULL,
+				evidence_refs TEXT NOT NULL,
+				created_at INTEGER NOT NULL,
+				FOREIGN KEY (brief_id) REFERENCES research_briefs(id) ON DELETE CASCADE
+			);
+			CREATE INDEX IF NOT EXISTS runtime_critic_checks_brief_idx ON runtime_critic_checks(brief_id);
 		`);
 		this.#ensureDecisionKindColumn();
 	}
@@ -662,6 +945,24 @@ function assertDecisionKind(kind: DecisionKind): void {
 function assertCritiqueVerdict(verdict: CritiqueVerdict): void {
 	if (!VALID_CRITIQUE_VERDICTS.has(verdict)) {
 		throw new Error(`Invalid critique verdict: ${verdict}`);
+	}
+}
+
+function assertCriticTrigger(trigger: RuntimeCriticTrigger): void {
+	if (!VALID_CRITIC_TRIGGERS.has(trigger)) {
+		throw new Error(`Invalid runtime critic trigger: ${trigger}`);
+	}
+}
+
+function assertCriticSeverity(severity: RuntimeCriticSeverity): void {
+	if (!VALID_CRITIC_SEVERITIES.has(severity)) {
+		throw new Error(`Invalid runtime critic severity: ${severity}`);
+	}
+}
+
+function assertCriticAction(action: RuntimeCriticRequiredAction): void {
+	if (!VALID_CRITIC_ACTIONS.has(action)) {
+		throw new Error(`Invalid runtime critic required action: ${action}`);
 	}
 }
 
@@ -737,6 +1038,22 @@ function rowToCritique(row: CritiqueRecordRow): CritiqueRecord {
 		verdict: row.verdict,
 		summary: row.summary,
 		rawOutput: row.raw_output,
+		createdAt: row.created_at,
+	};
+}
+
+function rowToRuntimeCriticCheck(row: RuntimeCriticCheckRow): RuntimeCriticCheck {
+	return {
+		id: row.id,
+		briefId: row.brief_id,
+		missionId: row.mission_id,
+		lane: row.lane,
+		trigger: row.trigger,
+		severity: row.severity,
+		requiredAction: row.required_action,
+		source: row.source,
+		message: row.message,
+		evidenceRefs: JSON.parse(row.evidence_refs) as string[],
 		createdAt: row.created_at,
 	};
 }

@@ -196,6 +196,33 @@ export function buildMissionControlLines(
 			: "  Critique: <none>",
 	);
 
+	lines.push(section("Runtime Critic"));
+	const criticChecks = view.runtimeCriticChecks ?? [];
+	const blockingChecks = criticChecks.filter(check => check.severity === "blocking");
+	lines.push(
+		`  Checks: ${criticChecks.length} total | blocked ${blockingChecks.length} | soft ${criticChecks.length - blockingChecks.length}`,
+	);
+	if (criticChecks.length === 0) {
+		lines.push("  Status: satisfied");
+	} else {
+		const visibleChecks = mode === "expanded" ? criticChecks : criticChecks.slice(0, 3);
+		for (const check of visibleChecks) {
+			lines.push(
+				`  ${formatCriticCheckStatus(check.severity)} ${check.trigger}${check.lane ? `/${check.lane}` : ""} -> ${check.requiredAction}: ${check.message}`,
+			);
+		}
+		if (visibleChecks.length < criticChecks.length)
+			lines.push(`  … ${criticChecks.length - visibleChecks.length} more checks`);
+	}
+	if (view.criticDialogue.length === 0) {
+		lines.push("  Dialogue: <none>");
+	} else {
+		const latestDialogue = view.criticDialogue.at(-1)!;
+		lines.push(
+			`  Dialogue: ${view.criticDialogue.length} turns | latest ${latestDialogue.role}: ${latestDialogue.summary}`,
+		);
+	}
+
 	lines.push(section("Decision Contract"));
 	if (view.decisionSummary) {
 		lines.push(
@@ -268,6 +295,10 @@ function padLine(line: string, width: number): string {
 
 function section(title: string): string {
 	return `── ${title} ──`;
+}
+
+function formatCriticCheckStatus(severity: string): string {
+	return severity === "blocking" ? "[blocked]" : "[waived]";
 }
 
 function formatList(items: string[]): string {

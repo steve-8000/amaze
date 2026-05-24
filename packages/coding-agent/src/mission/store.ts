@@ -14,12 +14,14 @@ import {
 import type { MissionEventBus } from "./event-bus";
 import { getMissionEventBus } from "./runtime";
 import {
+	type CriticDialogueRole,
 	EPISTEMIC_ROLES,
 	type EpistemicRole,
 	MISSION_LANE_STATUSES,
 	MISSION_STATES,
 	type Mission,
 	type MissionContractRecord,
+	type MissionCriticDialogueTurn,
 	type MissionLaneRun,
 	type MissionLaneStatus,
 	type MissionRollbackRecord,
@@ -27,6 +29,7 @@ import {
 	type MissionVerificationRecord,
 	type NewMission,
 	type NewMissionContractRecord,
+	type NewMissionCriticDialogueTurn,
 	type NewMissionLaneRun,
 	type NewMissionRollbackRecord,
 	type NewMissionVerificationRecord,
@@ -120,6 +123,14 @@ type MissionRollbackRow = {
 	created_at: number;
 };
 
+type MissionCriticDialogueTurnRow = {
+	id: string;
+	mission_id: string;
+	role: CriticDialogueRole;
+	summary: string;
+	check_ids_json: string;
+	created_at: number;
+};
 export class MissionStore {
 	readonly dbPath: string;
 	readonly #db: Database;
@@ -527,6 +538,73 @@ export class MissionStore {
 		return row ? rowToVerification(row) : undefined;
 	}
 
+	recordCriticDialogueTurn(input: NewMissionCriticDialogueTurn): MissionCriticDialogueTurn {
+		if (!this.getMission(input.missionId)) throw new Error(`Mission not found: ${input.missionId}`);
+		assertCriticDialogueRole(input.role);
+		const now = input.createdAt ?? Date.now();
+		const record: MissionCriticDialogueTurn = {
+			...input,
+			id: input.id ?? generateId("critic-dialogue", now),
+			checkIds: [...input.checkIds],
+			createdAt: now,
+		};
+		this.#db
+			.query(
+				`INSERT INTO mission_critic_dialogue
+					(id, mission_id, role, summary, check_ids_json, created_at)
+				VALUES (?, ?, ?, ?, ?, ?)`,
+			)
+			.run(
+				record.id,
+				record.missionId,
+				record.role,
+				record.summary,
+				JSON.stringify(record.checkIds),
+				record.createdAt,
+			);
+		return record;
+	}
+
+	recordCriticDialogueExchange(input: {
+		missionId: string;
+		orchestratorSummary: string;
+		criticSummary: string;
+		checkIds: string[];
+		blockingCheckIds?: string[];
+		createdAt?: number;
+	}): MissionCriticDialogueTurn[] {
+		const now = input.createdAt ?? Date.now();
+		const orchestrator = this.recordCriticDialogueTurn({
+			missionId: input.missionId,
+			role: "orchestrator",
+			summary: input.orchestratorSummary,
+			checkIds: input.checkIds,
+			createdAt: now,
+		});
+		const critic = this.recordCriticDialogueTurn({
+			missionId: input.missionId,
+			role: "inner-critic",
+			summary: input.criticSummary,
+			checkIds: input.checkIds,
+			createdAt: now + 1,
+		});
+		this.#eventBus?.emit({
+			type: "runtime_critic.dialogue.completed",
+			missionId: input.missionId,
+			turnIds: [orchestrator.id, critic.id],
+			blockingCheckIds: [...(input.blockingCheckIds ?? [])],
+			ts: critic.createdAt,
+		});
+		return [orchestrator, critic];
+	}
+
+	listCriticDialogue(missionId: string): MissionCriticDialogueTurn[] {
+		const rows = this.#db
+			.query("SELECT * FROM mission_critic_dialogue WHERE mission_id = ? ORDER BY created_at ASC, id ASC")
+			.all(missionId) as MissionCriticDialogueTurnRow[];
+		return rows.map(rowToCriticDialogueTurn);
+	}
+
 	recordRollback(input: NewMissionRollbackRecord): MissionRollbackRecord {
 		if (!this.getMission(input.missionId)) throw new Error(`Mission not found: ${input.missionId}`);
 		const now = input.createdAt ?? Date.now();
@@ -698,6 +776,17 @@ export class MissionStore {
 			);
 
 			CREATE INDEX IF NOT EXISTS mission_rollbacks_mission_idx ON mission_rollbacks(mission_id);
+
+			CREATE TABLE IF NOT EXISTS mission_critic_dialogue (
+				id TEXT PRIMARY KEY,
+				mission_id TEXT NOT NULL,
+				role TEXT NOT NULL,
+				summary TEXT NOT NULL,
+				check_ids_json TEXT NOT NULL CHECK (json_valid(check_ids_json)),
+				created_at INTEGER NOT NULL,
+				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
+			);
+			CREATE INDEX IF NOT EXISTS mission_critic_dialogue_mission_idx ON mission_critic_dialogue(mission_id);
 		`);
 		this.#ensureColumn("mission_contracts", "task_id", "TEXT");
 		this.#ensureColumn("mission_contracts", "session_file", "TEXT");
@@ -765,6 +854,12 @@ function assertRiskLevel(riskLevel: RiskLevel): void {
 function assertConfidence(confidence: ConfidenceLevel): void {
 	if (!VALID_CONFIDENCE.has(confidence)) {
 		throw new Error(`Invalid mission confidence: ${confidence}`);
+	}
+}
+
+function assertCriticDialogueRole(role: CriticDialogueRole): void {
+	if (role !== "orchestrator" && role !== "inner-critic") {
+		throw new Error(`Invalid critic dialogue role: ${role}`);
 	}
 }
 
@@ -854,6 +949,17 @@ function rowToRollback(row: MissionRollbackRow): MissionRollbackRecord {
 		targetId: row.target_id,
 		snapshotRef: row.snapshot_ref,
 		summary: row.summary,
+		createdAt: row.created_at,
+	};
+}
+
+function rowToCriticDialogueTurn(row: MissionCriticDialogueTurnRow): MissionCriticDialogueTurn {
+	return {
+		id: row.id,
+		missionId: row.mission_id,
+		role: row.role,
+		summary: row.summary,
+		checkIds: parseStringArray(row.check_ids_json, "check_ids_json"),
 		createdAt: row.created_at,
 	};
 }

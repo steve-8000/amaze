@@ -10,13 +10,16 @@ import type {
 	DecisionRecord,
 	EvidenceCard,
 	ResearchBrief,
+	RuntimeCriticCheck,
 	SynthesisRecord,
+	UncertaintyMap,
 } from "../research/types";
 import { type MissionProjectionView, projectMissionView } from "./projection";
 import { MissionStore } from "./store";
 import type {
 	Mission,
 	MissionContractRecord,
+	MissionCriticDialogueTurn,
 	MissionLaneRun,
 	MissionRollbackRecord,
 	MissionState,
@@ -70,6 +73,9 @@ export interface MissionView extends MissionProjectionView {
 	evidenceCards: EvidenceCard[];
 	latestSynthesis: SynthesisRecord | null;
 	latestCritique: CritiqueRecord | null;
+	runtimeCriticChecks?: RuntimeCriticCheck[];
+	uncertaintyMap?: UncertaintyMap | null;
+	criticDialogue: MissionCriticDialogueTurn[];
 	inspectorTargets: MissionInspectorTarget[];
 	preferredInspectorTarget: MissionInspectorTarget | null;
 }
@@ -88,6 +94,9 @@ export function buildMissionView(input: {
 	researchRun: ResearchRun | undefined;
 	latestSynthesis?: SynthesisRecord | undefined;
 	latestCritique?: CritiqueRecord | undefined;
+	runtimeCriticChecks?: RuntimeCriticCheck[] | undefined;
+	uncertaintyMap?: UncertaintyMap | undefined;
+	criticDialogue?: MissionCriticDialogueTurn[] | undefined;
 }): MissionView {
 	const projection = projectMissionView({
 		mission: input.mission,
@@ -136,6 +145,9 @@ export function buildMissionView(input: {
 		researchRun: input.researchRun ?? null,
 		latestSynthesis: input.latestSynthesis ?? null,
 		latestCritique: input.latestCritique ?? null,
+		runtimeCriticChecks: [...(input.runtimeCriticChecks ?? [])],
+		uncertaintyMap: input.uncertaintyMap ?? null,
+		criticDialogue: [...(input.criticDialogue ?? [])],
 		rollbacks: [...input.rollbacks],
 		inspectorTargets,
 		preferredInspectorTarget: inspectorTargets[0] ?? null,
@@ -219,9 +231,12 @@ export class MissionReadModel {
 		const contracts = this.#missions.listContracts(mission.id);
 		const latestVerification = this.#missions.getLatestVerification(mission.id);
 		const rollbacks = this.#missions.listRollbacks(mission.id);
+		const criticDialogue = this.#missions.listCriticDialogue(mission.id);
 		const researchRun = this.#missions.getLatestResearchRunForMission(mission.id);
 		const latestSynthesis = brief ? this.#research.getLatestSynthesis(brief.id) : undefined;
 		const latestCritique = brief ? this.#research.getLatestCritique(brief.id) : undefined;
+		const runtimeCriticChecks = brief ? this.#research.refreshRuntimeCriticChecks(brief.id) : [];
+		const uncertaintyMap = brief ? this.#research.getUncertaintyMap(brief.id) : undefined;
 
 		return buildMissionView({
 			mission,
@@ -237,6 +252,9 @@ export class MissionReadModel {
 			researchRun,
 			latestSynthesis,
 			latestCritique,
+			runtimeCriticChecks,
+			uncertaintyMap,
+			criticDialogue,
 		});
 	}
 

@@ -157,6 +157,7 @@ export async function runMissionVerifyCommand(opts: {
 			status: lane.status,
 			complete: lane.status === "completed" || lane.status === "empty",
 		}));
+		const runtimeCritic = summarizeRuntimeCritic(view);
 		const payload = {
 			missionId: view.mission.id,
 			state: view.mission.state,
@@ -164,6 +165,7 @@ export async function runMissionVerifyCommand(opts: {
 			proposalCounts: countProposals(view),
 			laneCompleteness,
 			verification: view.latestVerification,
+			runtimeCritic,
 			relatedEvents,
 			replay: opts.events ? verifyEventReplay(view, events) : undefined,
 		};
@@ -241,6 +243,7 @@ function renderShow(view: MissionView): string {
 		`Contracts: ${view.contracts.length}`,
 		`Verification: ${view.latestVerification?.status ?? "not yet recorded"}`,
 		`Rollbacks: ${view.rollbacks.length}`,
+		`Runtime critic: ${summarizeRuntimeCritic(view).status} checks=${summarizeRuntimeCritic(view).checks.length} dialogue=${view.criticDialogue.length}`,
 		"Lanes:",
 		...laneLines(view),
 		"Decision summary:",
@@ -251,6 +254,8 @@ function renderShow(view: MissionView): string {
 			: ["  <none>"]),
 		"Proposals:",
 		...proposalLines(view),
+		"Runtime critic:",
+		...runtimeCriticLines(view),
 	].join("\n");
 }
 
@@ -302,6 +307,7 @@ function renderVerify(view: MissionView, relatedEvents: unknown[], replay?: Miss
 		view.latestVerification
 			? `verification: ${view.latestVerification.status} failed=${view.latestVerification.failedCount} uncertain=${view.latestVerification.uncertainCount} ${view.latestVerification.summary}`
 			: "verification: not yet recorded",
+		`Runtime critic: ${summarizeRuntimeCritic(view).status} checks=${summarizeRuntimeCritic(view).checks.length} dialogue=${view.criticDialogue.length}`,
 		"Related mission events:",
 		...(relatedEvents.length > 0 ? relatedEvents.map(event => `  ${JSON.stringify(event)}`) : ["  <none>"]),
 	];
@@ -380,6 +386,44 @@ function countProposals(view: MissionView): {
 		rejected: view.proposals.filter(proposal => proposal.status === "rejected").length,
 		rolledBack: view.proposals.filter(proposal => proposal.status === "rolled-back").length,
 	};
+}
+
+function summarizeRuntimeCritic(view: MissionView): {
+	status: "satisfied" | "blocked";
+	checks: Array<{
+		id: string;
+		status: "satisfied" | "waived" | "blocked";
+		trigger: string;
+		requiredAction: string;
+		message: string;
+	}>;
+	dialogue: MissionView["criticDialogue"];
+} {
+	const checks = (view.runtimeCriticChecks ?? []).map(check => ({
+		id: check.id,
+		status: check.severity === "blocking" ? ("blocked" as const) : ("waived" as const),
+		trigger: check.trigger,
+		requiredAction: check.requiredAction,
+		message: check.message,
+	}));
+	return {
+		status: checks.some(check => check.status === "blocked") ? "blocked" : "satisfied",
+		checks,
+		dialogue: view.criticDialogue,
+	};
+}
+
+function runtimeCriticLines(view: MissionView): string[] {
+	const summary = summarizeRuntimeCritic(view);
+	const lines = [`  status=${summary.status} checks=${summary.checks.length} dialogue=${summary.dialogue.length}`];
+	for (const check of summary.checks) {
+		lines.push(`  ${check.status} ${check.trigger} -> ${check.requiredAction}: ${truncate(check.message, 100)}`);
+	}
+	if (summary.dialogue.length > 0) {
+		const latest = summary.dialogue.at(-1)!;
+		lines.push(`  latest dialogue ${latest.role}: ${truncate(latest.summary, 100)}`);
+	}
+	return lines;
 }
 
 function toMissionRow(view: MissionView): unknown {

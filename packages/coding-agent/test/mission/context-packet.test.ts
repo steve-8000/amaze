@@ -112,6 +112,9 @@ function missionView(): MissionView {
 			rawOutput: "RAW_CRITIQUE_OUTPUT_SHOULD_NOT_APPEAR",
 			createdAt: now,
 		},
+		runtimeCriticChecks: [],
+		uncertaintyMap: null,
+		criticDialogue: [],
 		inspectorTargets: [],
 		preferredInspectorTarget: null,
 	};

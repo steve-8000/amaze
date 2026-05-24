@@ -42,6 +42,7 @@ import type { Goal, GoalModeState } from "../goals/state";
 import { resolveLocalUrlToPath } from "../internal-urls";
 import { LSP_STARTUP_EVENT_CHANNEL, type LspStartupEvent } from "../lsp/startup-events";
 import { initializeMissionRuntime } from "../mission/runtime";
+import { MissionStore, resolveMission } from "../mission/store";
 import {
 	humanizePlanTitle,
 	type PlanApprovalDetails,
@@ -59,6 +60,7 @@ import planModeApprovedPrompt from "../prompts/system/plan-mode-approved.md" wit
 import planModeCompactInstructionsPrompt from "../prompts/system/plan-mode-compact-instructions.md" with {
 	type: "text",
 };
+import { ResearchStore } from "../research/store";
 import type { AgentSession, AgentSessionEvent } from "../session/agent-session";
 import { HistoryStorage } from "../session/history-storage";
 import type { SessionContext, SessionManager } from "../session/session-manager";
@@ -1071,6 +1073,32 @@ export class InteractiveMode implements InteractiveModeContext {
 		return null;
 	}
 
+	#runtimeCriticBlocker(action: "plan"): string | null {
+		const goal = this.session.getGoalModeState()?.goal;
+		if (!goal) return null;
+		const missions = new MissionStore();
+		const research = new ResearchStore();
+		try {
+			const mission = resolveMission(missions, { missionId: goal.id, title: goal.objective });
+			if (!mission?.briefId) return null;
+			const checks = research.refreshRuntimeCriticChecks(mission.briefId);
+			const blocking = checks.filter(check => check.severity === "blocking");
+			if (blocking.length === 0) return null;
+			missions.recordCriticDialogueExchange({
+				missionId: mission.id,
+				orchestratorSummary: `${action} gate requested while runtime critic has ${blocking.length} blocking check(s).`,
+				criticSummary: blocking.map(check => `${check.trigger}: ${check.message}`).join("; "),
+				checkIds: checks.map(check => check.id),
+				blockingCheckIds: blocking.map(check => check.id),
+			});
+			const first = blocking[0]!;
+			return `Runtime critic blocked ${action}: ${first.message}. Required action: ${first.requiredAction}.`;
+		} finally {
+			research.close();
+			missions.close();
+		}
+	}
+
 	#goalFromModeData(modeData: SessionContext["modeData"]): Goal | undefined {
 		const goal = modeData?.goal;
 		if (!goal || typeof goal !== "object") return undefined;
@@ -1397,6 +1425,10 @@ export class InteractiveMode implements InteractiveModeContext {
 					throw new ToolError("Plan mode is not active.");
 				}
 				const staleMessage = this.#planStaleApprovalMessage(state);
+				const criticMessage = this.#runtimeCriticBlocker("plan");
+				if (criticMessage) {
+					throw new ToolError(criticMessage);
+				}
 				if (staleMessage) {
 					throw new ToolError(staleMessage);
 				}
@@ -2071,6 +2103,11 @@ export class InteractiveMode implements InteractiveModeContext {
 			const finalPlanFilePath = details.finalPlanFilePath || planFilePath;
 			try {
 				const latestPlanStaleMessage = this.#planStaleApprovalMessage(this.session.getPlanModeState?.());
+				const criticMessage = this.#runtimeCriticBlocker("plan");
+				if (criticMessage) {
+					this.showError(criticMessage);
+					return;
+				}
 				if (latestPlanStaleMessage) {
 					this.showError(latestPlanStaleMessage);
 					return;

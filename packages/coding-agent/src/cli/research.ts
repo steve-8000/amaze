@@ -12,6 +12,7 @@ import {
 	EVIDENCE_GRADES,
 	type EvidenceGrade,
 	RESEARCH_LANES,
+	type ResearchAssessment,
 	type ResearchLane,
 	RISK_LEVELS,
 	type RiskLevel,
@@ -334,6 +335,48 @@ export async function runResearchScoreCommand(
 	}
 }
 
+export async function runResearchStatusCommand(
+	opts: ResearchCommandOptionsBase & {
+		briefId: string;
+		json?: boolean;
+	},
+): Promise<void> {
+	const store = new ResearchStore(opts.db);
+	try {
+		const assessment = store.assessBrief(opts.briefId);
+		if (opts.json) {
+			writeJson(assessment);
+			return;
+		}
+		process.stdout.write(`${formatAssessment(assessment)}\n`);
+	} finally {
+		store.close();
+	}
+}
+
+export async function runResearchNextCommand(
+	opts: ResearchCommandOptionsBase & {
+		briefId: string;
+		json?: boolean;
+	},
+): Promise<void> {
+	const store = new ResearchStore(opts.db);
+	try {
+		const assessment = store.assessBrief(opts.briefId);
+		if (opts.json) {
+			writeJson({
+				briefId: assessment.briefId,
+				recommendedNextAction: assessment.recommendedNextAction,
+				assessment,
+			});
+			return;
+		}
+		process.stdout.write(`${assessment.recommendedNextAction}\n`);
+	} finally {
+		store.close();
+	}
+}
+
 export async function runResearchSynthesizeCommand(
 	opts: ResearchCommandOptionsBase & {
 		briefId: string;
@@ -515,4 +558,16 @@ function validateCritiqueVerdict(value: string): void {
 
 function truncate(value: string, length: number): string {
 	return value.length <= length ? value : value.slice(0, length);
+}
+
+function formatAssessment(assessment: ResearchAssessment): string {
+	return [
+		`briefId: ${assessment.briefId}`,
+		`readiness: ${assessment.readiness}`,
+		`recommendedNextAction: ${assessment.recommendedNextAction}`,
+		`blockingCount: ${assessment.blockingCount}`,
+		`incompleteLanes: ${assessment.incompleteLanes.join(",") || "<none>"}`,
+		`speculativeEvidenceIds: ${assessment.speculativeEvidenceIds.join(",") || "<none>"}`,
+		`conflictingEvidenceIds: ${assessment.conflictingEvidenceIds.join(",") || "<none>"}`,
+	].join("\n");
 }

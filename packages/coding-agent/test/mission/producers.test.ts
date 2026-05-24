@@ -7,7 +7,8 @@ import { recordMissionVerificationFromGoalObjective } from "../../src/goals/runt
 import { ProposalStore } from "../../src/learning";
 import { MissionStore } from "../../src/mission/store";
 import type { NewMission } from "../../src/mission/types";
-import { recordTaskMissionContract } from "../../src/task";
+import { ResearchStore } from "../../src/research/store";
+import { evaluateRuntimeCriticGate, recordTaskMissionContract } from "../../src/task";
 
 const stores: MissionStore[] = [];
 let cleanupRoot: string | undefined;
@@ -77,6 +78,40 @@ describe("mission write-side producers", () => {
 				sessionFile: "/tmp/producer-task.jsonl",
 			},
 		]);
+	});
+
+	test("runtime critic gate blocks delegation and records dialogue for blocking checks", async () => {
+		cleanupRoot = await fs.mkdtemp(path.join(os.tmpdir(), "amaze-mission-critic-gate-"));
+		const db = path.join(cleanupRoot, "autonomy.db");
+		const research = new ResearchStore(db);
+		const brief = research.createBrief({
+			id: "brief-critic-gate",
+			objectiveId: "objective-critic-gate",
+			question: "Need repo evidence before delegation?",
+			lanes: ["repo"],
+			requiredEvidence: [],
+			disallowedEvidence: [],
+			riskLevel: "medium",
+			stopCriteria: [],
+		});
+		research.close();
+		const store = new MissionStore(db);
+		stores.push(store);
+		const mission = store.listMissions({ briefId: brief.id })[0]!;
+
+		const gate = evaluateRuntimeCriticGate({
+			goalObjective: mission.title,
+			missionId: mission.id,
+			dbPath: db,
+			action: "task",
+		});
+
+		expect(gate).toEqual({
+			ok: false,
+			reason:
+				"Runtime critic blocked task: Required research lane has no evidence: repo. Required action: collect-evidence.",
+		});
+		expect(store.listCriticDialogue(mission.id)).toHaveLength(2);
 	});
 
 	test("records goal verification and updates mission state", async () => {

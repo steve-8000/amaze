@@ -60,6 +60,23 @@ export type ResearchCritiqueCompletedEvent = {
 	ts: number;
 };
 
+export type RuntimeCriticChecksCompletedEvent = {
+	type: "runtime_critic.checks.completed";
+	missionId: string;
+	briefId: string;
+	blockingCount: number;
+	softCount: number;
+	ts: number;
+};
+
+export type RuntimeCriticDialogueCompletedEvent = {
+	type: "runtime_critic.dialogue.completed";
+	missionId: string;
+	turnIds: string[];
+	blockingCheckIds: string[];
+	ts: number;
+};
+
 export type DecisionRecordedEvent = {
 	type: "decision.recorded";
 	missionId: string;
@@ -104,6 +121,8 @@ export type MissionEvent =
 	| ResearchEvidenceAddedEvent
 	| ResearchSynthesisProposedEvent
 	| ResearchCritiqueCompletedEvent
+	| RuntimeCriticChecksCompletedEvent
+	| RuntimeCriticDialogueCompletedEvent
 	| DecisionRecordedEvent
 	| ContractCreatedEvent
 	| VerificationCompletedEvent

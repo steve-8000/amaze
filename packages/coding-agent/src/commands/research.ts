@@ -9,6 +9,8 @@ const ACTIONS = [
 	"list-evidence",
 	"decide",
 	"score",
+	"status",
+	"next",
 	"synthesize",
 	"critique",
 	"record-synthesis",
@@ -72,7 +74,7 @@ export default class Research extends Command {
 		const { args, flags } = await this.parse(Research);
 		if (!args.action) {
 			process.stdout.write(
-				"usage: amaze research <brief|list|run|show|add-evidence|list-evidence|decide|score|synthesize|critique|record-synthesis|record-critique> [...]\n",
+				"usage: amaze research <brief|list|run|show|add-evidence|list-evidence|decide|score|status|next|synthesize|critique|record-synthesis|record-critique> [...]\n",
 			);
 			return;
 		}
@@ -166,6 +168,18 @@ export default class Research extends Command {
 		if (action === "score") {
 			const { runResearchScoreCommand } = await import("../cli/research");
 			await runResearchScoreCommand({ db: flags.db, briefId: id, json: flags.json });
+			return;
+		}
+
+		if (action === "status") {
+			const { runResearchStatusCommand } = await import("../cli/research");
+			await runResearchStatusCommand({ db: flags.db, briefId: id, json: flags.json });
+			return;
+		}
+
+		if (action === "next") {
+			const { runResearchNextCommand } = await import("../cli/research");
+			await runResearchNextCommand({ db: flags.db, briefId: id, json: flags.json });
 			return;
 		}
 
