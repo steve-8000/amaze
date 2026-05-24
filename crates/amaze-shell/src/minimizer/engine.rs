@@ -121,10 +121,8 @@ fn apply_identity(
 	if filters::supports(&identity.program, subcommand) {
 		let ctx = MinimizerCtx { program: &identity.program, subcommand, command, config };
 		let rust_output =
-			match catch_unwind(AssertUnwindSafe(|| filters::filter(&ctx, captured, exit_code))) {
-				Ok(out) => out,
-				Err(_) => MinimizerOutput::passthrough(captured),
-			};
+			catch_unwind(AssertUnwindSafe(|| filters::filter(&ctx, captured, exit_code)))
+				.unwrap_or_else(|_| MinimizerOutput::passthrough(captured));
 		let label = program_label(&identity.program);
 		let overlaid = apply_pipeline_overlay(config, &identity.program, rust_output, label);
 		return ensure_success_visible(overlaid, exit_code).with_original(captured);

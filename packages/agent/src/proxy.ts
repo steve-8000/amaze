@@ -281,10 +281,11 @@ function processProxyEvent(
 			return { type: "toolcall_start", contentIndex: proxyEvent.contentIndex, partial };
 
 		case "toolcall_delta": {
-			const content = partial.content[proxyEvent.contentIndex];
+			const content = partial.content[proxyEvent.contentIndex] as (ToolCall & { partialJson?: string }) | undefined;
 			if (content?.type === "toolCall") {
-				(content as any).partialJson += proxyEvent.delta;
-				content.arguments = parseStreamingJson((content as any).partialJson) || {};
+				const partialJson = (content.partialJson ?? "") + proxyEvent.delta;
+				content.partialJson = partialJson;
+				content.arguments = parseStreamingJson(partialJson) || {};
 				partial.content[proxyEvent.contentIndex] = { ...content }; // Trigger reactivity
 				return {
 					type: "toolcall_delta",
@@ -297,9 +298,9 @@ function processProxyEvent(
 		}
 
 		case "toolcall_end": {
-			const content = partial.content[proxyEvent.contentIndex];
+			const content = partial.content[proxyEvent.contentIndex] as (ToolCall & { partialJson?: string }) | undefined;
 			if (content?.type === "toolCall") {
-				delete (content as any).partialJson;
+				delete content.partialJson;
 				return {
 					type: "toolcall_end",
 					contentIndex: proxyEvent.contentIndex,

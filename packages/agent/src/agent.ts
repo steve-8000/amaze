@@ -1016,8 +1016,8 @@ export class Agent {
 					}
 
 					case "turn_end":
-						if (event.message.role === "assistant" && (event.message as any).errorMessage) {
-							this.#state.error = (event.message as any).errorMessage;
+						if (event.message.role === "assistant" && event.message.errorMessage) {
+							this.#state.error = event.message.errorMessage;
 						}
 						break;
 
@@ -1047,7 +1047,8 @@ export class Agent {
 					}
 				}
 			}
-		} catch (err: any) {
+		} catch (err: unknown) {
+			const errorMessage = err instanceof Error ? err.message : String(err);
 			const errorMsg: AgentMessage = {
 				role: "assistant",
 				content: [{ type: "text", text: "" }],
@@ -1063,12 +1064,12 @@ export class Agent {
 					cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
 				},
 				stopReason: this.#abortController?.signal.aborted ? "aborted" : "error",
-				errorMessage: err?.message || String(err),
+				errorMessage,
 				timestamp: Date.now(),
 			} as AgentMessage;
 
 			this.appendMessage(errorMsg);
-			this.#state.error = err?.message || String(err);
+			this.#state.error = errorMessage;
 			this.#emit({ type: "agent_end", messages: [errorMsg] });
 		} finally {
 			this.#state.isStreaming = false;

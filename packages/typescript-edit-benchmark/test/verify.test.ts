@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { TempDir } from "@amaze/utils";
-import { verifyExpectedFiles } from "../src/verify";
+import { verifyExpectedFileSubset } from "../src/verify";
 
 async function createTempDirs(): Promise<{
 	root: string;
@@ -25,13 +25,13 @@ async function createTempDirs(): Promise<{
 	};
 }
 
-describe("verifyExpectedFiles", () => {
+describe("verifyExpectedFileSubset", () => {
 	it("reports missing files", async () => {
 		const { expectedDir, actualDir, cleanup } = await createTempDirs();
 		try {
 			await Bun.write(path.join(expectedDir, "index.ts"), "export const value = 1;\n");
 
-			const result = await verifyExpectedFiles(expectedDir, actualDir);
+			const result = await verifyExpectedFileSubset(expectedDir, actualDir);
 
 			expect(result.success).toBe(false);
 			expect(result.error).toContain("Missing files: index.ts");
@@ -47,7 +47,7 @@ describe("verifyExpectedFiles", () => {
 			await Bun.write(path.join(actualDir, "index.ts"), "export const value = 1;\n");
 			await Bun.write(path.join(actualDir, "extra.ts"), "export const extra = true;\n");
 
-			const result = await verifyExpectedFiles(expectedDir, actualDir);
+			const result = await verifyExpectedFileSubset(expectedDir, actualDir);
 
 			expect(result.success).toBe(false);
 			expect(result.error).toContain("Unexpected files: extra.ts");
@@ -62,7 +62,7 @@ describe("verifyExpectedFiles", () => {
 			await Bun.write(path.join(expectedDir, "index.ts"), "const value = 1;\n");
 			await Bun.write(path.join(actualDir, "index.ts"), "const value = 2;\n");
 
-			const result = await verifyExpectedFiles(expectedDir, actualDir);
+			const result = await verifyExpectedFileSubset(expectedDir, actualDir);
 
 			expect(result.success).toBe(false);
 			expect(result.diff).toContain("-const value = 1;");
@@ -82,7 +82,7 @@ describe("verifyExpectedFiles", () => {
 			await Bun.write(path.join(expectedDir, "index.ts"), expected);
 			await Bun.write(path.join(actualDir, "index.ts"), actual);
 
-			const result = await verifyExpectedFiles(expectedDir, actualDir);
+			const result = await verifyExpectedFileSubset(expectedDir, actualDir);
 			const actualAfter = await Bun.file(path.join(actualDir, "index.ts")).text();
 
 			expect(result.success).toBe(true);
@@ -99,7 +99,7 @@ describe("verifyExpectedFiles", () => {
 			await Bun.write(path.join(expectedDir, "index.ts"), "export const value = 1;\r\n");
 			await Bun.write(path.join(actualDir, "index.ts"), "export const value = 1;\n");
 
-			const result = await verifyExpectedFiles(expectedDir, actualDir);
+			const result = await verifyExpectedFileSubset(expectedDir, actualDir);
 
 			expect(result.success).toBe(true);
 		} finally {
@@ -107,15 +107,32 @@ describe("verifyExpectedFiles", () => {
 		}
 	});
 
-	it("preserves expected whitespace on non-formatted files when differences are whitespace-only", async () => {
+	it("normalizes indentation and trailing whitespace on non-formatted files", async () => {
+		const { expectedDir, actualDir, cleanup } = await createTempDirs();
+		try {
+			await Bun.write(path.join(expectedDir, "notes.txt"), "  alpha beta  \n\tgamma\n");
+			await Bun.write(path.join(actualDir, "notes.txt"), "\talpha beta\ngamma  \n");
+
+			const result = await verifyExpectedFileSubset(expectedDir, actualDir);
+
+			expect(result.success).toBe(true);
+		} finally {
+			await cleanup();
+		}
+	});
+
+	it("fails on interior whitespace changes in non-formatted files", async () => {
 		const { expectedDir, actualDir, cleanup } = await createTempDirs();
 		try {
 			await Bun.write(path.join(expectedDir, "notes.txt"), "alpha  beta\ngamma\n");
 			await Bun.write(path.join(actualDir, "notes.txt"), "alpha beta\ngamma\n");
 
-			const result = await verifyExpectedFiles(expectedDir, actualDir);
+			const result = await verifyExpectedFileSubset(expectedDir, actualDir);
 
-			expect(result.success).toBe(true);
+			expect(result.success).toBe(false);
+			expect(result.error).toBe("File mismatch for notes.txt");
+			expect(result.diff).toContain("-alpha  beta");
+			expect(result.diff).toContain("+alpha beta");
 		} finally {
 			await cleanup();
 		}

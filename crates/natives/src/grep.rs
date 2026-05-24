@@ -629,7 +629,7 @@ fn to_public_match(matched: CollectedMatch) -> Match {
 		line: matched.line,
 		context_before,
 		context_after,
-		truncated: if matched.truncated { Some(true) } else { None },
+		truncated: matched.truncated.then_some(true),
 	}
 }
 
@@ -650,7 +650,7 @@ fn to_grep_match(path: String, matched: CollectedMatch) -> GrepMatch {
 		line: matched.line,
 		context_before,
 		context_after,
-		truncated: if matched.truncated { Some(true) } else { None },
+		truncated: matched.truncated.then_some(true),
 		match_count: None,
 	}
 }
@@ -1695,7 +1695,7 @@ fn grep_sync(
 			total_matches: crate::utils::clamp_u32(search.match_count),
 			files_with_matches: 1,
 			files_searched: 1,
-			limit_reached: if limit_reached { Some(true) } else { None },
+			limit_reached: limit_reached.then_some(true),
 		});
 	}
 
@@ -1765,7 +1765,7 @@ fn grep_sync(
 		total_matches: crate::utils::clamp_u32(total_matches),
 		files_with_matches,
 		files_searched,
-		limit_reached: if limit_reached { Some(true) } else { None },
+		limit_reached: limit_reached.then_some(true),
 	})
 }
 

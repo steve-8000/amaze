@@ -224,10 +224,7 @@ pub fn collect_matched_files(
 		.git_exclude(true);
 	let mut files = Vec::new();
 	for entry in builder.build() {
-		let entry = match entry {
-			Ok(entry) => entry,
-			Err(error) => return Err(std::io::Error::other(error)),
-		};
+		let entry = entry.map_err(std::io::Error::other)?;
 		if !entry.file_type().is_some_and(|ft| ft.is_file()) {
 			continue;
 		}

@@ -121,7 +121,7 @@ fn compact_rspec_json(input: &str) -> Option<String> {
 		}
 	}
 
-	if has_content(&out) { Some(out) } else { None }
+	has_content(&out).then_some(out)
 }
 
 fn rspec_summary_from_json(map: &serde_json::Map<String, serde_json::Value>) -> String {

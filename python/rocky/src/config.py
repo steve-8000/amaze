@@ -13,6 +13,37 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 ThinkingLevel = Literal["off", "low", "medium", "high", "xhigh"]
 
 
+def _csv_string(v: object) -> str:
+    """Coerce an env value (str | None | list | tuple | other) into a CSV string."""
+    if v is None:
+        return ""
+    if isinstance(v, str):
+        return v
+    if isinstance(v, (list, tuple)):
+        return ",".join(str(item) for item in v)
+    return str(v)
+
+
+def _csv_lower_set(raw: str, *, strip_at: bool = False) -> frozenset[str]:
+    """Parse a CSV string into a lowercase set, dropping blanks (optionally trimming '@')."""
+    if strip_at:
+        items = (piece.strip().lstrip("@").lower() for piece in raw.split(","))
+    else:
+        items = (piece.strip().lower() for piece in raw.split(","))
+    return frozenset(item for item in items if item)
+
+
+def _is_blank_secret(value: object) -> bool:
+    """True if `value` is a blank/whitespace string or a SecretStr wrapping one."""
+    if isinstance(value, str) and not value.strip():
+        return True
+    if hasattr(value, "get_secret_value"):
+        inner = value.get_secret_value()  # type: ignore[attr-defined]
+        if isinstance(inner, str) and not inner.strip():
+            return True
+    return False
+
+
 class Settings(BaseSettings):
     """Strongly-typed runtime configuration.
 
@@ -150,26 +181,14 @@ class Settings(BaseSettings):
         # Treat empty/whitespace strings as 'disabled'. Without this, an empty
         # ROCKY_REPLAY_TOKEN becomes SecretStr("") which the server would
         # happily compare against an empty X-Rocky-Replay-Token header.
-        if isinstance(value, str) and not value.strip():
-            return None
-        if hasattr(value, "get_secret_value"):
-            inner = value.get_secret_value()  # type: ignore[attr-defined]
-            if isinstance(inner, str) and not inner.strip():
-                return None
-        return value
+        return None if _is_blank_secret(value) else value
 
     @field_validator("github_token", mode="before")
     @classmethod
     def _blank_token_disables(cls, value: object) -> object:
         """Treat empty/whitespace `GITHUB_TOKEN` as 'unset' so proxy-only
         deployments don't have to remove the env var."""
-        if isinstance(value, str) and not value.strip():
-            return None
-        if hasattr(value, "get_secret_value"):
-            inner = value.get_secret_value()  # type: ignore[attr-defined]
-            if isinstance(inner, str) and not inner.strip():
-                return None
-        return value
+        return None if _is_blank_secret(value) else value
 
     @field_validator("gh_proxy_url", mode="before")
     @classmethod
@@ -181,13 +200,7 @@ class Settings(BaseSettings):
     @field_validator("gh_proxy_hmac_key", mode="before")
     @classmethod
     def _blank_proxy_key_disables(cls, value: object) -> object:
-        if isinstance(value, str) and not value.strip():
-            return None
-        if hasattr(value, "get_secret_value"):
-            inner = value.get_secret_value()  # type: ignore[attr-defined]
-            if isinstance(inner, str) and not inner.strip():
-                return None
-        return value
+        return None if _is_blank_secret(value) else value
 
     @model_validator(mode="after")
     def _validate_proxy_or_pat(self) -> Settings:
@@ -221,66 +234,38 @@ class Settings(BaseSettings):
     @field_validator("repo_allowlist_raw", mode="before")
     @classmethod
     def _coerce_allowlist(cls, v: object) -> str:
-        if v is None:
-            return ""
-        if isinstance(v, str):
-            return v
-        if isinstance(v, (list, tuple)):
-            return ",".join(str(item) for item in v)
-        return str(v)
+        return _csv_string(v)
 
     @property
     def repo_allowlist(self) -> frozenset[str]:
-        items = [piece.strip().lower() for piece in self.repo_allowlist_raw.split(",")]
-        return frozenset(item for item in items if item)
+        return _csv_lower_set(self.repo_allowlist_raw)
 
     @field_validator("rate_limit_unlimited_raw", mode="before")
     @classmethod
     def _coerce_unlimited(cls, v: object) -> str:
-        if v is None:
-            return ""
-        if isinstance(v, str):
-            return v
-        if isinstance(v, (list, tuple)):
-            return ",".join(str(item) for item in v)
-        return str(v)
+        return _csv_string(v)
 
     @property
     def rate_limit_unlimited(self) -> frozenset[str]:
-        items = [piece.strip().lstrip("@").lower() for piece in self.rate_limit_unlimited_raw.split(",")]
-        return frozenset(item for item in items if item)
+        return _csv_lower_set(self.rate_limit_unlimited_raw, strip_at=True)
 
     @field_validator("maintainer_logins_raw", mode="before")
     @classmethod
     def _coerce_maintainers(cls, v: object) -> str:
-        if v is None:
-            return ""
-        if isinstance(v, str):
-            return v
-        if isinstance(v, (list, tuple)):
-            return ",".join(str(item) for item in v)
-        return str(v)
+        return _csv_string(v)
 
     @field_validator("reviewer_bots_raw", mode="before")
     @classmethod
     def _coerce_reviewer_bots(cls, v: object) -> str:
-        if v is None:
-            return ""
-        if isinstance(v, str):
-            return v
-        if isinstance(v, (list, tuple)):
-            return ",".join(str(item) for item in v)
-        return str(v)
+        return _csv_string(v)
 
     @property
     def reviewer_bots(self) -> frozenset[str]:
-        items = [piece.strip().lstrip("@").lower() for piece in self.reviewer_bots_raw.split(",")]
-        return frozenset(item for item in items if item)
+        return _csv_lower_set(self.reviewer_bots_raw, strip_at=True)
 
     @property
     def maintainer_logins(self) -> frozenset[str]:
-        items = [piece.strip().lstrip("@").lower() for piece in self.maintainer_logins_raw.split(",")]
-        return frozenset(item for item in items if item)
+        return _csv_lower_set(self.maintainer_logins_raw, strip_at=True)
 
     def allows(self, full_name: str) -> bool:
         return full_name.lower() in self.repo_allowlist
@@ -346,12 +331,8 @@ class _ProxyEnvLoader(BaseSettings):
     @field_validator("github_token", "gh_proxy_hmac_key", mode="before")
     @classmethod
     def _reject_blank(cls, value: object) -> object:
-        if isinstance(value, str) and not value.strip():
+        if _is_blank_secret(value):
             raise ValueError("must be a non-empty string")
-        if hasattr(value, "get_secret_value"):
-            inner = value.get_secret_value()  # type: ignore[attr-defined]
-            if isinstance(inner, str) and not inner.strip():
-                raise ValueError("must be a non-empty string")
         return value
 
 

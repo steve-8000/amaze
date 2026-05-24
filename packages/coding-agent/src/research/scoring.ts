@@ -9,27 +9,25 @@ export function scoreComplementarity(brief: ResearchBrief, evidence: EvidenceCar
 		return {
 			lane,
 			cardCount: cards.length,
-			avgGradeWeight: cards.length ? mean(cards.map(card => gradeWeight(card))) : 0,
+			avgGradeWeight: mean(cards.map(card => gradeWeight(card))),
 		};
 	});
 	const laneCoverage = brief.lanes.length
 		? breakdown.filter(item => item.cardCount > 0).length / brief.lanes.length
 		: 0;
-	const sourceQuality = evidence.length
-		? mean(
-				evidence.map(
-					card =>
-						0.4 * gradeWeight(card) +
-						0.2 * card.directness +
-						0.2 * card.specificity +
-						0.1 * card.recency +
-						0.1 * card.reproducibility,
-				),
-			)
-		: 0;
+	const sourceQuality = mean(
+		evidence.map(
+			card =>
+				0.4 * gradeWeight(card) +
+				0.2 * card.directness +
+				0.2 * card.specificity +
+				0.1 * card.recency +
+				0.1 * card.reproducibility,
+		),
+	);
 	const contradictionCount = countContradictionPairs(evidence);
 	const contradictionPenalty = Math.min(0.3, contradictionCount * 0.05);
-	const stalenessPenalty = evidence.length ? mean(evidence.map(card => Math.max(0, 1 - card.recency) * 0.25)) : 0;
+	const stalenessPenalty = mean(evidence.map(card => Math.max(0, 1 - card.recency) * 0.25));
 	const socialShare = evidence.length ? evidence.filter(card => card.lane === "social").length / evidence.length : 0;
 	const socialOverweightPenalty =
 		socialShare > SOCIAL_OVERWEIGHT_THRESHOLD ? 0.3 * (socialShare - SOCIAL_OVERWEIGHT_THRESHOLD) : 0;
@@ -54,6 +52,7 @@ function gradeWeight(card: EvidenceCard): number {
 }
 
 function mean(values: number[]): number {
+	if (values.length === 0) return 0;
 	return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 

@@ -184,10 +184,10 @@ pub fn truncate_line(line: &str, max_chars: usize) -> String {
 	let mut chars = line.chars();
 	let mut out = String::new();
 	for _ in 0..max_chars {
-		match chars.next() {
-			Some(ch) => out.push(ch),
-			None => return out,
-		}
+		let Some(ch) = chars.next() else {
+			return out;
+		};
+		out.push(ch);
 	}
 	let dropped = chars.count();
 	if dropped > 0 {

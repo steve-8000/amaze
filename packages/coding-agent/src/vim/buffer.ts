@@ -37,13 +37,7 @@ export function snapshotEqual(left: VimBufferSnapshot, right: VimBufferSnapshot)
 		return false;
 	}
 
-	for (let index = 0; index < left.lines.length; index += 1) {
-		if (left.lines[index] !== right.lines[index]) {
-			return false;
-		}
-	}
-
-	return true;
+	return left.lines.every((line, index) => line === right.lines[index]);
 }
 
 export class VimBuffer {

@@ -442,7 +442,7 @@ fn parse_key_id(key_id: &str) -> Option<ParsedKeyId<'_>> {
 	};
 
 	let mut modifier = 0;
-	let mut key: Option<&str> = if forced_key_plus { Some("+") } else { None };
+	let mut key: Option<&str> = forced_key_plus.then_some("+");
 
 	for part in prefix.split('+') {
 		let p = part.trim();

@@ -33,7 +33,13 @@ import type { SyncWorkerRequest, SyncWorkerResponse } from "./sync-worker";
 // source as `with { type: "file" }` is NOT sufficient — that copies the file
 // as a raw asset and does not bundle the worker's relative imports, so the
 // worker would crash on first `import` (issue #1011, PR #1027).
-import type { BehaviorDashboardStats, DashboardStats, MessageStats, RequestDetails } from "./types";
+import type {
+	BehaviorDashboardStats,
+	DashboardStats,
+	MessageStats,
+	RequestDetails,
+	SessionMessageEntry,
+} from "./types";
 
 /**
  * Apply a freshly parsed result to the database. Runs entirely on the
@@ -428,10 +434,11 @@ export async function getRequestDetails(id: number): Promise<RequestDetails | nu
 	// For now we return the single entry which contains the assistant response.
 	// The user prompt is likely the parent.
 
+	const messageEntry = entry as SessionMessageEntry;
 	return {
 		...msg,
 		messages: [entry],
-		output: (entry as any).message,
+		output: messageEntry.message,
 	};
 }
 

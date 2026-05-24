@@ -390,10 +390,7 @@ function locateRegion(
 
 function matchesAt(lines: readonly string[], startIdx: number, expected: readonly string[]): boolean {
 	if (startIdx < 0 || startIdx + expected.length > lines.length) return false;
-	for (let i = 0; i < expected.length; i++) {
-		if (lines[startIdx + i] !== expected[i]) return false;
-	}
-	return true;
+	return expected.every((line, offset) => lines[startIdx + offset] === line);
 }
 
 function normalizeTrailingNewline(replacement: string): string {
@@ -654,10 +651,7 @@ function pickLabel(
 
 function sectionsEqual(a: readonly string[], b: readonly string[]): boolean {
 	if (a.length !== b.length) return false;
-	for (let i = 0; i < a.length; i++) {
-		if (a[i] !== b[i]) return false;
-	}
-	return true;
+	return a.every((line, index) => line === b[index]);
 }
 
 function appendBody(out: string[], section: readonly string[]): void {

@@ -67,7 +67,7 @@ function rewriteExports(exports: JsonValue): JsonValue {
 	if (exports === null || typeof exports !== "object" || Array.isArray(exports)) return exports;
 	const src = exports as JsonObject;
 	const out: JsonObject = {};
-	for (const key in src) {
+	for (const key of Object.keys(src)) {
 		const val = src[key];
 		if (
 			val !== null &&

@@ -19,10 +19,6 @@ export class Spacer implements Component {
 	}
 
 	render(_width: number): string[] {
-		const result: string[] = [];
-		for (let i = 0; i < this.#lines; i++) {
-			result.push("");
-		}
-		return result;
+		return new Array<string>(this.#lines).fill("");
 	}
 }

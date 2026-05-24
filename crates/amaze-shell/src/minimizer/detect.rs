@@ -83,7 +83,8 @@ fn is_env_assignment(token: &str) -> bool {
 }
 
 fn normalize_program(program: &str) -> Option<String> {
-	let name = program.rsplit('/').next()?;
+	let name = program.rsplit(['/', '\\']).next()?;
+	let name = name.strip_suffix(".exe").unwrap_or(name);
 	if name.is_empty() {
 		return None;
 	}
@@ -109,7 +110,7 @@ fn skip_sudo_options(tokens: &[String], mut index: usize) -> Option<usize> {
 	while let Some(token) = tokens.get(index) {
 		match token.as_str() {
 			"--" => return Some(index + 1),
-			"-E" | "-H" | "-n" | "-S" | "-k" | "-K" | "-b" => index += 1,
+			"-E" | "-H" | "-n" | "-S" | "-k" | "-K" | "-b" | "-i" => index += 1,
 			"-u" | "--user" | "-g" | "--group" | "-h" | "--host" | "-p" | "--prompt" | "-C"
 			| "--close-from" | "-T" | "--command-timeout" => index = skip_option_value(tokens, index)?,
 			_ if token.starts_with("--user=")
@@ -354,15 +355,20 @@ fn option_has_inline_value(arg: &str, flags_with_values: &[&str]) -> bool {
 fn tokenize(command: &str) -> Vec<String> {
 	let mut tokens = Vec::new();
 	let mut current = String::new();
-	let mut chars = command.chars();
+	let mut chars = command.chars().peekable();
 	let mut quote: Option<char> = None;
 	while let Some(ch) = chars.next() {
 		match (quote, ch) {
 			(None, '\'' | '"') => quote = Some(ch),
 			(Some(q), c) if c == q => quote = None,
 			(None, '\\') => {
-				if let Some(next) = chars.next() {
-					current.push(next);
+				if chars
+					.peek()
+					.is_some_and(|next| next.is_whitespace() || matches!(next, '\'' | '"' | '\\' | ';' | '|' | '&'))
+				{
+					current.push(chars.next().expect("peeked character exists"));
+				} else {
+					current.push('\\');
 				}
 			},
 			(None, c) if c.is_whitespace() => {
@@ -418,6 +424,10 @@ mod tests {
 	fn skips_shell_launch_wrappers() {
 		let command = detect("sudo -E command -p /usr/bin/git --no-pager status")
 			.expect("wrapped command is detected");
+		assert_eq!(command.program, "git");
+		assert_eq!(command.subcommand.as_deref(), Some("status"));
+
+		let command = detect("sudo -i git status").expect("sudo login shell command is detected");
 		assert_eq!(command.program, "git");
 		assert_eq!(command.subcommand.as_deref(), Some("status"));
 	}
@@ -487,4 +497,18 @@ fn detects_bun_globals_and_subcommands() {
 	let command = detect("env CI=1 /usr/local/bin/bun test").expect("bun test is detected");
 	assert_eq!(command.program, "bun");
 	assert_eq!(command.subcommand.as_deref(), Some("test"));
+}
+
+#[test]
+fn preserves_trailing_backslash() {
+	let command = detect("git status \\").expect("git command is detected");
+	assert_eq!(command.program, "git");
+	assert_eq!(command.subcommand.as_deref(), Some("status"));
+}
+
+#[test]
+fn normalizes_windows_executable_path() {
+	let command = detect(r#"C:\tools\git.exe status"#).expect("path command is detected");
+	assert_eq!(command.program, "git");
+	assert_eq!(command.subcommand.as_deref(), Some("status"));
 }

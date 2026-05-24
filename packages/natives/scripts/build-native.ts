@@ -105,12 +105,9 @@ async function resolveBuiltAddonPath(outputDir: string, canonicalFilename: strin
 		return path.join(outputDir, canonicalFilename);
 	}
 
-	const generatedCandidates = entries.filter(entry => {
-		if (!entry.startsWith(`amaze_natives.${targetPlatform}-${targetArch}`) || !entry.endsWith(".node")) {
-			return false;
-		}
-		return true;
-	});
+	const generatedCandidates = entries.filter(
+		entry => entry.startsWith(`amaze_natives.${targetPlatform}-${targetArch}`) && entry.endsWith(".node"),
+	);
 
 	if (generatedCandidates.length === 1) {
 		return path.join(outputDir, generatedCandidates[0]);

@@ -6,9 +6,10 @@ import queue
 import subprocess
 import threading
 import time
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Generic, Mapping, Sequence, TypeVar, cast
+from typing import Any, Generic, TypeVar, cast
 
 from .host_tools import HostTool, HostToolContext
 from .host_uris import HostUri, HostUriContext, normalize_read_result
@@ -962,7 +963,7 @@ class RpcClient:
                     )
 
                 async_errors = self._async_errors.snapshot_from(start_async_error_index)
-                if len(async_errors) > 0:
+                if async_errors:
                     raise async_errors[0]
 
                 event_payloads = self._events.snapshot_from(start_index)
@@ -1193,7 +1194,7 @@ class RpcClient:
 
     @staticmethod
     def _normalize_todo_phases(todos: Sequence[TodoSeed | TodoPhaseSeed]) -> list[JsonObject]:
-        if len(todos) == 0:
+        if not todos:
             return []
 
         next_task_id = 1
@@ -1295,7 +1296,7 @@ class RpcClient:
         if self._provider_session_id is not None:
             command.extend(["--provider-session-id", self._provider_session_id])
         if self._tools is not None:
-            if len(self._tools) == 0:
+            if not self._tools:
                 command.append("--no-tools")
             else:
                 command.extend(["--tools", ",".join(self._tools)])
