@@ -72,7 +72,50 @@ export interface ToolExecutionContext {
 	mutationScope?: readonly string[];
 	/** Whether the caller has been granted approval for risky/mutating tools. */
 	approvalGranted?: boolean;
+	/**
+	 * Raw tool input, surfaced to scope guards that need to inspect the mutation
+	 * target (e.g. the path a write/edit will touch). Optional; guards that don't
+	 * need it ignore it.
+	 */
+	input?: unknown;
+	/**
+	 * Optional mission binding for tool-call telemetry. When present, the gateway
+	 * emits `mission.tool.requested` / `mission.tool.completed` records through
+	 * `emit`. Absent ⇒ no telemetry is emitted (transparent no-op). The gateway
+	 * never inspects the event shape beyond passing it to `emit`.
+	 */
+	mission?: ToolMissionContext;
 }
+
+/** Mission binding threaded into the gateway for tool-call lifecycle telemetry. */
+export interface ToolMissionContext {
+	/** Active mission id (record correlation). */
+	missionId: string;
+	/** Active task id within the mission, when bound to a specific task. */
+	taskId?: string | null;
+	/** Sink for lifecycle records. Implementations route to the event bus. */
+	emit(record: ToolCallRecord): void;
+}
+
+/** Lifecycle record emitted by the gateway when a mission context is present. */
+export type ToolCallRecord =
+	| {
+			type: "mission.tool.requested";
+			missionId: string;
+			taskId: string | null;
+			toolCallId: string;
+			tool: string;
+			ts: number;
+	  }
+	| {
+			type: "mission.tool.completed";
+			missionId: string;
+			taskId: string | null;
+			toolCallId: string;
+			tool: string;
+			status: "ok" | "error" | "denied";
+			ts: number;
+	  };
 
 /**
  * JSON-schema-ish handles for a tool's input/output. Kept as `unknown` so the

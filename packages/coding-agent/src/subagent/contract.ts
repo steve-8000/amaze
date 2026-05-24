@@ -28,6 +28,20 @@ export type EscalationOnUncertainty = "ask-parent" | "block";
 
 export interface SubagentContract {
 	/**
+	 * Owning mission's id, when this subagent runs under the Mission execution model.
+	 *
+	 * OPTIONAL-with-enforcement: when a mission context exists at mint time, the binding
+	 * layer ({@link ../task/mission-task-runner.MissionTaskRunner}) REQUIRES this and
+	 * threads it through execution + evidence linkage. When absent (legacy direct `task`
+	 * use, no mission), the contract is still valid and the field is simply unset.
+	 */
+	missionId?: string;
+	/**
+	 * Mission task this subagent fulfills, when bound. Paired with `missionId`: either both
+	 * are present (mission-bound) or both absent (legacy). See {@link ../task/mission-task-runner}.
+	 */
+	taskId?: string;
+	/**
 	 * Short role label, used in logs and the contract block header. Examples: `refactor-applier`,
 	 * `test-writer`, `spec-reviewer`. NOT free-form prose — keep to a verb-noun phrase so the
 	 * subagent can clearly self-identify and the parent can match expectations.
@@ -252,6 +266,74 @@ export function stampContractRevision(
 	if (contract.parentContractRevision !== undefined) return contract;
 	if (parentCurrentRevision === undefined) return contract;
 	return { ...contract, parentContractRevision: parentCurrentRevision };
+}
+
+/**
+ * Mission context handed to {@link bindContractToMission} / {@link enforceMissionBinding}.
+ * When present, the subagent runs under the Mission execution model and the contract MUST
+ * carry the mission identifiers. When `undefined`, the subagent is in legacy direct mode and
+ * mission identifiers are neither required nor stamped.
+ */
+export interface MissionBindingContext {
+	missionId: string;
+	taskId: string;
+}
+
+/**
+ * Thrown by {@link enforceMissionBinding} when a mission context exists but the contract is
+ * missing (or contradicts) the expected mission identifiers. Keeps the failure shape distinct
+ * from {@link StaleContractError} so callers can tell "unbound under mission" from "stale".
+ */
+export class MissionBindingError extends Error {
+	readonly role: string;
+	readonly expected: MissionBindingContext;
+	constructor(role: string, expected: MissionBindingContext, detail: string) {
+		super(
+			`SubagentContract (role: ${role}) is not bound to its mission: ${detail} (expected missionId=${expected.missionId}, taskId=${expected.taskId}).`,
+		);
+		this.name = "MissionBindingError";
+		this.role = role;
+		this.expected = expected;
+	}
+}
+
+/**
+ * Stamp the mission identifiers onto a contract at issuance time. Mirrors
+ * {@link stampContractRevision}: returns a NEW contract, never mutates the input, and is
+ * a no-op when there is no mission context (legacy direct use). Idempotent — preserves an
+ * explicitly-set binding if it already matches.
+ */
+export function bindContractToMission(
+	contract: SubagentContract,
+	mission: MissionBindingContext | undefined,
+): SubagentContract {
+	if (!mission) return contract;
+	if (contract.missionId === mission.missionId && contract.taskId === mission.taskId) return contract;
+	return { ...contract, missionId: mission.missionId, taskId: mission.taskId };
+}
+
+/**
+ * Structural enforcement of the mission binding. The "OPTIONAL-with-enforcement" rule:
+ *
+ *   - No mission context (`undefined`)  → legacy direct mode; binding is not required. No-op.
+ *   - Mission context present           → the contract MUST carry the SAME missionId/taskId.
+ *
+ * Throws {@link MissionBindingError} when a mission context exists but the contract is unbound
+ * or bound to a different mission/task. Never invents a requirement from incomplete data —
+ * legacy callers that pass no mission context keep working unchanged.
+ */
+export function enforceMissionBinding(contract: SubagentContract, mission: MissionBindingContext | undefined): void {
+	if (!mission) return;
+	if (contract.missionId === undefined || contract.taskId === undefined) {
+		throw new MissionBindingError(contract.role, mission, "contract is missing missionId/taskId");
+	}
+	if (contract.missionId !== mission.missionId || contract.taskId !== mission.taskId) {
+		throw new MissionBindingError(
+			contract.role,
+			mission,
+			`contract is bound to a different mission/task (missionId=${contract.missionId}, taskId=${contract.taskId})`,
+		);
+	}
 }
 
 /**

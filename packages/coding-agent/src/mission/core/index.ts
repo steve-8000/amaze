@@ -31,3 +31,4 @@ export type {
 	MissionVerifyResult,
 } from "./mission-runtime.iface";
 export type { MissionScopeGuard } from "./mission-scope";
+export type { MissionTaskToolPolicy } from "./mission-task";
