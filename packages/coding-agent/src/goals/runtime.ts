@@ -30,6 +30,111 @@ import {
  * Returns paths relative to the cwd as-given by `git status` — model-visible form.
  */
 
+/**
+ * Goal→Mission dual-write (Lane F).
+ *
+ * The goal lifecycle is the user-facing surface; the mission read-model is the durable,
+ * cross-session projection of that same work. These helpers mirror goal lifecycle
+ * transitions onto the mission store so a goal-originated unit of work is observable via
+ * the mission read-model and its event stream (verification.completed in particular).
+ *
+ * Design rules (must hold):
+ *   - ADDITIVE & RESILIENT: a mission write MUST NOT break the goal flow. Every helper is
+ *     fully guarded — any failure (no DB, bad row, closed handle) is swallowed after a
+ *     debug log, exactly like `recordMissionVerificationFromGoalObjective`.
+ *   - REUSE THE EXISTING SEAM: we consume `mission/store` (MissionStore/resolveMission)
+ *     only — no new runtime dependency, no edits under `src/mission/**`.
+ *   - The store does NOT emit dedicated mission.created/completed/blocked/cancelled events
+ *     in this revision; the durable signal is the mission row's `state` plus the
+ *     `verification.completed` event from `recordVerification`. The read-model projects
+ *     those, which is what downstream consumers observe.
+ */
+
+/**
+ * Mirror goal set/start → mission "created". Resolves an existing mission for the goal
+ * (by id, else by title) or creates one titled after the objective, then marks it
+ * `executing` (a created+active goal is work in flight). Returns the resolved/created
+ * mission id so the caller can persist it onto the goal for exact resolution later.
+ *
+ * Returns `null` on any failure or when nothing could be written — the caller treats that
+ * as "no linkage yet" and proceeds with the goal regardless.
+ */
+export function recordMissionCreatedFromGoal(args: {
+	objective: string;
+	missionId?: string | null;
+	dbPath?: string;
+}): string | null {
+	let store: MissionStore | undefined;
+	try {
+		store = new MissionStore(args.dbPath);
+		const existing = resolveMission(store, { missionId: args.missionId, title: args.objective });
+		if (existing) {
+			if (existing.state !== "executing") {
+				store.updateMission(existing.id, { state: "executing" });
+			}
+			return existing.id;
+		}
+		const mission = store.createMission({
+			title: args.objective,
+			objectiveId: null,
+			briefId: null,
+			decisionId: null,
+			riskLevel: "medium",
+			state: "executing",
+			confidence: null,
+			snapshotRef: null,
+		});
+		return mission.id;
+	} catch (error) {
+		logger.debug("Goal->mission create dual-write failed", { error: String(error) });
+		return null;
+	} finally {
+		store?.close();
+	}
+}
+
+/**
+ * Mirror goal block → mission `blocked`. Resilient no-op when the mission can't be resolved.
+ */
+export function recordMissionBlockedFromGoal(args: {
+	objective: string;
+	missionId?: string | null;
+	dbPath?: string;
+}): void {
+	transitionMissionStateFromGoal({ ...args, state: "blocked", label: "block" });
+}
+
+/**
+ * Mirror goal drop → mission `cancelled`. Resilient no-op when the mission can't be resolved.
+ */
+export function recordMissionCancelledFromGoal(args: {
+	objective: string;
+	missionId?: string | null;
+	dbPath?: string;
+}): void {
+	transitionMissionStateFromGoal({ ...args, state: "cancelled", label: "drop" });
+}
+
+function transitionMissionStateFromGoal(args: {
+	objective: string;
+	missionId?: string | null;
+	dbPath?: string;
+	state: "blocked" | "cancelled";
+	label: string;
+}): void {
+	let store: MissionStore | undefined;
+	try {
+		store = new MissionStore(args.dbPath);
+		const mission = resolveMission(store, { missionId: args.missionId, title: args.objective });
+		if (!mission) return;
+		store.updateMission(mission.id, { state: args.state });
+	} catch (error) {
+		logger.debug(`Goal->mission ${args.label} dual-write failed`, { error: String(error) });
+	} finally {
+		store?.close();
+	}
+}
+
 export function recordMissionVerificationFromGoalObjective(args: {
 	objective: string;
 	verdict: VerificationVerdict | { verdict: "force"; failedCount: number; uncertainCount: number; results: unknown[] };
@@ -37,9 +142,10 @@ export function recordMissionVerificationFromGoalObjective(args: {
 	dbPath?: string;
 	missionId?: string | null;
 }): void {
-	const store = new MissionStore(args.dbPath);
+	let store: MissionStore | undefined;
 	try {
-		const mission = resolveMission(store, { missionId: args.missionId });
+		store = new MissionStore(args.dbPath);
+		const mission = resolveMission(store, { missionId: args.missionId, title: args.objective });
 		if (!mission) return;
 		const status = args.verdict.verdict;
 		store.recordVerification({
@@ -57,8 +163,10 @@ export function recordMissionVerificationFromGoalObjective(args: {
 						? "verifying"
 						: "blocked",
 		});
+	} catch (error) {
+		logger.debug("Goal->mission verification dual-write failed", { error: String(error) });
 	} finally {
-		store.close();
+		store?.close();
 	}
 }
 
@@ -277,6 +385,42 @@ export function renderGoalBlock(goal: Goal | null | undefined): string {
 	return `<goal ${attrs}>\n${body}\n</goal>`;
 }
 
+/**
+ * Render a mission-flavored anchor block for the goal, parallel to `renderGoalBlock`.
+ *
+ * ADDED (Lane F), not a replacement — `renderGoalBlock` is byte-frozen for prompt-cache
+ * stability and its call paths are unchanged. This is a separate export for consumers that
+ * want the mission framing of the same goal state. It is intentionally byte-stable for a
+ * given Goal state by the same rules as `renderGoalBlock`:
+ * - null/undefined or terminal (complete/dropped) goal → fixed `<mission status="none"/>` sentinel.
+ * - otherwise emits attributes in fixed order (mission-id, status, budget, remaining,
+ *   contract-revision) and walks designAnswers in insertion order.
+ *
+ * The `status` attribute mirrors the goal status (the user-facing lifecycle); `mission-id`
+ * carries the linked mission id when the dual-write established one.
+ */
+export function renderMissionBlock(goal: Goal | null | undefined): string {
+	if (!goal || goal.status === "complete" || goal.status === "dropped") {
+		return `<mission status="none"/>`;
+	}
+	const budget = goal.tokenBudget === undefined ? "unbounded" : String(goal.tokenBudget);
+	const remaining = remainingValue(goal);
+	const revision = goal.contractRevision ?? 0;
+	const missionId = goal.missionId ?? "";
+	const attrs = `mission-id="${escapeXmlText(missionId)}" status="${goal.status}" budget="${budget}" remaining="${remaining}" contract-revision="${revision}"`;
+	const objectiveLine = `  <objective>${escapeXmlText(goal.objective)}</objective>`;
+	const answerLines: string[] = [];
+	if (goal.designAnswers) {
+		for (const key of Object.keys(goal.designAnswers)) {
+			const value = goal.designAnswers[key];
+			if (value === undefined || value === "") continue;
+			answerLines.push(`  <design key="${escapeXmlText(key)}">${escapeXmlText(value)}</design>`);
+		}
+	}
+	const body = answerLines.length === 0 ? objectiveLine : `${objectiveLine}\n${answerLines.join("\n")}`;
+	return `<mission ${attrs}>\n${body}\n</mission>`;
+}
+
 export function renderTrustedObjective(objective: string): string {
 	return renderUntrustedObjective(objective);
 }
@@ -361,15 +505,26 @@ function isAccountingStatus(goal: Goal): boolean {
 	return goal.status === "active" || goal.status === "budget-limited";
 }
 
+export interface GoalRuntimeOptions {
+	/**
+	 * Mission-store path for the Goal→Mission dual-write. Omit (production default) to use
+	 * `DEFAULT_DB_PATH`. Tests pass a temp path to keep the dual-write hermetic. Threading
+	 * this here rather than through the host keeps the existing host contract untouched.
+	 */
+	missionDbPath?: string;
+}
+
 export class GoalRuntime {
 	readonly #host: GoalRuntimeHost;
+	readonly #missionDbPath: string | undefined;
 	#turnSnapshot: GoalTurnSnapshot | undefined;
 	#wallClock: GoalWallClockSnapshot;
 	#budgetReportedFor: string | undefined;
 	#accountingTail: Promise<void> = Promise.resolve();
 
-	constructor(host: GoalRuntimeHost) {
+	constructor(host: GoalRuntimeHost, options?: GoalRuntimeOptions) {
 		this.#host = host;
+		this.#missionDbPath = options?.missionDbPath;
 		this.#wallClock = { lastAccountedAt: this.#now() };
 	}
 
@@ -613,10 +768,13 @@ export class GoalRuntime {
 				throw new Error("cannot create a new goal because this session already has a goal");
 			}
 			const now = this.#now();
+			// goal set/start → mission "created": resolve/create the linked mission up front so
+			// later lifecycle transitions resolve it by exact id. Resilient: null on any failure.
+			const missionId = recordMissionCreatedFromGoal({ objective, dbPath: this.#missionDbPath });
 			const goal: Goal = {
 				id: String(Snowflake.next()),
 				objective,
-				missionId: undefined,
+				missionId: missionId ?? undefined,
 				status: "active",
 				tokenBudget: input.tokenBudget,
 				tokensUsed: 0,
@@ -690,6 +848,12 @@ export class GoalRuntime {
 				state: { ...state, enabled: false, goal: dropped },
 			});
 			await this.#commitState(undefined, { persist: "none", emit: false });
+			// goal drop → mission "cancelled" (additive, resilient).
+			recordMissionCancelledFromGoal({
+				objective: dropped.objective,
+				missionId: dropped.missionId,
+				dbPath: this.#missionDbPath,
+			});
 			return dropped;
 		});
 	}
@@ -773,6 +937,7 @@ export class GoalRuntime {
 			recordMissionVerificationFromGoalObjective({
 				objective: state.goal.objective,
 				missionId: state.goal.missionId,
+				dbPath: this.#missionDbPath,
 				verdict: options?.force
 					? { verdict: "force", failedCount: 0, uncertainCount: 0, results: [] }
 					: (verdict ?? summarize([], criteria)),
@@ -809,6 +974,12 @@ export class GoalRuntime {
 			this.#clearActiveAccounting();
 			this.#budgetReportedFor = undefined;
 			await this.#commitState(state, { persist: "goal_paused" });
+			// goal block → mission "blocked" (additive, resilient).
+			recordMissionBlockedFromGoal({
+				objective: state.goal.objective,
+				missionId: state.goal.missionId,
+				dbPath: this.#missionDbPath,
+			});
 			return state.goal;
 		});
 	}
