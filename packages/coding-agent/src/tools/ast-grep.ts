@@ -8,6 +8,7 @@ import * as z from "zod/v4";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
 import type { Theme } from "../modes/theme/theme";
 import astGrepDescription from "../prompts/tools/ast-grep.md" with { type: "text" };
+import { truncateHead } from "../session/streaming-output";
 import { Ellipsis, renderStatusLine, renderTreeList, truncateToWidth } from "../tui";
 import { resolveFileDisplayMode } from "../utils/file-display-mode";
 import type { ToolSession } from ".";
@@ -275,7 +276,18 @@ export class AstGrepTool implements AgentTool<typeof astGrepSchema, AstGrepToolD
 				outputLines.push("", ...formatParseErrors(cappedParseErrors, parseErrorsTotal));
 			}
 
-			return toolResult(details).text(outputLines.join("\n")).done();
+			// Cap model output. The match count is already bounded (DEFAULT_AST_LIMIT), but individual
+			// matches can be large multi-line AST nodes, so without a byte cap a single result could
+			// dominate the context. truncateHead applies the shared byte/line ceiling gracefully —
+			// preserving the grouped structure up to the cut — instead of leaving it to the blunt
+			// whole-result artifact spill downstream.
+			const truncation = truncateHead(outputLines.join("\n"));
+			let modelText = truncation.content;
+			if (truncation.truncated) {
+				modelText += "\n\nOutput truncated; narrow `paths` or use `skip` to page through matches.";
+			}
+
+			return toolResult(details).text(modelText).done();
 		});
 	}
 }

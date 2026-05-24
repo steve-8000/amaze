@@ -916,6 +916,13 @@ export class AgentSession {
 	#requestedToolNames: ReadonlySet<string> | undefined;
 	#baseSystemPrompt: string[];
 	/**
+	 * Cache breakpoint hint for {@link #baseSystemPrompt} (caller-array-relative index of the
+	 * STABLE_CORE block). Tracked alongside every #baseSystemPrompt assignment so the per-turn
+	 * recall-augmented prompt can re-thread it; without it the provider falls back to last-block
+	 * caching and the volatile recall tail busts the cached prefix every turn (see AGENTS.md:39).
+	 */
+	#baseSystemPromptCacheBreakpointIndex: number | undefined;
+	/**
 	 * Signature of the (toolNames, tool descriptions) tuple passed to the most
 	 * recent successful `rebuildSystemPrompt` call. Used to skip redundant rebuilds
 	 * when MCP servers reconnect without changing their tool definitions, which is
@@ -1103,6 +1110,7 @@ export class AgentSession {
 		this.#getMcpServerInstructions = config.getMcpServerInstructions;
 		this.#reloadSshTool = config.reloadSshTool;
 		this.#baseSystemPrompt = this.agent.state.systemPrompt;
+		this.#baseSystemPromptCacheBreakpointIndex = this.agent.state.systemPromptCacheBreakpointIndex;
 		this.#mcpDiscoveryEnabled = config.mcpDiscoveryEnabled ?? false;
 		this.#setDiscoverableMCPTools(this.#collectDiscoverableMCPToolsFromRegistry());
 		this.#selectedMCPToolNames = new Set(config.initialSelectedMCPToolNames ?? []);
@@ -3393,6 +3401,7 @@ export class AgentSession {
 			if (signature !== this.#lastAppliedToolSignature) {
 				const built = await this.#rebuildSystemPrompt(validToolNames, this.#toolRegistry);
 				this.#baseSystemPrompt = built.systemPrompt;
+				this.#baseSystemPromptCacheBreakpointIndex = built.systemPromptCacheBreakpointIndex;
 				this.agent.setSystemPrompt(this.#baseSystemPrompt, built.systemPromptCacheBreakpointIndex);
 				this.#lastAppliedToolSignature = signature;
 			}
@@ -3476,6 +3485,7 @@ export class AgentSession {
 		const activeToolNames = this.getActiveToolNames();
 		const built = await this.#rebuildSystemPrompt(activeToolNames, this.#toolRegistry);
 		this.#baseSystemPrompt = built.systemPrompt;
+		this.#baseSystemPromptCacheBreakpointIndex = built.systemPromptCacheBreakpointIndex;
 		// Thread the cache breakpoint hint so STABLE_CORE/DYNAMIC_TAIL split survives rebuilds
 		// triggered through this path. Without it, frequent refreshes silently fall back to
 		// the provider's default last-block placement and the v2 cache layout collapses.
@@ -4271,10 +4281,14 @@ export class AgentSession {
 				if (result?.systemPrompt !== undefined) {
 					this.agent.setSystemPrompt(result.systemPrompt);
 				} else {
-					this.agent.setSystemPrompt(beforeAgentStartSystemPrompt);
+					// Re-thread the STABLE_CORE breakpoint. beforeAgentStartSystemPrompt only ever
+					// *appends* a volatile recall tail to #baseSystemPrompt, so the base index stays
+					// valid; passing it keeps cache_control on STABLE_CORE instead of letting the
+					// provider cache the volatile last block (recall) and bust the prefix each turn.
+					this.agent.setSystemPrompt(beforeAgentStartSystemPrompt, this.#baseSystemPromptCacheBreakpointIndex);
 				}
 			} else {
-				this.agent.setSystemPrompt(beforeAgentStartSystemPrompt);
+				this.agent.setSystemPrompt(beforeAgentStartSystemPrompt, this.#baseSystemPromptCacheBreakpointIndex);
 			}
 
 			// Bail out if a newer abort/prompt cycle has started since we began setup
