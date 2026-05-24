@@ -178,6 +178,9 @@ export class InputController {
 		for (const key of this.ctx.keybindings.getKeys("app.mission.previous")) {
 			this.ctx.editor.setCustomKeyHandler(key, () => this.ctx.selectPreviousMission());
 		}
+		for (const key of this.ctx.keybindings.getKeys("app.mission.togglePanel")) {
+			this.ctx.editor.setCustomKeyHandler(key, () => this.ctx.toggleMissionControlDisplayMode());
+		}
 
 		this.ctx.editor.onChange = (text: string) => {
 			const wasBashMode = this.ctx.isBashMode;

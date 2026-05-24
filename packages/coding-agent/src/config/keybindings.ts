@@ -50,6 +50,7 @@ interface AppKeybindings {
 	"app.stt.toggle": true;
 	"app.mission.next": true;
 	"app.mission.previous": true;
+	"app.mission.togglePanel": true;
 }
 
 export type AppKeybinding = keyof AppKeybindings;
@@ -198,6 +199,10 @@ export const KEYBINDINGS = {
 	"app.mission.previous": {
 		defaultKeys: "alt+[",
 		description: "Select previous mission",
+	},
+	"app.mission.togglePanel": {
+		defaultKeys: "alt+m",
+		description: "Toggle Mission Control panel (off / compact / expanded)",
 	},
 } as const satisfies KeybindingDefinitions;
 
