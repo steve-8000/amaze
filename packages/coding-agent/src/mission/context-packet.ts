@@ -1,3 +1,5 @@
+import type { MissionLifecycleState } from "./core";
+import type { MissionIntent } from "./policy/intent";
 import type { MissionView } from "./read-model";
 
 const MAX_EVIDENCE_CLAIMS = 5;
@@ -38,6 +40,8 @@ export interface MissionMemoryRecall {
 	authority: MissionMemoryRecallAuthority;
 }
 
+export type ActiveMissionVerificationVerdict = "pass" | "fail" | "pending";
+
 export interface ActiveMissionPacket {
 	objective: string;
 	state: MissionView["mission"]["state"];
@@ -60,6 +64,11 @@ export interface ActiveMissionPacket {
 		summary: string;
 	} | null;
 	nextActions: string[];
+	intent?: MissionIntent;
+	phase?: string;
+	decisionId?: string | null;
+	regressionContractId?: string | null;
+	verificationVerdict?: ActiveMissionVerificationVerdict | null;
 	/**
 	 * Optional recall surfaced from memory (Lane J). Additive and opt-in: only
 	 * populated when a {@link MissionMemoryBridge} attaches recall. Items are
@@ -82,6 +91,7 @@ export function buildActiveMissionPacket(view: MissionView): ActiveMissionPacket
 		card.claims.map(claim => ({ id: card.id, lane: card.lane, grade: card.grade, claim })),
 	);
 	const nextActions = view.decision?.nextActions ?? [];
+	const missionPointers = view.mission as MissionPointerSource;
 	const blockingCritique = view.latestCritique?.blockingCount
 		? {
 				verdict: view.latestCritique.verdict,
@@ -90,7 +100,7 @@ export function buildActiveMissionPacket(view: MissionView): ActiveMissionPacket
 			}
 		: null;
 
-	return {
+	const packet: ActiveMissionPacket = {
 		objective: view.objective?.title ?? view.mission.title,
 		state: view.mission.state,
 		decision: view.decisionSummary
@@ -123,6 +133,46 @@ export function buildActiveMissionPacket(view: MissionView): ActiveMissionPacket
 			nextActions: Math.max(0, nextActions.length - MAX_NEXT_ACTIONS),
 		},
 	};
+
+	if (missionPointers.intent !== undefined) packet.intent = missionPointers.intent;
+	if (missionPointers.lifecycle !== undefined) packet.phase = phaseFromLifecycle(missionPointers.lifecycle);
+	if ("decisionId" in missionPointers) packet.decisionId = missionPointers.decisionId ?? null;
+	if ("regressionContractId" in missionPointers) {
+		packet.regressionContractId = missionPointers.regressionContractId ?? null;
+	}
+	if ("verification" in missionPointers) packet.verificationVerdict = missionPointers.verification?.verdict ?? null;
+
+	return packet;
+}
+
+type MissionPointerSource = {
+	intent?: MissionIntent;
+	lifecycle?: MissionLifecycleState;
+	decisionId?: string | null;
+	regressionContractId?: string | null;
+	verification?: { verdict?: ActiveMissionVerificationVerdict } | null;
+};
+
+export function phaseFromLifecycle(lifecycle: MissionLifecycleState): string {
+	switch (lifecycle) {
+		case "created":
+		case "classified":
+			return "frame";
+		case "planning":
+			return "plan";
+		case "executing":
+			return "execute";
+		case "verifying":
+			return "verify";
+		case "completed":
+			return "done";
+		case "blocked":
+			return "blocked";
+		case "cancelled":
+			return "cancelled";
+		default:
+			return lifecycle;
+	}
 }
 
 /**
@@ -167,11 +217,34 @@ export function renderActiveMissionPacket(packet: ActiveMissionPacket | null | u
 			lines.push(`- [${item.type}] ${item.content}`);
 		}
 	}
+	const hasPointers = hasPointerFields(packet);
+	if (hasPointers) {
+		if (packet.intent !== undefined) lines.push(`intent: ${packet.intent}`);
+		if (packet.phase !== undefined) lines.push(`phase: ${packet.phase}`);
+		if (packet.decisionId !== undefined) lines.push(`decision: ${packet.decisionId ?? "pending"}`);
+		if (packet.regressionContractId !== undefined) {
+			lines.push(`regression: ${packet.regressionContractId ?? "pending"}`);
+		}
+		if (packet.verificationVerdict !== undefined && packet.verificationVerdict !== null) {
+			lines.push(`verification: ${packet.verificationVerdict}`);
+		}
+		lines.push(`(For details: read memory://mission/{id}/decision | regression | evidence)`);
+	}
 	lines.push(
 		`Omitted: ${packet.omitted.evidenceClaims} evidence claims, ${packet.omitted.evidenceCards} evidence cards, ${packet.omitted.contracts} older contracts, ${packet.omitted.contractIncludes} contract includes, ${packet.omitted.contractCriteria} contract criteria, ${packet.omitted.nextActions} next actions.`,
 		"</active-mission>",
 	);
 	return lines.join("\n");
+}
+
+function hasPointerFields(packet: ActiveMissionPacket): boolean {
+	return (
+		packet.intent !== undefined ||
+		packet.phase !== undefined ||
+		packet.decisionId !== undefined ||
+		packet.regressionContractId !== undefined ||
+		packet.verificationVerdict !== undefined
+	);
 }
 
 function formatList(values: string[]): string {
