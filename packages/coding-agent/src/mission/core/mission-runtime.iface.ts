@@ -1,5 +1,6 @@
 import type { GoalBudgetSteering, GoalModeState, GoalTokenUsage } from "../../goals/state";
 import type { RiskLevel } from "../../research/types";
+import type { MissionIntent } from "../policy/intent";
 import type { Mission, MissionLifecycleState, MissionPlan, MissionVerification } from "./mission";
 import type { MissionInput } from "./mission-input";
 import type { MissionOutcome } from "./mission-outcome";
@@ -17,6 +18,7 @@ import type { MissionOutcome } from "./mission-outcome";
 /** Result of classifying a mission's risk/mode. */
 export interface MissionClassifyResult {
 	riskLevel: RiskLevel;
+	intent: MissionIntent;
 	rationale?: string;
 }
 

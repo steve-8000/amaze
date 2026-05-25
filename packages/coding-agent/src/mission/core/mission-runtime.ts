@@ -1,5 +1,6 @@
 import type { ConfidenceLevel, RiskLevel } from "../../research/types";
 import type { MissionEventBus } from "../event-bus";
+import { defaultMissionClassifier, toCoreRiskLevel } from "../policy";
 import { MissionStore } from "../store";
 import type { MissionState as LegacyMissionState } from "../types";
 import type { AcceptanceCriterion } from "./acceptance-criteria";
@@ -270,6 +271,9 @@ export class MissionRuntimeImpl implements MissionRuntime {
 		void options;
 		const mission = this.#require(missionId);
 		this.#advance(mission, "classified");
+		const decision = defaultMissionClassifier.classify(mission);
+		mission.intent = decision.intent;
+		mission.riskLevel = toCoreRiskLevel(decision.riskLevel);
 		const confidence: ConfidenceLevel | null = mission.riskLevel === "low" ? "high" : null;
 		this.#emit({
 			type: "mission.classified",
@@ -278,7 +282,7 @@ export class MissionRuntimeImpl implements MissionRuntime {
 			confidence,
 			ts: mission.updatedAt,
 		});
-		return { riskLevel: mission.riskLevel };
+		return { riskLevel: mission.riskLevel, intent: mission.intent, rationale: decision.rationale };
 	}
 
 	async plan(missionId: string, options: MissionPlanOptions = {}): Promise<MissionPlanResult> {

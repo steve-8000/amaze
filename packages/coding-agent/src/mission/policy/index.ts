@@ -6,6 +6,7 @@ export {
 	recordPolicyDecision,
 	toClassifiedEvent,
 } from "./emit";
+export * from "./intent";
 export {
 	type MissionContextBudget,
 	type MissionPolicyDecision,

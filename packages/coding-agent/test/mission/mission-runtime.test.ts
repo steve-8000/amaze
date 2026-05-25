@@ -76,6 +76,7 @@ describe("MissionRuntime lifecycle", () => {
 
 		const classified = await runtime.classify(mission.id);
 		expect(classified.riskLevel).toBe("low");
+		expect(classified.intent).toBe("code_change");
 		expect((await runtime.get(mission.id))?.lifecycle).toBe("classified");
 
 		// Seed a plan so plan() derives tasks.

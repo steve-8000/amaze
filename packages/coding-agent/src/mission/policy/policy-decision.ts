@@ -1,3 +1,4 @@
+import type { MissionIntent } from "./intent";
 import type { PolicyRiskLevel } from "./risk";
 
 /**
@@ -64,6 +65,8 @@ export interface MissionPolicyDecision {
 	deniedToolClasses: ToolClass[];
 	/** Effective risk level (policy taxonomy, may be `critical`). */
 	riskLevel: PolicyRiskLevel;
+	/** Classified mission intent taxonomy. */
+	intent: MissionIntent;
 	/** Derived context-window budget. */
 	contextBudget: MissionContextBudget;
 	/** Human-readable explanation of why this decision was reached. */

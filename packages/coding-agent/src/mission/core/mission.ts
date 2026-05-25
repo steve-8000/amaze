@@ -1,4 +1,5 @@
 import type { RiskLevel } from "../../research/types";
+import type { MissionIntent } from "../policy/intent";
 import type { AcceptanceCriterion } from "./acceptance-criteria";
 import type { MissionBudget, MissionContextBudget } from "./mission-budget";
 import type { MissionInput, MissionMode } from "./mission-input";
@@ -87,6 +88,7 @@ export interface Mission {
 	mode: MissionMode;
 	lifecycle: MissionLifecycleState;
 	riskLevel: RiskLevel;
+	intent?: MissionIntent;
 	projectId?: string;
 	sessionId?: string;
 	parentMissionId?: string;

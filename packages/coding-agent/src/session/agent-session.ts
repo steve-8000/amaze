@@ -145,7 +145,10 @@ import {
 	selectDiscoverableMCPToolNamesByServer,
 } from "../mcp/discoverable-tool-metadata";
 import { resolveMemoryBackend } from "../memory-backend";
+import type { Mission } from "../mission/core/mission";
+import type { MissionScopeGuard } from "../mission/core/mission-scope";
 import { ObjectiveRuntimeImpl, renderGoalBlock } from "../mission/core/objective-runtime";
+import type { MissionStore } from "../mission/store";
 import { getCurrentThemeName, theme } from "../modes/theme/theme";
 import type { Unsubscribe } from "../observability/event-bus";
 import { emitPromptCacheEventIfPossible, type PromptCacheResponse } from "../observability/prompt-cache-emit";
@@ -804,6 +807,7 @@ export class AgentSession {
 	#scheduledHiddenNextTurnGeneration: number | undefined = undefined;
 	#planModeState: PlanModeState | undefined;
 	#goalModeState: GoalModeState | undefined;
+	#activeMissionId: string | undefined = undefined;
 	#goalRuntime: ObjectiveRuntimeImpl;
 	#objectiveRuntime: ObjectiveRuntimeImpl | undefined;
 	#selfImproveLoopUnsub: Unsubscribe | undefined;
@@ -3853,6 +3857,25 @@ export class AgentSession {
 
 	setGoalModeState(state: GoalModeState | undefined): void {
 		this.#goalModeState = state;
+	}
+
+	#missionStore(): MissionStore | undefined {
+		return undefined;
+	}
+
+	getActiveMission(): Mission | undefined {
+		if (!this.#activeMissionId) return undefined;
+		const store = this.#missionStore();
+		if (!store) return undefined;
+		return undefined;
+	}
+
+	getActiveMissionScope(): MissionScopeGuard | undefined {
+		return this.getActiveMission()?.scopeGuard;
+	}
+
+	setActiveMissionId(id: string | undefined): void {
+		this.#activeMissionId = id;
 	}
 
 	get goalRuntime(): ObjectiveRuntimeImpl {

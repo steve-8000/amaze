@@ -1,6 +1,7 @@
 import type { Mission } from "../core/mission";
 import type { MissionInput } from "../core/mission-input";
 import { deriveContextBudget } from "./context-budget";
+import { inferIntent } from "./intent";
 import type { MissionPolicyDecision, ToolClass } from "./policy-decision";
 import {
 	computeRiskLevel,
@@ -82,6 +83,7 @@ export class MissionClassifier {
 
 	#decide(signals: MissionRiskSignals): MissionPolicyDecision {
 		const text = signals.text;
+		const intent = inferIntent({ objective: signals.objective });
 		const riskLevel: PolicyRiskLevel = computeRiskLevel(signals);
 
 		const mutation = impliesMutation(text);
@@ -158,6 +160,7 @@ export class MissionClassifier {
 			allowedToolClasses: [...allowed],
 			deniedToolClasses: [...denied],
 			riskLevel,
+			intent,
 			contextBudget,
 			rationale,
 		};

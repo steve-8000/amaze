@@ -24,6 +24,8 @@ const RISK_ORDER: Record<PolicyRiskLevel, number> = {
 export interface MissionRiskSignals {
 	/** Caller-asserted risk, if any. Acts as a floor. */
 	assertedRiskLevel?: RiskLevel;
+	/** Original objective text, used by intent classification. */
+	objective: string;
 	/** The objective + title text, lower-cased and concatenated. */
 	text: string;
 	/** Operating mode; `autonomous` raises the floor for mutating work. */
@@ -134,6 +136,7 @@ export function riskSignalsFromMission(
 ): MissionRiskSignals {
 	return {
 		assertedRiskLevel: mission.riskLevel,
+		objective: mission.objective,
 		text: `${mission.title}\n${mission.objective}`.toLowerCase(),
 		autonomous: mission.mode === "autonomous",
 	};
@@ -143,6 +146,7 @@ export function riskSignalsFromMission(
 export function riskSignalsFromInput(input: MissionInput): MissionRiskSignals {
 	return {
 		...(input.riskLevel !== undefined ? { assertedRiskLevel: input.riskLevel } : {}),
+		objective: input.objective,
 		text: `${input.title}\n${input.objective}`.toLowerCase(),
 		autonomous: input.mode === "autonomous",
 	};
