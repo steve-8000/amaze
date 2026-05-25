@@ -92,7 +92,7 @@ export interface MissionContractRecord {
 	id: string;
 	missionId: string;
 	role: string;
-	parentContractRevision: number | null;
+	parentMissionRev: number | null;
 	include: string[];
 	exclude: string[];
 	successCriteria: string[];

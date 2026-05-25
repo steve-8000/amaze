@@ -25,6 +25,7 @@
 import type { AcceptanceCriterion } from "../goals/verifier";
 
 export type EscalationOnUncertainty = "ask-parent" | "block";
+export type MissionScopeForContract = { include: string[]; exclude: string[] };
 
 export interface SubagentContract {
 	/**
@@ -48,16 +49,16 @@ export interface SubagentContract {
 	 */
 	role: string;
 	/**
-	 * Snapshot of the parent goal's `contractRevision` at the moment this contract was minted.
-	 * The subagent reads the live `<goal contract-revision="N">` attribute from its rendered
-	 * DYNAMIC_TAIL and compares: when the live revision exceeds this baseline, the contract
-	 * is stale and the subagent MUST yield to let the parent re-issue a fresh contract instead
-	 * of plowing ahead with outdated scope/criteria. See `isSubagentContractStale`.
+	 * Snapshot of the parent mission's contract revision at the moment this contract was minted.
+	 * The subagent reads the live mission revision from its rendered context and compares:
+	 * when the live revision exceeds this baseline, the contract is stale and the subagent
+	 * MUST yield to let the parent re-issue a fresh contract instead of plowing ahead with
+	 * outdated scope/criteria. See `isSubagentContractStale`.
 	 *
 	 * Optional for backward compatibility: a contract minted before this field landed (or by
 	 * a caller that doesn't care about pivots) treats every revision as fresh.
 	 */
-	parentContractRevision?: number;
+	parentMissionRev?: number;
 	/**
 	 * File-glob scope. `include` is whitelist (empty = "no restriction"); `exclude` is blacklist
 	 * (empty = "no excluded paths"). Tool-layer guards check `exclude` first (hard fail), then
@@ -69,7 +70,7 @@ export interface SubagentContract {
 		exclude: string[];
 	};
 	/**
-	 * Parent objective scope this contract was derived under, when spawned beneath an
+	 * Parent mission scope this contract was derived under, when spawned beneath an
 	 * objective that declared a scope (set by {@link deriveContractScopeFromParent}). A
 	 * delegated child can never exceed the parent's blast radius: enforcement checks the
 	 * mutation against this in ADDITION to `scope`. This captures the parent INCLUDE
@@ -77,10 +78,7 @@ export interface SubagentContract {
 	 * ARE folded into `scope.exclude`). NOT rendered into the XML contract block — it is an
 	 * enforcement-only field, so it does not affect the prompt-cache-stable rendering.
 	 */
-	parentScope?: {
-		include: string[];
-		exclude: string[];
-	};
+	parentMissionScope?: MissionScopeForContract;
 	/**
 	 * Acceptance criteria the parent will verify after the subagent yields. Use a SUBSET of the
 	 * parent goal's acceptanceCriteria narrowed to this subagent's deliverables. The verifier
@@ -233,7 +231,7 @@ export class StaleContractError extends Error {
 	readonly parentRevision: number;
 	constructor(role: string, baselineRevision: number, parentRevision: number) {
 		super(
-			`SubagentContract (role: ${role}) is stale: parent goal advanced from revision ${baselineRevision} to ${parentRevision}. Yield to parent for fresh contract issuance.`,
+			`SubagentContract (role: ${role}) is stale: parent mission advanced from revision ${baselineRevision} to ${parentRevision}. Yield to parent for fresh contract issuance.`,
 		);
 		this.name = "StaleContractError";
 		this.role = role;
@@ -257,18 +255,18 @@ export function enforceContractFreshness(
 	parentCurrentRevision: number | undefined,
 ): void {
 	if (!contract) return;
-	if (contract.parentContractRevision === undefined) return;
+	if (contract.parentMissionRev === undefined) return;
 	if (parentCurrentRevision === undefined) return;
-	if (parentCurrentRevision > contract.parentContractRevision) {
-		throw new StaleContractError(contract.role, contract.parentContractRevision, parentCurrentRevision);
+	if (parentCurrentRevision > contract.parentMissionRev) {
+		throw new StaleContractError(contract.role, contract.parentMissionRev, parentCurrentRevision);
 	}
 }
 
 /**
- * Stamp the parent's current `contractRevision` onto a SubagentContract at issuance time.
+ * Stamp the parent's current mission revision onto a SubagentContract at issuance time.
  * Use this when spawning a subagent: the contract authored by the parent (or model) may
- * not specify a baseline, and the task executor should fill it from the parent goal's
- * current contractRevision. Idempotent — preserves an explicit baseline if already set.
+ * not specify a baseline, and the task executor should fill it from the parent mission's
+ * current contract revision. Idempotent — preserves an explicit baseline if already set.
  *
  * Returns a NEW contract object; never mutates the input.
  */
@@ -276,9 +274,9 @@ export function stampContractRevision(
 	contract: SubagentContract,
 	parentCurrentRevision: number | undefined,
 ): SubagentContract {
-	if (contract.parentContractRevision !== undefined) return contract;
+	if (contract.parentMissionRev !== undefined) return contract;
 	if (parentCurrentRevision === undefined) return contract;
-	return { ...contract, parentContractRevision: parentCurrentRevision };
+	return { ...contract, parentMissionRev: parentCurrentRevision };
 }
 
 /**
@@ -350,12 +348,12 @@ export function enforceMissionBinding(contract: SubagentContract, mission: Missi
 }
 
 /**
- * Detects whether a SubagentContract is stale relative to the parent goal's current
- * `contractRevision`. Returns `true` when the contract is stale and the subagent should
- * yield for fresh contract issuance.
+ * Detects whether a SubagentContract is stale relative to the parent mission's current
+ * revision. Returns `true` when the contract is stale and the subagent should yield for
+ * fresh contract issuance.
  *
  * Three cases:
- *   - Contract has no `parentContractRevision` baseline → never stale (back-compat path).
+ *   - Contract has no `parentMissionRev` baseline → never stale (back-compat path).
  *   - Parent's current revision <= baseline → fresh.
  *   - Parent's current revision > baseline → STALE. Subagent yields.
  *
@@ -366,9 +364,9 @@ export function isSubagentContractStale(
 	contract: SubagentContract,
 	parentCurrentRevision: number | undefined,
 ): boolean {
-	if (contract.parentContractRevision === undefined) return false;
+	if (contract.parentMissionRev === undefined) return false;
 	if (parentCurrentRevision === undefined) return false;
-	return parentCurrentRevision > contract.parentContractRevision;
+	return parentCurrentRevision > contract.parentMissionRev;
 }
 
 /**
@@ -421,13 +419,11 @@ function escapeXml(input: string): string {
  */
 export function renderSubagentContract(contract: SubagentContract): string {
 	const lines: string[] = [];
-	// `parent-contract-revision` lets the model self-check at runtime: when the live goal
-	// block shows a higher revision than this baseline, the subagent should yield instead
-	// of trusting its cached contract.
+	// `parent-mission-rev` lets the model self-check at runtime: when the live mission
+	// context shows a higher revision than this baseline, the subagent should yield
+	// instead of trusting its cached contract.
 	const revisionAttr =
-		contract.parentContractRevision !== undefined
-			? ` parent-contract-revision="${contract.parentContractRevision}"`
-			: "";
+		contract.parentMissionRev !== undefined ? ` parent-mission-rev="${contract.parentMissionRev}"` : "";
 	lines.push(`<subagent-contract role="${escapeXml(contract.role)}"${revisionAttr}>`);
 	lines.push(`  <scope>`);
 	for (const pattern of contract.scope.include) {
@@ -483,15 +479,15 @@ export function enforceContractScope(
 			`SubagentContract scope violation: ${verdict.reason} Adjust your edit or escalate to the parent via yield.`,
 		);
 	}
-	// A delegated child can never exceed the parent objective's blast radius. The parent
+	// A delegated child can never exceed the parent mission's blast radius. The parent
 	// EXCLUDES are already folded into `scope.exclude` by deriveContractScopeFromParent, but
 	// the parent INCLUDE allowlist cannot be merged into a single contract scope (checkScope
-	// ORs includes), so it is carried on `parentScope` and enforced here in addition.
-	if (contract?.parentScope) {
+	// ORs includes), so it is carried on `parentMissionScope` and enforced here in addition.
+	if (contract?.parentMissionScope) {
 		const parentVerdict = checkScope(
 			{
-				role: "parent-objective-scope",
-				scope: contract.parentScope,
+				role: "parent-mission-scope",
+				scope: contract.parentMissionScope,
 				successCriteria: [],
 				escalation: { onUncertainty: "block", budgetCap: 0 },
 			},
@@ -499,7 +495,7 @@ export function enforceContractScope(
 		);
 		if (!parentVerdict.allowed) {
 			throwError(
-				`Parent objective scope violation: ${parentVerdict.reason.replace("(role: parent-objective-scope)", "(parent objective guard)")} A subagent cannot edit outside the parent objective's scope; escalate to the parent via yield.`,
+				`Parent mission scope violation: ${parentVerdict.reason.replace("(role: parent-mission-scope)", "(parent mission guard)")} A subagent cannot edit outside the parent mission's scope; escalate to the parent via yield.`,
 			);
 		}
 	}
@@ -537,7 +533,7 @@ export function enforceGoalScope(
 }
 
 /**
- * Derive a subagent contract whose scope is bounded by the parent objective's scope
+ * Derive a subagent contract whose scope is bounded by the parent mission's scope
  * (consolidation PR4). A delegated child must never exceed the parent's blast radius:
  *   - Parent denials always bind children: the parent's `exclude` globs are unioned into
  *     the child's `exclude` (this can only RESTRICT, never widen — always sound).
@@ -551,19 +547,19 @@ export function enforceGoalScope(
  */
 export function deriveContractScopeFromParent(
 	contract: SubagentContract,
-	parentScope: { include: string[]; exclude: string[] } | undefined,
+	parentMissionScope: MissionScopeForContract | undefined,
 ): SubagentContract {
-	if (!parentScope) return contract;
-	const exclude = Array.from(new Set([...contract.scope.exclude, ...parentScope.exclude]));
+	if (!parentMissionScope) return contract;
+	const exclude = Array.from(new Set([...contract.scope.exclude, ...parentMissionScope.exclude]));
 	const include =
-		parentScope.include.length > 0 && contract.scope.include.length === 0
-			? [...parentScope.include]
+		parentMissionScope.include.length > 0 && contract.scope.include.length === 0
+			? [...parentMissionScope.include]
 			: [...contract.scope.include];
 	// Carry the parent scope so enforcement bounds the child by the parent INCLUDE allowlist
 	// too (not just the folded excludes) — see enforceContractScope. Only attach when the
 	// parent actually restricts via an include allowlist; a parent with no allowlist adds no
 	// include ceiling (its excludes are already folded above), so we avoid a redundant field.
-	const carriedParent = parentScope.include.length > 0 ? { parentScope } : {};
+	const carriedParent = parentMissionScope.include.length > 0 ? { parentMissionScope } : {};
 	return { ...contract, scope: { ...contract.scope, include, exclude }, ...carriedParent };
 }
 

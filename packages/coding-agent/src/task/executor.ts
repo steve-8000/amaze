@@ -147,6 +147,8 @@ export interface ExecutorOptions {
 	description?: string;
 	index: number;
 	id: string;
+	/** Stable caller-provided task id; defaults to id when no unique execution id is needed. */
+	taskId?: string;
 	modelOverride?: string | string[];
 	/**
 	 * Active model selector of the parent session, used as an auth-aware fallback
@@ -560,6 +562,7 @@ export async function runSubprocess(options: ExecutorOptions): Promise<SingleRes
 		onProgress,
 	} = options;
 	const startTime = Date.now();
+	const eventTaskId = options.taskId ?? id;
 
 	const emitSubagentEvent = (event: Parameters<SessionEventBus["emit"]>[0]): void => {
 		try {
@@ -573,7 +576,7 @@ export async function runSubprocess(options: ExecutorOptions): Promise<SingleRes
 		type: "subagent.start",
 		sessionId,
 		ts: startTime,
-		taskId: id,
+		taskId: eventTaskId,
 		role: options.contract?.role ?? agent.name,
 		isolated: Boolean(worktree),
 		hasContract: options.contract !== undefined,
@@ -1504,7 +1507,7 @@ export async function runSubprocess(options: ExecutorOptions): Promise<SingleRes
 		type: "subagent.end",
 		sessionId,
 		ts: Date.now(),
-		taskId: id,
+		taskId: eventTaskId,
 		verdict: endVerdict,
 		changedFiles: Array.isArray(changedFiles) ? changedFiles.length : 0,
 		revisions: 0,

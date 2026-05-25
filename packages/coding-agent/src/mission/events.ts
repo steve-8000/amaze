@@ -165,6 +165,23 @@ export type MissionTaskCompletedEvent = {
 	ts: number;
 };
 
+export type MissionTaskFailedEvent = {
+	type: "mission.task.failed";
+	missionId: string;
+	taskId: string;
+	status: "failed";
+	ts: number;
+};
+
+export type MissionTaskAttemptEvent = {
+	type: "mission.task.attempt";
+	missionId: string;
+	taskId: string;
+	verdict: "success" | "failure";
+	note?: string;
+	ts: number;
+};
+
 export type MissionToolRequestedEvent = {
 	type: "mission.tool.requested";
 	missionId: string;
@@ -248,6 +265,8 @@ export type MissionLifecycleEvent =
 	| MissionPlannedEvent
 	| MissionTaskCreatedEvent
 	| MissionTaskCompletedEvent
+	| MissionTaskFailedEvent
+	| MissionTaskAttemptEvent
 	| MissionToolRequestedEvent
 	| MissionToolCompletedEvent
 	| MissionEvidenceAddedEvent

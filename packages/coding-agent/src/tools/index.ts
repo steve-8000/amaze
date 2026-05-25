@@ -10,6 +10,8 @@ import type { GoalModeState } from "../goals/state";
 import { GoalTool } from "../goals/tools/goal-tool";
 import { LspTool } from "../lsp";
 import { resolveMemoryBackend } from "../memory-backend";
+import type { Mission } from "../mission/core/mission";
+import type { MissionControlRuntime } from "../mission/core/mission-control-runtime";
 import type { MissionScopeGuard } from "../mission/core/mission-scope";
 import type { ObjectiveRuntimeImpl } from "../mission/core/objective-runtime";
 import type { PlanModeState } from "../plan-mode/state";
@@ -210,7 +212,8 @@ export interface ToolSession {
 	 * divergence. Undefined ⇒ no mission scope; the guard falls back to goal scope.
 	 */
 	getActiveMissionScope?: () => MissionScopeGuard | undefined;
-	getActiveMission?: () => { id: string } | undefined;
+	getActiveMission?: () => Mission | undefined;
+	missionControl?: MissionControlRuntime;
 	/**
 	 * Accessor for the session's V3 coordination telemetry aggregator. Tools (ask, goal,
 	 * task) call its `record*` methods directly. Optional — tools should no-op gracefully

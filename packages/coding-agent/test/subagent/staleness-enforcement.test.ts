@@ -31,15 +31,15 @@ describe("stampContractRevision", () => {
 	it("stamps current parent revision when contract baseline is missing", () => {
 		const contract = blank();
 		const stamped = stampContractRevision(contract, 5);
-		expect(stamped.parentContractRevision).toBe(5);
+		expect(stamped.parentMissionRev).toBe(5);
 		// Input not mutated (functional invariant).
-		expect(contract.parentContractRevision).toBeUndefined();
+		expect(contract.parentMissionRev).toBeUndefined();
 	});
 
 	it("preserves explicit baseline (idempotent — does not overwrite)", () => {
-		const contract = blank({ parentContractRevision: 3 });
+		const contract = blank({ parentMissionRev: 3 });
 		const stamped = stampContractRevision(contract, 7);
-		expect(stamped.parentContractRevision).toBe(3);
+		expect(stamped.parentMissionRev).toBe(3);
 	});
 
 	it("no-op when parent revision is undefined", () => {
@@ -51,7 +51,7 @@ describe("stampContractRevision", () => {
 
 describe("enforceContractFreshness", () => {
 	it("throws StaleContractError when parent revision exceeds baseline", () => {
-		const contract = blank({ parentContractRevision: 2 });
+		const contract = blank({ parentMissionRev: 2 });
 		expect(() => enforceContractFreshness(contract, 3)).toThrow(StaleContractError);
 		try {
 			enforceContractFreshness(contract, 3);
@@ -67,12 +67,12 @@ describe("enforceContractFreshness", () => {
 	});
 
 	it("silent when revisions match (equality is fresh, not stale)", () => {
-		const contract = blank({ parentContractRevision: 5 });
+		const contract = blank({ parentMissionRev: 5 });
 		expect(() => enforceContractFreshness(contract, 5)).not.toThrow();
 	});
 
 	it("silent when parent is older than baseline (nonsense direction, treat as fresh)", () => {
-		const contract = blank({ parentContractRevision: 5 });
+		const contract = blank({ parentMissionRev: 5 });
 		expect(() => enforceContractFreshness(contract, 2)).not.toThrow();
 	});
 
@@ -82,7 +82,7 @@ describe("enforceContractFreshness", () => {
 	});
 
 	it("silent when parent revision is undefined (no comparison possible)", () => {
-		const contract = blank({ parentContractRevision: 1 });
+		const contract = blank({ parentMissionRev: 1 });
 		expect(() => enforceContractFreshness(contract, undefined)).not.toThrow();
 	});
 
@@ -91,7 +91,7 @@ describe("enforceContractFreshness", () => {
 	});
 
 	it("PHASE T4-H ACCEPTANCE: stale detection is STRUCTURAL — same input twice produces same exception", () => {
-		const contract = blank({ parentContractRevision: 1 });
+		const contract = blank({ parentMissionRev: 1 });
 		let err1: unknown;
 		let err2: unknown;
 		try {

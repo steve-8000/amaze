@@ -395,7 +395,7 @@ describe("MissionReadModel", () => {
 		const contract = missionStore.recordContract({
 			missionId: mission.id,
 			role: "wave5-contracts",
-			parentContractRevision: 1,
+			parentMissionRev: 1,
 			include: ["src/a.ts"],
 			exclude: ["docs/**"],
 			successCriteria: ["checkts"],

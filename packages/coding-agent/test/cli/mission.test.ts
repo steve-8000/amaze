@@ -417,7 +417,7 @@ describe("mission CLI", () => {
 				missions.recordContract({
 					missionId: fixture.mission.id,
 					role: "worker",
-					parentContractRevision: 1,
+					parentMissionRev: 1,
 					include: ["src/**"],
 					exclude: [],
 					successCriteria: ["tests"],

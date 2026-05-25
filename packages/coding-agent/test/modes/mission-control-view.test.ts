@@ -231,7 +231,7 @@ describe("MissionControlView", () => {
 			id: "contract-rich",
 			missionId: mission.id,
 			role: "mission-control-panelizer",
-			parentContractRevision: 1,
+			parentMissionRev: 1,
 			include: ["packages/coding-agent/src/modes/components/mission-control-view.ts"],
 			exclude: ["docs/**"],
 			successCriteria: ["checkts", "panel-tests"],

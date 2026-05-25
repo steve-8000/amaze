@@ -64,6 +64,14 @@ export class MissionControlRuntime {
 		return activeId ? this.#runtime.tryGet(activeId) : undefined;
 	}
 
+	recordTaskUsage(missionId: string, delta: number): void {
+		if (!Number.isFinite(delta) || delta <= 0) return;
+		const mission = this.#runtime.tryGet(missionId);
+		if (!mission) return;
+		mission.budget.tokensUsed = (mission.budget.tokensUsed ?? 0) + delta;
+		mission.updatedAt = this.#deps.now?.() ?? Date.now();
+	}
+
 	clearActiveMission(): void {
 		this.#deps.setActiveMissionId(undefined);
 	}

@@ -46,7 +46,7 @@ describe("mission write-side producers", () => {
 			"Task objective",
 			{
 				role: "producer",
-				parentContractRevision: 2,
+				parentMissionRev: 2,
 				scope: { include: ["src/**"], exclude: ["docs/**"] },
 				successCriteria: [
 					{
@@ -67,7 +67,7 @@ describe("mission write-side producers", () => {
 			{
 				missionId: createdMission.id,
 				role: "producer",
-				parentContractRevision: 2,
+				parentMissionRev: 2,
 				include: ["src/**"],
 				exclude: ["docs/**"],
 				successCriteria: ["checkts"],
@@ -219,7 +219,7 @@ describe("mission write-side producers", () => {
 			"Shared objective",
 			{
 				role: "producer",
-				parentContractRevision: 2,
+				parentMissionRev: 2,
 				scope: { include: ["src/**"], exclude: [] },
 				successCriteria: [],
 				escalation: { onUncertainty: "ask-parent", budgetCap: 42 },
@@ -272,7 +272,7 @@ describe("mission write-side producers", () => {
 			"Fallback objective",
 			{
 				role: "producer",
-				parentContractRevision: undefined,
+				parentMissionRev: undefined,
 				scope: { include: ["src/**"], exclude: [] },
 				successCriteria: [],
 				escalation: { onUncertainty: "ask-parent", budgetCap: 42 },

@@ -33,7 +33,12 @@ import taskDescriptionTemplate from "../prompts/tools/task.md" with { type: "tex
 import taskSummaryTemplate from "../prompts/tools/task-summary.md" with { type: "text" };
 import { ResearchStore } from "../research/store";
 import type { RuntimeCriticCheck } from "../research/types";
-import { deriveContractScopeFromParent, type SubagentContract, stampContractRevision } from "../subagent/contract";
+import {
+	deriveContractScopeFromParent,
+	type MissionScopeForContract,
+	type SubagentContract,
+	stampContractRevision,
+} from "../subagent/contract";
 import {
 	diffDirtySnapshots,
 	executeContractedTask,
@@ -58,6 +63,7 @@ import { generateCommitMessage } from "../utils/commit-message-generator";
 import * as git from "../utils/git";
 import { discoverAgents, getAgent } from "./discovery";
 import { runSubprocess } from "./executor";
+import { MissionTaskRunner } from "./mission-task-runner";
 import { AgentOutputManager } from "./output-manager";
 import { mapWithConcurrencyLimit, Semaphore } from "./parallel";
 import { renderResult, renderCall as renderTaskCall } from "./render";
@@ -101,7 +107,7 @@ export function recordTaskMissionContract(
 		store.recordContract({
 			missionId: mission.id,
 			role: contract.role,
-			parentContractRevision: contract.parentContractRevision ?? null,
+			parentMissionRev: contract.parentMissionRev ?? null,
 			include: [...contract.scope.include],
 			exclude: [...contract.scope.exclude],
 			successCriteria: contract.successCriteria.map(summarizeContractCriterion),
@@ -968,10 +974,9 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 
 		const preferredIsolationBackend = parseIsolationMode(isolationMode);
 
-		const activeGoal = this.session.getGoalModeState?.()?.goal;
 		const activeMission = this.session.getActiveMission?.();
 		const criticGate = evaluateRuntimeCriticGate({
-			goalObjective: activeGoal?.objective,
+			goalObjective: activeMission?.objective,
 			missionId: activeMission?.id,
 			action: "task",
 		});
@@ -1079,7 +1084,7 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 					this.session.agentOutputManager ?? new AgentOutputManager(this.session.getArtifactsDir ?? (() => null));
 				uniqueIds = await outputManager.allocateBatch(tasks.map(t => t.id));
 			}
-			const tasksWithUniqueIds = tasks.map((t, i) => ({ ...t, id: uniqueIds[i] }));
+			const tasksWithUniqueIds = tasks.map((t, i) => ({ ...t, uniqueId: uniqueIds[i] }));
 
 			const availableSkills = [...(this.session.skills ?? [])];
 			const contextFiles = this.session.contextFiles?.filter(
@@ -1113,20 +1118,19 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 
 			const runTask = async (task: (typeof tasksWithUniqueIds)[number], index: number) => {
 				if (!isIsolated) {
-					// Stamp the parent goal's current contractRevision onto the contract at spawn
-					// time so the subagent's baseline matches "what parent knew at this moment".
-					// Future parent pivots that bump revision past this baseline will be detected
-					// as stale by `enforceContractFreshness`.
-					const parentGoalRev = this.session.getGoalModeState?.()?.goal?.contractRevision;
-					// Bound the child contract by the parent objective's scope so a delegated
-					// subagent can never exceed the parent's blast radius (PR4): parent denials
-					// propagate into the child, and a child without its own allowlist inherits
-					// the parent's.
-					const parentObjectiveScope = this.session.getGoalModeState?.()?.goal?.scopeGuard;
+					const parentMissionRev = activeMission?.contractRevision ?? activeMission?.plan?.revision ?? 0;
+					const parentMissionScope = toContractMissionScope(activeMission?.scopeGuard);
+					const missionRunner = activeMission
+						? new MissionTaskRunner({ missionId: activeMission.id, taskId: task.id })
+						: undefined;
 					const stampedContract = task.contract
 						? stampContractRevision(
-								deriveContractScopeFromParent(task.contract, parentObjectiveScope),
-								parentGoalRev,
+								missionRunner
+									? missionRunner.bindContract(
+											deriveContractScopeFromParent(task.contract, parentMissionScope),
+										)
+									: deriveContractScopeFromParent(task.contract, parentMissionScope),
+								parentMissionRev,
 							)
 						: undefined;
 					// V3 telemetry: record every subagent spawn, with/without contract. This is the
@@ -1142,7 +1146,8 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 						context: sharedContext,
 						description: task.description,
 						index,
-						id: task.id,
+						id: task.uniqueId,
+						taskId: task.id,
 						taskDepth,
 						modelOverride,
 						parentActiveModelPattern,
@@ -1183,16 +1188,11 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 					// `logger.info("subagent.contract.verdict", …)` so telemetry consumers can
 					// observe it.
 					if (stampedContract) {
-						recordTaskMissionContract(
-							this.session.getGoalModeState?.()?.goal?.objective,
-							stampedContract,
-							undefined,
-							{
-								taskId: task.id,
-								sessionFile,
-								missionId: this.session.getGoalModeState?.()?.goal?.missionId,
-							},
-						);
+						recordTaskMissionContract(activeMission?.objective, stampedContract, undefined, {
+							taskId: task.id,
+							sessionFile,
+							missionId: activeMission?.id,
+						});
 						const cwdBefore = new Set(await snapshotGitChangedFiles(this.session.cwd));
 						const cwdBeforeHash = await snapshotDirtyFilesWithHash(this.session.cwd);
 						let lastSingleResult: SingleResult | undefined;
@@ -1201,11 +1201,19 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 							contract: stampedContract,
 							baseAssignment,
 							runOnce: async ({ composedAssignment }) => {
-								const result = await runSubprocess({
-									...baseSubprocessOptions,
-									task: renderSubagentUserPrompt(composedAssignment, simpleMode),
-									assignment: composedAssignment,
-								});
+								const result = missionRunner
+									? (
+											await missionRunner.run({
+												...baseSubprocessOptions,
+												task: renderSubagentUserPrompt(composedAssignment, simpleMode),
+												assignment: composedAssignment,
+											})
+										).result
+									: await runSubprocess({
+											...baseSubprocessOptions,
+											task: renderSubagentUserPrompt(composedAssignment, simpleMode),
+											assignment: composedAssignment,
+										});
 								lastSingleResult = result;
 								const cwdAfter = await snapshotGitChangedFiles(this.session.cwd);
 								const cwdAfterHash = await snapshotDirtyFilesWithHash(this.session.cwd);
@@ -1251,8 +1259,8 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 							});
 							shouldFailTask = normalizedVerdict === "fail" || remediationAction === "block";
 							const checkpoint = recordTaskAttemptCheckpoint({
-								goalObjective: this.session.getGoalModeState?.()?.goal?.objective,
-								missionId: this.session.getGoalModeState?.()?.goal?.missionId,
+								goalObjective: activeMission?.objective,
+								missionId: activeMission?.id,
 								taskId: task.id,
 								agent: effectiveAgent.name,
 								role: stampedContract.role,
@@ -1286,11 +1294,19 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 						return lastSingleResult;
 					}
 
-					return runSubprocess({
-						...baseSubprocessOptions,
-						task: renderSubagentUserPrompt(task.assignment, simpleMode),
-						assignment: task.assignment.trim(),
-					});
+					return missionRunner
+						? (
+								await missionRunner.run({
+									...baseSubprocessOptions,
+									task: renderSubagentUserPrompt(task.assignment, simpleMode),
+									assignment: task.assignment.trim(),
+								})
+							).result
+						: runSubprocess({
+								...baseSubprocessOptions,
+								task: renderSubagentUserPrompt(task.assignment, simpleMode),
+								assignment: task.assignment.trim(),
+							});
 				}
 
 				const taskStart = Date.now();
@@ -1301,19 +1317,22 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 					}
 					const taskBaseline = structuredClone(baseline);
 
-					isolationHandle = await ensureIsolation(repoRoot, task.id, preferredIsolationBackend);
+					isolationHandle = await ensureIsolation(repoRoot, task.uniqueId, preferredIsolationBackend);
 					const isolationDir = isolationHandle.mergedDir;
 
-					const parentGoalRev = this.session.getGoalModeState?.()?.goal?.contractRevision;
-					// Bound the child contract by the parent objective's scope so a delegated
-					// subagent can never exceed the parent's blast radius (PR4): parent denials
-					// propagate into the child, and a child without its own allowlist inherits
-					// the parent's.
-					const parentObjectiveScope = this.session.getGoalModeState?.()?.goal?.scopeGuard;
+					const parentMissionRev = activeMission?.contractRevision ?? activeMission?.plan?.revision ?? 0;
+					const parentMissionScope = toContractMissionScope(activeMission?.scopeGuard);
+					const missionRunner = activeMission
+						? new MissionTaskRunner({ missionId: activeMission.id, taskId: task.id })
+						: undefined;
 					const stampedContract = task.contract
 						? stampContractRevision(
-								deriveContractScopeFromParent(task.contract, parentObjectiveScope),
-								parentGoalRev,
+								missionRunner
+									? missionRunner.bindContract(
+											deriveContractScopeFromParent(task.contract, parentMissionScope),
+										)
+									: deriveContractScopeFromParent(task.contract, parentMissionScope),
+								parentMissionRev,
 							)
 						: undefined;
 					this.session.getV3Telemetry?.()?.recordSubagentSpawn(!!stampedContract);
@@ -1325,7 +1344,8 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 						context: sharedContext,
 						description: task.description,
 						index,
-						id: task.id,
+						id: task.uniqueId,
+						taskId: task.id,
 						taskDepth,
 						modelOverride,
 						parentActiveModelPattern,
@@ -1361,16 +1381,11 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 
 					let result: SingleResult;
 					if (stampedContract) {
-						recordTaskMissionContract(
-							this.session.getGoalModeState?.()?.goal?.objective,
-							stampedContract,
-							undefined,
-							{
-								taskId: task.id,
-								sessionFile,
-								missionId: this.session.getGoalModeState?.()?.goal?.missionId,
-							},
-						);
+						recordTaskMissionContract(activeMission?.objective, stampedContract, undefined, {
+							taskId: task.id,
+							sessionFile,
+							missionId: activeMission?.id,
+						});
 						const gitBefore = new Set(await snapshotGitChangedFiles(isolationDir));
 						const dirtyBefore = await snapshotDirtyFilesWithHash(isolationDir);
 						const baseAssignment = task.assignment.trim();
@@ -1379,11 +1394,19 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 							contract: stampedContract,
 							baseAssignment,
 							runOnce: async ({ composedAssignment }) => {
-								const attemptResult = await runSubprocess({
-									...baseSubprocessOptions,
-									task: renderSubagentUserPrompt(composedAssignment, simpleMode),
-									assignment: composedAssignment,
-								});
+								const attemptResult = missionRunner
+									? (
+											await missionRunner.run({
+												...baseSubprocessOptions,
+												task: renderSubagentUserPrompt(composedAssignment, simpleMode),
+												assignment: composedAssignment,
+											})
+										).result
+									: await runSubprocess({
+											...baseSubprocessOptions,
+											task: renderSubagentUserPrompt(composedAssignment, simpleMode),
+											assignment: composedAssignment,
+										});
 								lastSingleResult = attemptResult;
 								const gitAfter = await snapshotGitChangedFiles(isolationDir);
 								const dirtyAfter = await snapshotDirtyFilesWithHash(isolationDir);
@@ -1429,8 +1452,8 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 							});
 							const shouldFailTask = normalizedVerdict === "fail" || remediationAction === "block";
 							const checkpoint = recordTaskAttemptCheckpoint({
-								goalObjective: this.session.getGoalModeState?.()?.goal?.objective,
-								missionId: this.session.getGoalModeState?.()?.goal?.missionId,
+								goalObjective: activeMission?.objective,
+								missionId: activeMission?.id,
 								taskId: task.id,
 								agent: effectiveAgent.name,
 								role: stampedContract.role,
@@ -1459,11 +1482,19 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 							}
 						}
 					} else {
-						result = await runSubprocess({
-							...baseSubprocessOptions,
-							task: renderSubagentUserPrompt(task.assignment, simpleMode),
-							assignment: task.assignment.trim(),
-						});
+						result = missionRunner
+							? (
+									await missionRunner.run({
+										...baseSubprocessOptions,
+										task: renderSubagentUserPrompt(task.assignment, simpleMode),
+										assignment: task.assignment.trim(),
+									})
+								).result
+							: await runSubprocess({
+									...baseSubprocessOptions,
+									task: renderSubagentUserPrompt(task.assignment, simpleMode),
+									assignment: task.assignment.trim(),
+								});
 					}
 					if (mergeMode === "branch" && result.exitCode === 0) {
 						try {
@@ -1587,19 +1618,22 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 				}
 			}
 
-			// Subagent usage rollup into parent goal: subagents run under their own session
+			// Subagent usage rollup into active mission / parent goal: subagents run under their own session
 			// and never trigger the parent's per-turn flush. Without this hop, a 5-task fan-out
-			// that burns 30K tokens wouldn't dent the parent's goal budget — making budget
-			// enforcement meaningless under delegation. Uses goalTokenDelta semantics
+			// that burns 30K tokens wouldn't dent the parent's delegation budget.
 			// (input + cacheWrite + output, cacheRead excluded as it's reused prefix).
 			if (hasAggregatedUsage) {
-				const goalRuntime = this.session.getGoalRuntime?.();
-				const goalState = this.session.getGoalModeState?.();
-				if (goalRuntime && goalState?.enabled && goalState.goal) {
-					const delta =
-						(aggregatedUsage.input ?? 0) + (aggregatedUsage.cacheWrite ?? 0) + (aggregatedUsage.output ?? 0);
-					if (delta > 0) {
-						await goalRuntime.addExternalUsage(delta);
+				const delta =
+					(aggregatedUsage.input ?? 0) + (aggregatedUsage.cacheWrite ?? 0) + (aggregatedUsage.output ?? 0);
+				if (delta > 0) {
+					if (activeMission) {
+						this.session.missionControl?.recordTaskUsage?.(activeMission.id, delta);
+					} else {
+						const goalRuntime = this.session.getGoalRuntime?.();
+						const goalState = this.session.getGoalModeState?.();
+						if (goalRuntime && goalState?.enabled && goalState.goal) {
+							await goalRuntime.addExternalUsage(delta);
+						}
 					}
 				}
 			}
@@ -1840,4 +1874,11 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 			};
 		}
 	}
+}
+
+function toContractMissionScope(
+	scope: { allowedPaths: string[]; deniedPaths: string[] } | undefined,
+): MissionScopeForContract | undefined {
+	if (!scope) return undefined;
+	return { include: scope.allowedPaths, exclude: scope.deniedPaths };
 }

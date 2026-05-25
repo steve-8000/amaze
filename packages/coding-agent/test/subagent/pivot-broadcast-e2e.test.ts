@@ -10,7 +10,7 @@
  *   2. `renderGoalBlock` exposes the revision as `contract-revision="N"` attribute, so
  *      subagents reading the parent goal block in their DYNAMIC_TAIL observe it.
  *   3. `isSubagentContractStale(contract, parentRevision)` detects when a subagent's
- *      cached `parentContractRevision` baseline is older than the live parent revision.
+ *      cached `parentMissionRev` baseline is older than the live parent revision.
  *   4. The next prompt rebuild after the bump renders the new revision into DYNAMIC_TAIL
  *      — proving "next-turn propagation" without a separate back-channel.
  *
@@ -144,7 +144,7 @@ describe("V3 Phase 3 — pivot broadcast E2E", () => {
 	it("isSubagentContractStale: fresh when revisions match, stale when parent has advanced", () => {
 		const contract: SubagentContract = {
 			role: "refactor-applier",
-			parentContractRevision: 3,
+			parentMissionRev: 3,
 			scope: { include: [], exclude: [] },
 			successCriteria: [],
 			escalation: { onUncertainty: "ask-parent", budgetCap: 1000 },
@@ -164,16 +164,16 @@ describe("V3 Phase 3 — pivot broadcast E2E", () => {
 		expect(isSubagentContractStale(contract, 99)).toBe(false);
 	});
 
-	it("renderSubagentContract surfaces parent-contract-revision when set (subagent self-check)", () => {
+	it("renderSubagentContract surfaces parent-mission-rev when set (subagent self-check)", () => {
 		const contract: SubagentContract = {
 			role: "refactor-applier",
-			parentContractRevision: 4,
+			parentMissionRev: 4,
 			scope: { include: [], exclude: [] },
 			successCriteria: [],
 			escalation: { onUncertainty: "ask-parent", budgetCap: 25000 },
 		};
 		const rendered = renderSubagentContract(contract);
-		expect(rendered).toContain(`parent-contract-revision="4"`);
+		expect(rendered).toContain(`parent-mission-rev="4"`);
 		expect(rendered).toContain(`role="refactor-applier"`);
 	});
 
@@ -187,7 +187,7 @@ describe("V3 Phase 3 — pivot broadcast E2E", () => {
 		// Subagent was issued a contract under revision 1.
 		const subagentContract: SubagentContract = {
 			role: "refactor-applier",
-			parentContractRevision: 1,
+			parentMissionRev: 1,
 			scope: { include: ["src/**"], exclude: [] },
 			successCriteria: [],
 			escalation: { onUncertainty: "ask-parent", budgetCap: 25000 },

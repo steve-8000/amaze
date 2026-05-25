@@ -47,6 +47,7 @@ export interface MissionPlanStep {
 export interface MissionPlan {
 	steps: MissionPlanStep[];
 	rationale?: string;
+	revision?: number;
 }
 
 /**
@@ -61,6 +62,7 @@ export type { MissionTask, MissionTaskStatus };
  */
 export interface MissionVerification {
 	status: "pass" | "fail" | "uncertain" | "force";
+	verdict?: "pass" | "fail" | "pending";
 	summary: string;
 	failedCount?: number;
 	uncertainCount?: number;
@@ -97,10 +99,13 @@ export interface Mission {
 	scopeGuard?: MissionScopeGuard;
 	budget: MissionBudget;
 	contextBudget: MissionContextBudget;
+	contractRevision?: number;
 	plan?: MissionPlan;
 	tasks: MissionTask[];
 	evidenceRefs: string[];
 	decisionId?: string;
+	regressionContractId?: string;
+	proposalId?: string;
 	verification?: MissionVerification;
 	rollback?: MissionRollback;
 	outcome?: MissionOutcome;

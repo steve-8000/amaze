@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import type { AcceptanceCriterion } from "../../src/mission/core/acceptance-criteria";
+import type { Mission } from "../../src/mission/core/mission";
 import type { MissionInput } from "../../src/mission/core/mission-input";
 import type { MissionOutcome } from "../../src/mission/core/mission-outcome";
 import {
@@ -7,6 +8,11 @@ import {
 	MissionRuntimeImpl,
 	missionTokenDelta,
 } from "../../src/mission/core/mission-runtime";
+import {
+	type DispatchContext,
+	MissionTaskDispatcher,
+	type MissionTaskDispatchResult,
+} from "../../src/mission/core/mission-task-dispatcher";
 import { MissionEventBus } from "../../src/mission/event-bus";
 import type { MissionEvent } from "../../src/mission/events";
 import { MissionStore } from "../../src/mission/store";
@@ -14,13 +20,25 @@ import { MissionStore } from "../../src/mission/store";
 const runtimes: MissionRuntimeImpl[] = [];
 const stores: MissionStore[] = [];
 
-function createRuntime(): { runtime: MissionRuntimeImpl; bus: MissionEventBus; events: MissionEvent[] } {
+class CompletingDispatcher extends MissionTaskDispatcher {
+	override async run(tasks: Mission["tasks"], _ctx: DispatchContext): Promise<MissionTaskDispatchResult> {
+		return { completedTaskIds: tasks.map(task => task.id), failedTaskIds: [], blocked: false };
+	}
+}
+
+const completingDispatcher = new CompletingDispatcher();
+
+function createRuntime(options: ConstructorParameters<typeof MissionRuntimeImpl>[0] = {}): {
+	runtime: MissionRuntimeImpl;
+	bus: MissionEventBus;
+	events: MissionEvent[];
+} {
 	const bus = new MissionEventBus();
 	const events: MissionEvent[] = [];
 	bus.subscribe(e => events.push(e));
 	const store = new MissionStore(":memory:", bus);
 	stores.push(store);
-	const runtime = new MissionRuntimeImpl({ store, eventBus: bus, now: () => Date.now() });
+	const runtime = new MissionRuntimeImpl({ store, eventBus: bus, now: () => Date.now(), ...options });
 	runtimes.push(runtime);
 	return { runtime, bus, events };
 }
@@ -70,7 +88,7 @@ describe("missionTokenDelta", () => {
 
 describe("MissionRuntime lifecycle", () => {
 	test("full lifecycle create -> classify -> plan -> execute -> verify -> complete", async () => {
-		const { runtime, events } = createRuntime();
+		const { runtime, events } = createRuntime({ dispatcher: completingDispatcher });
 		const mission = await runtime.create(baseInput());
 		expect(mission.lifecycle).toBe("created");
 
@@ -116,7 +134,7 @@ describe("MissionRuntime lifecycle", () => {
 	});
 
 	test("execute respects taskIds subset", async () => {
-		const { runtime } = createRuntime();
+		const { runtime } = createRuntime({ dispatcher: completingDispatcher });
 		const mission = await runtime.create(baseInput());
 		const got = await runtime.get(mission.id);
 		if (got)

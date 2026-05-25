@@ -1134,6 +1134,7 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 			// Mission scope: contract > mission > goal (see subagent/mutation-scope.ts).
 			getActiveMissionScope: () => session?.getActiveMissionScope(),
 			getActiveMission: () => session?.getActiveMission(),
+			missionControl: session?.missionControl,
 			getV3Telemetry: () => session?.v3Telemetry,
 			getClientBridge: () => session?.clientBridge,
 			getCompactContext: () => session.formatCompactContext(),

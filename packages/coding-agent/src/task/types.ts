@@ -101,7 +101,7 @@ const subagentAcceptanceCriterionSchema = z.object({
 
 export const subagentContractSchema = z.object({
 	role: z.string().describe("verb-noun role label, e.g. refactor-applier"),
-	parentContractRevision: z.number().int().nonnegative().optional(),
+	parentMissionRev: z.number().int().nonnegative().optional(),
 	scope: z.object({
 		include: z.array(z.string()),
 		exclude: z.array(z.string()),

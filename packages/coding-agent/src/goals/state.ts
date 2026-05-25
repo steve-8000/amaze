@@ -67,7 +67,7 @@ export interface Goal {
 	 * Monotonic version counter for the goal's contract surface (designAnswers, acceptanceCriteria,
 	 * scopeGuard). Bumped by `updateGoal` whenever any of those mutate. Subagents observe this via
 	 * the rendered goal block in DYNAMIC_TAIL and can detect that their cached contract is stale —
-	 * see `SubagentContract.parentContractRevision` and `isSubagentContractStale`.
+	 * see `SubagentContract.parentMissionRev` and `isSubagentContractStale`.
 	 *
 	 * Starts undefined (= revision 0 implicit); first relevant update bumps to 1.
 	 */

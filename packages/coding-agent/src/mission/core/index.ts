@@ -1,4 +1,5 @@
 export type { AcceptanceCriterion } from "./acceptance-criteria";
+export { LIFECYCLE_TEMPLATES, type MissionLifecycleTemplate, templateFor } from "./lifecycle-template";
 export {
 	MISSION_LIFECYCLE_STATES,
 	type Mission,
@@ -31,3 +32,4 @@ export type {
 } from "./mission-runtime.iface";
 export type { MissionScopeGuard } from "./mission-scope";
 export type { MissionTaskToolPolicy } from "./mission-task";
+export { type DispatchContext, MissionTaskDispatcher, type MissionTaskDispatchResult } from "./mission-task-dispatcher";

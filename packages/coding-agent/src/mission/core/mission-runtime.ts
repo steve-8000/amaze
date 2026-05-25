@@ -4,6 +4,7 @@ import { defaultMissionClassifier, toCoreRiskLevel } from "../policy";
 import { MissionStore } from "../store";
 import type { MissionState as LegacyMissionState } from "../types";
 import type { AcceptanceCriterion } from "./acceptance-criteria";
+import { templateFor } from "./lifecycle-template";
 import type {
 	Mission,
 	MissionLifecycleState,
@@ -29,6 +30,7 @@ import type {
 	MissionVerifyOptions,
 	MissionVerifyResult,
 } from "./mission-runtime.iface";
+import { MissionTaskDispatcher } from "./mission-task-dispatcher";
 
 const MAX_TITLE_LENGTH = 4_000;
 const DEFAULT_TOKEN_BUDGET = 0;
@@ -66,12 +68,13 @@ export interface MissionTokenAccountInput {
 export class MissionAcceptanceFailureError extends Error {
 	readonly verification: MissionVerification;
 	readonly failedCriteria: AcceptanceCriterion[];
-	constructor(verification: MissionVerification, failedCriteria: AcceptanceCriterion[]) {
+	constructor(verification: MissionVerification, failedCriteria: AcceptanceCriterion[], message?: string) {
 		const summary = failedCriteria.map(c => `- [${c.id}] ${c.description}`).join("\n");
 		super(
-			`Mission acceptance verification blocked completion: ${verification.failedCount ?? failedCriteria.length} of ${
-				verification.failedCount ?? 0
-			} criteria failed.\n${summary}\n\nResolve the failing criteria before completing the mission, or complete with force.`,
+			message ??
+				`Mission acceptance verification blocked completion: ${verification.failedCount ?? failedCriteria.length} of ${
+					verification.failedCount ?? 0
+				} criteria failed.\n${summary}\n\nResolve the failing criteria before completing the mission, or complete with force.`,
 		);
 		this.name = "MissionAcceptanceFailureError";
 		this.verification = verification;
@@ -146,6 +149,7 @@ export type MissionRuntimeImplOptions = {
 	dbPath?: string;
 	eventBus?: MissionEventBus;
 	now?: () => number;
+	dispatcher?: MissionTaskDispatcher;
 };
 
 /**
@@ -169,6 +173,7 @@ export class MissionRuntimeImpl implements MissionRuntime {
 	readonly #missions = new Map<string, Mission>();
 	readonly #runtimeEvents: MissionRuntimeEvent[] = [];
 	readonly #subscribers = new Set<(event: MissionRuntimeEvent) => void>();
+	readonly #dispatcher: MissionTaskDispatcher | undefined;
 
 	constructor(options: MissionRuntimeImplOptions = {}) {
 		if (options.store) {
@@ -180,6 +185,7 @@ export class MissionRuntimeImpl implements MissionRuntime {
 		}
 		this.#bus = options.eventBus;
 		this.#now = options.now ?? (() => Date.now());
+		this.#dispatcher = options.dispatcher;
 	}
 
 	close(): void {
@@ -320,24 +326,47 @@ export class MissionRuntimeImpl implements MissionRuntime {
 	async execute(missionId: string, options: MissionExecuteOptions = {}): Promise<MissionExecuteResult> {
 		const mission = this.#require(missionId);
 		this.#advance(mission, "executing");
+		const dispatcher = this.#dispatcher ?? new MissionTaskDispatcher();
 		const targetIds = options.taskIds ? new Set(options.taskIds) : undefined;
-		const completedTaskIds: string[] = [];
-		const failedTaskIds: string[] = [];
-		for (const task of mission.tasks) {
-			if (targetIds && !targetIds.has(task.id)) continue;
-			if (options.signal?.aborted) break;
-			task.status = "completed";
-			completedTaskIds.push(task.id);
+		const tasks = mission.tasks.filter(t => !targetIds || targetIds.has(t.id));
+		const result = await dispatcher.run(tasks, {
+			scopeGuard: mission.scopeGuard,
+			evidenceRefs: mission.evidenceRefs,
+			recordAttempt: (taskId, verdict, note) => {
+				this.#emit({
+					type: "mission.task.attempt",
+					missionId,
+					taskId,
+					verdict,
+					note,
+					ts: this.#now(),
+				});
+			},
+		});
+		for (const id of result.completedTaskIds) {
+			const task = mission.tasks.find(t => t.id === id);
+			if (task) task.status = "completed";
 			this.#emit({
 				type: "mission.task.completed",
 				missionId: mission.id,
-				taskId: task.id,
+				taskId: id,
 				status: "completed",
 				ts: this.#now(),
 			});
 		}
+		for (const id of result.failedTaskIds) {
+			const task = mission.tasks.find(t => t.id === id);
+			if (task) task.status = "failed";
+			this.#emit({
+				type: "mission.task.failed",
+				missionId: mission.id,
+				taskId: id,
+				status: "failed",
+				ts: this.#now(),
+			});
+		}
 		mission.updatedAt = this.#now();
-		return { completedTaskIds, failedTaskIds, blocked: false };
+		return result;
 	}
 
 	async verify(missionId: string, options: MissionVerifyOptions = {}): Promise<MissionVerifyResult> {
@@ -373,10 +402,22 @@ export class MissionRuntimeImpl implements MissionRuntime {
 	#evaluateAcceptance(mission: Mission, force: boolean): MissionVerification {
 		const criteria = mission.acceptanceCriteria;
 		if (force) {
-			return { status: "force", summary: "Mission verification forced.", failedCount: 0, uncertainCount: 0 };
+			return {
+				status: "force",
+				verdict: "pass",
+				summary: "Mission verification forced.",
+				failedCount: 0,
+				uncertainCount: 0,
+			};
 		}
 		if (criteria.length === 0) {
-			return { status: "pass", summary: "No acceptance criteria.", failedCount: 0, uncertainCount: 0 };
+			return {
+				status: "pass",
+				verdict: "pass",
+				summary: "No acceptance criteria.",
+				failedCount: 0,
+				uncertainCount: 0,
+			};
 		}
 		const failed: AcceptanceCriterion[] = [];
 		const uncertain: AcceptanceCriterion[] = [];
@@ -391,6 +432,7 @@ export class MissionRuntimeImpl implements MissionRuntime {
 			failedCount > 0 ? "fail" : uncertainCount > 0 ? "uncertain" : "pass";
 		return {
 			status,
+			verdict: status === "pass" ? "pass" : status === "fail" ? "fail" : "pending",
 			summary: `${failedCount} failed; ${uncertainCount} uncertain; ${
 				criteria.length - failedCount - uncertainCount
 			} passed.`,
@@ -401,10 +443,32 @@ export class MissionRuntimeImpl implements MissionRuntime {
 
 	async complete(missionId: string, options: MissionCompleteOptions): Promise<Mission> {
 		const mission = this.#require(missionId);
+		const template = templateFor(mission.intent ?? "conversation");
+		const missing: string[] = [];
+		if (template.requireDecisionRecord && !mission.decisionId) missing.push("decisionId");
+		if (template.requireRegressionContract && !mission.regressionContractId) missing.push("regressionContractId");
+		if (
+			template.requireVerification &&
+			(mission.verification?.verdict ?? mission.verification?.status ?? "pending") !== "pass"
+		) {
+			missing.push("verification.verdict=pass");
+		}
+		if (missing.length) {
+			throw new MissionAcceptanceFailureError(
+				{
+					status: "fail",
+					verdict: "fail",
+					summary: `Mission "${mission.id}" cannot complete: missing ${missing.join(", ")}`,
+					failedCount: missing.length,
+					uncertainCount: 0,
+				},
+				[],
+				`Mission "${mission.id}" cannot complete: missing ${missing.join(", ")}`,
+			);
+		}
 		const force = mission.verification?.status === "force";
-		// Re-run acceptance unless verify() already produced a non-force verdict this pass.
 		let verification = mission.verification;
-		if (!force) {
+		if (!force && !verification) {
 			verification = this.#evaluateAcceptance(mission, false);
 			mission.verification = verification;
 			if (verification.status === "fail") {

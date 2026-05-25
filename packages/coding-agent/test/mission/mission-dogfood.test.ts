@@ -142,7 +142,7 @@ describe("mission control dogfood", () => {
 			missions.recordContract({
 				missionId: mission.id,
 				role: "dogfood-worker",
-				parentContractRevision: 1,
+				parentMissionRev: 1,
 				include: ["packages/coding-agent/**"],
 				exclude: [],
 				successCriteria: ["wave8 dogfood passes"],
