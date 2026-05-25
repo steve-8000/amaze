@@ -2,9 +2,9 @@ import { describe, expect, it, vi } from "bun:test";
 import { validateToolArguments } from "@amaze/ai";
 import { convertOpenAICodexResponsesTools } from "@amaze/ai/providers/openai-codex-responses";
 import type { Model, ToolCall } from "@amaze/ai/types";
-import { completionBudgetReport, ObjectiveRuntimeImpl } from "@amaze/coding-agent/goals/runtime";
 import type { Goal, GoalModeState, GoalTokenUsage } from "@amaze/coding-agent/goals/state";
 import { GoalTool } from "@amaze/coding-agent/goals/tools/goal-tool";
+import { completionBudgetReport, ObjectiveRuntimeImpl } from "@amaze/coding-agent/mission/core/objective-runtime";
 import type { ToolSession } from "@amaze/coding-agent/tools";
 
 function createUsage(overrides: Partial<GoalTokenUsage> = {}): GoalTokenUsage {

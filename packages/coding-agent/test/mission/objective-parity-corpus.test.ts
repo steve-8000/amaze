@@ -10,13 +10,42 @@
  *   3. Goal status (6) ↔ Mission lifecycle (12) mapping (compat bridge).
  */
 import { describe, expect, it } from "bun:test";
-import { goalTokenDelta, renderGoalBlock } from "../../src/goals/runtime";
 import type { Goal, GoalStatus, GoalTokenUsage } from "../../src/goals/state";
 import { MISSION_LIFECYCLE_STATES, type MissionLifecycleState } from "../../src/mission/core";
-import { goalStatusToLifecycle, lifecycleToGoalStatus } from "../../src/mission/core/compat";
+import { goalTokenDelta, renderGoalBlock } from "../../src/mission/core/objective-runtime";
 
 function usage(o: Partial<GoalTokenUsage> = {}): GoalTokenUsage {
 	return { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, ...o };
+}
+
+function goalStatusToLifecycle(status: GoalStatus): MissionLifecycleState {
+	switch (status) {
+		case "active":
+			return "executing";
+		case "paused":
+		case "budget-limited":
+		case "blocked":
+			return "blocked";
+		case "complete":
+			return "completed";
+		case "dropped":
+			return "cancelled";
+	}
+}
+
+function lifecycleToGoalStatus(lifecycle: MissionLifecycleState): GoalStatus | undefined {
+	switch (lifecycle) {
+		case "executing":
+			return "active";
+		case "blocked":
+			return "blocked";
+		case "completed":
+			return "complete";
+		case "cancelled":
+			return "dropped";
+		default:
+			return undefined;
+	}
 }
 
 function goal(o: Partial<Goal> = {}): Goal {

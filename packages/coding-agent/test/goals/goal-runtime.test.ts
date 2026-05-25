@@ -1,14 +1,14 @@
 import { describe, expect, it } from "bun:test";
+import type { Goal, GoalModeState, GoalRuntimeEvent, GoalTokenUsage } from "@amaze/coding-agent/goals/state";
 import {
 	escapeXmlText,
-	ObjectiveRuntimeImpl,
 	type GoalRuntimeHost,
 	goalTokenDelta,
+	ObjectiveRuntimeImpl,
 	renderGoalBlock,
 	renderGoalPrompt,
 	renderUntrustedObjective,
-} from "@amaze/coding-agent/goals/runtime";
-import type { Goal, GoalModeState, GoalRuntimeEvent, GoalTokenUsage } from "@amaze/coding-agent/goals/state";
+} from "@amaze/coding-agent/mission/core/objective-runtime";
 
 function createUsage(overrides: Partial<GoalTokenUsage> = {}): GoalTokenUsage {
 	return {

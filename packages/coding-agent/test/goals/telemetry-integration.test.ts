@@ -16,9 +16,9 @@
 
 import { afterEach, describe, expect, it } from "bun:test";
 import { resetSettingsForTest, Settings } from "@amaze/coding-agent/config/settings";
-import { ObjectiveRuntimeImpl, type GoalRuntimeHost } from "@amaze/coding-agent/goals/runtime";
 import type { Goal, GoalModeState, GoalTokenUsage } from "@amaze/coding-agent/goals/state";
 import { formatV3Stats, V3Telemetry } from "@amaze/coding-agent/goals/telemetry";
+import { type GoalRuntimeHost, ObjectiveRuntimeImpl } from "@amaze/coding-agent/mission/core/objective-runtime";
 
 function createHarness(state: GoalModeState | undefined): {
 	runtime: ObjectiveRuntimeImpl;

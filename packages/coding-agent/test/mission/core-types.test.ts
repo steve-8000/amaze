@@ -1,13 +1,74 @@
 import { describe, expect, test } from "bun:test";
 import {
 	type Mission as CoreMission,
-	coreMissionToLegacyPartial,
-	legacyMissionToCorePartial,
-	legacyStateToLifecycle,
-	lifecycleToLegacyState,
 	MISSION_LIFECYCLE_STATES,
+	type MissionLifecycleState,
 } from "../../src/mission/core";
 import type { ResearchCampaign as LegacyMission, MissionState } from "../../src/mission/types";
+
+function legacyStateToLifecycle(state: MissionState): MissionLifecycleState | undefined {
+	switch (state) {
+		case "researching":
+		case "critiquing":
+		case "executing":
+		case "verifying":
+		case "completed":
+		case "rolled_back":
+		case "blocked":
+		case "cancelled":
+			return state;
+		case "contracted":
+			return "contracting";
+		default:
+			return undefined;
+	}
+}
+
+function lifecycleToLegacyState(lifecycle: MissionLifecycleState): MissionState | undefined {
+	switch (lifecycle) {
+		case "researching":
+		case "critiquing":
+		case "executing":
+		case "verifying":
+		case "completed":
+		case "rolled_back":
+		case "blocked":
+		case "cancelled":
+			return lifecycle;
+		case "contracting":
+			return "contracted";
+		default:
+			return undefined;
+	}
+}
+
+function legacyMissionToCorePartial(legacy: LegacyMission): Partial<CoreMission> {
+	const partial: Partial<CoreMission> = {
+		id: legacy.id,
+		title: legacy.title,
+		riskLevel: legacy.riskLevel,
+		createdAt: legacy.createdAt,
+		updatedAt: legacy.updatedAt,
+	};
+	const lifecycle = legacyStateToLifecycle(legacy.state);
+	if (lifecycle !== undefined) partial.lifecycle = lifecycle;
+	if (legacy.decisionId !== null) partial.decisionId = legacy.decisionId;
+	return partial;
+}
+
+function coreMissionToLegacyPartial(core: CoreMission): Partial<LegacyMission> {
+	const partial: Partial<LegacyMission> = {
+		id: core.id,
+		title: core.title,
+		riskLevel: core.riskLevel,
+		decisionId: core.decisionId ?? null,
+		createdAt: core.createdAt,
+		updatedAt: core.updatedAt,
+	};
+	const state = lifecycleToLegacyState(core.lifecycle);
+	if (state !== undefined) partial.state = state;
+	return partial;
+}
 
 function coreMission(overrides: Partial<CoreMission> = {}): CoreMission {
 	return {

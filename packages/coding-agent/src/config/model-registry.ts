@@ -78,7 +78,16 @@ export const MODEL_ROLES: Record<ModelRole, ModelRoleInfo> = {
 	local_scout: { tag: "LOCAL", name: "Local Scout", color: "muted" },
 };
 
-export const MODEL_ROLE_IDS: ModelRole[] = ["default", "smol", "slow", "vision", "plan", "commit", "task", "local_scout"];
+export const MODEL_ROLE_IDS: ModelRole[] = [
+	"default",
+	"smol",
+	"slow",
+	"vision",
+	"plan",
+	"commit",
+	"task",
+	"local_scout",
+];
 
 /** Alias for ModelRoleInfo - used for both built-in and custom roles */
 export type RoleInfo = ModelRoleInfo;

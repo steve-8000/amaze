@@ -9,7 +9,6 @@
  */
 
 export * from "./agent-protocol";
-export * from "./amaze-protocol";
 export * from "./artifact-protocol";
 export * from "./issue-pr-protocol";
 export * from "./json-query";

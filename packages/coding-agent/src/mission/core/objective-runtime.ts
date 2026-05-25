@@ -1,13 +1,6 @@
 import { logger, prompt, Snowflake } from "@amaze/utils";
-import { settings } from "../config/settings";
-import { missionTokenDelta } from "../mission/core/mission-runtime";
-import { MissionStore, resolveMission } from "../mission/store";
-import type { ResearchCampaign } from "../mission/types";
-import type { EventBus as SessionEventBus } from "../observability";
-import goalBudgetLimitPrompt from "../prompts/goals/goal-budget-limit.md" with { type: "text" };
-import goalContinuationPrompt from "../prompts/goals/goal-continuation.md" with { type: "text" };
-import goalModeActivePrompt from "../prompts/goals/goal-mode-active.md" with { type: "text" };
-import type { Goal, GoalBudgetSteering, GoalModeState, GoalRuntimeEvent, GoalTokenUsage } from "./state";
+import { settings } from "../../config/settings";
+import type { Goal, GoalBudgetSteering, GoalModeState, GoalRuntimeEvent, GoalTokenUsage } from "../../goals/state";
 import {
 	type AcceptanceCriterion,
 	AcceptanceVerifier,
@@ -15,7 +8,14 @@ import {
 	summarize,
 	type VerificationContext,
 	type VerificationVerdict,
-} from "./verifier";
+} from "../../goals/verifier";
+import type { EventBus as SessionEventBus } from "../../observability";
+import goalBudgetLimitPrompt from "../../prompts/goals/goal-budget-limit.md" with { type: "text" };
+import goalContinuationPrompt from "../../prompts/goals/goal-continuation.md" with { type: "text" };
+import goalModeActivePrompt from "../../prompts/goals/goal-mode-active.md" with { type: "text" };
+import { MissionStore, resolveMission } from "../store";
+import type { ResearchCampaign } from "../types";
+import { missionTokenDelta } from "./mission-runtime";
 
 /**
  * Best-effort collection of changed files since the session started, for closing audit
@@ -439,6 +439,8 @@ export function renderMissionBlock(goal: Goal | null | undefined): string {
 	return `<mission ${attrs}>\n${body}\n</mission>`;
 }
 
+export const renderObjectiveBlock = renderGoalBlock;
+
 export function renderTrustedObjective(objective: string): string {
 	return renderUntrustedObjective(objective);
 }
@@ -487,7 +489,7 @@ export function completionBudgetReport(goal: Goal): string | null {
 
 const MAX_OBJECTIVE_LENGTH = 4_000;
 const GOAL_TOO_LONG_FILE_HINT =
-	"Put longer instructions in a file and refer to that file in the goal, for example: /goal follow the instructions in docs/goal.md.";
+	"Put longer instructions in a file and refer to that file in the goal, for example: /goal follow the instructions in a project file path outside the repository docs directory.";
 
 function validateObjective(value: string): string {
 	const objective = value.trim();
@@ -833,6 +835,10 @@ export class ObjectiveRuntimeImpl {
 		});
 	}
 
+	async createObjective(input: { objective: string; tokenBudget?: number }): Promise<GoalModeState> {
+		return await this.createGoal(input);
+	}
+
 	async resumeGoal(): Promise<GoalModeState> {
 		return await this.#withAccounting(async () => {
 			const state = this.#getStateClone();
@@ -848,6 +854,10 @@ export class ObjectiveRuntimeImpl {
 			await this.#commitState(state, { persist: "goal" });
 			return state;
 		});
+	}
+
+	async resumeObjective(): Promise<GoalModeState> {
+		return await this.resumeGoal();
 	}
 
 	async pauseGoal(): Promise<GoalModeState | undefined> {
@@ -867,6 +877,10 @@ export class ObjectiveRuntimeImpl {
 			await this.#commitState(state, { persist: "goal_paused" });
 			return state;
 		});
+	}
+
+	async pauseObjective(): Promise<GoalModeState | undefined> {
+		return await this.pauseGoal();
 	}
 
 	async dropGoal(): Promise<Goal | undefined> {
@@ -891,6 +905,10 @@ export class ObjectiveRuntimeImpl {
 			});
 			return dropped;
 		});
+	}
+
+	async dropObjective(): Promise<void> {
+		await this.dropGoal();
 	}
 
 	/**

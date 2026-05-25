@@ -1,3 +1,4 @@
+import type { GoalBudgetSteering, GoalModeState, GoalTokenUsage } from "../../goals/state";
 import type { RiskLevel } from "../../research/types";
 import type { Mission, MissionLifecycleState, MissionPlan, MissionVerification } from "./mission";
 import type { MissionInput } from "./mission-input";
@@ -89,6 +90,22 @@ export interface MissionRuntimeEvent {
 /** Listener disposer returned by {@link MissionRuntime.emit}/subscribe paths. */
 export type MissionEventUnsubscribe = () => void;
 
+export interface LiveObjectiveControl {
+	onTurnStart(turnId: string, baselineUsage: GoalTokenUsage): void;
+	onToolCompleted(toolName: string): Promise<void>;
+	onAgentEnd(options?: { turnCompleted?: boolean; currentUsage?: GoalTokenUsage }): Promise<void>;
+	flushUsage(steering: GoalBudgetSteering, currentUsage?: GoalTokenUsage): Promise<void>;
+	addExternalUsage(delta: number): Promise<void>;
+	buildActivePrompt(): string | undefined;
+}
+
+export interface InteractiveObjectiveLifecycle {
+	createObjective(input: { objective: string; tokenBudget?: number }): Promise<GoalModeState>;
+	resumeObjective(): Promise<GoalModeState>;
+	pauseObjective(): Promise<GoalModeState | undefined>;
+	dropObjective(): Promise<void>;
+}
+
 /**
  * The mission runtime contract. Implementations own state transitions; this
  * interface only describes the operations and their option/result shapes.
@@ -124,3 +141,5 @@ export interface MissionRuntime {
 	/** Fetch the current mission aggregate. */
 	get(missionId: string): Promise<Mission | undefined>;
 }
+
+export interface ObjectiveRuntime extends MissionRuntime, LiveObjectiveControl, InteractiveObjectiveLifecycle {}

@@ -16,7 +16,7 @@ src/
 ├── extensibility/       # extensions, hooks, custom tools/commands, plugins, skills
 ├── mcp/                 # MCP transport/manager/loader/tool bridge
 ├── lsp/                 # language server client/runtime integration
-├── internal-urls/       # protocol router + handlers (agent://, docs://, rule://, ...)
+├── internal-urls/       # protocol router + handlers (memory://, local://, agent://, artifact://, mcp://)
 ├── exec/ eval/ ssh/     # execution backends (shell, eval runtimes, ssh)
 ├── web/                 # search providers + domain scrapers
 ├── patch/               # edit/patch parser + applicator + diff utilities
@@ -643,7 +643,7 @@ MCP configs ──► MCPManager ──► connect/list tools ──► bridged 
 
 LSP feature calls ──► lsp/client.ts ──► JSON-RPC transport ──► language server process
 
-internal URL input (rule://, docs://, ...)
+internal URL input (memory://, local://, agent://, artifact://, mcp://)
                   │
                   ▼
           InternalUrlRouter
@@ -731,7 +731,7 @@ In short, `src/lsp/client.ts` is the transport/session substrate; higher-level L
 `src/internal-urls/index.ts` defines the public integration surface for this subsystem by exporting:
 
 - Router + core types: `InternalUrlRouter`, `InternalResource`, `InternalUrl`, `ProtocolHandler`
-- Protocol handlers (agent/artifact/docs/memory/plan/rule/skill)
+- Protocol handlers (`memory`, `local`, `agent`, `artifact`, `mcp`)
 - Query helpers (`applyQuery`, `parseQuery`, `pathToQuery`)
 
 This keeps URL protocol resolution centralized and pluggable while keeping protocol-specific logic in dedicated handler modules.
@@ -1108,14 +1108,12 @@ Use only script names that exist in `packages/coding-agent/package.json`:
   - `bun --cwd=packages/coding-agent run test`
 - Reformat prompt assets used by this package:
   - `bun --cwd=packages/coding-agent run format-prompts`
-- Regenerate docs index files for package docs:
-  - `bun --cwd=packages/coding-agent run generate-docs-index`
 - Regenerate template artifacts:
   - `bun --cwd=packages/coding-agent run generate-template`
 - Build compiled binary artifact (`dist/amaze`):
   - `bun --cwd=packages/coding-agent run build`
 
-`packages/coding-agent/README.md` intentionally delegates install/config/CLI docs to the monorepo root README (`../../README.md`) and keeps package-specific references to `CHANGELOG.md`, `docs/`, and `DEVELOPMENT.md`.
+`packages/coding-agent/README.md` intentionally delegates install/config/CLI docs to the monorepo root README (`../../README.md`) and keeps package-specific references to `CHANGELOG.md` and `DEVELOPMENT.md`.
 
 ### Playbook: add a built-in tool
 

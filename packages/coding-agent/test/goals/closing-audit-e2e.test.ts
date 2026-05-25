@@ -27,9 +27,13 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { resetSettingsForTest, Settings } from "@amaze/coding-agent/config/settings";
-import { GoalAcceptanceFailureError, ObjectiveRuntimeImpl, type GoalRuntimeHost } from "@amaze/coding-agent/goals/runtime";
 import type { Goal, GoalModeState, GoalRuntimeEvent, GoalTokenUsage } from "@amaze/coding-agent/goals/state";
 import type { AcceptanceCriterion } from "@amaze/coding-agent/goals/verifier";
+import {
+	GoalAcceptanceFailureError,
+	type GoalRuntimeHost,
+	ObjectiveRuntimeImpl,
+} from "@amaze/coding-agent/mission/core/objective-runtime";
 
 function createUsage(overrides: Partial<GoalTokenUsage> = {}): GoalTokenUsage {
 	return { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, ...overrides };

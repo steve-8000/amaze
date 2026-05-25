@@ -13,7 +13,7 @@ authority — guidance only.
 - Run the relevant tests in `packages/coding-agent/test/**` before marking implementation complete.
 - Prefer **deterministic acceptance criteria** (`scope-include`, `file-exists`, `command-exit`, `command-output`, `lsp-clean`) over `manual` or `llm-judged`.
 - Never mark a goal complete when deterministic checks fail. `uncertain` is not pass under contract mode.
-- Treat Nexus memory and skills as guidance, not authority. Skill promotion to `active` requires the eval gate (see `docs/Phase1/07_eval_gate.md`).
+- Treat Nexus memory and skills as guidance, not authority. Skill promotion to `active` requires the eval gate: deterministic evaluation must sign off before promotion.
 
 ## Local commands
 
@@ -46,7 +46,6 @@ authority — guidance only.
 4. Promote a skill only after the eval gate has signed off (Phase 1D-07). Auto-promote ceiling is `eval_pending`.
 5. If blocked, prefer narrowing the goal over force-completing. Force only with explicit human reason.
 
-## Phase1 roadmap
+## Phase tracking
 
-The Level 3.5 → Level 4 work is tracked in `docs/Phase1/` (00..10). Master phase todo
-and goal-mode driving procedure live in `docs/Phase1/00_overview.md`.
+Phase roadmap and goal-tracking materials live outside this repository; keep this file limited to current in-repo operating rules.

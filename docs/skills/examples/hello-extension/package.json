@@ -1,8 +1,0 @@
-{
-  "name": "hello-extension",
-  "version": "1.0.0",
-  "description": "Minimal amaze extension example",
-  "amaze": {
-    "extensions": ["./index.ts"]
-  }
-}

@@ -1,12 +1,11 @@
 /**
- * Internal URL router for internal protocols (agent://, artifact://, memory://, skill://, rule://, mcp://, amaze://, local://).
+ * Internal URL router for internal protocols (agent://, artifact://, memory://, skill://, rule://, mcp://, local://).
  *
  * One process-global router with one handler per scheme. Access via
  * `InternalUrlRouter.instance()`. Handlers are stateless; per-session and
  * shared state lives in `./state.ts`.
  */
 import { AgentProtocolHandler } from "./agent-protocol";
-import { AmazeProtocolHandler } from "./amaze-protocol";
 import { ArtifactProtocolHandler } from "./artifact-protocol";
 import { IssueProtocolHandler, PrProtocolHandler } from "./issue-pr-protocol";
 import { LocalProtocolHandler } from "./local-protocol";
@@ -23,7 +22,6 @@ export class InternalUrlRouter {
 	#handlers = new Map<string, ProtocolHandler>();
 
 	constructor() {
-		this.register(new AmazeProtocolHandler());
 		this.register(new AgentProtocolHandler());
 		this.register(new ArtifactProtocolHandler());
 		this.register(new MemoryProtocolHandler());

@@ -75,7 +75,6 @@
 ## [15.1.3] - 2026-05-17
 ### Breaking Changes
 
-- Renamed the embedded-documentation internal URL scheme from `pi://` to `amaze://`. `AmazeProtocolHandler` replaces `PiProtocolHandler`; update any external references accordingly.
 - Removed the `StringEnum` re-export from `@amaze/coding-agent`. Custom tools and extensions should use `z.enum([...])` directly via the injected `pi.zod`.
 - Replaced the `eval` tool's LARK-grammar `input` string with a structured `cells` array. Each cell is `{ language: "py" | "js", code, title?, timeout?, reset? }`. Removed the implicit/sniffed language path, the `*** Cell` / `*** End` / `*** Abort` markers, and the per-cell `t:<duration>` unit suffixes — `timeout` is now seconds (1-600).
 
@@ -3635,7 +3634,6 @@
 ### Added
 
 - Support for `docs://` internal URL protocol to access embedded documentation files (e.g., `docs://sdk.md`)
-- Added `generate-docs-index` npm script to automatically index and embed documentation files at build time
 - Support for executable tool files (.ts, .js, .sh, .bash, .py) in custom tools discovery alongside markdown files
 - Display streamed tool intent in working message during agent execution
 - Added `tools.intentTracing` setting to enable intent tracing, which asks the agent to describe the intent of each tool call before executing it

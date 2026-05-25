@@ -99,7 +99,6 @@ describe("readArgsTargetInternalUrl", () => {
 	it.each([
 		["skill://my-skill"],
 		["skill://my-skill/file.md"],
-		["amaze://docs/tools/read.md"],
 		["issue://123"],
 		["pr://can1357/amaze/456"],
 		["agent://abc"],

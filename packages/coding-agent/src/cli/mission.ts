@@ -466,7 +466,7 @@ function classifyEvidence(card: EvidenceCard, evidence: EvidenceCard[]): Evidenc
 
 function isSpeculativeEvidence(card: EvidenceCard): boolean {
 	const text = evidenceSearchText(card);
-	return card.sourceRef.includes("docs/agi.md") || text.includes("speculative") || text.includes("exploratory");
+	return text.includes("speculative") || text.includes("exploratory");
 }
 
 function evidenceSearchText(card: EvidenceCard): string {

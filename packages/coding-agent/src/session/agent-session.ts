@@ -132,7 +132,6 @@ import { ExtensionToolWrapper } from "../extensibility/extensions/wrapper";
 import type { HookCommandContext } from "../extensibility/hooks/types";
 import type { Skill, SkillWarning } from "../extensibility/skills";
 import { expandSlashCommand, type FileSlashCommand } from "../extensibility/slash-commands";
-import { ObjectiveRuntimeImpl, renderGoalBlock } from "../goals/runtime";
 import type { Goal, GoalModeState } from "../goals/state";
 import { type LocalProtocolOptions, resolveLocalUrlToPath } from "../internal-urls";
 import { createObjectiveLoopAnalyzer } from "../learning/analyzer";
@@ -146,7 +145,7 @@ import {
 	selectDiscoverableMCPToolNamesByServer,
 } from "../mcp/discoverable-tool-metadata";
 import { resolveMemoryBackend } from "../memory-backend";
-import { ObjectiveRuntimeAdapter } from "../mission/core/objective-runtime-adapter";
+import { ObjectiveRuntimeImpl, renderGoalBlock } from "../mission/core/objective-runtime";
 import { getCurrentThemeName, theme } from "../modes/theme/theme";
 import type { Unsubscribe } from "../observability/event-bus";
 import { emitPromptCacheEventIfPossible, type PromptCacheResponse } from "../observability/prompt-cache-emit";
@@ -806,7 +805,7 @@ export class AgentSession {
 	#planModeState: PlanModeState | undefined;
 	#goalModeState: GoalModeState | undefined;
 	#goalRuntime: ObjectiveRuntimeImpl;
-	#objectiveRuntime: ObjectiveRuntimeAdapter | undefined;
+	#objectiveRuntime: ObjectiveRuntimeImpl | undefined;
 	#selfImproveLoopUnsub: Unsubscribe | undefined;
 	#goalTurnCounter = 0;
 	/**
@@ -3860,16 +3859,9 @@ export class AgentSession {
 		return this.#goalRuntime;
 	}
 
-	/**
-	 * Canonical objective-runtime surface (consolidation PR5). Always returns the unified
-	 * {@link ObjectiveRuntime} live-control adapter over the {@link ObjectiveRuntimeImpl}
-	 * engine — the live hot path drives objectives through this. The flag-gated rollout is
-	 * complete; the adapter is pure delegation, so this is behaviorally identical to driving
-	 * the engine directly.
-	 */
-	get objectiveRuntime(): ObjectiveRuntimeAdapter {
+	get objectiveRuntime(): ObjectiveRuntimeImpl {
 		if (!this.#objectiveRuntime) {
-			this.#objectiveRuntime = new ObjectiveRuntimeAdapter(this.#goalRuntime);
+			this.#objectiveRuntime = this.#goalRuntime;
 		}
 		return this.#objectiveRuntime;
 	}

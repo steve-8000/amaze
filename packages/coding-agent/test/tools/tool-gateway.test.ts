@@ -1,17 +1,11 @@
 import { describe, expect, it } from "bun:test";
 import {
 	AllowAllPermissionGate,
-	classifyRisk,
 	DefaultTimeoutPolicy,
 	RISK_DEFAULT_TIMEOUT_MS,
 	ToolGateway,
 } from "@amaze/coding-agent/tools/gateway/index";
-import {
-	createLegacyDescriptors,
-	registerLegacyTools,
-	type ToolDescriptor,
-	ToolRegistry,
-} from "@amaze/coding-agent/tools/registry/index";
+import { type ToolDescriptor, ToolRegistry } from "@amaze/coding-agent/tools/registry/index";
 
 function descriptor(overrides: Partial<ToolDescriptor> & Pick<ToolDescriptor, "name">): ToolDescriptor {
 	return {
@@ -48,45 +42,6 @@ describe("ToolRegistry", () => {
 		const reg = new ToolRegistry();
 		reg.register(descriptor({ name: "dup" }));
 		expect(() => reg.register(descriptor({ name: "dup" }), { strict: true })).toThrow(/duplicate/);
-	});
-});
-
-describe("legacy registrations", () => {
-	it("registers read/write/bash/repo_search/gh/fetch as legacy descriptors", () => {
-		const reg = new ToolRegistry();
-		registerLegacyTools(reg);
-		const names = new Set(reg.names());
-		for (const expected of ["read", "write", "bash", "repo_search", "gh", "fetch"]) {
-			expect(names.has(expected)).toBe(true);
-			expect(reg.get(expected)?.toolClass).toBe("legacy");
-		}
-	});
-});
-
-describe("risk classification (§9.4)", () => {
-	const byName = Object.fromEntries(createLegacyDescriptors().map(d => [d.name, d]));
-
-	it("classifies pure read as LOW", () => {
-		expect(classifyRisk(byName.read)).toBe("LOW");
-		expect(classifyRisk(byName.repo_search)).toBe("LOW");
-	});
-
-	it("classifies workspace mutation as HIGH", () => {
-		expect(classifyRisk(byName.write)).toBe("HIGH");
-	});
-
-	it("classifies shell execution as CRITICAL", () => {
-		expect(classifyRisk(byName.bash)).toBe("CRITICAL");
-	});
-
-	it("classifies network read as MEDIUM", () => {
-		expect(classifyRisk(byName.fetch)).toBe("MEDIUM");
-		expect(classifyRisk(byName.gh)).toBe("MEDIUM");
-	});
-
-	it("escalates a declared level but never downgrades", () => {
-		// domain shell ⇒ CRITICAL even though declared LOW.
-		expect(classifyRisk(descriptor({ name: "x", domain: "shell", riskLevel: "LOW" }))).toBe("CRITICAL");
 	});
 });
 

@@ -15,8 +15,7 @@ export const END_PATCH_MARKER = "*** End Patch";
 
 /**
  * Recovery sentinel emitted by the agent loop when a contaminated
- * `to=functions.edit` stream is truncated mid-call (see
- * `docs/ERRATA-GPT5-HARMONY.md`). Behaves like `END_PATCH_MARKER` for
+ * `to=functions.edit` stream is truncated mid-call. Behaves like
  * parsing — terminates the line loop — and additionally surfaces a
  * warning in the tool result so the model knows to re-issue any
  * remaining edits.

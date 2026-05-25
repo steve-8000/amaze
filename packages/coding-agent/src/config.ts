@@ -14,11 +14,11 @@ const priorityList = [
 ];
 
 // =============================================================================
-// Package Directory (for optional external docs/examples)
+// Package Directory (for optional package assets)
 // =============================================================================
 
 /**
- * Get the base directory for resolving optional package assets (docs, examples).
+ * Get the base directory for resolving optional package assets.
  * Walk up from import.meta.dir until we find package.json, or fall back to cwd.
  */
 export function getPackageDir(): string {
@@ -35,7 +35,7 @@ export function getPackageDir(): string {
 		}
 		dir = path.dirname(dir);
 	}
-	// Fallback to project dir (docs/examples won't be found, but that's fine)
+	// Fallback to project dir if package assets are unavailable.
 	return getProjectDir();
 }
 

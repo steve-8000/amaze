@@ -29,7 +29,6 @@ Static references resolve to FS paths in most tools.
 - `skill://<name>` (`/<path>` for files within), `rule://<name>`, `memory://root`
 - `agent://<id>` (`/<path>` extracts JSON), `artifact://<id>`, `local://<name>.md`, `mcp://<uri>`
 - `issue://<N>` and `pr://<N>` (or `<owner>/<repo>/<N>`): GitHub views, cached. Bare lists support `?state=&limit=&author=&label=`. Append `?comments=0` on `pr://` to drop comments.
-- `amaze://`: harness docs; AVOID unless the user asks about the harness itself.
 
 {{#if skills.length}}
 # Skills

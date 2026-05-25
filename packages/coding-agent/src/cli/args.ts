@@ -255,8 +255,8 @@ export function getExtraHelpText(): string {
   AMAZE_PLAN_MODEL              - Override planning model (see --plan)
   AMAZE_NO_PTY                  - Disable PTY-based interactive bash execution
 
-  For complete environment variable reference, see:
-  ${chalk.dim("docs/environment-variables.md")}
+  For complete environment variable reference, run ${chalk.bold(`${APP_NAME} --help`)}
+  or see the project README.
 ${chalk.bold("Available Tools (default-enabled unless noted):")}
   read          - Read file contents
   bash          - Execute bash commands

@@ -1,6 +1,6 @@
 import type { Api, Model } from "@amaze/ai";
-import { resolveModelRoleValue } from "../config/model-resolver";
 import type { ModelRegistry } from "../config/model-registry";
+import { resolveModelRoleValue } from "../config/model-resolver";
 import type { Settings } from "../config/settings";
 import { getLocalLlmConfig, getLocalLlmRoleAlias } from "./config";
 import type { LocalLlmHealth } from "./types";

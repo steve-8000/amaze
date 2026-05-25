@@ -3,10 +3,10 @@ import { Settings } from "@amaze/coding-agent/config/settings";
 import {
 	buildLocalLlmScoutPrompt,
 	createEmptyLocalEvidenceBundle,
-	LOCAL_LLM_STABLE_SCOUT_SYSTEM_PROMPT,
 	getLocalLlmConfig,
 	getLocalLlmRoleAlias,
 	isLocalLlmUseCaseEnabled,
+	LOCAL_LLM_STABLE_SCOUT_SYSTEM_PROMPT,
 	validateLocalEvidenceBundle,
 } from "@amaze/coding-agent/local-llm";
 
@@ -40,12 +40,19 @@ describe("local evidence bundle", () => {
 	test("validates evidence refs conservatively", () => {
 		const bundle = createEmptyLocalEvidenceBundle("context_compressor", 1000);
 		bundle.claims.push({ claim: "A grounded claim", evidenceRefs: ["E1"], confidence: "high" });
-		bundle.relevantFiles.push({ path: "src/a.ts", reason: "Referenced by E1", evidenceRefs: ["E1"], confidence: "medium" });
+		bundle.relevantFiles.push({
+			path: "src/a.ts",
+			reason: "Referenced by E1",
+			evidenceRefs: ["E1"],
+			confidence: "medium",
+		});
 
 		expect(validateLocalEvidenceBundle(bundle)).toEqual([]);
 
 		bundle.risks.push({ risk: "Uncited risk", evidenceRefs: [] });
-		expect(validateLocalEvidenceBundle(bundle)).toContain("risks[0].evidenceRefs must contain at least one evidence reference");
+		expect(validateLocalEvidenceBundle(bundle)).toContain(
+			"risks[0].evidenceRefs must contain at least one evidence reference",
+		);
 	});
 
 	test("rejects invalid confidence and negative compression counts", () => {

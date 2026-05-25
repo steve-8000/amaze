@@ -190,6 +190,7 @@ export interface ModelTagsSettings {
 const EMPTY_STRING_ARRAY: string[] = [];
 const EMPTY_STRING_RECORD: Record<string, string> = {};
 const DEFAULT_CYCLE_ORDER: string[] = ["smol", "default", "slow"];
+const DEFAULT_DISABLED_PROVIDERS: string[] = ["gemini", "opencode", "windsurf", "vscode", "github"];
 const EMPTY_MODEL_TAGS_RECORD: ModelTagsSettings = {};
 export const DEFAULT_BASH_INTERCEPTOR_RULES: BashInterceptorRule[] = [
 	{
@@ -311,7 +312,7 @@ export const SETTINGS_SCHEMA = {
 
 	enabledModels: { type: "array", default: EMPTY_STRING_ARRAY },
 
-	disabledProviders: { type: "array", default: EMPTY_STRING_ARRAY },
+	disabledProviders: { type: "array", default: DEFAULT_DISABLED_PROVIDERS },
 
 	disabledExtensions: { type: "array", default: EMPTY_STRING_ARRAY },
 
@@ -2508,7 +2509,7 @@ export const SETTINGS_SCHEMA = {
 
 	"commands.enableOpencodeUser": {
 		type: "boolean",
-		default: true,
+		default: false,
 		ui: {
 			tab: "tasks",
 			label: "OpenCode User Commands",

@@ -138,7 +138,6 @@ function validateConfidence(value: string, path: string, errors: string[]): void
 	}
 }
 
-
 function validateEvidenceRefs(
 	item: LocalEvidenceClaim | LocalEvidenceFileCandidate | LocalEvidenceRisk,
 	path: string,

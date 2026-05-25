@@ -1,10 +1,42 @@
-import type { MissionMemoryRecall } from "../memory/bridge";
 import type { MissionView } from "./read-model";
 
 const MAX_EVIDENCE_CLAIMS = 5;
 const MAX_NEXT_ACTIONS = 5;
 const MAX_CONTRACT_INCLUDES = 3;
 const MAX_CONTRACT_CRITERIA = 5;
+
+type MissionMemoryRecallAuthority =
+	| "instruction"
+	| "repo_truth"
+	| "mission_evidence"
+	| "session_context"
+	| "verified_project_decision"
+	| "durable_memory"
+	| "historical_summary";
+
+type MissionMemoryRecallType = "instruction" | "repo_truth" | "evidence" | "decision" | "durable_memory" | "summary";
+
+interface MissionMemoryRecallItem {
+	id: string;
+	missionId?: string;
+	projectId?: string;
+	sessionId?: string;
+	type: MissionMemoryRecallType;
+	authority: MissionMemoryRecallAuthority;
+	content: string;
+	confidence: number;
+	sourceEventId?: string;
+	sourceEvidenceRefs: string[];
+	createdAt: string;
+	updatedAt: string;
+}
+
+export interface MissionMemoryRecall {
+	missionId: string;
+	query: string;
+	items: MissionMemoryRecallItem[];
+	authority: MissionMemoryRecallAuthority;
+}
 
 export interface ActiveMissionPacket {
 	objective: string;

@@ -4,6 +4,11 @@ import { Text } from "@amaze/tui";
 import { formatNumber, prompt } from "@amaze/utils";
 import * as z from "zod/v4";
 import type { RenderResultOptions } from "../../extensibility/custom-tools/types";
+import {
+	completionBudgetReport,
+	GoalAcceptanceFailureError,
+	remainingTokens,
+} from "../../mission/core/objective-runtime";
 import type { Theme, ThemeColor } from "../../modes/theme/theme";
 import goalDescription from "../../prompts/tools/goal.md" with { type: "text" };
 import { formatDuration } from "../../slash-commands/helpers/format";
@@ -11,7 +16,6 @@ import type { ToolSession } from "../../tools";
 import { formatErrorMessage, TRUNCATE_LENGTHS } from "../../tools/render-utils";
 import { ToolError } from "../../tools/tool-errors";
 import { renderStatusLine, truncateToWidth } from "../../tui";
-import { completionBudgetReport, GoalAcceptanceFailureError, remainingTokens } from "../runtime";
 import type { Goal, GoalStatus, GoalToolDetails } from "../state";
 
 const goalSchema = z

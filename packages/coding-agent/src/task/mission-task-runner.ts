@@ -16,7 +16,7 @@
 
 import type { MissionTask } from "../mission/core/mission-task";
 import { bindContractToMission, enforceMissionBinding, type SubagentContract } from "../subagent/contract";
-import { type ExecutorOptions, runSubprocess as defaultRunSubprocess } from "./executor";
+import { runSubprocess as defaultRunSubprocess, type ExecutorOptions } from "./executor";
 import type { SingleResult } from "./types";
 
 /** Mission identifiers threaded through a bound task run. */

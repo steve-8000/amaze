@@ -65,10 +65,4 @@ describe("memory migrate-legacy", () => {
 
 		expect(stdout).toContain("would import 1 legacy rockey item");
 	});
-
-	it("documents that legacy backend data is not imported automatically", async () => {
-		const docs = await Bun.file(path.join(import.meta.dir, "../../../../docs/memory.md")).text();
-
-		expect(docs).toContain("Legacy backend data is not imported automatically");
-	});
 });

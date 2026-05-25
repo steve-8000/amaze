@@ -2,13 +2,13 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import type { Goal, GoalModeState, GoalTokenUsage } from "@amaze/coding-agent/goals/state";
 import {
-	ObjectiveRuntimeImpl,
 	type GoalRuntimeHost,
+	ObjectiveRuntimeImpl,
 	renderGoalBlock,
 	renderMissionBlock,
-} from "@amaze/coding-agent/goals/runtime";
-import type { Goal, GoalModeState, GoalTokenUsage } from "@amaze/coding-agent/goals/state";
+} from "@amaze/coding-agent/mission/core/objective-runtime";
 import type { MissionEvent } from "../../src/mission/events";
 import { MissionReadModel } from "../../src/mission/read-model";
 import { closeMissionRuntime, getMissionEventBus, initializeMissionRuntime } from "../../src/mission/runtime";

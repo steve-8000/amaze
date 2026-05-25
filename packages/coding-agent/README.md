@@ -10,54 +10,22 @@ For installation, setup, provider configuration, model roles, slash commands, an
 Package-specific references:
 
 - [CHANGELOG](./CHANGELOG.md)
-- [SDK guide](../../docs/sdk.md)
-- [Memory guide](../../docs/memory.md)
-- [Task agent discovery and contracts](../../docs/task-agent-discovery.md)
-- [Prompt caching design](../../docs/v2-prompt-caching.md)
-- [V3 coordination measurement](../../docs/v3-measurement.md)
-- [MCP configuration guide](../../docs/mcp-config.md)
-- [MCP runtime lifecycle](../../docs/mcp-runtime-lifecycle.md)
-- [MCP server/tool authoring](../../docs/mcp-server-tool-authoring.md)
-- [RenderMermaid guide](../../docs/render-mermaid.md)
+- SDK surface: programmatic session, tool, mode, and extension exports live in `src/index.ts`.
+- Memory: runtime memory is selected with `memory.backend`; use `nexus` for durable memory or `off` to disable it.
+- Task agents: subagent delegation is contract-driven and coordinated through the task runtime.
+- Prompt caching: keep stable system/project context separate from volatile goal/session tail content.
+- Measurement: coordination quality is evaluated with deterministic acceptance and runtime telemetry.
+- MCP: configuration, lifecycle, and server tool authoring are implemented under `src/mcp/`.
+- RenderMermaid: Mermaid rendering is provided by the package tool/runtime integration.
 - [DEVELOPMENT](./DEVELOPMENT.md)
 
 ## Memory backends
 
 The agent has one runtime selector: `memory.backend` (Settings → Memory tab, or `~/.amaze/agent/config.yml`). Supported values:
 
+- `nexus` — enables the current Nexus memory integration.
 - `off` (default) — no memory subsystem runs.
-- `rockey` — canonical local SQLite memory with explicit `memory`, `memory_search`, and `session_search` tools.
-- `local` — legacy rollout-summary pipeline that writes `MEMORY.md`, `memory_summary.md`, and generated skill artifacts.
-- `hindsight` — remote Hindsight backend with `retain`, `recall`, and `reflect` tools.
 
-Legacy `memories.enabled = true|false` is still accepted as migration input. On first config load it becomes `memory.backend = "rockey"|"off"`; new config should set `memory.backend` directly.
+Legacy backends such as Rockey, local rollout summaries, and Hindsight are migration sources only; they are not supported runtime backends. Legacy `memories.enabled = true|false` is accepted only as migration input, and new config should set `memory.backend` directly.
 
-### Rockey quickstart
-
-```yaml
-memory:
-  backend: rockey
-rockey:
-  autoRecall: false
-  correctionDetection: true
-```
-
-When active, Rockey injects policy guidance and enables:
-
-- `memory` for durable writes to `memory`, `user`, `project`, or `failure` targets.
-- `memory_search` for bounded search over durable memory.
-- `session_search` for prior-session anchors.
-- `memory://root` for read-only artifact inspection.
-
-### Hindsight quickstart
-
-1. Run a Hindsight server (Cloud or `docker run -p 8888:8888 ghcr.io/vectorize-io/hindsight:latest`).
-2. Set `memory.backend = "hindsight"` and `hindsight.apiUrl = "http://localhost:8888"` (or your Cloud URL).
-3. Optional environment overrides (env wins over settings):
-   - `HINDSIGHT_API_URL`, `HINDSIGHT_API_TOKEN`
-   - `HINDSIGHT_BANK_ID`, `HINDSIGHT_BANK_MISSION`, `HINDSIGHT_SCOPING`
-   - `HINDSIGHT_AUTO_RECALL`, `HINDSIGHT_AUTO_RETAIN`, `HINDSIGHT_RETAIN_MODE`, `HINDSIGHT_RETAIN_EVERY_N_TURNS`
-   - `HINDSIGHT_RECALL_BUDGET`, `HINDSIGHT_RECALL_MAX_TOKENS`, `HINDSIGHT_RECALL_CONTEXT_TURNS`, `HINDSIGHT_RECALL_MAX_QUERY_CHARS`
-   - `HINDSIGHT_DEBUG`
-
-Switching backends mid-session is honored on the next system-prompt rebuild and the next `/memory` slash command.
+Switching between `nexus` and `off` mid-session is honored on the next system-prompt rebuild and the next `/memory` slash command.

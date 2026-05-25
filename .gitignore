@@ -14,6 +14,9 @@ target/
 
 # Local runtime state
 agent.db*
+/agent.db
+/agent.db-shm
+/agent.db-wal
 
 # Environment
 .env

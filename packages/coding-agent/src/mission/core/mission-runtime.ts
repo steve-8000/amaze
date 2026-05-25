@@ -3,7 +3,6 @@ import type { MissionEventBus } from "../event-bus";
 import { MissionStore } from "../store";
 import type { MissionState as LegacyMissionState } from "../types";
 import type { AcceptanceCriterion } from "./acceptance-criteria";
-import { lifecycleToLegacyState } from "./compat";
 import type {
 	Mission,
 	MissionLifecycleState,
@@ -59,9 +58,9 @@ export interface MissionTokenAccountInput {
 
 /**
  * Thrown by {@link MissionRuntimeImpl.complete} when acceptance verification surfaces a
- * failing verdict. Mirrors `GoalAcceptanceFailureError` (goals/runtime.ts) so callers get
- * the same structured `verification` payload (per-criterion id/description/satisfied) and
- * the mission stays uncompleted. Bypass with `complete(..., { force: true })`.
+ * failing verdict. Mirrors `GoalAcceptanceFailureError` so callers get the same structured
+ * `verification` payload (per-criterion id/description/satisfied) and the mission stays
+ * uncompleted. Bypass with `complete(..., { force: true })`.
  */
 export class MissionAcceptanceFailureError extends Error {
 	readonly verification: MissionVerification;
@@ -80,7 +79,7 @@ export class MissionAcceptanceFailureError extends Error {
 }
 
 /**
- * Token accounting model, ported from `goalTokenDelta` in goals/runtime.ts.
+ * Token accounting model shared with `goalTokenDelta`.
  *
  * Counts input + cacheWrite + output and excludes cacheRead: cache writes are billed new
  * work (rotating a 1h ephemeral cache or re-anchoring a changed system prompt can write
@@ -117,11 +116,21 @@ function validateTokenBudget(tokenBudget: number | undefined): void {
 
 /** Map a core lifecycle state to a legacy {@link LegacyMissionState} for store persistence. */
 function lifecycleToStoreState(lifecycle: MissionLifecycleState): LegacyMissionState {
-	const mapped = lifecycleToLegacyState(lifecycle);
-	if (mapped !== undefined) return mapped;
-	// created | classified | planning have no legacy equivalent; park them in `drafting`
-	// so the durable record stays valid while the rich aggregate tracks the true lifecycle.
-	return "drafting";
+	switch (lifecycle) {
+		case "researching":
+		case "critiquing":
+		case "executing":
+		case "verifying":
+		case "completed":
+		case "rolled_back":
+		case "blocked":
+		case "cancelled":
+			return lifecycle;
+		case "contracting":
+			return "contracted";
+		default:
+			return "drafting";
+	}
 }
 
 function cloneCriterion(criterion: AcceptanceCriterion): AcceptanceCriterion {

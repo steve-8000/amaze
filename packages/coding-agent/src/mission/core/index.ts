@@ -1,5 +1,4 @@
 export type { AcceptanceCriterion } from "./acceptance-criteria";
-export * from "./compat";
 export {
 	MISSION_LIFECYCLE_STATES,
 	type Mission,
