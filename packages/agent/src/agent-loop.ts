@@ -1092,21 +1092,57 @@ async function executeToolCalls(
 							toolCalls: toolCallInfos,
 						})
 					: undefined;
-				const rawResult = await tool.execute(
+				// Hard wall-clock timeout: when the tool declares a positive
+				// `timeoutMs` (and is abortable), race execution against a deadline.
+				// On expiry we abort the tool's signal and reject so a hung tool can
+				// never block the loop forever. nonAbortable tools opt out (they
+				// cannot be interrupted), and run on the shared `toolSignal` directly.
+				const timeoutMs = tool.nonAbortable ? undefined : tool.timeoutMs;
+				const timeoutController =
+					typeof timeoutMs === "number" && timeoutMs > 0 ? new AbortController() : undefined;
+				const execSignal = tool.nonAbortable
+					? undefined
+					: timeoutController
+						? AbortSignal.any([toolSignal, timeoutController.signal])
+						: toolSignal;
+				const onPartial = (partialResult: unknown) => {
+					stream.push({
+						type: "tool_execution_update",
+						toolCallId: toolCall.id,
+						toolName: toolCall.name,
+						args: effectiveArgs,
+						partialResult: coerceToolResult(partialResult).result,
+					});
+				};
+				const execPromise = tool.execute(
 					toolCall.id,
 					transformToolCallArguments ? transformToolCallArguments(effectiveArgs, toolCall.name) : effectiveArgs,
-					tool.nonAbortable ? undefined : toolSignal,
-					partialResult => {
-						stream.push({
-							type: "tool_execution_update",
-							toolCallId: toolCall.id,
-							toolName: toolCall.name,
-							args: effectiveArgs,
-							partialResult: coerceToolResult(partialResult).result,
-						});
-					},
+					execSignal,
+					onPartial,
 					toolContext,
 				);
+				let rawResult: Awaited<ReturnType<typeof tool.execute>>;
+				if (timeoutController && typeof timeoutMs === "number") {
+					// If the timeout wins the race, execPromise keeps running and may
+					// reject later (e.g. once it observes the aborted signal). Attach a
+					// no-op handler so that late rejection never surfaces as an unhandled
+					// rejection. This extra handler does not affect the race's own result.
+					void execPromise.catch(() => {});
+					let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+					const timeoutPromise = new Promise<never>((_, reject) => {
+						timeoutHandle = setTimeout(() => {
+							timeoutController.abort();
+							reject(new Error(`Tool ${toolCall.name} timed out after ${timeoutMs}ms`));
+						}, timeoutMs);
+					});
+					try {
+						rawResult = await Promise.race([execPromise, timeoutPromise]);
+					} finally {
+						if (timeoutHandle !== undefined) clearTimeout(timeoutHandle);
+					}
+				} else {
+					rawResult = await execPromise;
+				}
 				const coerced = coerceToolResult(rawResult);
 				result = coerced.result;
 				if (coerced.malformed || result.isError) isError = true;
@@ -1200,7 +1236,30 @@ async function executeToolCalls(
 		}
 	}
 
-	await Promise.allSettled(tasks);
+	// runTool catches errors from execute()/afterToolCall internally, but its tail
+	// (result emission, span finish, steering check) runs outside that try/catch. A
+	// throw there would otherwise be swallowed by allSettled and surface only as a
+	// silent "skipped" tool with no diagnostic. Inspect rejections so they are logged
+	// and traced rather than vanishing.
+	const settled = await Promise.allSettled(tasks);
+	settled.forEach((outcome, index) => {
+		const record = records[index];
+		// Only flag a rejection that produced NO result. If the tool already emitted its
+		// result and the throw came from the tail (span finish / steering check), the tool
+		// is already accounted for via finishExecuteToolSpan — recording an orphan here too
+		// would double-count it in telemetry. The genuinely-orphaned case (no result) is
+		// otherwise swept below as "skipped"; surfacing it as "error" instead keeps the
+		// failure visible rather than vanishing into allSettled.
+		if (outcome.status === "rejected" && !record.toolResultMessage) {
+			record.skipped = true;
+			recordSkippedTool(telemetry, {
+				toolCallId: record.toolCall.id,
+				toolName: record.toolCall.name,
+				status: "error",
+			});
+			emitToolResult(record, createSkippedToolResult(), true);
+		}
+	});
 
 	for (const record of records) {
 		if (!record.toolResultMessage) {

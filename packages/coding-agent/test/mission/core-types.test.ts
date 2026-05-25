@@ -7,7 +7,7 @@ import {
 	lifecycleToLegacyState,
 	MISSION_LIFECYCLE_STATES,
 } from "../../src/mission/core";
-import type { Mission as LegacyMission, MissionState } from "../../src/mission/types";
+import type { ResearchCampaign as LegacyMission, MissionState } from "../../src/mission/types";
 
 function coreMission(overrides: Partial<CoreMission> = {}): CoreMission {
 	return {

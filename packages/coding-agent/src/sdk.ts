@@ -1131,6 +1131,11 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 			// mutated after. Tool guards (write/edit) read it on every mutation; system-prompt
 			// builder reads it once per rebuild.
 			getSubagentContract: options.subagentContract ? () => options.subagentContract : undefined,
+			// Mission scope is enforced via the unified precedence in enforceMutationScope
+			// (contract > mission > goal). Left unwired until the canonical MissionRuntime
+			// aggregate (which owns `scopeGuard`) is the source — the goal-linked research
+			// read-model Mission has no scopeGuard, so wiring it here would be incorrect.
+			getActiveMissionScope: undefined,
 			getV3Telemetry: () => session?.v3Telemetry,
 			getClientBridge: () => session?.clientBridge,
 			getCompactContext: () => session.formatCompactContext(),

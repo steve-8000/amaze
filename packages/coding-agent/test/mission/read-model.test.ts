@@ -6,7 +6,7 @@ import { ObjectiveStore } from "../../src/autonomy/store";
 import { type NewLearningProposal, ProposalStore } from "../../src/learning";
 import { buildMissionView, deriveMissionPolicyGuidance, MissionReadModel } from "../../src/mission/read-model";
 import { MissionStore } from "../../src/mission/store";
-import type { Mission, MissionLaneRun, MissionWorldModelRecord, ResearchRun } from "../../src/mission/types";
+import type { MissionLaneRun, MissionWorldModelRecord, ResearchCampaign, ResearchRun } from "../../src/mission/types";
 import { ResearchStore } from "../../src/research/store";
 import type { DecisionRecord, EvidenceCard, ResearchBrief } from "../../src/research/types";
 
@@ -24,7 +24,7 @@ function tempDb(): string {
 	return path.join(root, "autonomy.db");
 }
 
-function mission(overrides: Partial<Mission> = {}): Mission {
+function mission(overrides: Partial<ResearchCampaign> = {}): ResearchCampaign {
 	return {
 		id: "mission-1",
 		title: "Decide safely",

@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import {
-	GoalRuntime,
+	ObjectiveRuntimeImpl,
 	type GoalRuntimeHost,
 	renderGoalBlock,
 	renderMissionBlock,
@@ -46,7 +46,7 @@ function createHarness(dbPath: string) {
 		sendHiddenMessage: async () => {},
 		now: () => 0,
 	};
-	return { runtime: new GoalRuntime(host, { missionDbPath: dbPath }), getState: () => cloneState(state) };
+	return { runtime: new ObjectiveRuntimeImpl(host, { missionDbPath: dbPath }), getState: () => cloneState(state) };
 }
 
 describe("goal -> mission dual-write", () => {

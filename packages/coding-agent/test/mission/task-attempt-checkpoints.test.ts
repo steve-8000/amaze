@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { MissionStore } from "../../src/mission/store";
-import type { NewMission } from "../../src/mission/types";
+import type { NewResearchCampaign } from "../../src/mission/types";
 
-function mission(overrides: Partial<NewMission> = {}): NewMission {
+function mission(overrides: Partial<NewResearchCampaign> = {}): NewResearchCampaign {
 	return {
 		title: "Checkpoint mission",
 		objectiveId: "objective-checkpoint",

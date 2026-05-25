@@ -22,7 +22,7 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { GoalRuntime, type GoalRuntimeHost, renderGoalBlock } from "@amaze/coding-agent/goals/runtime";
+import { ObjectiveRuntimeImpl, type GoalRuntimeHost, renderGoalBlock } from "@amaze/coding-agent/goals/runtime";
 import type { Goal, GoalModeState, GoalTokenUsage } from "@amaze/coding-agent/goals/state";
 import {
 	isSubagentContractStale,
@@ -64,7 +64,7 @@ function createHarness(initial: GoalModeState) {
 		now: () => 0,
 	};
 	return {
-		runtime: new GoalRuntime(host),
+		runtime: new ObjectiveRuntimeImpl(host),
 		getState: () => cloneState(state),
 	};
 }

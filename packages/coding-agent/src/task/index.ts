@@ -33,7 +33,7 @@ import taskDescriptionTemplate from "../prompts/tools/task.md" with { type: "tex
 import taskSummaryTemplate from "../prompts/tools/task-summary.md" with { type: "text" };
 import { ResearchStore } from "../research/store";
 import type { RuntimeCriticCheck } from "../research/types";
-import { type SubagentContract, stampContractRevision } from "../subagent/contract";
+import { deriveContractScopeFromParent, type SubagentContract, stampContractRevision } from "../subagent/contract";
 import {
 	diffDirtySnapshots,
 	executeContractedTask,
@@ -1117,7 +1117,17 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 					// Future parent pivots that bump revision past this baseline will be detected
 					// as stale by `enforceContractFreshness`.
 					const parentGoalRev = this.session.getGoalModeState?.()?.goal?.contractRevision;
-					const stampedContract = task.contract ? stampContractRevision(task.contract, parentGoalRev) : undefined;
+					// Bound the child contract by the parent objective's scope so a delegated
+					// subagent can never exceed the parent's blast radius (PR4): parent denials
+					// propagate into the child, and a child without its own allowlist inherits
+					// the parent's.
+					const parentObjectiveScope = this.session.getGoalModeState?.()?.goal?.scopeGuard;
+					const stampedContract = task.contract
+						? stampContractRevision(
+								deriveContractScopeFromParent(task.contract, parentObjectiveScope),
+								parentGoalRev,
+							)
+						: undefined;
 					// V3 telemetry: record every subagent spawn, with/without contract. This is the
 					// contract adoption signal — if `withContract` stays at 0% across many sessions,
 					// nobody is using the contract layer and it becomes a prune candidate.
@@ -1246,7 +1256,12 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 								agent: effectiveAgent.name,
 								role: stampedContract.role,
 								attempt: outcome.attempts.length,
-								status: remediationAction === "block" ? "blocked" : remediationAction === "resume" ? "escalated" : "failed",
+								status:
+									remediationAction === "block"
+										? "blocked"
+										: remediationAction === "resume"
+											? "escalated"
+											: "failed",
 								failureMode,
 								lastVerdict: normalizedVerdict,
 								failedCount: outcome.finalVerdict.failedCount,
@@ -1289,7 +1304,17 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 					const isolationDir = isolationHandle.mergedDir;
 
 					const parentGoalRev = this.session.getGoalModeState?.()?.goal?.contractRevision;
-					const stampedContract = task.contract ? stampContractRevision(task.contract, parentGoalRev) : undefined;
+					// Bound the child contract by the parent objective's scope so a delegated
+					// subagent can never exceed the parent's blast radius (PR4): parent denials
+					// propagate into the child, and a child without its own allowlist inherits
+					// the parent's.
+					const parentObjectiveScope = this.session.getGoalModeState?.()?.goal?.scopeGuard;
+					const stampedContract = task.contract
+						? stampContractRevision(
+								deriveContractScopeFromParent(task.contract, parentObjectiveScope),
+								parentGoalRev,
+							)
+						: undefined;
 					this.session.getV3Telemetry?.()?.recordSubagentSpawn(!!stampedContract);
 					const baseSubprocessOptions = {
 						cwd: this.session.cwd,
@@ -1409,7 +1434,12 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 								agent: effectiveAgent.name,
 								role: stampedContract.role,
 								attempt: outcome.attempts.length,
-								status: remediationAction === "block" ? "blocked" : remediationAction === "resume" ? "escalated" : "failed",
+								status:
+									remediationAction === "block"
+										? "blocked"
+										: remediationAction === "resume"
+											? "escalated"
+											: "failed",
 								failureMode,
 								lastVerdict: normalizedVerdict,
 								failedCount: outcome.finalVerdict.failedCount,

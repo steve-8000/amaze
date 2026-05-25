@@ -2,7 +2,7 @@ import { logger, prompt, Snowflake } from "@amaze/utils";
 import { settings } from "../config/settings";
 import { missionTokenDelta } from "../mission/core/mission-runtime";
 import { MissionStore, resolveMission } from "../mission/store";
-import type { Mission } from "../mission/types";
+import type { ResearchCampaign } from "../mission/types";
 import type { EventBus as SessionEventBus } from "../observability";
 import goalBudgetLimitPrompt from "../prompts/goals/goal-budget-limit.md" with { type: "text" };
 import goalContinuationPrompt from "../prompts/goals/goal-continuation.md" with { type: "text" };
@@ -63,7 +63,7 @@ import {
 function resolveMissionForGoal(
 	store: MissionStore,
 	args: { missionId?: string | null; objective: string },
-): Mission | undefined {
+): ResearchCampaign | undefined {
 	if (args.missionId) return resolveMission(store, { missionId: args.missionId });
 	return resolveMission(store, { title: args.objective });
 }
@@ -549,7 +549,7 @@ export interface GoalRuntimeOptions {
  * budget-limit steering machinery, and the resilient `recordMission*FromGoal` dual-write
  * seam) is intentionally NOT delegated and stays owned here to preserve exact behavior.
  */
-export class GoalRuntime {
+export class ObjectiveRuntimeImpl {
 	readonly #host: GoalRuntimeHost;
 	readonly #missionDbPath: string | undefined;
 	#turnSnapshot: GoalTurnSnapshot | undefined;

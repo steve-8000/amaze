@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { MissionEventBus } from "../../src/mission/event-bus";
 import { MissionStore } from "../../src/mission/store";
-import type { NewMission } from "../../src/mission/types";
+import type { NewResearchCampaign } from "../../src/mission/types";
 
 const stores: MissionStore[] = [];
 
@@ -15,7 +15,7 @@ function createStore(): MissionStore {
 	return store;
 }
 
-function mission(overrides: Partial<NewMission> = {}): NewMission {
+function mission(overrides: Partial<NewResearchCampaign> = {}): NewResearchCampaign {
 	return {
 		title: "Mission contracts",
 		objectiveId: "objective-1",

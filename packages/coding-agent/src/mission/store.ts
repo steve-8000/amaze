@@ -19,7 +19,6 @@ import {
 	type EpistemicRole,
 	MISSION_LANE_STATUSES,
 	MISSION_STATES,
-	type Mission,
 	type MissionContractRecord,
 	type MissionCriticDialogueTurn,
 	type MissionLaneRun,
@@ -32,7 +31,6 @@ import {
 	type MissionWorldModelRecord,
 	type MissionWorldModelRecordKind,
 	type MissionWorldModelRecordSource,
-	type NewMission,
 	type NewMissionContractRecord,
 	type NewMissionCriticDialogueTurn,
 	type NewMissionLaneRun,
@@ -40,8 +38,10 @@ import {
 	type NewMissionTaskAttemptCheckpoint,
 	type NewMissionVerificationRecord,
 	type NewMissionWorldModelRecord,
+	type NewResearchCampaign,
 	type NewResearchRun,
 	RESEARCH_RUN_STATUSES,
+	type ResearchCampaign,
 	type ResearchRun,
 	type ResearchRunStatus,
 } from "./types";
@@ -194,14 +194,14 @@ export class MissionStore {
 		this.#db.close();
 	}
 
-	createMission(input: NewMission): Mission {
+	createMission(input: NewResearchCampaign): ResearchCampaign {
 		assertRiskLevel(input.riskLevel);
 		assertMissionState(input.state);
 		if (input.confidence !== null) {
 			assertConfidence(input.confidence);
 		}
 		const now = Date.now();
-		const mission: Mission = {
+		const mission: ResearchCampaign = {
 			...input,
 			id: input.id ?? generateId("mission", now),
 			createdAt: now,
@@ -229,12 +229,12 @@ export class MissionStore {
 		return mission;
 	}
 
-	getMission(id: string): Mission | undefined {
+	getMission(id: string): ResearchCampaign | undefined {
 		const row = this.#db.query("SELECT * FROM missions WHERE id = ?").get(id) as MissionRow | null;
 		return row ? rowToMission(row) : undefined;
 	}
 
-	listMissions(opts: { objectiveId?: string; briefId?: string; state?: MissionState } = {}): Mission[] {
+	listMissions(opts: { objectiveId?: string; briefId?: string; state?: MissionState } = {}): ResearchCampaign[] {
 		const clauses: string[] = [];
 		const params: string[] = [];
 		if (opts.objectiveId !== undefined) {
@@ -257,7 +257,9 @@ export class MissionStore {
 		return rows.map(rowToMission);
 	}
 
-	getPreferredMission(opts: { objectiveId?: string; briefId?: string; title?: string } = {}): Mission | undefined {
+	getPreferredMission(
+		opts: { objectiveId?: string; briefId?: string; title?: string } = {},
+	): ResearchCampaign | undefined {
 		const clauses: string[] = [];
 		const params: string[] = [];
 		if (opts.objectiveId !== undefined) {
@@ -287,21 +289,21 @@ export class MissionStore {
 		return row ? rowToMission(row) : undefined;
 	}
 
-	findLatestMissionByObjectiveId(objectiveId: string): Mission | undefined {
+	findLatestMissionByObjectiveId(objectiveId: string): ResearchCampaign | undefined {
 		const row = this.#db
 			.query("SELECT * FROM missions WHERE objective_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 1")
 			.get(objectiveId) as MissionRow | null;
 		return row ? rowToMission(row) : undefined;
 	}
 
-	findLatestMissionByBriefId(briefId: string): Mission | undefined {
+	findLatestMissionByBriefId(briefId: string): ResearchCampaign | undefined {
 		const row = this.#db
 			.query("SELECT * FROM missions WHERE brief_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 1")
 			.get(briefId) as MissionRow | null;
 		return row ? rowToMission(row) : undefined;
 	}
 
-	findLatestMissionByTitle(title: string): Mission | undefined {
+	findLatestMissionByTitle(title: string): ResearchCampaign | undefined {
 		const row = this.#db
 			.query("SELECT * FROM missions WHERE title = ? ORDER BY created_at DESC, rowid DESC LIMIT 1")
 			.get(title) as MissionRow | null;
@@ -312,16 +314,16 @@ export class MissionStore {
 		id: string,
 		patch: Partial<
 			Pick<
-				Mission,
+				ResearchCampaign,
 				"title" | "state" | "confidence" | "decisionId" | "snapshotRef" | "objectiveId" | "briefId" | "riskLevel"
 			>
 		>,
-	): Mission {
+	): ResearchCampaign {
 		const existing = this.getMission(id);
 		if (!existing) {
 			throw new Error(`Mission not found: ${id}`);
 		}
-		const next: Mission = {
+		const next: ResearchCampaign = {
 			...existing,
 			...patch,
 			updatedAt: Date.now(),
@@ -1001,7 +1003,7 @@ export class MissionStore {
 export function resolveMission(
 	store: MissionStore,
 	lookup: { missionId?: string | null; title?: string | null; objective?: string | null; objectiveId?: string | null },
-): Mission | undefined {
+): ResearchCampaign | undefined {
 	if (lookup.missionId) {
 		const exact = store.getMission(lookup.missionId);
 		if (exact) return exact;
@@ -1070,7 +1072,7 @@ function isTerminalLaneStatus(status: MissionLaneStatus): boolean {
 	return status === "completed" || status === "empty" || status === "failed" || status === "aborted";
 }
 
-function rowToMission(row: MissionRow): Mission {
+function rowToMission(row: MissionRow): ResearchCampaign {
 	return {
 		id: row.id,
 		title: row.title,

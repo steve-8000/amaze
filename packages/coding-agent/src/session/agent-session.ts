@@ -132,9 +132,11 @@ import { ExtensionToolWrapper } from "../extensibility/extensions/wrapper";
 import type { HookCommandContext } from "../extensibility/hooks/types";
 import type { Skill, SkillWarning } from "../extensibility/skills";
 import { expandSlashCommand, type FileSlashCommand } from "../extensibility/slash-commands";
-import { GoalRuntime, renderGoalBlock } from "../goals/runtime";
+import { ObjectiveRuntimeImpl, renderGoalBlock } from "../goals/runtime";
 import type { Goal, GoalModeState } from "../goals/state";
 import { type LocalProtocolOptions, resolveLocalUrlToPath } from "../internal-urls";
+import { createObjectiveLoopAnalyzer } from "../learning/analyzer";
+import { attachSelfImprovementLoop } from "../learning/loop-wiring";
 import {
 	buildDiscoverableMCPSearchIndex,
 	collectDiscoverableMCPTools,
@@ -144,7 +146,9 @@ import {
 	selectDiscoverableMCPToolNamesByServer,
 } from "../mcp/discoverable-tool-metadata";
 import { resolveMemoryBackend } from "../memory-backend";
+import { ObjectiveRuntimeAdapter } from "../mission/core/objective-runtime-adapter";
 import { getCurrentThemeName, theme } from "../modes/theme/theme";
+import type { Unsubscribe } from "../observability/event-bus";
 import { emitPromptCacheEventIfPossible, type PromptCacheResponse } from "../observability/prompt-cache-emit";
 import { getSessionEventBus } from "../observability/session-bus";
 import { type PlanModeState, planGoalDriftReason } from "../plan-mode/state";
@@ -801,7 +805,9 @@ export class AgentSession {
 	#scheduledHiddenNextTurnGeneration: number | undefined = undefined;
 	#planModeState: PlanModeState | undefined;
 	#goalModeState: GoalModeState | undefined;
-	#goalRuntime: GoalRuntime;
+	#goalRuntime: ObjectiveRuntimeImpl;
+	#objectiveRuntime: ObjectiveRuntimeAdapter | undefined;
+	#selfImproveLoopUnsub: Unsubscribe | undefined;
 	#goalTurnCounter = 0;
 	/**
 	 * V3 coordination state — extracted from this monolith into its own class to keep
@@ -1151,7 +1157,7 @@ export class AgentSession {
 		this.agent.providerSessionState = this.#providerSessionState;
 		this.#syncAgentSessionId();
 		this.#syncTodoPhasesFromBranch();
-		this.#goalRuntime = new GoalRuntime({
+		this.#goalRuntime = new ObjectiveRuntimeImpl({
 			getState: () => this.#goalModeState,
 			setState: state => {
 				this.#goalModeState = state;
@@ -1188,11 +1194,25 @@ export class AgentSession {
 					{ deliverAs: message.deliverAs },
 				);
 			},
+			// Publish objective lifecycle events (goal.complete, …) onto the per-session
+			// observability bus so the JSONL sink AND the self-improvement loop receive them.
+			// Without this the runtime's #emitSessionEvent is a no-op for the main session.
+			getSessionId: () => this.sessionId,
+			sessionEventBus: getSessionEventBus(this),
 		});
 
 		// Always subscribe to agent events for internal handling
 		// (session persistence, hooks, auto-compaction, retry logic)
 		this.#unsubscribeAgent = this.agent.subscribe(this.#handleAgentEvent);
+
+		// Self-improvement loop (flag-gated, default OFF): on objective completion, analyze
+		// session history against configured rules and file review-gated proposals. No-op
+		// unless AMAZE_SELF_IMPROVE_LOOP is set; pure observe→propose, never auto-applies.
+		this.#selfImproveLoopUnsub = attachSelfImprovementLoop({
+			eventBus: getSessionEventBus(this),
+			analyze: createObjectiveLoopAnalyzer({ cwd: this.sessionManager.getCwd() }),
+			onError: error => logger.debug("self-improvement loop pass failed", { error: String(error) }),
+		});
 	}
 
 	/** Model registry for API key resolution and model discovery */
@@ -1497,7 +1517,7 @@ export class AgentSession {
 
 		if (event.type === "turn_start") {
 			const usage = this.getSessionStats().tokens;
-			this.#goalRuntime.onTurnStart(`turn-${++this.#goalTurnCounter}`, {
+			this.objectiveRuntime.onTurnStart(`turn-${++this.#goalTurnCounter}`, {
 				input: usage.input,
 				output: usage.output,
 				cacheRead: usage.cacheRead,
@@ -1543,7 +1563,7 @@ export class AgentSession {
 			if (event.toolName === "goal") {
 				await this.#goalRuntime.onGoalToolCompleted();
 			} else {
-				await this.#goalRuntime.onToolCompleted(event.toolName);
+				await this.objectiveRuntime.onToolCompleted(event.toolName);
 			}
 		}
 		if (event.type === "tool_execution_end" && event.toolName === "yield" && !event.isError) {
@@ -1802,7 +1822,7 @@ export class AgentSession {
 		// Check auto-retry and auto-compaction after agent completes
 		if (event.type === "agent_end") {
 			const usage = this.getSessionStats().tokens;
-			await this.#goalRuntime.onAgentEnd({
+			await this.objectiveRuntime.onAgentEnd({
 				currentUsage: {
 					input: usage.input,
 					output: usage.output,
@@ -2793,6 +2813,7 @@ export class AgentSession {
 	 */
 	async dispose(): Promise<void> {
 		this.#isDisposed = true;
+		this.#selfImproveLoopUnsub?.();
 		this.#pendingBackgroundExchanges = [];
 		this.#evalExecutionDisposing = true;
 		try {
@@ -3835,8 +3856,22 @@ export class AgentSession {
 		this.#goalModeState = state;
 	}
 
-	get goalRuntime(): GoalRuntime {
+	get goalRuntime(): ObjectiveRuntimeImpl {
 		return this.#goalRuntime;
+	}
+
+	/**
+	 * Canonical objective-runtime surface (consolidation PR5). Always returns the unified
+	 * {@link ObjectiveRuntime} live-control adapter over the {@link ObjectiveRuntimeImpl}
+	 * engine — the live hot path drives objectives through this. The flag-gated rollout is
+	 * complete; the adapter is pure delegation, so this is behaviorally identical to driving
+	 * the engine directly.
+	 */
+	get objectiveRuntime(): ObjectiveRuntimeAdapter {
+		if (!this.#objectiveRuntime) {
+			this.#objectiveRuntime = new ObjectiveRuntimeAdapter(this.#goalRuntime);
+		}
+		return this.#objectiveRuntime;
 	}
 
 	/**
@@ -4034,7 +4069,7 @@ export class AgentSession {
 	}
 
 	#buildGoalModeMessage(): CustomMessage | null {
-		const content = this.#goalRuntime.buildActivePrompt();
+		const content = this.objectiveRuntime.buildActivePrompt();
 		if (!content) return null;
 		return {
 			role: "custom",

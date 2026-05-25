@@ -6,7 +6,7 @@ import { recordProposalApplyRollbackAnchor, recordProposalRollbackAnchor } from 
 import { recordMissionVerificationFromGoalObjective } from "../../src/goals/runtime";
 import { ProposalStore } from "../../src/learning";
 import { MissionStore } from "../../src/mission/store";
-import type { NewMission } from "../../src/mission/types";
+import type { NewResearchCampaign } from "../../src/mission/types";
 import { ResearchStore } from "../../src/research/store";
 import { evaluateRuntimeCriticGate, recordTaskMissionContract } from "../../src/task";
 
@@ -21,7 +21,7 @@ afterEach(async () => {
 	}
 });
 
-function mission(overrides: Partial<NewMission> = {}): NewMission {
+function mission(overrides: Partial<NewResearchCampaign> = {}): NewResearchCampaign {
 	return {
 		title: "Producer mission",
 		objectiveId: "objective-1",

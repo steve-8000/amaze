@@ -78,9 +78,6 @@ export function resolveHashlineGrammarPlaceholders(grammar: string): string {
 	return grammar.replaceAll("$HFMT$", "[a-z]{2}").replaceAll("$HSEP$", JSON.stringify(HL_EDIT_SEP));
 }
 
-/** @deprecated Use {@link resolveHashlineGrammarPlaceholders}. */
-export const resolveLarkLidPlaceholders = resolveHashlineGrammarPlaceholders;
-
 const regexEscape = (str: string): string => str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /**

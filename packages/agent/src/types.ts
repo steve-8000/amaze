@@ -392,6 +392,15 @@ export interface AgentTool<TParameters extends TSchema = TSchema, TDetails = any
 	/** If true, tool execution ignores abort signals (runs to completion) */
 	nonAbortable?: boolean;
 	/**
+	 * Hard wall-clock timeout (ms) for a single execution. When set and > 0, the
+	 * agent loop races `execute()` against this deadline: on expiry it aborts the
+	 * tool's signal and surfaces a timeout error so a hung tool can never block
+	 * the loop indefinitely. Omit (or 0) to disable — appropriate for tools that
+	 * manage their own deadline (e.g. bash with a user-supplied timeout). Ignored
+	 * when `nonAbortable` is set, since such tools cannot be interrupted.
+	 */
+	timeoutMs?: number;
+	/**
 	 * Concurrency mode for tool scheduling when multiple calls are in one turn.
 	 * - "shared": can run alongside other shared tools (default)
 	 * - "exclusive": runs alone; other tools wait until it finishes

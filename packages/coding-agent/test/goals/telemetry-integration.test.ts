@@ -8,7 +8,7 @@
  *   - Silent no-ops (event handler exists but record* method isn't called)
  *   - Defensive optional-chaining hiding bugs (`session.getV3Telemetry?.()` always returning undefined)
  *
- * Strategy: drive GoalRuntime directly with a mock host that exposes a real V3Telemetry,
+ * Strategy: drive ObjectiveRuntimeImpl directly with a mock host that exposes a real V3Telemetry,
  * then assert the right counters advanced. Goal tool's closing-audit telemetry is wired
  * via the tool's `getV3Telemetry` access — covered by a focused integration mock here
  * rather than spinning a full session.
@@ -16,12 +16,12 @@
 
 import { afterEach, describe, expect, it } from "bun:test";
 import { resetSettingsForTest, Settings } from "@amaze/coding-agent/config/settings";
-import { GoalRuntime, type GoalRuntimeHost } from "@amaze/coding-agent/goals/runtime";
+import { ObjectiveRuntimeImpl, type GoalRuntimeHost } from "@amaze/coding-agent/goals/runtime";
 import type { Goal, GoalModeState, GoalTokenUsage } from "@amaze/coding-agent/goals/state";
 import { formatV3Stats, V3Telemetry } from "@amaze/coding-agent/goals/telemetry";
 
 function createHarness(state: GoalModeState | undefined): {
-	runtime: GoalRuntime;
+	runtime: ObjectiveRuntimeImpl;
 	telemetry: V3Telemetry;
 	currentState: () => GoalModeState | undefined;
 } {
@@ -38,7 +38,7 @@ function createHarness(state: GoalModeState | undefined): {
 		now: () => 0,
 	};
 	return {
-		runtime: new GoalRuntime(host),
+		runtime: new ObjectiveRuntimeImpl(host),
 		telemetry: new V3Telemetry(),
 		currentState: () => current,
 	};
@@ -124,7 +124,7 @@ describe("V3 telemetry integration — event pipeline", () => {
 		expect(adoptionRatio).toBeCloseTo(0.25, 2);
 	});
 
-	it("MEASURE-MODE ACCEPTANCE: GoalRuntime completion flows produce telemetry-able outcomes", async () => {
+	it("MEASURE-MODE ACCEPTANCE: ObjectiveRuntimeImpl completion flows produce telemetry-able outcomes", async () => {
 		await Settings.init({ inMemory: true, cwd: "/tmp" });
 		// The runtime itself doesn't call telemetry directly (separation of concerns); the
 		// goal-tool wrapper does. But we verify the runtime returns the verdict shape that

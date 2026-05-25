@@ -61,6 +61,15 @@ export interface ProxyStreamOptions extends SimpleStreamOptions {
 	authToken: string;
 	/** Proxy server URL (e.g., "https://genai.example.com") */
 	proxyUrl: string;
+	/**
+	 * Optional token refresh callback. When the proxy rejects the request with
+	 * 401/403, the stream invokes this (with `force: true`) to obtain a fresh
+	 * token and retries the request once. Without it, an expired token fails the
+	 * request hard with no recovery path. The callback should return a valid
+	 * bearer token; `force` signals the cached token was rejected and must be
+	 * re-minted rather than reused.
+	 */
+	getAuthToken?: (opts: { force: boolean }) => string | Promise<string>;
 }
 
 /**
@@ -116,29 +125,46 @@ export function streamProxy(model: Model, context: Context, options: ProxyStream
 			options.signal.addEventListener("abort", abortHandler, { once: true });
 		}
 
-		try {
-			response = await fetch(`${options.proxyUrl}/api/stream`, {
+		const requestBody = JSON.stringify({
+			model,
+			context,
+			options: {
+				temperature: options.temperature,
+				topP: options.topP,
+				topK: options.topK,
+				minP: options.minP,
+				presencePenalty: options.presencePenalty,
+				repetitionPenalty: options.repetitionPenalty,
+				maxTokens: options.maxTokens,
+				reasoning: options.reasoning,
+			},
+		});
+		const sendRequest = async (token: string): Promise<Response> =>
+			fetch(`${options.proxyUrl}/api/stream`, {
 				method: "POST",
 				headers: {
-					Authorization: `Bearer ${options.authToken}`,
+					Authorization: `Bearer ${token}`,
 					"Content-Type": "application/json",
 				},
-				body: JSON.stringify({
-					model,
-					context,
-					options: {
-						temperature: options.temperature,
-						topP: options.topP,
-						topK: options.topK,
-						minP: options.minP,
-						presencePenalty: options.presencePenalty,
-						repetitionPenalty: options.repetitionPenalty,
-						maxTokens: options.maxTokens,
-						reasoning: options.reasoning,
-					},
-				}),
+				body: requestBody,
 				signal: options.signal,
 			});
+
+		try {
+			let token = options.getAuthToken ? await options.getAuthToken({ force: false }) : options.authToken;
+			response = await sendRequest(token);
+
+			// Auth rejection: re-mint the token once via the refresh callback and
+			// retry. Without a refresh callback there is no recovery — fail hard.
+			if ((response.status === 401 || response.status === 403) && options.getAuthToken) {
+				try {
+					await response.body?.cancel();
+				} catch {
+					// best-effort drain of the rejected response
+				}
+				token = await options.getAuthToken({ force: true });
+				response = await sendRequest(token);
+			}
 
 			if (!response.ok) {
 				let errorMessage = `Proxy error: ${response.status} ${response.statusText}`;
@@ -167,9 +193,23 @@ export function streamProxy(model: Model, context: Context, options: ProxyStream
 				}
 			}
 
-			if (options.signal?.aborted && !sawTerminalEvent) {
-				const reason = options.signal.reason;
-				throw reason instanceof Error ? reason : new Error(String(reason ?? "Request aborted"));
+			// The stream ended without a `done`/`error` event. Distinguish three cases so we
+			// neither mistake a dropped stream for success NOR fail a fully-delivered turn:
+			//   - aborted by the caller  → propagate the abort reason.
+			//   - no content at all      → genuine truncation/empty response; error out.
+			//   - content was delivered  → tolerate the missing terminal frame (some backends
+			//     close the connection right after the final event, or a `[DONE]` sentinel was
+			//     consumed upstream before a typed `done` reached us). Complete with the partial.
+			if (!sawTerminalEvent) {
+				if (options.signal?.aborted) {
+					const reason = options.signal.reason;
+					throw reason instanceof Error ? reason : new Error(String(reason ?? "Request aborted"));
+				}
+				if (partial.content.length === 0) {
+					throw new Error(
+						"Proxy stream ended without any content or terminal event (connection closed prematurely)",
+					);
+				}
 			}
 
 			stream.end();

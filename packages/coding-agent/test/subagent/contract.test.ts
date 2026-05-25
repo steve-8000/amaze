@@ -1,5 +1,15 @@
 import { describe, expect, it } from "bun:test";
-import { checkScope, renderSubagentContract, type SubagentContract } from "@amaze/coding-agent/subagent/contract";
+import {
+	checkScope,
+	deriveContractScopeFromParent,
+	enforceContractScope,
+	renderSubagentContract,
+	type SubagentContract,
+} from "@amaze/coding-agent/subagent/contract";
+
+function throwOnViolation(msg: string): never {
+	throw new Error(msg);
+}
 
 function baseContract(overrides: Partial<SubagentContract> = {}): SubagentContract {
 	return {
@@ -119,5 +129,81 @@ describe("SubagentContract — Phase 2.0 primitive", () => {
 		});
 		const result = checkScope(contract, "packages\\coding-agent\\src\\x.ts");
 		expect(result.allowed).toBe(true);
+	});
+});
+
+describe("deriveContractScopeFromParent — PR4 contract scope derivation", () => {
+	it("returns the contract unchanged when there is no parent scope", () => {
+		const c = baseContract({ scope: { include: ["src/**"], exclude: [] } });
+		expect(deriveContractScopeFromParent(c, undefined)).toBe(c);
+	});
+
+	it("propagates parent denials: a child cannot mutate a path the parent excludes", () => {
+		const child = baseContract({ scope: { include: ["src/**"], exclude: [] } });
+		const derived = deriveContractScopeFromParent(child, { include: [], exclude: [".github/**"] });
+		expect(derived.scope.exclude).toContain(".github/**");
+		// The parent denial now binds the child via the contract scope guard.
+		expect(checkScope(derived, ".github/workflows/ci.yml").allowed).toBe(false);
+		// In-scope child paths still pass.
+		expect(checkScope(derived, "src/app.ts").allowed).toBe(true);
+	});
+
+	it("unions excludes without duplicating shared globs", () => {
+		const child = baseContract({ scope: { include: [], exclude: ["dist/**"] } });
+		const derived = deriveContractScopeFromParent(child, { include: [], exclude: ["dist/**", "vendor/**"] });
+		expect(derived.scope.exclude.sort()).toEqual(["dist/**", "vendor/**"]);
+	});
+
+	it("inherits the parent allowlist when the child declares none", () => {
+		const child = baseContract({ scope: { include: [], exclude: [] } });
+		const derived = deriveContractScopeFromParent(child, { include: ["packages/app/**"], exclude: [] });
+		expect(derived.scope.include).toEqual(["packages/app/**"]);
+		// Child is now bounded to the parent's domain.
+		expect(checkScope(derived, "packages/app/x.ts").allowed).toBe(true);
+		expect(checkScope(derived, "packages/other/y.ts").allowed).toBe(false);
+	});
+
+	it("keeps the child's own allowlist when it declares one (still bound by parent excludes)", () => {
+		const child = baseContract({ scope: { include: ["packages/app/src/**"], exclude: [] } });
+		const derived = deriveContractScopeFromParent(child, {
+			include: ["packages/app/**"],
+			exclude: ["packages/app/src/secret/**"],
+		});
+		expect(derived.scope.include).toEqual(["packages/app/src/**"]);
+		expect(checkScope(derived, "packages/app/src/ok.ts").allowed).toBe(true);
+		expect(checkScope(derived, "packages/app/src/secret/key.ts").allowed).toBe(false);
+	});
+
+	it("carries parentScope when the parent declares an include allowlist", () => {
+		const child = baseContract({ scope: { include: ["src/featureB/**"], exclude: [] } });
+		const derived = deriveContractScopeFromParent(child, { include: ["src/featureA/**"], exclude: [] });
+		expect(derived.parentScope).toEqual({ include: ["src/featureA/**"], exclude: [] });
+	});
+
+	it("does NOT carry parentScope when the parent has no include allowlist (excludes already folded)", () => {
+		const child = baseContract({ scope: { include: ["src/**"], exclude: [] } });
+		const derived = deriveContractScopeFromParent(child, { include: [], exclude: ["vendor/**"] });
+		expect(derived.parentScope).toBeUndefined();
+	});
+});
+
+describe("enforceContractScope — child cannot escape parent objective allowlist", () => {
+	it("blocks a child edit outside the parent include-allowlist even when the contract scope allows it", () => {
+		// Child contract allows src/featureB/**, but the parent objective only permits
+		// src/featureA/**. The derived contract carries parentScope; enforcement must reject
+		// the sibling-subtree escape that checkScope(contract) alone would allow.
+		const child = baseContract({ scope: { include: ["src/featureB/**"], exclude: [] } });
+		const derived = deriveContractScopeFromParent(child, { include: ["src/featureA/**"], exclude: [] });
+
+		// Contract scope alone would allow it (this is the escape the bug enabled):
+		expect(checkScope(derived, "src/featureB/x.ts").allowed).toBe(true);
+		// But enforcement (which also checks parentScope) blocks it:
+		expect(() => enforceContractScope(derived, "src/featureB/x.ts", throwOnViolation)).toThrow(
+			/Parent objective scope violation/,
+		);
+		// A path inside BOTH the contract and the parent allowlist is fine.
+		const inBoth = baseContract({ scope: { include: ["src/featureA/sub/**"], exclude: [] } });
+		const derivedInBoth = deriveContractScopeFromParent(inBoth, { include: ["src/featureA/**"], exclude: [] });
+		expect(() => enforceContractScope(derivedInBoth, "src/featureA/sub/y.ts", throwOnViolation)).not.toThrow();
 	});
 });

@@ -6,10 +6,11 @@ import type { Settings } from "../config/settings";
 import { EditTool } from "../edit";
 import { checkPythonKernelAvailability } from "../eval/py/kernel";
 import type { Skill } from "../extensibility/skills";
-import type { GoalModeState, GoalRuntime } from "../goals";
+import type { GoalModeState, ObjectiveRuntimeImpl } from "../goals";
 import { GoalTool } from "../goals/tools/goal-tool";
 import { LspTool } from "../lsp";
 import { resolveMemoryBackend } from "../memory-backend";
+import type { MissionScopeGuard } from "../mission/core/mission-scope";
 import type { PlanModeState } from "../plan-mode/state";
 import { type AgentRegistry, MAIN_AGENT_ID } from "../registry/agent-registry";
 import type { ArtifactManager } from "../session/artifacts";
@@ -192,7 +193,7 @@ export interface ToolSession {
 	/** Goal mode state (if active or paused) */
 	getGoalModeState?: () => GoalModeState | undefined;
 	/** Goal runtime for the active agent session. */
-	getGoalRuntime?: () => GoalRuntime | undefined;
+	getGoalRuntime?: () => ObjectiveRuntimeImpl | undefined;
 	/**
 	 * SubagentContract governing this session, if any. Set by the task executor when this
 	 * session is spawned as a subagent under a structured contract. Tools (edit, write)
@@ -200,6 +201,13 @@ export interface ToolSession {
 	 * at the tool layer regardless of what the model's prompt says.
 	 */
 	getSubagentContract?: () => SubagentContract | undefined;
+	/**
+	 * Scope guard of the Mission this session is bound to, if any. When present and no
+	 * SubagentContract is active, the mutation guard enforces this INSTEAD of the legacy
+	 * Goal scope — making the Mission the single authority and removing goal/mission
+	 * divergence. Undefined ⇒ no mission scope; the guard falls back to goal scope.
+	 */
+	getActiveMissionScope?: () => MissionScopeGuard | undefined;
 	/**
 	 * Accessor for the session's V3 coordination telemetry aggregator. Tools (ask, goal,
 	 * task) call its `record*` methods directly. Optional — tools should no-op gracefully
@@ -399,6 +407,56 @@ export function resolveEvalBackends(session: ToolSession): EvalBackendsAllowance
 }
 
 /**
+ * Tools that legitimately run for a long time, wait indefinitely for a human, or
+ * manage their own deadline (user-supplied timeouts, long builds, interactive/remote
+ * sessions, background jobs). They opt out of the loop-level safety-net timeout so we
+ * never abort legitimate long work. NOTE: this is a denylist — a new long-running tool
+ * added later is silently capped at DEFAULT_TOOL_SAFETY_TIMEOUT_MS unless listed here or
+ * unless it sets its own `timeoutMs`/`nonAbortable`.
+ *
+ * - `ask`: blocks waiting for human input (its own timeout may be "wait forever").
+ * - `ssh`: remote commands with a user-supplied timeout up to 3600s.
+ * - `cua`: computer-use automation sessions that can run many minutes.
+ * - `job`: background job management.
+ * - `irc`: agent-to-agent messaging whose awaitReply can block on a peer's turn.
+ * - `x_search_deep`: deep search that can exceed the safety-net window.
+ */
+const SELF_TIMED_TOOLS = new Set([
+	"bash",
+	"eval",
+	"task",
+	"browser",
+	"debug",
+	"lsp",
+	"recipe",
+	"checkpoint",
+	"rewind",
+	"ask",
+	"ssh",
+	"cua",
+	"job",
+	"irc",
+	"x_search_deep",
+]);
+
+/**
+ * Generous safety-net timeout (10 min) applied to tools that neither manage
+ * their own deadline nor already declare a `timeoutMs`. Long enough never to
+ * interrupt legitimate work, but bounds a genuinely hung tool so it can't block
+ * the agent loop forever (the loop enforces `timeoutMs` via abort + reject).
+ */
+const DEFAULT_TOOL_SAFETY_TIMEOUT_MS = 600_000;
+
+/** Apply the default safety-net timeout in-place unless the tool opts out. */
+function applyDefaultToolTimeout(tool: Tool): Tool {
+	const t = tool as AgentTool<any, any, any>;
+	if (t.timeoutMs === undefined && !t.nonAbortable && !SELF_TIMED_TOOLS.has(t.name)) {
+		t.timeoutMs = DEFAULT_TOOL_SAFETY_TIMEOUT_MS;
+	}
+	return tool;
+}
+
+/**
  * Create tools from BUILTIN_TOOLS registry.
  */
 export async function createTools(session: ToolSession, toolNames?: string[]): Promise<Tool[]> {
@@ -541,14 +599,14 @@ export async function createTools(session: ToolSession, toolNames?: string[]): P
 	const baseResults = await Promise.all(
 		baseEntries.map(async ([name, factory]) => {
 			const tool = await logger.time(`createTools:${name}`, factory as ToolFactory, session);
-			return tool ? wrapToolWithMetaNotice(tool) : null;
+			return tool ? applyDefaultToolTimeout(wrapToolWithMetaNotice(tool)) : null;
 		}),
 	);
 	const tools = baseResults.filter((r): r is Tool => r !== null);
 	if (!tools.some(tool => tool.name === "resolve")) {
 		const resolveTool = await logger.time("createTools:resolve", HIDDEN_TOOLS.resolve, session);
 		if (resolveTool) {
-			tools.push(wrapToolWithMetaNotice(resolveTool));
+			tools.push(applyDefaultToolTimeout(wrapToolWithMetaNotice(resolveTool)));
 		}
 	}
 
@@ -565,7 +623,7 @@ export async function createTools(session: ToolSession, toolNames?: string[]): P
 			.filter(name => (name in BUILTIN_TOOLS || name in HIDDEN_TOOLS) && name !== "report_tool_issue");
 		const qaTool = createReportToolIssueTool(session, activeBuiltinNames);
 		if (qaTool) {
-			tools.push(wrapToolWithMetaNotice(qaTool));
+			tools.push(applyDefaultToolTimeout(wrapToolWithMetaNotice(qaTool)));
 		}
 	}
 

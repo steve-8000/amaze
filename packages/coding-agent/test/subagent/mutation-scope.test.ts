@@ -83,6 +83,65 @@ describe("canonical mutation scope", () => {
 		).resolves.toBeUndefined();
 	});
 
+	it("enforces mission scope (not goal scope) when a mission scope is present and no contract", async () => {
+		// Mission is the canonical authority: when present, goal scope is NOT consulted,
+		// so the two can never disagree. Goal scope here would ALLOW src/**, mission DENIES it.
+		const session: ToolSession = {
+			cwd,
+			hasUI: false,
+			getSessionFile: () => path.join(cwd, "session.jsonl"),
+			getSessionSpawns: () => "*",
+			settings: Settings.isolated(),
+			getGoalModeState: () =>
+				({ enabled: true, goal: { scopeGuard: { include: ["src/**"], exclude: [] } } }) as never,
+			getActiveMissionScope: () => ({ allowedPaths: ["src/**"], deniedPaths: ["src/secret/**"] }),
+		};
+
+		await expect(
+			enforceMutationScope(session, "src/ok.ts", { op: "update", source: "test" }),
+		).resolves.toBeUndefined();
+		await expect(
+			enforceMutationScope(session, "src/secret/key.ts", { op: "update", source: "test" }),
+		).rejects.toThrow(/Mission scope violation/);
+	});
+
+	it("falls back to goal scope only when no contract and no mission scope", async () => {
+		const session: ToolSession = {
+			cwd,
+			hasUI: false,
+			getSessionFile: () => path.join(cwd, "session.jsonl"),
+			getSessionSpawns: () => "*",
+			settings: Settings.isolated(),
+			getGoalModeState: () =>
+				({ enabled: true, goal: { scopeGuard: { include: ["allowed/**"], exclude: [] } } }) as never,
+		};
+
+		await expect(
+			enforceMutationScope(session, "allowed/ok.ts", { op: "create", source: "test" }),
+		).resolves.toBeUndefined();
+		await expect(enforceMutationScope(session, "other/nope.ts", { op: "create", source: "test" })).rejects.toThrow(
+			/Goal scope violation/,
+		);
+	});
+
+	it("treats empty mission allowedPaths as unrestricted (deniedPaths still block)", async () => {
+		const session: ToolSession = {
+			cwd,
+			hasUI: false,
+			getSessionFile: () => path.join(cwd, "session.jsonl"),
+			getSessionSpawns: () => "*",
+			settings: Settings.isolated(),
+			getActiveMissionScope: () => ({ allowedPaths: [], deniedPaths: ["vendor/**"] }),
+		};
+
+		await expect(
+			enforceMutationScope(session, "anywhere/file.ts", { op: "create", source: "test" }),
+		).resolves.toBeUndefined();
+		await expect(enforceMutationScope(session, "vendor/dep.ts", { op: "update", source: "test" })).rejects.toThrow(
+			/Mission scope violation/,
+		);
+	});
+
 	it("applies conflict://N using the registered backing file path", async () => {
 		const session = createSession(cwd, contract);
 		const backingPath = path.join(cwd, "allowed", "conflicted.ts");

@@ -27,7 +27,7 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { resetSettingsForTest, Settings } from "@amaze/coding-agent/config/settings";
-import { GoalAcceptanceFailureError, GoalRuntime, type GoalRuntimeHost } from "@amaze/coding-agent/goals/runtime";
+import { GoalAcceptanceFailureError, ObjectiveRuntimeImpl, type GoalRuntimeHost } from "@amaze/coding-agent/goals/runtime";
 import type { Goal, GoalModeState, GoalRuntimeEvent, GoalTokenUsage } from "@amaze/coding-agent/goals/state";
 import type { AcceptanceCriterion } from "@amaze/coding-agent/goals/verifier";
 
@@ -65,7 +65,7 @@ function createHarness(initial: { state: GoalModeState; now?: number }) {
 		now: () => initial.now ?? 0,
 	};
 	return {
-		runtime: new GoalRuntime(host),
+		runtime: new ObjectiveRuntimeImpl(host),
 		getState: () => cloneState(state),
 		events,
 		setUsage: (next: Partial<GoalTokenUsage>) => {

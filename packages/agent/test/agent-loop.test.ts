@@ -273,6 +273,53 @@ describe("agentLoop with AgentMessage", () => {
 		}
 	});
 
+	it("enforces a hard timeout on a hung tool via timeoutMs", async () => {
+		const toolSchema = z.object({ value: z.string() });
+		let sawAbort = false;
+		const tool: AgentTool<typeof toolSchema, { value: string }> = {
+			name: "hang",
+			label: "Hang",
+			description: "Never resolves until aborted",
+			parameters: toolSchema,
+			timeoutMs: 50,
+			async execute(_toolCallId, _params, signal) {
+				// Hang until the loop's timeout aborts our signal.
+				await new Promise<void>(resolve => {
+					signal?.addEventListener("abort", () => {
+						sawAbort = true;
+						resolve();
+					});
+				});
+				return { content: [{ type: "text", text: "should not reach" }], details: { value: "x" } };
+			},
+		};
+
+		const context: AgentContext = { systemPrompt: [""], messages: [], tools: [tool] };
+		const mock = createMockModel({
+			responses: [
+				{ content: [{ type: "toolCall", id: "tool-1", name: "hang", arguments: { value: "x" } }] },
+				{ content: ["done"] },
+			],
+		});
+		const config: AgentLoopConfig = { model: mock.model, convertToLlm: identityConverter };
+
+		const events: AgentEvent[] = [];
+		const stream = agentLoop([createUserMessage("hang please")], context, config, undefined, mock.stream);
+		for await (const event of stream) {
+			events.push(event);
+		}
+
+		const toolEnd = events.find(e => e.type === "tool_execution_end");
+		expect(toolEnd).toBeDefined();
+		if (toolEnd?.type === "tool_execution_end") {
+			expect(toolEnd.isError).toBe(true);
+			const text = toolEnd.result.content.find((c: { type: string }) => c.type === "text");
+			expect(text && "text" in text ? text.text : "").toMatch(/timed out after 50ms/);
+		}
+		// The loop aborted the tool's signal so the hung tool can unwind.
+		expect(sawAbort).toBe(true);
+	});
+
 	it("injects and strips intent when intent tracing is enabled", async () => {
 		const toolSchema = z.object({ value: z.string() });
 		const executedParams: Record<string, unknown>[] = [];

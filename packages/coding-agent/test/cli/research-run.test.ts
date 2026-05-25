@@ -5,6 +5,7 @@ import * as path from "node:path";
 import {
 	runResearchAddEvidenceCommand,
 	runResearchBriefCommand,
+	runResearchRecordCritiqueCommand,
 	runResearchRecordSynthesisCommand,
 	runResearchRunCommand,
 } from "../../src/cli/research";
@@ -163,6 +164,17 @@ describe("research run CLI helper", () => {
 			hypothesisCount: 1,
 			summary: "done",
 			rawText: "done",
+			json: true,
+		});
+		// Synthesis leaves the run open by design; the critique (accept) finalizes it.
+		await runResearchRecordCritiqueCommand({
+			db,
+			briefId: brief.id,
+			blockingCount: 0,
+			softCount: 0,
+			verdict: "accept",
+			summary: "looks good",
+			rawText: "looks good",
 			json: true,
 		});
 

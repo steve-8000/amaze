@@ -9,6 +9,7 @@ import type { RenderResultOptions } from "../extensibility/custom-tools/types";
 import { computeLineHash, HL_BODY_SEP } from "../hashline/hash";
 import type { Theme } from "../modes/theme/theme";
 import astEditDescription from "../prompts/tools/ast-edit.md" with { type: "text" };
+import { enforceMutationScope } from "../subagent/mutation-scope";
 import { Ellipsis, renderStatusLine, renderTreeList, truncateToWidth } from "../tui";
 import { resolveFileDisplayMode } from "../utils/file-display-mode";
 import type { ToolSession } from ".";
@@ -211,6 +212,38 @@ export class AstEditTool implements AgentTool<typeof astEditSchema, AstEditToolD
 				failOnParseError: false,
 				signal,
 			});
+
+			// Scope guard: the dry-run above enumerates exactly which files would be
+			// mutated. Enforce the contract/mission/goal boundary on each target before
+			// any apply path runs — `ast_edit` must not be a way around the mutation
+			// scope that `write`/`edit` enforce (it writes via the native astEdit with
+			// dryRun:false in the resolve/apply step below).
+			//
+			// Result paths are RELATIVE to the search base (resolvedSearchPath, == the
+			// runAstEditTargets commonBasePath), not to cwd. Resolve each to an ABSOLUTE
+			// path so enforceMutationScope checks the real mutation target — otherwise a
+			// subdir search (e.g. paths:["src/components"]) would resolve "Button.tsx"
+			// against cwd and police the wrong (phantom) path. Mirror formatResultPath's
+			// isDirectory logic: for a single-file search the target IS resolvedSearchPath;
+			// for a directory search the change path is relative to it.
+			const absoluteScopeTarget = (filePath: string): string => {
+				if (!isDirectory) return resolvedSearchPath;
+				const clean = filePath.startsWith("/") ? filePath.slice(1) : filePath;
+				return path.resolve(resolvedSearchPath, clean);
+			};
+			const scopeTargets = new Set<string>();
+			for (const fileChange of result.fileChanges) scopeTargets.add(absoluteScopeTarget(fileChange.path));
+			for (const change of result.changes) scopeTargets.add(absoluteScopeTarget(change.path));
+			for (const targetPath of scopeTargets) {
+				await enforceMutationScope(
+					this.session,
+					targetPath,
+					{ op: "update", source: "ast_edit" },
+					(msg: string) => {
+						throw new ToolError(msg);
+					},
+				);
+			}
 
 			const { errors: cappedParseErrors, total: parseErrorsTotal } = capParseErrors(result.parseErrors);
 			const formatPath = (filePath: string): string =>

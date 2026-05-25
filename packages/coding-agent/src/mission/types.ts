@@ -32,7 +32,13 @@ export type ResearchRunStatus = (typeof RESEARCH_RUN_STATUSES)[number];
 
 export type MissionLaneStatus = (typeof MISSION_LANE_STATUSES)[number];
 
-export interface Mission {
+/**
+ * Research campaign read-model record (formerly named `Mission`). This is the
+ * research/epistemic side — brief, lanes, evidence, decision, confidence — and is
+ * intentionally distinct from the objective-execution {@link ../core/mission.Mission}
+ * aggregate. Renamed to free the bare name `Mission` for the objective runtime.
+ */
+export interface ResearchCampaign {
 	id: string;
 	title: string;
 	objectiveId: string | null;
@@ -46,7 +52,7 @@ export interface Mission {
 	updatedAt: number;
 }
 
-export type NewMission = Omit<Mission, "id" | "createdAt" | "updatedAt"> & {
+export type NewResearchCampaign = Omit<ResearchCampaign, "id" | "createdAt" | "updatedAt"> & {
 	id?: string;
 };
 

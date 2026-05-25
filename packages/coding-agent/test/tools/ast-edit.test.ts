@@ -134,6 +134,79 @@ describe("ast_edit tool schema", () => {
 		}
 	});
 
+	it("enforces mutation scope: rejects edits to files outside the subagent contract", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ast-edit-scope-"));
+		try {
+			const filePath = path.join(tempDir, "secret.ts");
+			await Bun.write(filePath, "legacyWrap(x, value)\n");
+
+			const tools = await createTools(
+				createTestSession(tempDir, {
+					// Contract only permits src/** — secret.ts is out of scope.
+					getSubagentContract: () => ({
+						role: "scoped-test",
+						scope: { include: ["src/**"], exclude: [] },
+						successCriteria: [],
+						escalation: { onUncertainty: "block", budgetCap: 0 },
+					}),
+				}),
+			);
+			const tool = tools.find(entry => entry.name === "ast_edit");
+			expect(tool).toBeDefined();
+
+			await expect(
+				tool!.execute("ast-edit-scope", {
+					ops: [{ pat: "legacyWrap($A, $B)", out: "modernWrap($A, $B)" }],
+					paths: [filePath],
+				}),
+			).rejects.toThrow(/scope violation/i);
+
+			// File must remain untouched — the guard runs before any apply.
+			expect(await Bun.file(filePath).text()).toBe("legacyWrap(x, value)\n");
+		} finally {
+			await fs.rm(tempDir, { recursive: true, force: true });
+		}
+	});
+
+	it("enforces mutation scope correctly for a SUBDIR search (path resolved against search base, not cwd)", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ast-edit-subdir-scope-"));
+		try {
+			// File lives at <cwd>/src/secret/key.ts; the search scope is the "src" subdir.
+			const secretFile = path.join(tempDir, "src", "secret", "key.ts");
+			await fs.mkdir(path.dirname(secretFile), { recursive: true });
+			await Bun.write(secretFile, "legacyWrap(x, value)\n");
+
+			const tools = await createTools(
+				createTestSession(tempDir, {
+					// Contract permits src/** but EXCLUDES src/secret/**.
+					getSubagentContract: () => ({
+						role: "scoped-test",
+						scope: { include: ["src/**"], exclude: ["src/secret/**"] },
+						successCriteria: [],
+						escalation: { onUncertainty: "block", budgetCap: 0 },
+					}),
+				}),
+			);
+			const tool = tools.find(entry => entry.name === "ast_edit");
+			expect(tool).toBeDefined();
+
+			// Search the "src" subdir. The change path comes back relative to that base
+			// ("secret/key.ts"); the guard must resolve it to <cwd>/src/secret/key.ts and
+			// match the exclude — NOT resolve "secret/key.ts" against cwd (phantom path) and
+			// wrongly allow it.
+			await expect(
+				tool!.execute("ast-edit-subdir-scope", {
+					ops: [{ pat: "legacyWrap($A, $B)", out: "modernWrap($A, $B)" }],
+					paths: [path.join(tempDir, "src")],
+				}),
+			).rejects.toThrow(/scope violation/i);
+
+			expect(await Bun.file(secretFile).text()).toBe("legacyWrap(x, value)\n");
+		} finally {
+			await fs.rm(tempDir, { recursive: true, force: true });
+		}
+	});
+
 	it("fails stale pending apply when preview no longer matches", async () => {
 		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ast-edit-stale-"));
 		try {

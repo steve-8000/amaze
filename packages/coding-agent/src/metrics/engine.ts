@@ -18,10 +18,6 @@ export function getMetricDefinition(name: string): MetricDefinition | undefined 
 	return metrics.get(name);
 }
 
-export function clearMetricRegistryForTest(): void {
-	metrics.clear();
-}
-
 export function computeMetric(
 	name: string,
 	events: SessionEvent[],

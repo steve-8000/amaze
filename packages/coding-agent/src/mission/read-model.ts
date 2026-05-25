@@ -18,7 +18,6 @@ import { buildUncertaintyMap } from "../research/uncertainty-map";
 import { type MissionProjectionView, projectMissionView } from "./projection";
 import { MissionStore } from "./store";
 import type {
-	Mission,
 	MissionContractRecord,
 	MissionCriticDialogueTurn,
 	MissionLaneRun,
@@ -28,6 +27,7 @@ import type {
 	MissionTaskAttemptCheckpoint,
 	MissionVerificationRecord,
 	MissionWorldModelRecord,
+	ResearchCampaign,
 	ResearchRun,
 } from "./types";
 
@@ -88,7 +88,7 @@ export interface MissionView extends MissionProjectionView {
 }
 
 export function buildMissionView(input: {
-	mission: Mission;
+	mission: ResearchCampaign;
 	brief: ResearchBrief | undefined;
 	decision: DecisionRecord | undefined;
 	evidence: EvidenceCard[];
@@ -285,7 +285,7 @@ export class MissionReadModel {
 		return mission ? this.#buildViewForMission(mission) : undefined;
 	}
 
-	#buildViewForMission(mission: Mission): MissionView {
+	#buildViewForMission(mission: ResearchCampaign): MissionView {
 		const brief = mission.briefId ? this.#research.getBrief(mission.briefId) : undefined;
 		const decision = brief ? this.#getDecisionForMission(mission, brief.id) : undefined;
 		const evidence = brief ? this.#research.listEvidence(brief.id) : [];
@@ -338,7 +338,7 @@ export class MissionReadModel {
 		});
 	}
 
-	#getDecisionForMission(mission: Mission, briefId: string): DecisionRecord | undefined {
+	#getDecisionForMission(mission: ResearchCampaign, briefId: string): DecisionRecord | undefined {
 		const decisions = this.#research.listDecisions(briefId);
 		if (mission.decisionId) {
 			const exact = decisions.find(decision => decision.id === mission.decisionId);

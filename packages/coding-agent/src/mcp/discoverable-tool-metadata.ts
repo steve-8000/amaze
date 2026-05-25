@@ -20,5 +20,4 @@ export {
 	isMCPToolName,
 	searchDiscoverableMCPTools,
 	selectDiscoverableMCPToolNamesByServer,
-	summarizeDiscoverableMCPTools,
 } from "../tool-discovery/tool-index";

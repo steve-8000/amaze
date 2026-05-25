@@ -6,7 +6,7 @@ import * as path from "node:path";
 import type { MissionEventBus } from "../mission/event-bus";
 import { getMissionEventBus } from "../mission/runtime";
 import { MissionStore } from "../mission/store";
-import type { Mission } from "../mission/types";
+import type { ResearchCampaign } from "../mission/types";
 import { evidenceContradictsAny } from "./scoring";
 import {
 	CONFIDENCE_LEVELS,
@@ -272,7 +272,7 @@ export class ResearchStore {
 		return rows.map(rowToEvidence);
 	}
 
-	getMissionForBrief(briefId: string): Mission | undefined {
+	getMissionForBrief(briefId: string): ResearchCampaign | undefined {
 		return this.#withMissionStore(missions => missions.listMissions({ briefId })[0]);
 	}
 
@@ -858,7 +858,7 @@ export class ResearchStore {
 		return row?.count ?? 0;
 	}
 
-	#createMissionForBrief(brief: ResearchBrief): Mission {
+	#createMissionForBrief(brief: ResearchBrief): ResearchCampaign {
 		const missions = this.#createMissionStore();
 		try {
 			const linkedMission = brief.objectiveId ? missions.getMission(brief.objectiveId) : undefined;

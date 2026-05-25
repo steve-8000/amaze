@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import { resetSettingsForTest, Settings } from "@amaze/coding-agent/config/settings";
-import { GoalAcceptanceFailureError, GoalRuntime, type GoalRuntimeHost } from "@amaze/coding-agent/goals/runtime";
+import { GoalAcceptanceFailureError, ObjectiveRuntimeImpl, type GoalRuntimeHost } from "@amaze/coding-agent/goals/runtime";
 import type { Goal, GoalModeState, GoalRuntimeEvent, GoalTokenUsage } from "@amaze/coding-agent/goals/state";
 import { type AcceptanceCriterion, summarize, type VerificationVerdict } from "@amaze/coding-agent/goals/verifier";
 
@@ -30,7 +30,7 @@ function cloneState(state: GoalModeState | undefined): GoalModeState | undefined
 	return state ? { ...state, goal: { ...state.goal } } : undefined;
 }
 
-function createRuntime(state: GoalModeState): GoalRuntime {
+function createRuntime(state: GoalModeState): ObjectiveRuntimeImpl {
 	let current = cloneState(state);
 	const usage: GoalTokenUsage = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 };
 	const host: GoalRuntimeHost = {
@@ -44,7 +44,7 @@ function createRuntime(state: GoalModeState): GoalRuntime {
 		sendHiddenMessage: async () => {},
 		now: () => 0,
 	};
-	return new GoalRuntime(host);
+	return new ObjectiveRuntimeImpl(host);
 }
 
 afterEach(() => {

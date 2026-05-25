@@ -47,10 +47,6 @@ export function getMissionEventBus(): MissionEventBus | undefined {
 	return runtime?.bus;
 }
 
-export function getMissionJsonlSink(): MissionJsonlSink | undefined {
-	return runtime?.sink;
-}
-
 export async function closeMissionRuntime(): Promise<void> {
 	const current = runtime;
 	runtime = undefined;

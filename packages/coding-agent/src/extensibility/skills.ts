@@ -49,11 +49,6 @@ export function setActiveSkills(value: readonly Skill[]): void {
 	activeSkills = value;
 }
 
-/** Reset the active skill snapshot. Test-only. */
-export function resetActiveSkillsForTests(): void {
-	activeSkills = [];
-}
-
 export interface LoadSkillsFromDirOptions {
 	/** Directory to scan for skills */
 	dir: string;

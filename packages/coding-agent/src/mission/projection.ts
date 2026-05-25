@@ -5,7 +5,7 @@ import {
 	type ResearchBrief,
 	type ResearchLane,
 } from "../research/types";
-import type { EpistemicRole, Mission, MissionLaneRun, MissionLaneStatus } from "./types";
+import type { EpistemicRole, MissionLaneRun, MissionLaneStatus, ResearchCampaign } from "./types";
 
 export interface MissionProjectionLaneSummary {
 	lane: ResearchLane;
@@ -20,7 +20,7 @@ export interface MissionProjectionLaneSummary {
 }
 
 export interface MissionProjectionView {
-	mission: Mission;
+	mission: ResearchCampaign;
 	brief: ResearchBrief | null;
 	decision: DecisionRecord | null;
 	evidenceCount: number;
@@ -29,7 +29,7 @@ export interface MissionProjectionView {
 }
 
 export function projectMissionView(input: {
-	mission: Mission;
+	mission: ResearchCampaign;
 	brief: ResearchBrief | undefined;
 	decision: DecisionRecord | undefined;
 	evidence: EvidenceCard[];

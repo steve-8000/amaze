@@ -5,7 +5,8 @@
  *
  * This module has no side effects and does not mutate its inputs.
  */
-import type { Mission as LegacyMission, MissionState } from "../types";
+import type { GoalStatus } from "../../goals/state";
+import type { ResearchCampaign as LegacyMission, MissionState } from "../types";
 import type { Mission as CoreMission, MissionLifecycleState } from "./mission";
 
 /**
@@ -109,4 +110,51 @@ export function coreMissionToLegacyPartial(core: CoreMission): Partial<LegacyMis
 	const state = lifecycleToLegacyState(core.lifecycle);
 	if (state !== undefined) partial.state = state;
 	return partial;
+}
+
+/**
+ * Map a legacy {@link GoalStatus} (6 states) to a core {@link MissionLifecycleState}
+ * (12 states). The Goal model is the interactive single-objective execution mode and
+ * skips the orchestration-progression states (created/classified/planning/...). This
+ * is the canonical mapping used while unifying ObjectiveRuntimeImpl into the objective runtime.
+ *
+ * Note: `paused` and `budget-limited` are Goal-specific "awaiting external input"
+ * nuances; both collapse to `blocked`. The richer reason is carried separately on the
+ * unified runtime, so the reverse mapping is intentionally lossy.
+ */
+export function goalStatusToLifecycle(status: GoalStatus): MissionLifecycleState {
+	switch (status) {
+		case "active":
+			return "executing";
+		case "paused":
+		case "budget-limited":
+		case "blocked":
+			return "blocked";
+		case "complete":
+			return "completed";
+		case "dropped":
+			return "cancelled";
+	}
+}
+
+/**
+ * Map a core {@link MissionLifecycleState} back to the closest legacy {@link GoalStatus}.
+ * Orchestration-only lifecycle states (created/classified/planning/researching/
+ * critiquing/contracting/verifying/rolled_back) have no Goal counterpart and return
+ * `undefined`. `blocked` always maps to `blocked` (the paused/budget-limited nuance is
+ * not recoverable from lifecycle alone — see {@link goalStatusToLifecycle}).
+ */
+export function lifecycleToGoalStatus(lifecycle: MissionLifecycleState): GoalStatus | undefined {
+	switch (lifecycle) {
+		case "executing":
+			return "active";
+		case "blocked":
+			return "blocked";
+		case "completed":
+			return "complete";
+		case "cancelled":
+			return "dropped";
+		default:
+			return undefined;
+	}
 }

@@ -69,6 +69,19 @@ export interface SubagentContract {
 		exclude: string[];
 	};
 	/**
+	 * Parent objective scope this contract was derived under, when spawned beneath an
+	 * objective that declared a scope (set by {@link deriveContractScopeFromParent}). A
+	 * delegated child can never exceed the parent's blast radius: enforcement checks the
+	 * mutation against this in ADDITION to `scope`. This captures the parent INCLUDE
+	 * allowlist, which cannot be folded into a single contract `scope` (parent excludes
+	 * ARE folded into `scope.exclude`). NOT rendered into the XML contract block — it is an
+	 * enforcement-only field, so it does not affect the prompt-cache-stable rendering.
+	 */
+	parentScope?: {
+		include: string[];
+		exclude: string[];
+	};
+	/**
 	 * Acceptance criteria the parent will verify after the subagent yields. Use a SUBSET of the
 	 * parent goal's acceptanceCriteria narrowed to this subagent's deliverables. The verifier
 	 * runs at the task-completion boundary; fail blocks merge / triggers revision.
@@ -470,6 +483,26 @@ export function enforceContractScope(
 			`SubagentContract scope violation: ${verdict.reason} Adjust your edit or escalate to the parent via yield.`,
 		);
 	}
+	// A delegated child can never exceed the parent objective's blast radius. The parent
+	// EXCLUDES are already folded into `scope.exclude` by deriveContractScopeFromParent, but
+	// the parent INCLUDE allowlist cannot be merged into a single contract scope (checkScope
+	// ORs includes), so it is carried on `parentScope` and enforced here in addition.
+	if (contract?.parentScope) {
+		const parentVerdict = checkScope(
+			{
+				role: "parent-objective-scope",
+				scope: contract.parentScope,
+				successCriteria: [],
+				escalation: { onUncertainty: "block", budgetCap: 0 },
+			},
+			filePath,
+		);
+		if (!parentVerdict.allowed) {
+			throwError(
+				`Parent objective scope violation: ${parentVerdict.reason.replace("(role: parent-objective-scope)", "(parent objective guard)")} A subagent cannot edit outside the parent objective's scope; escalate to the parent via yield.`,
+			);
+		}
+	}
 }
 
 /**
@@ -499,6 +532,67 @@ export function enforceGoalScope(
 	if (!verdict.allowed) {
 		throwError(
 			`Goal scope violation: ${verdict.reason.replace("(role: goal-scope)", "(goal-level guard)")} If this edit is intentional, ask the user or host runtime to revise the goal scope before retrying.`,
+		);
+	}
+}
+
+/**
+ * Derive a subagent contract whose scope is bounded by the parent objective's scope
+ * (consolidation PR4). A delegated child must never exceed the parent's blast radius:
+ *   - Parent denials always bind children: the parent's `exclude` globs are unioned into
+ *     the child's `exclude` (this can only RESTRICT, never widen — always sound).
+ *   - Parent allowlist constrains children: when the parent restricts to an `include` set
+ *     and the child declares none, the child inherits the parent's includes so it cannot
+ *     roam outside the parent's domain. When the child declares its own includes they are
+ *     kept (the child is expected to narrow within the parent's domain), and the unioned
+ *     parent excludes above still bind.
+ *
+ * Returns the contract unchanged when there is no parent scope.
+ */
+export function deriveContractScopeFromParent(
+	contract: SubagentContract,
+	parentScope: { include: string[]; exclude: string[] } | undefined,
+): SubagentContract {
+	if (!parentScope) return contract;
+	const exclude = Array.from(new Set([...contract.scope.exclude, ...parentScope.exclude]));
+	const include =
+		parentScope.include.length > 0 && contract.scope.include.length === 0
+			? [...parentScope.include]
+			: [...contract.scope.include];
+	// Carry the parent scope so enforcement bounds the child by the parent INCLUDE allowlist
+	// too (not just the folded excludes) — see enforceContractScope. Only attach when the
+	// parent actually restricts via an include allowlist; a parent with no allowlist adds no
+	// include ceiling (its excludes are already folded above), so we avoid a redundant field.
+	const carriedParent = parentScope.include.length > 0 ? { parentScope } : {};
+	return { ...contract, scope: { ...contract.scope, include, exclude }, ...carriedParent };
+}
+
+/**
+ * Mission-level scope guard. Used when no `SubagentContract` is active but the calling
+ * session is bound to a Mission that declared a scope guard. Mission scope is the canonical
+ * authority over the legacy Goal scope: when a mission scope is present, callers enforce it
+ * INSTEAD of the goal-level guard so the two can never disagree on the same mutation.
+ *
+ * Semantics mirror `checkScope`: `deniedPaths` always block; `allowedPaths` act as a
+ * whitelist only when non-empty (empty ⇒ unrestricted), matching `MissionScopeGuard` docs.
+ */
+export function enforceMissionScope(
+	missionScope: { allowedPaths: string[]; deniedPaths: string[] } | undefined,
+	filePath: string,
+	throwError: (message: string) => never,
+): void {
+	if (!missionScope) return;
+	// Adapt mission scope to the SubagentContract shape so it shares the glob-matching path.
+	const adapted: SubagentContract = {
+		role: "mission-scope",
+		scope: { include: missionScope.allowedPaths, exclude: missionScope.deniedPaths },
+		successCriteria: [],
+		escalation: { onUncertainty: "block", budgetCap: 0 },
+	};
+	const verdict = checkScope(adapted, filePath);
+	if (!verdict.allowed) {
+		throwError(
+			`Mission scope violation: ${verdict.reason.replace("(role: mission-scope)", "(mission-level guard)")} If this edit is intentional, revise the mission scope before retrying.`,
 		);
 	}
 }

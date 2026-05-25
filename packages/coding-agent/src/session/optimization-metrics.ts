@@ -41,8 +41,3 @@ export function recordOptimizationMetric(
 		storage?.recordOptimizationMetric(sessionId, metric, value, meta);
 	});
 }
-
-/** Test-only hook: reset cached storage handle. */
-export function __resetOptimizationMetricsForTest(): void {
-	storagePromise = null;
-}

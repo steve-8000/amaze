@@ -36,7 +36,7 @@ const DEFAULT_MAX_CONTEXT_TOKENS = 0;
 
 /**
  * Token usage snapshot consumed by {@link missionTokenDelta}. Mirrors the
- * `GoalTokenUsage` shape used by GoalRuntime so callers can pass the same
+ * `GoalTokenUsage` shape used by ObjectiveRuntimeImpl so callers can pass the same
  * provider-reported counters into either runtime.
  */
 export interface MissionTokenUsage {
@@ -144,12 +144,12 @@ export type MissionRuntimeImplOptions = {
  * Owns:
  *   - the rich core {@link Mission} aggregate per mission (held in memory),
  *   - a durable thin record via {@link MissionStore} (lifecycle mapped to legacy state),
- *   - a per-mission token budget + accounting (mirrors GoalRuntime semantics) tracked on
+ *   - a per-mission token budget + accounting (mirrors ObjectiveRuntimeImpl semantics) tracked on
  *     `mission.budget`,
  *   - canonical lifecycle event emission via the {@link MissionEventBus} (and therefore the
  *     jsonl sink).
  *
- * Runs in parallel with GoalRuntime; nothing here mutates goal state.
+ * Runs in parallel with ObjectiveRuntimeImpl; nothing here mutates goal state.
  */
 export class MissionRuntimeImpl implements MissionRuntime {
 	readonly #store: MissionStore;
@@ -466,7 +466,7 @@ export class MissionRuntimeImpl implements MissionRuntime {
 
 	/**
 	 * Account for tokens consumed by a tool call against the mission budget, mirroring
-	 * GoalRuntime's `goalTokenDelta` semantics. Adds the delta to `budget.tokensUsed` and
+	 * ObjectiveRuntimeImpl's `goalTokenDelta` semantics. Adds the delta to `budget.tokensUsed` and
 	 * emits a `mission.tool.completed` lifecycle event. Returns the delta applied.
 	 */
 	accountTokens(missionId: string, input: MissionTokenAccountInput): number {

@@ -5,9 +5,9 @@ import * as path from "node:path";
 import { MissionEventBus } from "../../src/mission/event-bus";
 import { MissionStore } from "../../src/mission/store";
 import type {
-	NewMission,
 	NewMissionLaneRun,
 	NewMissionWorldModelRecord,
+	NewResearchCampaign,
 	NewResearchRun,
 } from "../../src/mission/types";
 
@@ -25,7 +25,7 @@ afterEach(() => {
 	}
 });
 
-function mission(overrides: Partial<NewMission> = {}): NewMission {
+function mission(overrides: Partial<NewResearchCampaign> = {}): NewResearchCampaign {
 	return {
 		title: "Ship Mission Control",
 		objectiveId: "objective-1",

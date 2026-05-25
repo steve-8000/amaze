@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { projectMissionView } from "../../src/mission/projection";
-import type { Mission, MissionLaneRun } from "../../src/mission/types";
+import type { MissionLaneRun, ResearchCampaign } from "../../src/mission/types";
 import type { DecisionRecord, EvidenceCard, ResearchBrief } from "../../src/research/types";
 
-function mission(overrides: Partial<Mission> = {}): Mission {
+function mission(overrides: Partial<ResearchCampaign> = {}): ResearchCampaign {
 	return {
 		id: "mission-1",
 		title: "Decide safely",

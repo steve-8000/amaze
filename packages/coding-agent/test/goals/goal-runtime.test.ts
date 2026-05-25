@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
 	escapeXmlText,
-	GoalRuntime,
+	ObjectiveRuntimeImpl,
 	type GoalRuntimeHost,
 	goalTokenDelta,
 	renderGoalBlock,
@@ -79,7 +79,7 @@ function createHarness(initial: { state?: GoalModeState; usage?: GoalTokenUsage;
 		now: () => now,
 	};
 	return {
-		runtime: new GoalRuntime(host),
+		runtime: new ObjectiveRuntimeImpl(host),
 		getState: () => cloneState(state),
 		setUsage: (next: Partial<GoalTokenUsage>) => {
 			usage = createUsage(next);

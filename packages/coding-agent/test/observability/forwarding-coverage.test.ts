@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { GoalRuntime } from "../../src/goals/runtime";
+import { ObjectiveRuntimeImpl } from "../../src/goals/runtime";
 import type { GoalModeState, GoalRuntimeEvent, GoalTokenUsage } from "../../src/goals/state";
 import { NexusStore } from "../../src/nexus/store";
 import { getSessionEventBus } from "../../src/observability/session-bus";
@@ -24,7 +24,7 @@ describe("observability forwarding coverage", () => {
 		const session = {};
 		const bus = getSessionEventBus(session);
 		let state: GoalModeState | undefined;
-		const runtime = new GoalRuntime({
+		const runtime = new ObjectiveRuntimeImpl({
 			getState: () => state,
 			setState: next => {
 				state = next;

@@ -341,22 +341,6 @@ export function selectDiscoverableMCPToolNamesByServer(
 		.map(tool => tool.name);
 }
 
-/** @deprecated Use summarizeDiscoverableTools */
-export function summarizeDiscoverableMCPTools(tools: DiscoverableMCPTool[]): DiscoverableMCPToolSummary {
-	const serverToolCounts = new Map<string, number>();
-	for (const tool of tools) {
-		if (!tool.serverName) continue;
-		serverToolCounts.set(tool.serverName, (serverToolCounts.get(tool.serverName) ?? 0) + 1);
-	}
-	const servers = Array.from(serverToolCounts.entries())
-		.sort(([left], [right]) => left.localeCompare(right))
-		.map(([name, toolCount]) => ({ name, toolCount }));
-	return {
-		servers,
-		toolCount: tools.length,
-	};
-}
-
 /** @deprecated Use buildDiscoverableToolSearchIndex.
  *  Builds an index whose documents preserve the legacy `description` field on each tool while
  *  also carrying the generic `summary` (set from `description`) so the index remains usable
