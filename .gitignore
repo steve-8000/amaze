@@ -72,3 +72,4 @@ python/rocky/.cache/
 python/rocky/src/static/
 python/rocky/web/dist/
 python/rocky/.env
+.claude/
