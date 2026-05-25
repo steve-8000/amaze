@@ -190,6 +190,10 @@ export class MissionRuntimeImpl implements MissionRuntime {
 		this.#bus?.emit(event);
 	}
 
+	tryGet(missionId: string): Mission | undefined {
+		return this.#missions.get(missionId);
+	}
+
 	#require(missionId: string): Mission {
 		const mission = this.#missions.get(missionId);
 		if (!mission) throw new Error(`Mission not found: ${missionId}`);
@@ -213,6 +217,7 @@ export class MissionRuntimeImpl implements MissionRuntime {
 		const createdAt = this.#now();
 
 		const record = this.#store.createMission({
+			...(input.id ? { id: input.id } : {}),
 			title,
 			objectiveId: input.projectId ?? null,
 			briefId: null,
@@ -230,6 +235,7 @@ export class MissionRuntimeImpl implements MissionRuntime {
 			mode,
 			lifecycle: "created",
 			riskLevel,
+			...(input.intent ? { intent: input.intent } : {}),
 			constraints: input.constraints ? [...input.constraints] : [],
 			acceptanceCriteria: input.acceptanceCriteria ? input.acceptanceCriteria.map(cloneCriterion) : [],
 			budget: {

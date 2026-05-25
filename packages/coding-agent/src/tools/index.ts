@@ -210,6 +210,7 @@ export interface ToolSession {
 	 * divergence. Undefined ⇒ no mission scope; the guard falls back to goal scope.
 	 */
 	getActiveMissionScope?: () => MissionScopeGuard | undefined;
+	getActiveMission?: () => { id: string } | undefined;
 	/**
 	 * Accessor for the session's V3 coordination telemetry aggregator. Tools (ask, goal,
 	 * task) call its `record*` methods directly. Optional — tools should no-op gracefully

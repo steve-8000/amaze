@@ -969,9 +969,10 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 		const preferredIsolationBackend = parseIsolationMode(isolationMode);
 
 		const activeGoal = this.session.getGoalModeState?.()?.goal;
+		const activeMission = this.session.getActiveMission?.();
 		const criticGate = evaluateRuntimeCriticGate({
 			goalObjective: activeGoal?.objective,
-			missionId: activeGoal?.missionId,
+			missionId: activeMission?.id,
 			action: "task",
 		});
 		if (!criticGate.ok) {

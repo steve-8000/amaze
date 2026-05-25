@@ -1,4 +1,5 @@
 import type { RiskLevel } from "../../research/types";
+import type { MissionIntent } from "../policy/intent";
 import type { AcceptanceCriterion } from "./acceptance-criteria";
 import type { MissionBudget, MissionContextBudget } from "./mission-budget";
 import type { MissionScopeGuard } from "./mission-scope";
@@ -7,7 +8,7 @@ import type { MissionScopeGuard } from "./mission-scope";
  * Operating mode for a mission. Determines how aggressively the runtime acts
  * without human confirmation.
  */
-export type MissionMode = "autonomous" | "interactive" | "dry-run";
+export type MissionMode = "autonomous" | "interactive" | "dry-run" | "auto";
 
 /**
  * The caller-supplied request used to create a new mission. Everything the
@@ -17,12 +18,14 @@ export type MissionMode = "autonomous" | "interactive" | "dry-run";
 export interface MissionInput {
 	/** Short human-readable title. */
 	title: string;
+	id?: string;
 	/** The objective the mission is trying to achieve. */
 	objective: string;
 	/** Operating mode; defaults are resolved by the runtime when omitted. */
 	mode?: MissionMode;
 	/** Caller-asserted risk level, if known ahead of classification. */
 	riskLevel?: RiskLevel;
+	intent?: MissionIntent;
 	/** Owning project, if any. */
 	projectId?: string;
 	/** Originating session, if any. */

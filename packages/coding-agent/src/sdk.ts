@@ -1133,6 +1133,7 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 			getSubagentContract: options.subagentContract ? () => options.subagentContract : undefined,
 			// Mission scope: contract > mission > goal (see subagent/mutation-scope.ts).
 			getActiveMissionScope: () => session?.getActiveMissionScope(),
+			getActiveMission: () => session?.getActiveMission(),
 			getV3Telemetry: () => session?.v3Telemetry,
 			getClientBridge: () => session?.clientBridge,
 			getCompactContext: () => session.formatCompactContext(),
@@ -1582,7 +1583,8 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 			// lifecycle transitions: next rebuild after `completeGoalFromTool`/`dropGoal` emits
 			// the empty sentinel and the goal anchor disappears from attention.
 			const activeGoal = session?.getGoalModeState()?.goal ?? null;
-			const activeMissionInput = activeGoal?.missionId ? { missionId: activeGoal.missionId } : undefined;
+			const activeMission = session?.getActiveMission?.();
+			const activeMissionInput = activeMission ? { missionId: activeMission.id } : undefined;
 			const defaultPrompt = await buildSystemPromptInternal({
 				cwd,
 				skills,

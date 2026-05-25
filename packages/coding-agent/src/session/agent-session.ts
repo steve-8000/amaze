@@ -146,9 +146,10 @@ import {
 } from "../mcp/discoverable-tool-metadata";
 import { resolveMemoryBackend } from "../memory-backend";
 import type { Mission } from "../mission/core/mission";
+import { MissionControlRuntime } from "../mission/core/mission-control-runtime";
 import type { MissionScopeGuard } from "../mission/core/mission-scope";
 import { ObjectiveRuntimeImpl, renderGoalBlock } from "../mission/core/objective-runtime";
-import type { MissionStore } from "../mission/store";
+import { DEFAULT_DB_PATH as DEFAULT_MISSION_DB_PATH, MissionStore } from "../mission/store";
 import { getCurrentThemeName, theme } from "../modes/theme/theme";
 import type { Unsubscribe } from "../observability/event-bus";
 import { emitPromptCacheEventIfPossible, type PromptCacheResponse } from "../observability/prompt-cache-emit";
@@ -808,6 +809,8 @@ export class AgentSession {
 	#planModeState: PlanModeState | undefined;
 	#goalModeState: GoalModeState | undefined;
 	#activeMissionId: string | undefined = undefined;
+	#missionControl: MissionControlRuntime;
+	#missionStoreInstance: MissionStore | undefined;
 	#goalRuntime: ObjectiveRuntimeImpl;
 	#objectiveRuntime: ObjectiveRuntimeImpl | undefined;
 	#selfImproveLoopUnsub: Unsubscribe | undefined;
@@ -1202,6 +1205,15 @@ export class AgentSession {
 			// Without this the runtime's #emitSessionEvent is a no-op for the main session.
 			getSessionId: () => this.sessionId,
 			sessionEventBus: getSessionEventBus(this),
+		});
+
+		this.#missionStoreInstance = new MissionStore(DEFAULT_MISSION_DB_PATH);
+		this.#missionControl = new MissionControlRuntime({
+			store: this.#missionStoreInstance,
+			setActiveMissionId: id => {
+				this.#activeMissionId = id;
+			},
+			getActiveMissionId: () => this.#activeMissionId,
 		});
 
 		// Always subscribe to agent events for internal handling
@@ -2852,6 +2864,8 @@ export class AgentSession {
 		}
 		await disposeKernelSessionsByOwner(this.#evalKernelOwnerId);
 		this.#releasePowerAssertion();
+		this.#missionStoreInstance?.close();
+		this.#missionStoreInstance = undefined;
 		await this.sessionManager.close();
 		this.#closeAllProviderSessions("dispose");
 		this.#disconnectFromAgent();
@@ -3858,16 +3872,8 @@ export class AgentSession {
 	setGoalModeState(state: GoalModeState | undefined): void {
 		this.#goalModeState = state;
 	}
-
-	#missionStore(): MissionStore | undefined {
-		return undefined;
-	}
-
 	getActiveMission(): Mission | undefined {
-		if (!this.#activeMissionId) return undefined;
-		const store = this.#missionStore();
-		if (!store) return undefined;
-		return undefined;
+		return this.#missionControl.getActiveMission();
 	}
 
 	getActiveMissionScope(): MissionScopeGuard | undefined {
@@ -3876,6 +3882,10 @@ export class AgentSession {
 
 	setActiveMissionId(id: string | undefined): void {
 		this.#activeMissionId = id;
+	}
+
+	get missionControl(): MissionControlRuntime {
+		return this.#missionControl;
 	}
 
 	get goalRuntime(): ObjectiveRuntimeImpl {
@@ -4236,6 +4246,10 @@ export class AgentSession {
 			this.#todoReminderCount = 0;
 
 			await this.#maybeRestoreRetryFallbackPrimary();
+
+			if (message.role === "user") {
+				await this.#missionControl.ensureActiveMission({ content: expandedText });
+			}
 
 			// Validate model
 			if (!this.model) {
