@@ -1,6 +1,8 @@
 /**
  * Lane C1 — ToolGateway Skeleton. Public surface for the gateway layer.
  */
+
+export * from "./mission-policy-gate";
 export * from "./mutation-guard";
 export * from "./permission-gate";
 export * from "./risk-classifier";

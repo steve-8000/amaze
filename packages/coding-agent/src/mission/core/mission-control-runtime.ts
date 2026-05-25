@@ -59,6 +59,31 @@ export class MissionControlRuntime {
 		return { missionId: mission.id, intent, created: true };
 	}
 
+	async promoteFromAmbient(input: { triggeringTool: string; objective?: string }): Promise<Mission> {
+		const active = this.getActiveMission();
+		if (active) return active;
+
+		const objective = (input.objective?.trim() || `<mutation via ${input.triggeringTool}>`).slice(0, 240);
+		const inferred = safeInferIntent({ content: objective });
+		const intent = MISSION_INTENT_REQUIRES_MISSION.has(inferred) ? inferred : "code_change";
+		const mission = await this.#runtime.create({
+			...(this.#deps.newId ? { id: this.#deps.newId() } : {}),
+			title: deriveTitle(objective),
+			objective,
+			mode: "auto",
+			riskLevel: "medium",
+			intent,
+		});
+		this.#deps.setActiveMissionId(mission.id);
+		return mission;
+	}
+
+	async ensureMissionScopeOrPromote(triggeringTool: string): Promise<Mission | undefined> {
+		const active = this.getActiveMission();
+		if (active) return active;
+		return this.promoteFromAmbient({ triggeringTool });
+	}
+
 	getActiveMission(): Mission | undefined {
 		const activeId = this.#deps.getActiveMissionId();
 		return activeId ? this.#runtime.tryGet(activeId) : undefined;

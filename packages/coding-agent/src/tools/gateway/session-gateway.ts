@@ -11,9 +11,12 @@
  * is left untouched; the gateway's {@link SubagentMutationScopeGuard} mirrors it for
  * callers that opt to enforce at the seam (see tests).
  */
+
+import type { MissionControlRuntime } from "../../mission/core/mission-control-runtime";
 import { enforceMutationScope } from "../../subagent/mutation-scope";
 import type { ToolDescriptor, ToolExecutionContext } from "../registry/tool-descriptor";
 import { ToolRegistry } from "../registry/tool-registry";
+import { MissionPolicyGate } from "./mission-policy-gate";
 import { SubagentMutationScopeGuard } from "./mutation-guard";
 import { AllowAllPermissionGate } from "./permission-gate";
 import { type GuardDecision, ToolGateway } from "./tool-gateway";
@@ -92,14 +95,25 @@ function seamDescriptor(name: string): ToolDescriptor {
 export class SessionToolGateway {
 	#gateway: ToolGateway;
 	#registry = new ToolRegistry();
+	#missionControl?: MissionControlRuntime;
+	#mutationTools: ReadonlySet<string>;
 
-	constructor(options?: { enforceMutationScopeAtSeam?: boolean }) {
-		for (const name of GATEWAY_MUTATION_TOOLS) {
+	constructor(options?: {
+		enforceMutationScopeAtSeam?: boolean;
+		missionControl?: MissionControlRuntime;
+		mutationToolNames?: ReadonlySet<string>;
+	}) {
+		this.#missionControl = options?.missionControl;
+		this.#mutationTools = options?.mutationToolNames ?? GATEWAY_MUTATION_TOOLS;
+		for (const name of this.#mutationTools) {
 			this.#registry.register(seamDescriptor(name));
 		}
 		this.#gateway = new ToolGateway(this.#registry, {
-			// Production seam is a transparent pass-through: allow-all permission so
-			// behavior for allowed calls is identical to today.
+			policyGate: options?.missionControl
+				? new MissionPolicyGate({ missionControl: options.missionControl, mutationToolNames: this.#mutationTools })
+				: undefined,
+			// Production seam is a transparent pass-through unless mission control is supplied:
+			// allow-all permission keeps behavior for allowed calls identical to today.
 			permissionGate: new AllowAllPermissionGate(),
 			// The inline tool enforcement remains authoritative by default; opt in to
 			// seam-level scope enforcement (tests / strict modes) explicitly.
@@ -111,7 +125,7 @@ export class SessionToolGateway {
 
 	/** Whether a tool name is routed through the seam gateway. */
 	handles(name: string): boolean {
-		return GATEWAY_MUTATION_TOOLS.has(name);
+		return this.#mutationTools.has(name);
 	}
 
 	/**
@@ -120,6 +134,19 @@ export class SessionToolGateway {
 	 */
 	async decide(name: string, ctx: ToolExecutionContext): Promise<GuardDecision> {
 		const descriptor = this.#registry.get(name) ?? seamDescriptor(name);
+		const decision = await this.#gateway.guard(descriptor, ctx);
+		if (
+			decision.allowed ||
+			decision.code !== "PROMOTE_REQUIRED" ||
+			!this.handles(descriptor.name) ||
+			!this.#missionControl
+		) {
+			return decision;
+		}
+
+		// One-shot retry: ambient mutations are promoted once, then the gateway is
+		// re-run exactly once so repeated denials cannot loop indefinitely.
+		await this.#missionControl.promoteFromAmbient({ triggeringTool: descriptor.name });
 		return this.#gateway.guard(descriptor, ctx);
 	}
 

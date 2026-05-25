@@ -220,4 +220,37 @@ describe("ToolGateway enforcement at the dispatch seam (Lane H)", () => {
 			expect(g.timeoutMs).toBe(RISK_DEFAULT_TIMEOUT_MS.MEDIUM);
 		});
 	});
+
+	describe("mission auto-promotion", () => {
+		it("promotes ambient mutation calls and retries once", async () => {
+			const promoted: string[] = [];
+			let active = false;
+			const seam = new SessionToolGateway({
+				missionControl: {
+					getActiveMission: () =>
+						active
+							? {
+									id: "m-promoted",
+									intent: "code_change",
+									lifecycle: "executing",
+								}
+							: undefined,
+					promoteFromAmbient: async (input: { triggeringTool: string }) => {
+						promoted.push(input.triggeringTool);
+						active = true;
+						return {
+							id: "m-promoted",
+							intent: "code_change",
+							lifecycle: "executing",
+						};
+					},
+				} as never,
+			});
+
+			const decision = await seam.decide("write", { toolCallId: "ambient-write", input: { path: "a.txt" } });
+
+			expect(decision.allowed).toBe(true);
+			expect(promoted).toEqual(["write"]);
+		});
+	});
 });

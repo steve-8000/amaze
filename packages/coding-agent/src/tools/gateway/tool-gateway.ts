@@ -20,6 +20,7 @@ import { DefaultTimeoutPolicy, type TimeoutPolicy } from "./timeout-policy";
 export interface PolicyDecision {
 	allowed: boolean;
 	reason?: string;
+	code?: string;
 }
 
 /**
@@ -176,14 +177,15 @@ export class ToolGateway {
 		const riskLevel = classifyRisk(descriptor);
 		this.#hooks.onClassified?.(descriptor, riskLevel, ctx);
 
-		const deny = (stage: DenyStage, reason: string): GuardDecision => {
+		const deny = (stage: DenyStage, reason: string, code?: string): GuardDecision => {
 			this.#hooks.onDenied?.(descriptor, stage, reason, ctx);
 			this.#emitRecord(ctx, descriptor, "completed", "denied");
-			return { allowed: false, stage, reason, riskLevel, timeoutMs: 0 };
+			return { allowed: false, stage, reason, code, riskLevel, timeoutMs: 0 };
 		};
 
 		const policy = this.#policyGate.check(descriptor, ctx, riskLevel);
-		if (!policy.allowed) return deny("policy", policy.reason ?? `policy denied tool "${descriptor.name}"`);
+		if (!policy.allowed)
+			return deny("policy", policy.reason ?? `policy denied tool "${descriptor.name}"`, policy.code);
 
 		const permission = this.#permissionGate.check(descriptor, ctx, riskLevel);
 		if (!permission.allowed) {
@@ -253,4 +255,4 @@ export class ToolGateway {
 /** Decision returned by {@link ToolGateway.guard}. */
 export type GuardDecision =
 	| { allowed: true; riskLevel: ToolRiskLevel; timeoutMs: number }
-	| { allowed: false; stage: DenyStage; reason: string; riskLevel: ToolRiskLevel; timeoutMs: number };
+	| { allowed: false; stage: DenyStage; reason: string; code?: string; riskLevel: ToolRiskLevel; timeoutMs: number };

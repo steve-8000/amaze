@@ -148,6 +148,7 @@ import { resolveMemoryBackend } from "../memory-backend";
 import type { Mission } from "../mission/core/mission";
 import { MissionControlRuntime } from "../mission/core/mission-control-runtime";
 import type { MissionScopeGuard } from "../mission/core/mission-scope";
+import { projectMissionToTodoPhases } from "../mission/core/mission-todo-projection";
 import { ObjectiveRuntimeImpl, renderGoalBlock } from "../mission/core/objective-runtime";
 import { DEFAULT_DB_PATH as DEFAULT_MISSION_DB_PATH, MissionStore } from "../mission/store";
 import { getCurrentThemeName, theme } from "../modes/theme/theme";
@@ -833,7 +834,7 @@ export class AgentSession {
 	 * Transparent pass-through by default; routes the allow/deny + timeout + mission telemetry
 	 * decision through a single seam so mutation tools never dispatch outside the gateway.
 	 */
-	readonly #toolGateway = new SessionToolGateway();
+	readonly #toolGateway: SessionToolGateway;
 	/**
 	 * Optional mission binding for tool-call telemetry. Absent ⇒ telemetry no-ops. Lane I sets
 	 * this when a mission/task is bound to the session; the gateway emits mission.tool.* records.
@@ -1215,6 +1216,7 @@ export class AgentSession {
 			},
 			getActiveMissionId: () => this.#activeMissionId,
 		});
+		this.#toolGateway = new SessionToolGateway({ missionControl: this.#missionControl });
 
 		// Always subscribe to agent events for internal handling
 		// (session persistence, hooks, auto-compaction, retry logic)
@@ -4859,6 +4861,10 @@ export class AgentSession {
 	}
 
 	getTodoPhases(): TodoPhase[] {
+		const activeMission = this.getActiveMission();
+		if (activeMission && activeMission.tasks.length > 0) {
+			return this.#cloneTodoPhases(projectMissionToTodoPhases(activeMission));
+		}
 		return this.#cloneTodoPhases(this.#todoPhases);
 	}
 

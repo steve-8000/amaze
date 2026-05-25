@@ -5,6 +5,7 @@ import { prompt } from "@amaze/utils";
 import chalk from "chalk";
 import * as z from "zod/v4";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
+import { projectMissionToTodoPhases } from "../mission/core/mission-todo-projection";
 import type { Theme } from "../modes/theme/theme";
 import todoReadDescription from "../prompts/tools/todo-read.md" with { type: "text" };
 import todoWriteDescription from "../prompts/tools/todo-write.md" with { type: "text" };
@@ -301,6 +302,79 @@ function applyParams(phases: TodoPhase[], params: TodoWriteParams): { phases: To
 	return { phases: next, errors };
 }
 
+function applyParamsToMission(
+	mission: NonNullable<ReturnType<NonNullable<ToolSession["getActiveMission"]>>>,
+	params: TodoWriteParams,
+): { phases: TodoPhase[]; errors: string[] } {
+	const errors: string[] = [];
+	const previousPhases = projectMissionToTodoPhases(mission);
+	let executionPhase = previousPhases.find(phase => phase.name === "Execution");
+	if (!executionPhase) {
+		executionPhase = { name: "Execution", tasks: [] };
+	}
+	for (const entry of params.ops) {
+		const before = executionPhase.tasks.length;
+		const nextPhases = applyEntry([executionPhase], entry, errors);
+		executionPhase = nextPhases[0] ?? { name: "Execution", tasks: [] };
+		if (entry.op === "init") {
+			mission.tasks = executionPhase.tasks.map((task, index) => ({
+				id: `${mission.id}-todo-${index + 1}`,
+				title: task.content,
+				status: mapTodoStatusToMissionTaskStatus(task.status),
+				...(task.notes && task.notes.length > 0 ? { notes: [...task.notes] } : {}),
+			}));
+			continue;
+		}
+		if (entry.op === "append" && executionPhase.tasks.length > before) {
+			for (const task of executionPhase.tasks.slice(before)) {
+				mission.tasks.push({
+					id: `${mission.id}-todo-${mission.tasks.length + 1}`,
+					title: task.content,
+					status: mapTodoStatusToMissionTaskStatus(task.status),
+					...(task.notes && task.notes.length > 0 ? { notes: [...task.notes] } : {}),
+				});
+			}
+			continue;
+		}
+		syncMissionTasksFromExecutionPhase(mission, executionPhase);
+		if (entry.op === "rm") {
+			const remainingTitles = new Set(executionPhase.tasks.map(task => task.content));
+			mission.tasks = mission.tasks.filter(task => remainingTitles.has(task.title));
+		}
+	}
+	normalizeInProgressTask(executionPhase.tasks.length > 0 ? [executionPhase] : []);
+	syncMissionTasksFromExecutionPhase(mission, executionPhase);
+	mission.updatedAt = Date.now();
+	return { phases: projectMissionToTodoPhases(mission), errors };
+}
+
+function syncMissionTasksFromExecutionPhase(
+	mission: NonNullable<ReturnType<NonNullable<ToolSession["getActiveMission"]>>>,
+	executionPhase: TodoPhase,
+): void {
+	for (const projectedTask of executionPhase.tasks) {
+		const missionTask = mission.tasks.find(task => task.title === projectedTask.content);
+		if (!missionTask) continue;
+		missionTask.status = mapTodoStatusToMissionTaskStatus(projectedTask.status);
+		if (projectedTask.notes && projectedTask.notes.length > 0) {
+			(missionTask as typeof missionTask & { notes?: string[] }).notes = [...projectedTask.notes];
+		}
+	}
+}
+
+function mapTodoStatusToMissionTaskStatus(status: TodoStatus) {
+	switch (status) {
+		case "completed":
+			return "completed";
+		case "in_progress":
+			return "running";
+		case "abandoned":
+			return "cancelled";
+		case "pending":
+			return "pending";
+	}
+}
+
 /** Apply an array of `todo_write`-style ops to existing phases. Used by /todo slash command. */
 export function applyOpsToPhases(
 	currentPhases: TodoPhase[],
@@ -514,8 +588,10 @@ export class TodoWriteTool implements AgentTool<typeof todoWriteSchema, TodoWrit
 		_onUpdate?: AgentToolUpdateCallback<TodoWriteToolDetails>,
 		_context?: AgentToolContext,
 	): Promise<AgentToolResult<TodoWriteToolDetails>> {
-		const previousPhases = clonePhases(this.session.getTodoPhases?.() ?? []);
-		const { phases: updated, errors } = applyParams(previousPhases, params);
+		const activeMission = this.session.getActiveMission?.();
+		const { phases: updated, errors } = activeMission
+			? applyParamsToMission(activeMission, params)
+			: applyParams(clonePhases(this.session.getTodoPhases?.() ?? []), params);
 		this.session.setTodoPhases?.(updated);
 		const storage = this.session.getSessionFile() ? "session" : "memory";
 
