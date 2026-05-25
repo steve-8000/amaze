@@ -137,6 +137,26 @@ function lifecycleToStoreState(lifecycle: MissionLifecycleState): LegacyMissionS
 	}
 }
 
+/**
+ * Best-effort inverse of {@link lifecycleToStoreState} for hydrating legacy rows that predate
+ * the persisted `lifecycle` column. Terminal store states map back exactly; any non-terminal
+ * legacy state collapses to `created` (the gate treats it as pre-execution).
+ */
+function storeStateToLifecycle(state: LegacyMissionState): MissionLifecycleState {
+	switch (state) {
+		case "completed":
+			return "completed";
+		case "blocked":
+			return "blocked";
+		case "cancelled":
+			return "cancelled";
+		case "rolled_back":
+			return "rolled_back";
+		default:
+			return "created";
+	}
+}
+
 function cloneCriterion(criterion: AcceptanceCriterion): AcceptanceCriterion {
 	return {
 		...criterion,
@@ -197,19 +217,53 @@ export class MissionRuntimeImpl implements MissionRuntime {
 	}
 
 	tryGet(missionId: string): Mission | undefined {
-		return this.#missions.get(missionId);
+		return this.#missions.get(missionId) ?? this.#hydrate(missionId);
 	}
 
 	#require(missionId: string): Mission {
-		const mission = this.#missions.get(missionId);
+		const mission = this.#missions.get(missionId) ?? this.#hydrate(missionId);
 		if (!mission) throw new Error(`Mission not found: ${missionId}`);
+		return mission;
+	}
+
+	/**
+	 * Rebuild an in-memory {@link Mission} from the durable store when it is not yet
+	 * resident (e.g. after a session restart). Restores the gate-critical pointers —
+	 * intent, lifecycle, proposalId, regressionContractId, decisionId — so the policy and
+	 * close gates behave identically across restarts. Plan/task/budget detail is not
+	 * persisted in the thin record and is restored to empty defaults.
+	 */
+	#hydrate(missionId: string): Mission | undefined {
+		const record = this.#store.getMission(missionId);
+		if (!record) return undefined;
+		const mission: Mission = {
+			id: record.id,
+			title: record.title,
+			objective: record.title,
+			mode: "auto",
+			lifecycle: (record.lifecycle as MissionLifecycleState | null) ?? storeStateToLifecycle(record.state),
+			riskLevel: record.riskLevel,
+			...(record.intent ? { intent: record.intent as Mission["intent"] } : {}),
+			constraints: [],
+			acceptanceCriteria: [],
+			budget: { tokenBudget: DEFAULT_TOKEN_BUDGET, tokensUsed: 0 },
+			contextBudget: { maxContextTokens: DEFAULT_MAX_CONTEXT_TOKENS, contextTokensUsed: 0 },
+			tasks: [],
+			evidenceRefs: [],
+			...(record.decisionId ? { decisionId: record.decisionId } : {}),
+			...(record.regressionContractId ? { regressionContractId: record.regressionContractId } : {}),
+			...(record.proposalId ? { proposalId: record.proposalId } : {}),
+			createdAt: record.createdAt,
+			updatedAt: record.updatedAt,
+		};
+		this.#missions.set(mission.id, mission);
 		return mission;
 	}
 
 	#advance(mission: Mission, lifecycle: MissionLifecycleState): Mission {
 		mission.lifecycle = lifecycle;
 		mission.updatedAt = this.#now();
-		this.#store.updateMission(mission.id, { state: lifecycleToStoreState(lifecycle) });
+		this.#store.updateMission(mission.id, { state: lifecycleToStoreState(lifecycle), lifecycle });
 		return mission;
 	}
 
@@ -232,6 +286,8 @@ export class MissionRuntimeImpl implements MissionRuntime {
 			state: "drafting",
 			confidence: null,
 			snapshotRef: null,
+			intent: input.intent ?? null,
+			lifecycle: "created",
 		});
 
 		const mission: Mission = {
@@ -286,6 +342,7 @@ export class MissionRuntimeImpl implements MissionRuntime {
 		const decision = defaultMissionClassifier.classify(mission);
 		mission.intent = decision.intent;
 		mission.riskLevel = toCoreRiskLevel(decision.riskLevel);
+		this.#store.updateMission(mission.id, { intent: mission.intent, riskLevel: mission.riskLevel });
 		const confidence: ConfidenceLevel | null = mission.riskLevel === "low" ? "high" : null;
 		this.#emit({
 			type: "mission.classified",
@@ -321,6 +378,45 @@ export class MissionRuntimeImpl implements MissionRuntime {
 			ts: mission.updatedAt,
 		});
 		return { plan };
+	}
+
+	/**
+	 * Attach an approved proposal to a mission. This is the single seam that satisfies the
+	 * `requireProposalBeforeMutation` gate: until a mission carries a `proposalId`, mutation
+	 * tools on proposal-required intents are denied (see {@link MissionPolicyGate}). Idempotent
+	 * per mission — re-attaching overwrites the pointer and re-emits.
+	 */
+	attachProposal(missionId: string, input: { proposalId?: string; planRef?: string | null } = {}): Mission {
+		const mission = this.#require(missionId);
+		const proposalId = input.proposalId ?? `proposal-${mission.id}-${this.#now()}`;
+		mission.proposalId = proposalId;
+		mission.updatedAt = this.#now();
+		this.#store.updateMission(mission.id, { proposalId });
+		this.#emit({
+			type: "mission.proposal.attached",
+			missionId: mission.id,
+			proposalId,
+			planRef: input.planRef ?? null,
+			ts: mission.updatedAt,
+		});
+		// An approved proposal is the signal to begin execution; leave terminal/active states alone.
+		if (mission.lifecycle === "created" || mission.lifecycle === "classified" || mission.lifecycle === "planning") {
+			this.#advance(mission, "executing");
+		}
+		return mission;
+	}
+
+	/**
+	 * Advance lifecycle state without running the task dispatcher. Used by the control runtime
+	 * to keep a mission's lifecycle truthful on the interactive hot path, where the LLM agent
+	 * loop — not {@link execute}'s dispatcher — performs the actual work. No-op once terminal.
+	 */
+	markLifecycle(missionId: string, lifecycle: Extract<MissionLifecycleState, "planning" | "executing">): Mission {
+		const mission = this.#require(missionId);
+		const terminal =
+			mission.lifecycle === "completed" || mission.lifecycle === "cancelled" || mission.lifecycle === "blocked";
+		if (!terminal && mission.lifecycle !== lifecycle) this.#advance(mission, lifecycle);
+		return mission;
 	}
 
 	async execute(missionId: string, options: MissionExecuteOptions = {}): Promise<MissionExecuteResult> {

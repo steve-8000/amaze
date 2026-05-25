@@ -25,6 +25,7 @@ export const MISSION_SUBCOMMANDS = [
 	{ name: "evidence", description: "List mission evidence", usage: "<missionId>" },
 	{ name: "decision", description: "Show the mission decision", usage: "<missionId>" },
 	{ name: "verify", description: "Show mission verification status", usage: "<missionId>" },
+	{ name: "approve", description: "Approve the active mission's plan as its proposal (unblocks mutations)" },
 	{ name: "complete", description: "Complete a mission (not yet available; use /goal complete)" },
 	{ name: "rollback", description: "Show mission rollback candidates", usage: "<missionId>" },
 ] as const;

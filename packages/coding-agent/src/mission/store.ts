@@ -68,6 +68,10 @@ type MissionRow = {
 	snapshot_ref: string | null;
 	created_at: number;
 	updated_at: number;
+	intent: string | null;
+	lifecycle: string | null;
+	proposal_id: string | null;
+	regression_contract_id: string | null;
 };
 
 type MissionLaneRunRow = {
@@ -206,12 +210,19 @@ export class MissionStore {
 			id: input.id ?? generateId("mission", now),
 			createdAt: now,
 			updatedAt: now,
+			// Normalize the durable core pointers so the returned aggregate matches what a
+			// subsequent getMission()/listMissions() read reconstructs from the row.
+			intent: input.intent ?? null,
+			lifecycle: input.lifecycle ?? null,
+			proposalId: input.proposalId ?? null,
+			regressionContractId: input.regressionContractId ?? null,
 		};
 		this.#db
 			.query(
 				`INSERT INTO missions
-					(id, title, objective_id, brief_id, decision_id, risk_level, state, confidence, snapshot_ref, created_at, updated_at)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+					(id, title, objective_id, brief_id, decision_id, risk_level, state, confidence, snapshot_ref, created_at, updated_at,
+					 intent, lifecycle, proposal_id, regression_contract_id)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			)
 			.run(
 				mission.id,
@@ -225,6 +236,10 @@ export class MissionStore {
 				mission.snapshotRef,
 				mission.createdAt,
 				mission.updatedAt,
+				mission.intent ?? null,
+				mission.lifecycle ?? null,
+				mission.proposalId ?? null,
+				mission.regressionContractId ?? null,
 			);
 		return mission;
 	}
@@ -315,7 +330,18 @@ export class MissionStore {
 		patch: Partial<
 			Pick<
 				ResearchCampaign,
-				"title" | "state" | "confidence" | "decisionId" | "snapshotRef" | "objectiveId" | "briefId" | "riskLevel"
+				| "title"
+				| "state"
+				| "confidence"
+				| "decisionId"
+				| "snapshotRef"
+				| "objectiveId"
+				| "briefId"
+				| "riskLevel"
+				| "intent"
+				| "lifecycle"
+				| "proposalId"
+				| "regressionContractId"
 			>
 		>,
 	): ResearchCampaign {
@@ -336,7 +362,8 @@ export class MissionStore {
 		this.#db
 			.query(
 				`UPDATE missions
-				SET title = ?, state = ?, confidence = ?, decision_id = ?, snapshot_ref = ?, objective_id = ?, brief_id = ?, risk_level = ?, updated_at = ?
+				SET title = ?, state = ?, confidence = ?, decision_id = ?, snapshot_ref = ?, objective_id = ?, brief_id = ?, risk_level = ?, updated_at = ?,
+					intent = ?, lifecycle = ?, proposal_id = ?, regression_contract_id = ?
 				WHERE id = ?`,
 			)
 			.run(
@@ -349,6 +376,10 @@ export class MissionStore {
 				next.briefId,
 				next.riskLevel,
 				next.updatedAt,
+				next.intent ?? null,
+				next.lifecycle ?? null,
+				next.proposalId ?? null,
+				next.regressionContractId ?? null,
 				id,
 			);
 		return next;
@@ -983,6 +1014,10 @@ export class MissionStore {
 			);
 			CREATE INDEX IF NOT EXISTS mission_world_model_mission_idx ON mission_world_model(mission_id);
 		`);
+		this.#ensureColumn("missions", "intent", "TEXT");
+		this.#ensureColumn("missions", "lifecycle", "TEXT");
+		this.#ensureColumn("missions", "proposal_id", "TEXT");
+		this.#ensureColumn("missions", "regression_contract_id", "TEXT");
 		this.#ensureColumn("mission_contracts", "task_id", "TEXT");
 		this.#ensureColumn("mission_contracts", "session_file", "TEXT");
 		this.#ensureColumn(
@@ -1085,6 +1120,10 @@ function rowToMission(row: MissionRow): ResearchCampaign {
 		snapshotRef: row.snapshot_ref,
 		createdAt: row.created_at,
 		updatedAt: row.updated_at,
+		intent: row.intent ?? null,
+		lifecycle: row.lifecycle ?? null,
+		proposalId: row.proposal_id ?? null,
+		regressionContractId: row.regression_contract_id ?? null,
 	};
 }
 

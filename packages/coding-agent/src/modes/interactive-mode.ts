@@ -1512,6 +1512,19 @@ export class InteractiveMode implements InteractiveModeContext {
 		this.#planModePreviousModelState = undefined;
 		this.#updatePlanModeStatus();
 		const paused = options?.paused ?? false;
+		// Exiting plan mode without pausing is an explicit approval. If the active mission is a
+		// proposal-required intent (architecture/refactor/deploy) still awaiting a proposal, the
+		// approved plan becomes its proposal — unblocking mutations through the policy gate.
+		if (!paused) {
+			try {
+				const missionControl = this.session.missionControl;
+				if (missionControl?.activeMissionNeedsProposal()) {
+					missionControl.approveActiveProposal({ planRef: persistedPlanState?.planFilePath ?? null });
+				}
+			} catch {
+				// Approval bookkeeping must never block leaving plan mode.
+			}
+		}
 		this.sessionManager.appendModeChange(
 			paused ? "plan_paused" : "none",
 			paused && persistedPlanState ? this.#planModePersistenceData(persistedPlanState) : undefined,

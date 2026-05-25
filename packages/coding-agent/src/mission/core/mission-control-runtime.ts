@@ -1,5 +1,7 @@
+import type { MissionEventBus } from "../event-bus";
 import { inferIntent, MISSION_INTENT_REQUIRES_MISSION, type MissionIntent } from "../policy";
 import type { MissionStore } from "../store";
+import { templateFor } from "./lifecycle-template";
 import type { Mission } from "./mission";
 import { MissionRuntimeImpl } from "./mission-runtime";
 
@@ -11,6 +13,8 @@ export interface MissionControlDeps {
 	getActiveMissionId: () => string | undefined;
 	now?: () => number;
 	newId?: () => string;
+	/** Session event bus so mission lifecycle transitions are observable (board/replay/web). */
+	eventBus?: MissionEventBus;
 }
 
 export interface EnsureMissionInput {
@@ -30,7 +34,11 @@ export class MissionControlRuntime {
 
 	constructor(deps: MissionControlDeps) {
 		this.#deps = deps;
-		this.#runtime = new MissionRuntimeImpl({ store: deps.store, now: deps.now });
+		this.#runtime = new MissionRuntimeImpl({
+			store: deps.store,
+			now: deps.now,
+			...(deps.eventBus ? { eventBus: deps.eventBus } : {}),
+		});
 	}
 
 	async ensureActiveMission(input: EnsureMissionInput): Promise<EnsureMissionResult> {
@@ -56,7 +64,23 @@ export class MissionControlRuntime {
 			intent,
 		});
 		this.#deps.setActiveMissionId(mission.id);
+		this.#driveInitialLifecycle(mission.id, intent);
 		return { missionId: mission.id, intent, created: true };
+	}
+
+	/**
+	 * Move a freshly-created mission into a lifecycle state that reflects reality on the
+	 * interactive hot path. Proposal-required intents wait in `planning` (the policy gate keeps
+	 * mutations blocked until a proposal is attached); everything else enters `executing` so its
+	 * state is not misreported as pre-execution while the agent works. Best-effort: never throws.
+	 */
+	#driveInitialLifecycle(missionId: string, intent: MissionIntent): void {
+		try {
+			const requiresProposal = templateFor(intent).requireProposalBeforeMutation;
+			this.#runtime.markLifecycle(missionId, requiresProposal ? "planning" : "executing");
+		} catch {
+			// Lifecycle bookkeeping must never break the user turn.
+		}
 	}
 
 	async promoteFromAmbient(input: { triggeringTool: string; objective?: string }): Promise<Mission> {
@@ -75,7 +99,35 @@ export class MissionControlRuntime {
 			intent,
 		});
 		this.#deps.setActiveMissionId(mission.id);
+		this.#driveInitialLifecycle(mission.id, intent);
 		return mission;
+	}
+
+	/**
+	 * Attach an approved proposal to a mission, satisfying the `requireProposalBeforeMutation`
+	 * gate and advancing it into execution. This is the programmatic seam behind both approval
+	 * paths: plan-mode exit and the `/mission approve` command.
+	 */
+	attachProposal(missionId: string, input: { proposalId?: string; planRef?: string | null } = {}): Mission {
+		return this.#runtime.attachProposal(missionId, input);
+	}
+
+	/**
+	 * Approve the active mission's proposal. Returns the mission on success, or undefined when
+	 * there is no active mission. Idempotent: re-approving simply re-attaches.
+	 */
+	approveActiveProposal(input: { planRef?: string | null } = {}): Mission | undefined {
+		const active = this.getActiveMission();
+		if (!active) return undefined;
+		return this.#runtime.attachProposal(active.id, input);
+	}
+
+	/** Whether the active mission still needs a proposal before mutations are permitted. */
+	activeMissionNeedsProposal(): boolean {
+		const active = this.getActiveMission();
+		if (!active) return false;
+		const template = templateFor(active.intent ?? "code_change");
+		return template.requireProposalBeforeMutation && !active.proposalId;
 	}
 
 	async ensureMissionScopeOrPromote(triggeringTool: string): Promise<Mission | undefined> {

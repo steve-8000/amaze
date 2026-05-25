@@ -50,6 +50,16 @@ export interface ResearchCampaign {
 	snapshotRef: string | null;
 	createdAt: number;
 	updatedAt: number;
+	/**
+	 * Durable core-mission pointers (workplan: durable Mission aggregate). These mirror the
+	 * rich {@link core/mission.Mission} fields the policy/close gates read, so they survive a
+	 * session restart instead of living only in the in-memory runtime map. Persisted as plain
+	 * strings; the core runtime casts them back to their union types on hydrate.
+	 */
+	intent?: string | null;
+	lifecycle?: string | null;
+	proposalId?: string | null;
+	regressionContractId?: string | null;
 }
 
 export type NewResearchCampaign = Omit<ResearchCampaign, "id" | "createdAt" | "updatedAt"> & {

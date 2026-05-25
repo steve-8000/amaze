@@ -150,6 +150,7 @@ import type { MissionScopeGuard } from "../mission/core/mission-scope";
 import { projectMissionToTodoPhases } from "../mission/core/mission-todo-projection";
 import { ObjectiveRuntimeImpl, renderGoalBlock } from "../mission/core/objective-runtime";
 import type { Goal, GoalModeState } from "../mission/core/objective-state";
+import { getMissionEventBus } from "../mission/runtime";
 import { DEFAULT_DB_PATH as DEFAULT_MISSION_DB_PATH, MissionStore } from "../mission/store";
 import { getCurrentThemeName, theme } from "../modes/theme/theme";
 import type { Unsubscribe } from "../observability/event-bus";
@@ -777,6 +778,21 @@ function extractPermissionLocations(
  *  rely on the existing text-equality match. */
 type QueuedDisplayEntry = { text: string; tag?: string };
 
+/**
+ * Turn a gateway `PROPOSAL_REQUIRED` denial into an actionable instruction the model can act
+ * on, instead of the bare `"proposal-required"` reason string. Returns undefined for every
+ * other decision so the caller falls back to the original reason.
+ */
+function proposalRequiredHint(decision: { code?: string }): string | undefined {
+	if (decision.code !== "PROPOSAL_REQUIRED") return undefined;
+	return (
+		"proposal-required: this is a high-risk mission (architecture / refactor / external side effect) " +
+		"that must have an approved plan before any mutation. Present a concise plan to the user and get " +
+		"approval before changing anything — enter plan mode and exit once the user approves, or have the " +
+		"user run `/mission approve`. Once approved, the same tool call will be permitted."
+	);
+}
+
 export class AgentSession {
 	readonly agent: Agent;
 	readonly sessionManager: SessionManager;
@@ -1215,6 +1231,9 @@ export class AgentSession {
 				this.#activeMissionId = id;
 			},
 			getActiveMissionId: () => this.#activeMissionId,
+			// Emit lifecycle transitions onto the shared mission bus (same sink the store uses) so
+			// the Mission Board / event replay observe create→classify→proposal→execute.
+			...(getMissionEventBus() ? { eventBus: getMissionEventBus() } : {}),
 		});
 		this.#toolGateway = new SessionToolGateway({ missionControl: this.#missionControl });
 
@@ -3269,7 +3288,7 @@ export class AgentSession {
 					const decision = await gateway.decide(target.name, gctx);
 					if (!decision.allowed) {
 						// Mirror the tool's own error channel; message text matches the inline guard.
-						throw new ToolError(decision.reason);
+						throw new ToolError(proposalRequiredHint(decision) ?? decision.reason);
 					}
 					try {
 						const result = await (

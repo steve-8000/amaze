@@ -49,7 +49,17 @@ describe("/mission slash command registration", () => {
 		expect(spec).toBeDefined();
 		expect(spec?.handle).toBeDefined();
 		const names = (spec?.subcommands ?? []).map(sub => sub.name);
-		expect(names).toEqual(["create", "show", "stream", "evidence", "decision", "verify", "complete", "rollback"]);
+		expect(names).toEqual([
+			"create",
+			"show",
+			"stream",
+			"evidence",
+			"decision",
+			"verify",
+			"approve",
+			"complete",
+			"rollback",
+		]);
 		// Subcommand metadata mirrors the shared source of truth.
 		expect(names).toEqual(MISSION_SUBCOMMANDS.map(sub => sub.name));
 	});

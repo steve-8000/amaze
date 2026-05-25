@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { MissionControlRuntime } from "../../src/mission/core/mission-control-runtime";
 import { MissionStore } from "../../src/mission/store";
+import { MissionPolicyGate } from "../../src/tools/gateway/mission-policy-gate";
+import type { ToolDescriptor } from "../../src/tools/registry/tool-descriptor";
+
+const writeDescriptor = { name: "write" } as ToolDescriptor;
 
 const stores: MissionStore[] = [];
 
@@ -94,5 +98,70 @@ describe("MissionControlRuntime", () => {
 
 		expect(runtime.getActiveMission()?.objective).toHaveLength(240);
 		expect(result.created).toBe(true);
+	});
+
+	test("a code_change mission needs no proposal and enters executing", async () => {
+		const { runtime } = createRuntime();
+		await runtime.ensureActiveMission({ content: "fix the bug" });
+
+		expect(runtime.activeMissionNeedsProposal()).toBe(false);
+		expect(runtime.getActiveMission()?.lifecycle).toBe("executing");
+	});
+
+	test("an architecture_change mission needs a proposal and waits in planning", async () => {
+		const { runtime, store } = createRuntime();
+		const result = await runtime.ensureActiveMission({ content: "아키텍처를 재설계하자" });
+
+		expect(result.intent).toBe("architecture_change");
+		expect(runtime.activeMissionNeedsProposal()).toBe(true);
+		const mission = runtime.getActiveMission()!;
+		expect(mission.lifecycle).toBe("planning");
+		expect(mission.proposalId).toBeUndefined();
+		// Persisted so the gate behaves identically after a restart.
+		expect(store.getMission(mission.id)?.intent).toBe("architecture_change");
+		expect(store.getMission(mission.id)?.lifecycle).toBe("planning");
+	});
+
+	test("approving the active proposal unblocks mutations and persists", async () => {
+		const { runtime, store } = createRuntime();
+		await runtime.ensureActiveMission({ content: "아키텍처를 재설계하자" });
+		const missionId = runtime.getActiveMission()!.id;
+
+		const gate = new MissionPolicyGate({ missionControl: runtime });
+		// Before approval: the policy gate denies a mutation tool.
+		expect(gate.check(writeDescriptor, {}, "HIGH")).toMatchObject({
+			allowed: false,
+			code: "PROPOSAL_REQUIRED",
+		});
+
+		const approved = runtime.approveActiveProposal({ planRef: "local://PLAN.md" });
+		expect(approved?.proposalId).toBeDefined();
+
+		// After approval: same tool call is permitted, and the proposal pointer is durable.
+		expect(gate.check(writeDescriptor, {}, "HIGH")).toEqual({ allowed: true });
+		expect(runtime.activeMissionNeedsProposal()).toBe(false);
+		expect(runtime.getActiveMission()?.lifecycle).toBe("executing");
+		expect(store.getMission(missionId)?.proposalId).toBe(approved!.proposalId!);
+	});
+
+	test("proposal state survives a fresh runtime over the same store (hydrate)", async () => {
+		const { runtime, store } = createRuntime();
+		await runtime.ensureActiveMission({ content: "런타임을 리팩터하자" });
+		const missionId = runtime.getActiveMission()!.id;
+		runtime.approveActiveProposal();
+
+		// Simulate a restart: a new control runtime over the same store, same active id.
+		let activeId: string | undefined = missionId;
+		const revived = new MissionControlRuntime({
+			store,
+			setActiveMissionId: id => {
+				activeId = id;
+			},
+			getActiveMissionId: () => activeId,
+		});
+		const mission = revived.getActiveMission();
+		expect(mission?.intent).toBe("runtime_refactor");
+		expect(mission?.proposalId).toBeDefined();
+		expect(revived.activeMissionNeedsProposal()).toBe(false);
 	});
 });

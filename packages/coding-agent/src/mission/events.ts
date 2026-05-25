@@ -148,6 +148,15 @@ export type MissionPlannedEvent = {
 	ts: number;
 };
 
+export type MissionProposalAttachedEvent = {
+	type: "mission.proposal.attached";
+	missionId: string;
+	proposalId: string;
+	/** Optional pointer to the artifact backing the proposal (e.g. a plan file URL). */
+	planRef: string | null;
+	ts: number;
+};
+
 export type MissionTaskCreatedEvent = {
 	type: "mission.task.created";
 	missionId: string;
@@ -263,6 +272,7 @@ export type MissionLifecycleEvent =
 	| MissionCreatedEvent
 	| MissionClassifiedEvent
 	| MissionPlannedEvent
+	| MissionProposalAttachedEvent
 	| MissionTaskCreatedEvent
 	| MissionTaskCompletedEvent
 	| MissionTaskFailedEvent

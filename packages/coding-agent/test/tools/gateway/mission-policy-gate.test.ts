@@ -80,12 +80,21 @@ describe("MissionPolicyGate", () => {
 		expect(decision.allowed).toBe(true);
 	});
 
-	it("allows architecture_change mutations in executing lifecycle without a proposal", () => {
+	it("denies architecture_change mutations in executing lifecycle without a proposal", () => {
+		// The proposal requirement is a lifecycle-independent invariant: advancing a mission to
+		// `executing` must not let mutations slip through without an approved proposal.
 		const decision = gate(mission({ intent: "architecture_change", lifecycle: "executing" })).check(
 			descriptor("write"),
 			{},
 			"HIGH",
 		);
+		expect(decision).toMatchObject({ allowed: false, code: "PROPOSAL_REQUIRED", reason: "proposal-required" });
+	});
+
+	it("allows architecture_change mutations in executing lifecycle once a proposal is attached", () => {
+		const decision = gate(
+			mission({ intent: "architecture_change", lifecycle: "executing", proposalId: "proposal-1" }),
+		).check(descriptor("write"), {}, "HIGH");
 		expect(decision.allowed).toBe(true);
 	});
 });

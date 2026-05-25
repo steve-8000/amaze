@@ -109,6 +109,19 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 		subcommands: [...MISSION_SUBCOMMANDS],
 		allowArgs: true,
 		handle: async (command, runtime) => {
+			// `approve` is a live, session-scoped mutation (attaches the active mission's proposal),
+			// so it cannot go through the session-pure read-model helper.
+			const verb = (command.args || "").trim().split(/\s+/)[0]?.toLowerCase();
+			if (verb === "approve") {
+				const missionControl = runtime.session.missionControl;
+				const mission = missionControl?.approveActiveProposal();
+				await runtime.output(
+					mission
+						? `Approved proposal for mission ${mission.id}. Mutations are now permitted.`
+						: "No active mission to approve.",
+				);
+				return commandConsumed();
+			}
 			const result = await runMissionSlashCommand(command.args || "");
 			await runtime.output(result.output);
 			return commandConsumed();

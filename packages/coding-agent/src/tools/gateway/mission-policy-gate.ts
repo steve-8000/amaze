@@ -26,13 +26,13 @@ export class MissionPolicyGate implements PolicyGate {
 			return { allowed: false, reason: "mission-required", code: "PROMOTE_REQUIRED" };
 		}
 
+		// Proposal invariant: a proposal-required intent may not run a mutation tool until an
+		// approved proposal is attached — independent of lifecycle. Checking lifecycle here (the
+		// previous behaviour) let any path that advanced the mission to `executing` slip mutations
+		// through without a proposal; the gate is the invariant, not the phase.
 		const template = templateFor(mission.intent ?? "code_change");
-		if (template.requireProposalBeforeMutation) {
-			const inGate =
-				mission.lifecycle === "created" || mission.lifecycle === "classified" || mission.lifecycle === "planning";
-			if (inGate && !mission.proposalId) {
-				return { allowed: false, reason: "proposal-required", code: "PROPOSAL_REQUIRED" };
-			}
+		if (template.requireProposalBeforeMutation && !mission.proposalId) {
+			return { allowed: false, reason: "proposal-required", code: "PROPOSAL_REQUIRED" };
 		}
 
 		return { allowed: true };
