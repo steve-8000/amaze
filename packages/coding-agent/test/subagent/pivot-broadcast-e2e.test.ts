@@ -22,12 +22,12 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { Goal, GoalModeState, GoalTokenUsage } from "@amaze/coding-agent/goals/state";
 import {
 	type GoalRuntimeHost,
 	ObjectiveRuntimeImpl,
 	renderGoalBlock,
 } from "@amaze/coding-agent/mission/core/objective-runtime";
+import type { Goal, GoalModeState, GoalTokenUsage } from "@amaze/coding-agent/mission/core/objective-state";
 import {
 	isSubagentContractStale,
 	renderSubagentContract,

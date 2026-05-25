@@ -64,10 +64,10 @@ export interface ExecuteContractedTaskOptions {
 
 export interface ExecuteContractedTaskOutcome {
 	finalResult: TaskAttemptResult;
-	finalVerdict: import("../goals/verifier").VerificationVerdict;
+	finalVerdict: import("../mission/core/verifier").VerificationVerdict;
 	attempts: Array<{
 		result: TaskAttemptResult;
-		verdict: import("../goals/verifier").VerificationVerdict;
+		verdict: import("../mission/core/verifier").VerificationVerdict;
 	}>;
 }
 
@@ -89,8 +89,10 @@ export async function executeContractedTask(
 ): Promise<ExecuteContractedTaskOutcome> {
 	const { contract, runOnce, baseAssignment } = options;
 	const maxRetries = options.maxRetries ?? 1;
-	const perAttempt: Array<{ result: TaskAttemptResult; verdict: import("../goals/verifier").VerificationVerdict }> =
-		[];
+	const perAttempt: Array<{
+		result: TaskAttemptResult;
+		verdict: import("../mission/core/verifier").VerificationVerdict;
+	}> = [];
 
 	let lastResult: TaskAttemptResult | undefined;
 

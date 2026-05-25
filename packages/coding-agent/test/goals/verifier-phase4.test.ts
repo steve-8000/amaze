@@ -24,7 +24,7 @@ import {
 	type LlmJudgeRunner,
 	type LspDiagnostic,
 	VerifierResultCache,
-} from "@amaze/coding-agent/goals/verifier";
+} from "@amaze/coding-agent/mission/core/verifier";
 
 async function withTempDir<T>(run: (dir: string) => Promise<T>): Promise<T> {
 	const dir = await fs.mkdtemp(path.join(os.tmpdir(), "verifier-phase4-"));

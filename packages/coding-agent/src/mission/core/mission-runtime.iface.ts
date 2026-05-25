@@ -1,9 +1,9 @@
-import type { GoalBudgetSteering, GoalModeState, GoalTokenUsage } from "../../goals/state";
 import type { RiskLevel } from "../../research/types";
 import type { MissionIntent } from "../policy/intent";
 import type { Mission, MissionLifecycleState, MissionPlan, MissionVerification } from "./mission";
 import type { MissionInput } from "./mission-input";
 import type { MissionOutcome } from "./mission-outcome";
+import type { GoalBudgetSteering, GoalModeState, GoalTokenUsage } from "./objective-state";
 
 /**
  * Runtime contract for the refactored mission core. TYPES ONLY — this module

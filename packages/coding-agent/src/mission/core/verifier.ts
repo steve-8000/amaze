@@ -25,7 +25,7 @@ import { createHash } from "node:crypto";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { Glob } from "bun";
-import { settings } from "../config/settings";
+import { settings } from "../../config/settings";
 
 export type CriterionStatus = "pass" | "fail" | "uncertain";
 

@@ -6,14 +6,13 @@ import type { Settings } from "../config/settings";
 import { EditTool } from "../edit";
 import { checkPythonKernelAvailability } from "../eval/py/kernel";
 import type { Skill } from "../extensibility/skills";
-import type { GoalModeState } from "../goals/state";
-import { GoalTool } from "../goals/tools/goal-tool";
 import { LspTool } from "../lsp";
 import { resolveMemoryBackend } from "../memory-backend";
 import type { Mission } from "../mission/core/mission";
 import type { MissionControlRuntime } from "../mission/core/mission-control-runtime";
 import type { MissionScopeGuard } from "../mission/core/mission-scope";
 import type { ObjectiveRuntimeImpl } from "../mission/core/objective-runtime";
+import type { GoalModeState } from "../mission/core/objective-state";
 import type { PlanModeState } from "../plan-mode/state";
 import { type AgentRegistry, MAIN_AGENT_ID } from "../registry/agent-registry";
 import type { ArtifactManager } from "../session/artifacts";
@@ -43,6 +42,7 @@ import { DebugTool } from "./debug";
 import { EvalTool } from "./eval";
 import { FindTool } from "./find";
 import { GithubTool } from "./gh";
+import { GoalTool } from "./goal-tool";
 import { InspectImageTool } from "./inspect-image";
 import { IrcTool } from "./irc";
 import { JobTool } from "./job";
@@ -69,8 +69,8 @@ import { YieldTool } from "./yield";
 export * from "../edit";
 export * from "../exa";
 export type * from "../exa/types";
-export * from "../goals";
 export * from "../lsp";
+export * from "../mission/core";
 export * from "../mission/core/objective-runtime";
 export * from "../session/streaming-output";
 export * from "../task";
@@ -219,7 +219,7 @@ export interface ToolSession {
 	 * task) call its `record*` methods directly. Optional — tools should no-op gracefully
 	 * when undefined to preserve test/standalone tool usage.
 	 */
-	getV3Telemetry?: () => import("../goals/telemetry").V3Telemetry | undefined;
+	getV3Telemetry?: () => import("../mission/core/telemetry").V3Telemetry | undefined;
 	/** Bridge to the connected client (e.g. ACP editor host). Tools should route fs/terminal/permission requests through this when available. */
 	getClientBridge?: () => ClientBridge | undefined;
 	/** Get compact conversation context for subagents (excludes tool results, system prompts) */

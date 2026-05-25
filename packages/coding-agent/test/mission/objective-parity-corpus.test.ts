@@ -10,9 +10,9 @@
  *   3. Goal status (6) ↔ Mission lifecycle (12) mapping (compat bridge).
  */
 import { describe, expect, it } from "bun:test";
-import type { Goal, GoalStatus, GoalTokenUsage } from "../../src/goals/state";
 import { MISSION_LIFECYCLE_STATES, type MissionLifecycleState } from "../../src/mission/core";
 import { goalTokenDelta, renderGoalBlock } from "../../src/mission/core/objective-runtime";
+import type { Goal, GoalStatus, GoalTokenUsage } from "../../src/mission/core/objective-state";
 
 function usage(o: Partial<GoalTokenUsage> = {}): GoalTokenUsage {
 	return { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, ...o };

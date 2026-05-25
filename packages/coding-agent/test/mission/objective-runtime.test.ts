@@ -2,7 +2,6 @@
  * ObjectiveRuntimeImpl canonical mission-core surface.
  */
 import { describe, expect, it } from "bun:test";
-import type { Goal, GoalModeState, GoalRuntimeEvent, GoalTokenUsage } from "../../src/goals/state";
 import {
 	type GoalRuntimeHost,
 	ObjectiveRuntimeImpl,
@@ -10,6 +9,7 @@ import {
 	renderGoalPrompt,
 	renderObjectiveBlock,
 } from "../../src/mission/core/objective-runtime";
+import type { Goal, GoalModeState, GoalRuntimeEvent, GoalTokenUsage } from "../../src/mission/core/objective-state";
 
 function usage(o: Partial<GoalTokenUsage> = {}): GoalTokenUsage {
 	return { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, ...o };

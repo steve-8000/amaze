@@ -1,14 +1,5 @@
 import { logger, prompt, Snowflake } from "@amaze/utils";
 import { settings } from "../../config/settings";
-import type { Goal, GoalBudgetSteering, GoalModeState, GoalRuntimeEvent, GoalTokenUsage } from "../../goals/state";
-import {
-	type AcceptanceCriterion,
-	AcceptanceVerifier,
-	defaultBlockingPolicy,
-	summarize,
-	type VerificationContext,
-	type VerificationVerdict,
-} from "../../goals/verifier";
 import type { EventBus as SessionEventBus } from "../../observability";
 import goalBudgetLimitPrompt from "../../prompts/goals/goal-budget-limit.md" with { type: "text" };
 import goalContinuationPrompt from "../../prompts/goals/goal-continuation.md" with { type: "text" };
@@ -16,6 +7,15 @@ import goalModeActivePrompt from "../../prompts/goals/goal-mode-active.md" with 
 import { MissionStore, resolveMission } from "../store";
 import type { ResearchCampaign } from "../types";
 import { missionTokenDelta } from "./mission-runtime";
+import type { Goal, GoalBudgetSteering, GoalModeState, GoalRuntimeEvent, GoalTokenUsage } from "./objective-state";
+import {
+	type AcceptanceCriterion,
+	AcceptanceVerifier,
+	defaultBlockingPolicy,
+	summarize,
+	type VerificationContext,
+	type VerificationVerdict,
+} from "./verifier";
 
 /**
  * Best-effort collection of changed files since the session started, for closing audit

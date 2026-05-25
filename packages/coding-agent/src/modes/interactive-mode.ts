@@ -38,9 +38,9 @@ import type {
 } from "../extensibility/extensions";
 import type { CompactOptions } from "../extensibility/extensions/types";
 import { BUILTIN_SLASH_COMMANDS, loadSlashCommands } from "../extensibility/slash-commands";
-import type { Goal, GoalModeState } from "../goals/state";
 import { resolveLocalUrlToPath } from "../internal-urls";
 import { LSP_STARTUP_EVENT_CHANNEL, type LspStartupEvent } from "../lsp/startup-events";
+import type { Goal, GoalModeState } from "../mission/core/objective-state";
 import { initializeMissionRuntime } from "../mission/runtime";
 import { MissionStore, resolveMission } from "../mission/store";
 import {

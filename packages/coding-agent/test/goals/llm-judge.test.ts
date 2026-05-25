@@ -17,7 +17,7 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import { ProductionLlmJudgeRunner, parseLlmVerdict } from "@amaze/coding-agent/goals/llm-judge";
+import { ProductionLlmJudgeRunner, parseLlmVerdict } from "@amaze/coding-agent/mission/core/llm-judge";
 
 describe("parseLlmVerdict", () => {
 	it("parses a bare JSON object reply", () => {

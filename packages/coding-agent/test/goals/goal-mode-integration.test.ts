@@ -3,7 +3,6 @@ import * as path from "node:path";
 import { Agent, type AgentEvent } from "@amaze/agent-core";
 import { ModelRegistry } from "@amaze/coding-agent/config/model-registry";
 import { resetSettingsForTest, Settings } from "@amaze/coding-agent/config/settings";
-import { GoalTool } from "@amaze/coding-agent/goals/tools/goal-tool";
 import { InteractiveMode } from "@amaze/coding-agent/modes/interactive-mode";
 import { initTheme } from "@amaze/coding-agent/modes/theme/theme";
 import type { SubmittedUserInput } from "@amaze/coding-agent/modes/types";
@@ -11,6 +10,7 @@ import { AgentSession } from "@amaze/coding-agent/session/agent-session";
 import { AuthStorage } from "@amaze/coding-agent/session/auth-storage";
 import { SessionManager } from "@amaze/coding-agent/session/session-manager";
 import { createTools, type Tool, type ToolSession } from "@amaze/coding-agent/tools";
+import { GoalTool } from "@amaze/coding-agent/tools/goal-tool";
 import { TempDir } from "@amaze/utils";
 
 function createToolSession(cwd: string, settings: Settings, overrides: Partial<ToolSession> = {}): ToolSession {

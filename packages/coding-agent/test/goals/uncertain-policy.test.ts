@@ -1,12 +1,21 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import { resetSettingsForTest, Settings } from "@amaze/coding-agent/config/settings";
-import type { Goal, GoalModeState, GoalRuntimeEvent, GoalTokenUsage } from "@amaze/coding-agent/goals/state";
-import { type AcceptanceCriterion, summarize, type VerificationVerdict } from "@amaze/coding-agent/goals/verifier";
 import {
 	GoalAcceptanceFailureError,
 	type GoalRuntimeHost,
 	ObjectiveRuntimeImpl,
 } from "@amaze/coding-agent/mission/core/objective-runtime";
+import type {
+	Goal,
+	GoalModeState,
+	GoalRuntimeEvent,
+	GoalTokenUsage,
+} from "@amaze/coding-agent/mission/core/objective-state";
+import {
+	type AcceptanceCriterion,
+	summarize,
+	type VerificationVerdict,
+} from "@amaze/coding-agent/mission/core/verifier";
 
 function criterion(overrides: Partial<AcceptanceCriterion> = {}): AcceptanceCriterion {
 	return {

@@ -19,7 +19,7 @@
  */
 
 import { logger } from "@amaze/utils";
-import { formatV3Stats, V3Telemetry } from "../goals/telemetry";
+import { formatV3Stats, V3Telemetry } from "../mission/core/telemetry";
 
 /**
  * Cache thrash detection window. After the cache has been written to at least once, this many

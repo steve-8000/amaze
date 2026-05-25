@@ -16,7 +16,7 @@ import type { AgentMessage } from "@amaze/agent-core";
 import type { CompactionPreparation, CompactionResult } from "@amaze/agent-core/compaction";
 import type { ImageContent, TextContent, ToolResultMessage } from "@amaze/ai";
 import type { Rule } from "../capability/rule";
-import type { Goal, GoalModeState } from "../goals/state";
+import type { Goal, GoalModeState } from "../mission/core/objective-state";
 import type { BranchSummaryEntry, CompactionEntry, SessionEntry } from "../session/session-manager";
 import type { TodoItem } from "../tools/todo-write";
 

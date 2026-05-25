@@ -6,7 +6,6 @@
 import type { Component } from "@amaze/tui";
 import { editToolRenderer } from "../edit/renderer";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
-import { goalToolRenderer } from "../goals/tools/goal-tool";
 import { lspToolRenderer } from "../lsp/render";
 import type { Theme } from "../modes/theme/theme";
 import { taskToolRenderer } from "../task/render";
@@ -22,6 +21,7 @@ import { debugToolRenderer } from "./debug";
 import { evalToolRenderer } from "./eval";
 import { findToolRenderer } from "./find";
 import { githubToolRenderer } from "./gh-renderer";
+import { goalToolRenderer } from "./goal-tool";
 import { inspectImageToolRenderer } from "./inspect-image-renderer";
 import { jobToolRenderer } from "./job";
 import { readToolRenderer } from "./read";

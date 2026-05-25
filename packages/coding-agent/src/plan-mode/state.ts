@@ -1,4 +1,4 @@
-import type { Goal } from "../goals/state";
+import type { Goal } from "../mission/core/objective-state";
 
 export interface PlanModeState {
 	enabled: boolean;

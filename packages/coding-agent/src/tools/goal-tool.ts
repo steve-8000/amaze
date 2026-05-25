@@ -3,20 +3,16 @@ import type { Component } from "@amaze/tui";
 import { Text } from "@amaze/tui";
 import { formatNumber, prompt } from "@amaze/utils";
 import * as z from "zod/v4";
-import type { RenderResultOptions } from "../../extensibility/custom-tools/types";
-import {
-	completionBudgetReport,
-	GoalAcceptanceFailureError,
-	remainingTokens,
-} from "../../mission/core/objective-runtime";
-import type { Theme, ThemeColor } from "../../modes/theme/theme";
-import goalDescription from "../../prompts/tools/goal.md" with { type: "text" };
-import { formatDuration } from "../../slash-commands/helpers/format";
-import type { ToolSession } from "../../tools";
-import { formatErrorMessage, TRUNCATE_LENGTHS } from "../../tools/render-utils";
-import { ToolError } from "../../tools/tool-errors";
-import { renderStatusLine, truncateToWidth } from "../../tui";
-import type { Goal, GoalStatus, GoalToolDetails } from "../state";
+import type { RenderResultOptions } from "../extensibility/custom-tools/types";
+import { completionBudgetReport, GoalAcceptanceFailureError, remainingTokens } from "../mission/core/objective-runtime";
+import type { Goal, GoalStatus, GoalToolDetails } from "../mission/core/objective-state";
+import type { Theme, ThemeColor } from "../modes/theme/theme";
+import goalDescription from "../prompts/tools/goal.md" with { type: "text" };
+import { formatDuration } from "../slash-commands/helpers/format";
+import { renderStatusLine, truncateToWidth } from "../tui";
+import type { ToolSession } from ".";
+import { formatErrorMessage, TRUNCATE_LENGTHS } from "./render-utils";
+import { ToolError } from "./tool-errors";
 
 const goalSchema = z
 	.object({

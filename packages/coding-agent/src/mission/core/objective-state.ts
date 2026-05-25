@@ -1,4 +1,4 @@
-import type { UsageStatistics } from "../session/session-manager";
+import type { UsageStatistics } from "../../session/session-manager";
 import type { AcceptanceCriterion } from "./verifier";
 
 export type GoalStatus = "active" | "paused" | "budget-limited" | "blocked" | "complete" | "dropped";

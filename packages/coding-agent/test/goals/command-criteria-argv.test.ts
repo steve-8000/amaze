@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { resetSettingsForTest, Settings } from "@amaze/coding-agent/config/settings";
-import { type AcceptanceCriterion, AcceptanceVerifier } from "@amaze/coding-agent/goals/verifier";
+import { type AcceptanceCriterion, AcceptanceVerifier } from "@amaze/coding-agent/mission/core/verifier";
 
 async function withSettings(
 	overrides: Partial<Record<"verifier.allowShellCriteria", unknown>>,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { formatV3Stats, V3Telemetry } from "@amaze/coding-agent/goals/telemetry";
+import { formatV3Stats, V3Telemetry } from "@amaze/coding-agent/mission/core/telemetry";
 
 describe("V3Telemetry — Phase 6 aggregator", () => {
 	it("records Design Interview classifications cumulatively", () => {

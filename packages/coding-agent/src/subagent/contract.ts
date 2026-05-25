@@ -22,7 +22,7 @@
  * subagent's session — prerequisite for prompt cache hits.
  */
 
-import type { AcceptanceCriterion } from "../goals/verifier";
+import type { AcceptanceCriterion } from "../mission/core/verifier";
 
 export type EscalationOnUncertainty = "ask-parent" | "block";
 export type MissionScopeForContract = { include: string[]; exclude: string[] };
@@ -153,14 +153,16 @@ export async function runRevisionLoop(args: {
 		severity?: string;
 	}>;
 }): Promise<{
-	finalVerdict: import("../goals/verifier").VerificationVerdict;
+	finalVerdict: import("../mission/core/verifier").VerificationVerdict;
 	finalCompletion: SubagentCompletion;
-	attempts: Array<{ verdict: import("../goals/verifier").VerificationVerdict; completion: SubagentCompletion }>;
+	attempts: Array<{ verdict: import("../mission/core/verifier").VerificationVerdict; completion: SubagentCompletion }>;
 }> {
 	const { contract, attempt } = args;
 	const maxRetries = args.maxRetries ?? 1;
-	const history: Array<{ verdict: import("../goals/verifier").VerificationVerdict; completion: SubagentCompletion }> =
-		[];
+	const history: Array<{
+		verdict: import("../mission/core/verifier").VerificationVerdict;
+		completion: SubagentCompletion;
+	}> = [];
 
 	let revisionRequest: RevisionRequest | undefined;
 	for (let attemptIndex = 0; attemptIndex <= maxRetries; attemptIndex++) {
@@ -386,9 +388,9 @@ export async function verifySubagentCompletion(
 	contract: SubagentContract,
 	completion: SubagentCompletion,
 ): Promise<{
-	verdict: import("../goals/verifier").VerificationVerdict;
+	verdict: import("../mission/core/verifier").VerificationVerdict;
 }> {
-	const { AcceptanceVerifier, summarize } = await import("../goals/verifier");
+	const { AcceptanceVerifier, summarize } = await import("../mission/core/verifier");
 	const verifier = new AcceptanceVerifier();
 	const results = await verifier.verify(contract.successCriteria, {
 		cwd: completion.cwd,

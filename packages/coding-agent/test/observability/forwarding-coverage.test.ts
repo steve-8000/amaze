@@ -2,8 +2,8 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { GoalModeState, GoalRuntimeEvent, GoalTokenUsage } from "../../src/goals/state";
 import { ObjectiveRuntimeImpl } from "../../src/mission/core/objective-runtime";
+import type { GoalModeState, GoalRuntimeEvent, GoalTokenUsage } from "../../src/mission/core/objective-state";
 import { NexusStore } from "../../src/nexus/store";
 import { getSessionEventBus } from "../../src/observability/session-bus";
 
