@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
 	collectIncompleteByPhase,
+	isMissionTerminal,
 	selectAgentActionableTodos,
 } from "@amaze/coding-agent/session/todo-reminder-actionable";
 import type { TodoPhase } from "@amaze/coding-agent/tools/todo-write";
@@ -73,5 +74,20 @@ describe("selectAgentActionableTodos", () => {
 	it("returns empty when nothing is incomplete", () => {
 		expect(selectAgentActionableTodos([], false)).toEqual([]);
 		expect(selectAgentActionableTodos([], true)).toEqual([]);
+	});
+});
+
+describe("isMissionTerminal", () => {
+	it("returns true for completed / cancelled / blocked / rolled_back", () => {
+		expect(isMissionTerminal({ lifecycle: "completed" })).toBe(true);
+		expect(isMissionTerminal({ lifecycle: "cancelled" })).toBe(true);
+		expect(isMissionTerminal({ lifecycle: "blocked" })).toBe(true);
+		expect(isMissionTerminal({ lifecycle: "rolled_back" })).toBe(true);
+	});
+
+	it("returns false for in-flight lifecycles", () => {
+		expect(isMissionTerminal({ lifecycle: "created" })).toBe(false);
+		expect(isMissionTerminal({ lifecycle: "executing" })).toBe(false);
+		expect(isMissionTerminal({ lifecycle: "verifying" })).toBe(false);
 	});
 });

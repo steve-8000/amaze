@@ -1,3 +1,4 @@
+import type { Mission } from "../mission/core/mission";
 import type { TodoItem, TodoPhase } from "../tools/todo-write";
 
 export type ReminderTodo = { content: string; status: "pending" | "in_progress" };
@@ -40,4 +41,18 @@ export function selectAgentActionableTodos(
 		return incompleteByPhase.flatMap(phase => phase.tasks);
 	}
 	return incompleteByPhase.filter(phase => phase.name === "Execution").flatMap(phase => phase.tasks);
+}
+
+/**
+ * Lifecycle values that mean the mission is finished — completion, user-driven cancel,
+ * permanent block, or rollback. Mirrors the terminal set used by mission-todo-projection
+ * so reminder suppression and projection state agree.
+ */
+export function isMissionTerminal(mission: Pick<Mission, "lifecycle">): boolean {
+	return (
+		mission.lifecycle === "completed" ||
+		mission.lifecycle === "cancelled" ||
+		mission.lifecycle === "blocked" ||
+		mission.lifecycle === "rolled_back"
+	);
 }

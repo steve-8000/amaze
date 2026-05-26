@@ -213,7 +213,7 @@ import type {
 	SessionManager,
 } from "./session-manager";
 import { getLatestCompactionEntry } from "./session-manager";
-import { collectIncompleteByPhase, selectAgentActionableTodos } from "./todo-reminder-actionable";
+import { collectIncompleteByPhase, isMissionTerminal, selectAgentActionableTodos } from "./todo-reminder-actionable";
 import { ToolChoiceQueue } from "./tool-choice-queue";
 import { V3SessionExtension } from "./v3-session-extension";
 
@@ -1186,6 +1186,16 @@ export class AgentSession {
 		this.#missionControl = this.#missionBinding.runtime;
 		this.#missionControl.onMissionUpdated(mission => {
 			this.#emitSessionEvent({ type: "mission_updated", state: mission });
+			// A mission entering a terminal lifecycle (completed / cancelled / blocked /
+			// rolled_back) means the orchestrator has declared the work finished. Any
+			// projection rows still cached in ephemeral #todoPhases (e.g. "Decision
+			// record", "Verification verdict") would otherwise keep triggering todo
+			// reminders after the mission is over. Drop the cache and reset the retry
+			// counter so the loop terminates cleanly.
+			if (isMissionTerminal(mission)) {
+				if (this.#todoPhases.length > 0) this.setTodoPhases([]);
+				this.#todoReminderCount = 0;
+			}
 		});
 		this.#toolGateway = new SessionToolGateway({ missionControl: this.#missionControl });
 
