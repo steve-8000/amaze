@@ -213,6 +213,7 @@ import type {
 	SessionManager,
 } from "./session-manager";
 import { getLatestCompactionEntry } from "./session-manager";
+import { collectIncompleteByPhase, selectAgentActionableTodos } from "./todo-reminder-actionable";
 import { ToolChoiceQueue } from "./tool-choice-queue";
 import { V3SessionExtension } from "./v3-session-extension";
 
@@ -6115,19 +6116,24 @@ export class AgentSession {
 			return;
 		}
 
-		const incompleteByPhase = phases
-			.map(phase => ({
-				name: phase.name,
-				tasks: phase.tasks
-					.filter(
-						(task): task is TodoItem & { status: "pending" | "in_progress" } =>
-							task.status === "pending" || task.status === "in_progress",
-					)
-					.map(task => ({ content: task.content, status: task.status })),
-			}))
-			.filter(phase => phase.tasks.length > 0);
+		const incompleteByPhase = collectIncompleteByPhase(phases);
 		const incomplete = incompleteByPhase.flatMap(phase => phase.tasks);
 		if (incomplete.length === 0) {
+			this.#todoReminderCount = 0;
+			return;
+		}
+
+		// Suppress reminders when every remaining incomplete row is a mission-projection
+		// synthetic slot (Decision record / Regression contract / Verification verdict /
+		// Frame). Those rows advance only via `/mission …` slash commands invoked by the
+		// user — the agent cannot close them through `todo_write`, so nagging just wastes
+		// turns and traps the orchestrator in a reminder/refusal loop.
+		const actionable = selectAgentActionableTodos(incompleteByPhase, this.getActiveMission() !== undefined);
+		if (actionable.length === 0) {
+			logger.debug("Todo completion: skipping reminder — only projection-only slots remain", {
+				remaining: incomplete.length,
+				phases: incompleteByPhase.map(phase => phase.name),
+			});
 			this.#todoReminderCount = 0;
 			return;
 		}
