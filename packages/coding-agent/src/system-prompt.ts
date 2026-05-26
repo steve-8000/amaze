@@ -11,9 +11,8 @@ import { systemPromptCapability } from "./capability/system-prompt";
 import type { SkillsSettings } from "./config/settings";
 import { type ContextFile, loadCapability, type SystemPrompt as SystemPromptFile } from "./discovery";
 import { loadSkills, type Skill } from "./extensibility/skills";
-import { type ActiveMissionPacket, renderActiveMissionPacket } from "./mission/context-packet";
-import { renderGoalBlock } from "./mission/core/objective-runtime";
-import type { Goal } from "./mission/core/objective-state";
+import type { ActiveMissionPacket } from "./mission/context-packet";
+import { renderMissionBlock } from "./mission/prompts/mission-block";
 import customSystemPromptTemplate from "./prompts/system/custom-system-prompt.md" with { type: "text" };
 import projectLiveTemplate from "./prompts/system/project-live.md" with { type: "text" };
 import projectStaticTemplate from "./prompts/system/project-static.md" with { type: "text" };
@@ -363,12 +362,6 @@ export interface BuildSystemPromptOptions {
 	workspaceTree?: WorkspaceTree | Promise<WorkspaceTree>;
 	/** How much project context to render into the prompt. */
 	projectContextMode?: ProjectContextMode;
-	/**
-	 * Active Goal (if any) to render into the DYNAMIC_TAIL block. When undefined or null, a stable
-	 * "no goal" sentinel is emitted instead of an empty string — this keeps the prompt structure
-	 * byte-identical across no-goal / has-goal transitions on adjacent turns and avoids cache thrash.
-	 */
-	activeGoal?: Goal | null;
 	/** Compact Active Mission packet rendered into DYNAMIC_TAIL when present. */
 	activeMission?: ActiveMissionPacket | null;
 	/**
@@ -418,7 +411,6 @@ export async function buildSystemPrompt(options: BuildSystemPromptOptions = {}):
 		secretsEnabled = false,
 		workspaceTree: providedWorkspaceTree,
 		projectContextMode = "full",
-		activeGoal,
 		subagentContract,
 		activeMission,
 	} = options;
@@ -610,12 +602,10 @@ export async function buildSystemPrompt(options: BuildSystemPromptOptions = {}):
 		hasMCPDiscoveryServers: mcpDiscoveryServerSummaries.length > 0,
 		mcpDiscoveryServerSummaries,
 		secretsEnabled,
-		// Goal block lives in DYNAMIC_TAIL so it can update per turn without invalidating
-		// the STABLE_CORE cache. `renderGoalBlock` always returns a non-empty string (a
-		// "no goal" sentinel when activeGoal is null/missing) so the prompt structure
-		// stays byte-stable across goal entry/exit transitions.
-		goalBlock: renderGoalBlock(activeGoal ?? null),
-		activeMissionBlock: renderActiveMissionPacket(activeMission),
+		// Mission block lives in DYNAMIC_TAIL so it can update per turn without invalidating
+		// the STABLE_CORE cache. Empty string when no mission is active keeps the slot stable.
+		goalBlock: "",
+		activeMissionBlock: renderMissionBlock(activeMission),
 		// SubagentContract presence flag — Handlebars `{{#if subagentContract}}` block in
 		// system-prompt.md uses this to render the contract-aware instruction prose. Without
 		// the field on `data`, the block evaluates false and the prose never reaches the model
@@ -625,7 +615,7 @@ export async function buildSystemPrompt(options: BuildSystemPromptOptions = {}):
 	};
 	const rendered = prompt.render(resolvedCustomPrompt ? customSystemPromptTemplate : systemPromptTemplate, data);
 	// STABLE_CORE = rendered system-prompt.md + session-invariant project context + subagent contract.
-	// DYNAMIC_TAIL = per-turn volatile context (workspace tree, cwd/date, goal/todo blocks).
+	// DYNAMIC_TAIL = per-turn volatile context (workspace tree, cwd/date, mission/todo blocks).
 	// Caching breakpoint is placed on STABLE_CORE so DYNAMIC_TAIL can churn without
 	// invalidating the prompt cache prefix. See P0.1 variable audit for classification.
 	//

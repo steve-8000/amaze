@@ -56,13 +56,13 @@ describe("MissionControlRuntime", () => {
 		expect(setCalls).toEqual([]);
 	});
 
-	test("creates and activates a mission for mutation intent", async () => {
+	test("creates and activates a mission for a runtime_refactor intent", async () => {
 		const { runtime, store, setCalls } = createRuntime();
 
-		const result = await runtime.ensureActiveMission({ content: "fix the bug" });
+		const result = await runtime.ensureActiveMission({ content: "런타임을 리팩터하자" });
 
 		expect(result.created).toBe(true);
-		expect(result.intent).toBe("code_change");
+		expect(result.intent).toBe("runtime_refactor");
 		expect(result.missionId).toBeDefined();
 		expect(runtime.getActiveMission()?.id).toBe(result.missionId);
 		expect(store.getMission(result.missionId!)).toBeDefined();
@@ -71,19 +71,19 @@ describe("MissionControlRuntime", () => {
 
 	test("returns an existing active mission unchanged", async () => {
 		const { runtime } = createRuntime();
-		const first = await runtime.ensureActiveMission({ content: "fix the bug" });
+		const first = await runtime.ensureActiveMission({ content: "런타임을 리팩터하자" });
 
-		const second = await runtime.ensureActiveMission({ content: "implement the feature" });
+		const second = await runtime.ensureActiveMission({ content: "런타임을 다시 손보자" });
 
-		expect(second).toEqual({ missionId: first.missionId, intent: "code_change", created: false });
+		expect(second).toEqual({ missionId: first.missionId, intent: "runtime_refactor", created: false });
 	});
 
 	test("creates a new mission after clearing the active mission", async () => {
 		const { runtime } = createRuntime();
-		const first = await runtime.ensureActiveMission({ content: "fix the bug" });
+		const first = await runtime.ensureActiveMission({ content: "런타임을 리팩터하자" });
 
 		runtime.clearActiveMission();
-		const second = await runtime.ensureActiveMission({ content: "fix another bug" });
+		const second = await runtime.ensureActiveMission({ content: "런타임을 또 리팩터하자" });
 
 		expect(second.created).toBe(true);
 		expect(second.missionId).toBeDefined();
@@ -92,7 +92,7 @@ describe("MissionControlRuntime", () => {
 
 	test("caps mission objective at 240 characters", async () => {
 		const { runtime } = createRuntime();
-		const input = `fix ${"x".repeat(496)}`;
+		const input = `런타임 리팩터 ${"x".repeat(496)}`;
 
 		const result = await runtime.ensureActiveMission({ content: input });
 
@@ -100,12 +100,19 @@ describe("MissionControlRuntime", () => {
 		expect(result.created).toBe(true);
 	});
 
-	test("a code_change mission needs no proposal and enters executing", async () => {
+	test("a code_change mission created explicitly needs no proposal and enters executing", async () => {
 		const { runtime } = createRuntime();
-		await runtime.ensureActiveMission({ content: "fix the bug" });
+		// code_change intent no longer triggers ambient promotion (conservative policy, P6.7);
+		// explicit createMission still works the same way.
+		const mission = await runtime.createMission({
+			title: "Fix the bug",
+			objective: "fix the bug",
+			mode: "interactive",
+			intent: "code_change",
+		});
 
 		expect(runtime.activeMissionNeedsProposal()).toBe(false);
-		expect(runtime.getActiveMission()?.lifecycle).toBe("executing");
+		expect(mission.lifecycle).toBe("executing");
 	});
 
 	test("an architecture_change mission needs a proposal and waits in planning", async () => {
@@ -128,8 +135,9 @@ describe("MissionControlRuntime", () => {
 		const missionId = runtime.getActiveMission()!.id;
 
 		const gate = new MissionPolicyGate({ missionControl: runtime });
-		// Before approval: the policy gate denies a mutation tool.
-		expect(gate.check(writeDescriptor, {}, "HIGH")).toMatchObject({
+		// Before approval: subagent mutation tool is denied; orchestrator bypasses the gate
+		// (which is why this assertion explicitly carries agentRole: "subagent").
+		expect(gate.check(writeDescriptor, { agentRole: "subagent" }, "HIGH")).toMatchObject({
 			allowed: false,
 			code: "PROPOSAL_REQUIRED",
 		});
@@ -138,7 +146,7 @@ describe("MissionControlRuntime", () => {
 		expect(approved?.proposalId).toBeDefined();
 
 		// After approval: same tool call is permitted, and the proposal pointer is durable.
-		expect(gate.check(writeDescriptor, {}, "HIGH")).toEqual({ allowed: true });
+		expect(gate.check(writeDescriptor, { agentRole: "subagent" }, "HIGH")).toEqual({ allowed: true });
 		expect(runtime.activeMissionNeedsProposal()).toBe(false);
 		expect(runtime.getActiveMission()?.lifecycle).toBe("executing");
 		expect(store.getMission(missionId)?.proposalId).toBe(approved!.proposalId!);

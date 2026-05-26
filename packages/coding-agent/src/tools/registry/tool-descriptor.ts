@@ -85,6 +85,13 @@ export interface ToolExecutionContext {
 	 * never inspects the event shape beyond passing it to `emit`.
 	 */
 	mission?: ToolMissionContext;
+	/**
+	 * Calling agent's role in the spawn tree. The orchestrator (top-level session) has full
+	 * authority and bypasses mission policy gates; subagents are gated and must request
+	 * proposal approval from the orchestrator via IRC. Absent ⇒ treat as orchestrator (the
+	 * legacy default for sessions that predate role plumbing).
+	 */
+	agentRole?: "orchestrator" | "subagent";
 }
 
 /** Mission binding threaded into the gateway for tool-call lifecycle telemetry. */

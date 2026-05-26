@@ -14,7 +14,6 @@ function createSession(cwd: string, missionScope: MissionScopeGuard | undefined)
 		getSessionFile: () => path.join(cwd, "session.jsonl"),
 		getSessionSpawns: () => "*",
 		settings: Settings.isolated(),
-		getGoalModeState: () => ({ enabled: true, goal: { scopeGuard: { include: ["src/**"], exclude: [] } } }) as never,
 		getActiveMissionScope: () => missionScope,
 	};
 }

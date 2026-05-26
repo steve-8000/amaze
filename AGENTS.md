@@ -38,6 +38,19 @@ authority — guidance only.
 - **Tool-level enforcement** is the hard boundary; prompt instructions are soft. All edit/write tools must go through the canonical mutation-scope guard.
 - **Prompt cache layout**: STABLE_CORE = system prompt + project context + subagent contract; DYNAMIC_TAIL = goal block + volatile state. Do not move volatile content into STABLE_CORE.
 
+## Cross-cutting destructive missions
+
+Missions classified as `architecture_change`, `runtime_refactor`, or `release_hardening` (or any mission whose resolved `riskLevel === "high"`) MUST engage the runtime's coordination primitives, not bypass them. The operational checklist lives in `skill://destructive-mission`. The non-negotiable items:
+
+- `memory_scout` runs at session start.
+- Phases declared via `runtime.declarePhases`; each phase has deterministic acceptance criteria and is closed only after `runtime.verifyPhase` returns pass.
+- Locked decisions recorded as `MissionWorldModelRecord(source="decision")`; `mission.decisionId` populated.
+- `mission.proposalId` attached before any mutation tool runs — `MissionPolicyGate` enforces this.
+- IRC (`irc` tool) used for every cross-task assumption; peers broadcast on `to: "all"` for discovery.
+- Rollback anchor (`MissionRollbackRecord`) recorded before each destructive phase begins mutation.
+
+The `destructive-mission-discipline` built-in rule fires whenever a high-risk mission is classified; treat the finding as a checklist, not a warning.
+
 ## Failure protocol
 
 1. Reproduce first — minimal repro or failing test.

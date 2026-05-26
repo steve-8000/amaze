@@ -141,7 +141,7 @@ export const nexusBackend: MemoryBackend & { getDegradationStatus(): NexusDegrad
 			cwd,
 			contradictionThreshold: config.contradictionThreshold,
 		});
-		const goal = currentGoalText(session);
+		const goal = currentMissionText(session);
 		try {
 			const safePrompt = stripRecallFences(promptText);
 			const operationalEntries = config.autoRecall
@@ -182,7 +182,7 @@ export const nexusBackend: MemoryBackend & { getDegradationStatus(): NexusDegrad
 			cwd,
 			contradictionThreshold: config.contradictionThreshold,
 		});
-		const goal = currentGoalText(session);
+		const goal = currentMissionText(session);
 		try {
 			const operationalEntries = store.search({
 				query,
@@ -615,9 +615,9 @@ function extractAgentMessageText(message: AgentMessage): string | undefined {
 	return text || undefined;
 }
 
-function currentGoalText(session: {
-	getGoalModeState?: () => { goal?: { objective?: string } | null } | undefined;
+function currentMissionText(session: {
+	getActiveMission?: () => { objective?: string } | undefined;
 }): string | undefined {
-	const objective = session.getGoalModeState?.()?.goal?.objective?.trim();
+	const objective = session.getActiveMission?.()?.objective?.trim();
 	return objective ? objective : undefined;
 }

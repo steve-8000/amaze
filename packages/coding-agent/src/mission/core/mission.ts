@@ -4,6 +4,7 @@ import type { AcceptanceCriterion } from "./acceptance-criteria";
 import type { MissionBudget, MissionContextBudget } from "./mission-budget";
 import type { MissionInput, MissionMode } from "./mission-input";
 import type { MissionOutcome } from "./mission-outcome";
+import type { MissionPhase } from "./mission-phase";
 import type { MissionScopeGuard } from "./mission-scope";
 import type { MissionTask, MissionTaskStatus } from "./mission-task";
 
@@ -32,13 +33,50 @@ export const MISSION_LIFECYCLE_STATES = [
 export type MissionLifecycleState = (typeof MISSION_LIFECYCLE_STATES)[number];
 
 /**
+ * Semantic edge kinds between planned steps. `depends-on` is the direct
+ * replacement for the legacy {@link MissionPlanStep.dependsOn} ordering-only field.
+ */
+export const MISSION_PLAN_STEP_EDGE_KINDS = [
+	"depends-on",
+	"produces",
+	"must-precede",
+	"behavior-change",
+	"needs-decision",
+] as const;
+
+/** Discriminated kind for a {@link MissionPlanStepEdge}. */
+export type MissionPlanStepEdgeKind = (typeof MISSION_PLAN_STEP_EDGE_KINDS)[number];
+
+/** A typed invariant edge from one plan step to another. */
+export interface MissionPlanStepEdge {
+	target: string;
+	kind: MissionPlanStepEdgeKind;
+	invariant?: string;
+}
+
+/**
  * A single planned step. Kept intentionally minimal at the core level; richer
  * planning structures live in higher layers.
  */
 export interface MissionPlanStep {
 	id: string;
 	description: string;
+	/** @deprecated use `edges` with kind:"depends-on". Kept for backward compatibility. */
 	dependsOn?: string[];
+	edges?: MissionPlanStepEdge[];
+}
+
+/** Normalize legacy and typed plan-step edges into one ordered edge list. */
+export function normalizePlanStepEdges(step: MissionPlanStep): MissionPlanStepEdge[] {
+	const out: MissionPlanStepEdge[] = step.edges ? [...step.edges] : [];
+	if (step.dependsOn) {
+		for (const target of step.dependsOn) {
+			if (!out.some(e => e.target === target && e.kind === "depends-on")) {
+				out.push({ target, kind: "depends-on" });
+			}
+		}
+	}
+	return out;
 }
 
 /**
@@ -96,11 +134,13 @@ export interface Mission {
 	parentMissionId?: string;
 	constraints: string[];
 	acceptanceCriteria: AcceptanceCriterion[];
+	designAnswers?: Record<string, string>;
 	scopeGuard?: MissionScopeGuard;
 	budget: MissionBudget;
 	contextBudget: MissionContextBudget;
 	contractRevision?: number;
 	plan?: MissionPlan;
+	phases?: MissionPhase[];
 	tasks: MissionTask[];
 	evidenceRefs: string[];
 	decisionId?: string;

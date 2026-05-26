@@ -86,6 +86,11 @@ export class MissionControlView implements Component {
 		return this.#displayMode;
 	}
 
+	setDisplayMode(mode: MissionControlDisplayMode): MissionControlDisplayMode {
+		this.#displayMode = mode;
+		return this.#displayMode;
+	}
+
 	#selectMission(direction: 1 | -1): boolean {
 		this.refresh();
 		if (this.#missions.length <= 1 || !this.#mission) return false;
@@ -150,7 +155,8 @@ export function buildMissionControlLines(
 	opts: string | { missionStrip?: string; mode?: MissionControlDisplayMode } = {},
 ): string[] {
 	const mission = view.mission;
-	const objective = view.objective?.title ?? mission.title;
+	const headerLabel = formatHeaderLabel(view.objective?.title ?? mission.title);
+	const objectiveLine = formatObjectiveLine(view.objective?.title ?? mission.title);
 	const confidence = mission.confidence ?? "unknown";
 	const snapshot = mission.snapshotRef ? "available" : "unavailable";
 	const researchRun = view.researchRun ? `${view.researchRun.status} (${view.researchRun.id})` : "<none>";
@@ -158,112 +164,130 @@ export function buildMissionControlLines(
 	const evidenceSummary = summarizeEvidence(view);
 	const mode = typeof opts === "string" ? "compact" : (opts.mode ?? "compact");
 	const missionStrip = typeof opts === "string" ? opts : opts.missionStrip;
+	const hasOrchestration = view.laneRuns.length > 0;
+	const hasEvidence = view.evidenceCards.length > 0;
+	const hasSynthesisCritique = Boolean(view.latestSynthesis || view.latestCritique);
+	const criticChecks = view.runtimeCriticChecks ?? [];
+	const hasRuntimeCritic = criticChecks.length > 0 || view.criticDialogue.length > 0;
+	const hasDecisionContract = Boolean(view.decisionSummary) || view.contracts.length > 0;
+	const hasVerificationRollback = Boolean(view.latestVerification) || (view.rollbacks?.length ?? 0) > 0;
 	const lines: string[] = [
-		`Mission Control — ${objective}`,
+		`Mission Control — ${headerLabel}`,
 		...(missionStrip ? [missionStrip] : []),
-		`Objective: ${mission.title}`,
+		`Objective: ${objectiveLine}`,
 		`State: ${mission.state} | confidence ${confidence} | risk ${mission.riskLevel}`,
 		`Execution: lanes ${laneSummary} | evidence ${evidenceSummary}`,
 		`Research run: ${researchRun}`,
 		`Snapshot: ${snapshot}`,
-		section("Orchestration"),
 	];
 
-	if (view.laneRuns.length === 0) {
-		lines.push("  <none>");
-	} else {
-		for (const lane of view.laneRuns) {
-			const emptyReason = lane.emptyReason ? ` | empty: ${lane.emptyReason}` : "";
-			lines.push(
-				`  ${epistemicBadge(lane.epistemicRole)} ${lane.agent} | ${lane.lane} | ${lane.status} | evidence ${lane.evidenceCount}${emptyReason}`,
-			);
-		}
-	}
-
-	lines.push(`  Summary: ${laneSummary}`);
-
-	lines.push(section("Evidence Board"));
-	const evidenceLimit = mode === "expanded" ? 8 : 4;
-	const evidenceCards = view.evidenceCards.slice(0, evidenceLimit);
-	if (evidenceCards.length === 0) {
-		lines.push("  <none>");
-	} else {
-		for (const card of evidenceCards) {
-			lines.push(formatEvidenceCard(card, mode));
-		}
-	}
-	lines.push(`  Summary: ${evidenceSummary}`);
-
-	lines.push(section("Synthesis / Critique"));
-	lines.push(
-		view.latestSynthesis
-			? `  Synthesis: ${view.latestSynthesis.summary} | hypotheses ${view.latestSynthesis.hypothesisCount}${view.latestSynthesis.recommended ? ` | recommended ${view.latestSynthesis.recommended}` : ""}`
-			: "  Synthesis: <none>",
-	);
-	lines.push(
-		view.latestCritique
-			? `  Critique: ${view.latestCritique.verdict} | blockers ${view.latestCritique.blockingCount} | soft concerns ${view.latestCritique.softCount} | ${view.latestCritique.summary}`
-			: "  Critique: <none>",
-	);
-
-	lines.push(section("Runtime Critic"));
-	const criticChecks = view.runtimeCriticChecks ?? [];
-	const blockingChecks = criticChecks.filter(check => check.severity === "blocking");
-	lines.push(
-		`  Checks: ${criticChecks.length} total | blocked ${blockingChecks.length} | soft ${criticChecks.length - blockingChecks.length}`,
-	);
-	if (criticChecks.length === 0) {
-		lines.push("  Status: satisfied");
-	} else {
-		const visibleChecks = mode === "expanded" ? criticChecks : criticChecks.slice(0, 3);
-		for (const check of visibleChecks) {
-			lines.push(
-				`  ${formatCriticCheckStatus(check.severity)} ${check.trigger}${check.lane ? `/${check.lane}` : ""} -> ${check.requiredAction}: ${check.message}`,
-			);
-		}
-		if (visibleChecks.length < criticChecks.length)
-			lines.push(`  … ${criticChecks.length - visibleChecks.length} more checks`);
-	}
-	if (view.criticDialogue.length === 0) {
-		lines.push("  Dialogue: <none>");
-	} else {
-		const latestDialogue = view.criticDialogue.at(-1)!;
-		lines.push(
-			`  Dialogue: ${view.criticDialogue.length} turns | latest ${latestDialogue.role}: ${latestDialogue.summary}`,
-		);
-	}
-
-	lines.push(section("Decision Contract"));
-	if (view.decisionSummary) {
-		lines.push(
-			`  Decision: ${view.decisionSummary.kind} | ${view.decisionSummary.confidence} | ${view.decisionSummary.hypothesis}`,
-		);
-		lines.push(
-			`  Evidence refs: ${formatList(view.decisionSummary.evidenceRefs)} | rejected options ${view.decision?.rejectedOptions.length ?? 0} | next actions ${view.decision?.nextActions.length ?? 0}`,
-		);
-		if (mode === "expanded" && view.decision?.rejectedOptions.length) {
-			for (const option of view.decision.rejectedOptions.slice(0, 3)) {
-				lines.push(`    Rejected ${option.id}: ${option.reason}`);
+	if (mode === "expanded" || hasOrchestration) {
+		lines.push(section("Orchestration"));
+		if (view.laneRuns.length === 0) {
+			lines.push("  <none>");
+		} else {
+			for (const lane of view.laneRuns) {
+				const emptyReason = lane.emptyReason ? ` | empty: ${lane.emptyReason}` : "";
+				lines.push(
+					`  ${epistemicBadge(lane.epistemicRole)} ${lane.agent} | ${lane.lane} | ${lane.status} | evidence ${lane.evidenceCount}${emptyReason}`,
+				);
 			}
 		}
-		if (view.decision?.nextActions.length) {
-			lines.push(`  Next actions (${view.decision.nextActions.length}): ${formatList(view.decision.nextActions)}`);
+
+		lines.push(`  Summary: ${laneSummary}`);
+	}
+
+	if (mode === "expanded" || hasEvidence) {
+		lines.push(section("Evidence Board"));
+		const evidenceLimit = mode === "expanded" ? 8 : 4;
+		const evidenceCards = view.evidenceCards.slice(0, evidenceLimit);
+		if (evidenceCards.length === 0) {
+			lines.push("  <none>");
+		} else {
+			for (const card of evidenceCards) {
+				lines.push(formatEvidenceCard(card, mode));
+			}
 		}
-	} else {
-		lines.push("  Decision: <none>");
+		lines.push(`  Summary: ${evidenceSummary}`);
 	}
-	const latestContract = view.contracts.at(-1);
-	lines.push(
-		latestContract
-			? `  Execution contract: ${latestContract.role} | scope +${latestContract.include.length}/-${latestContract.exclude.length} | criteria ${latestContract.successCriteria.length} | outputs ${latestContract.mustProduce.length} | escalation ${latestContract.escalation.onUncertainty}`
-			: "  Execution contract: <none>",
-	);
-	if (mode === "expanded" && latestContract) {
-		lines.push(`    Outputs: ${formatList(latestContract.mustProduce)}`);
-		lines.push(`    Criteria: ${formatList(latestContract.successCriteria)}`);
+
+	if (mode === "expanded" || hasSynthesisCritique) {
+		lines.push(section("Synthesis / Critique"));
+		lines.push(
+			view.latestSynthesis
+				? `  Synthesis: ${view.latestSynthesis.summary} | hypotheses ${view.latestSynthesis.hypothesisCount}${view.latestSynthesis.recommended ? ` | recommended ${view.latestSynthesis.recommended}` : ""}`
+				: "  Synthesis: <none>",
+		);
+		lines.push(
+			view.latestCritique
+				? `  Critique: ${view.latestCritique.verdict} | blockers ${view.latestCritique.blockingCount} | soft concerns ${view.latestCritique.softCount} | ${view.latestCritique.summary}`
+				: "  Critique: <none>",
+		);
 	}
-	if (view.preferredInspectorTarget) {
-		lines.push(`  Linked trace: ${view.preferredInspectorTarget.label}`);
+
+	if (mode === "expanded" || hasRuntimeCritic) {
+		lines.push(section("Runtime Critic"));
+		const blockingChecks = criticChecks.filter(check => check.severity === "blocking");
+		lines.push(
+			`  Checks: ${criticChecks.length} total | blocked ${blockingChecks.length} | soft ${criticChecks.length - blockingChecks.length}`,
+		);
+		if (criticChecks.length === 0) {
+			lines.push("  Status: satisfied");
+		} else {
+			const visibleChecks = mode === "expanded" ? criticChecks : criticChecks.slice(0, 3);
+			for (const check of visibleChecks) {
+				lines.push(
+					`  ${formatCriticCheckStatus(check.severity)} ${check.trigger}${check.lane ? `/${check.lane}` : ""} -> ${check.requiredAction}: ${check.message}`,
+				);
+			}
+			if (visibleChecks.length < criticChecks.length)
+				lines.push(`  … ${criticChecks.length - visibleChecks.length} more checks`);
+		}
+		if (view.criticDialogue.length === 0) {
+			lines.push("  Dialogue: <none>");
+		} else {
+			const latestDialogue = view.criticDialogue.at(-1)!;
+			lines.push(
+				`  Dialogue: ${view.criticDialogue.length} turns | latest ${latestDialogue.role}: ${latestDialogue.summary}`,
+			);
+		}
+	}
+
+	if (mode === "expanded" || hasDecisionContract) {
+		lines.push(section("Decision Contract"));
+		if (view.decisionSummary) {
+			lines.push(
+				`  Decision: ${view.decisionSummary.kind} | ${view.decisionSummary.confidence} | ${view.decisionSummary.hypothesis}`,
+			);
+			lines.push(
+				`  Evidence refs: ${formatList(view.decisionSummary.evidenceRefs)} | rejected options ${view.decision?.rejectedOptions.length ?? 0} | next actions ${view.decision?.nextActions.length ?? 0}`,
+			);
+			if (mode === "expanded" && view.decision?.rejectedOptions.length) {
+				for (const option of view.decision.rejectedOptions.slice(0, 3)) {
+					lines.push(`    Rejected ${option.id}: ${option.reason}`);
+				}
+			}
+			if (view.decision?.nextActions.length) {
+				lines.push(
+					`  Next actions (${view.decision.nextActions.length}): ${formatList(view.decision.nextActions)}`,
+				);
+			}
+		} else {
+			lines.push("  Decision: <none>");
+		}
+		const latestContract = view.contracts.at(-1);
+		lines.push(
+			latestContract
+				? `  Execution contract: ${latestContract.role} | scope +${latestContract.include.length}/-${latestContract.exclude.length} | criteria ${latestContract.successCriteria.length} | outputs ${latestContract.mustProduce.length} | escalation ${latestContract.escalation.onUncertainty}`
+				: "  Execution contract: <none>",
+		);
+		if (mode === "expanded" && latestContract) {
+			lines.push(`    Outputs: ${formatList(latestContract.mustProduce)}`);
+			lines.push(`    Criteria: ${formatList(latestContract.successCriteria)}`);
+		}
+		if (view.preferredInspectorTarget) {
+			lines.push(`  Linked trace: ${view.preferredInspectorTarget.label}`);
+		}
 	}
 	if (mode === "expanded") {
 		lines.push(section("Inspector Targets"));
@@ -278,18 +302,20 @@ export function buildMissionControlLines(
 		}
 	}
 
-	lines.push(section("Verification / Rollback"));
-	lines.push(
-		view.latestVerification
-			? `  Verification: ${view.latestVerification.status} | failed ${view.latestVerification.failedCount} | uncertain ${view.latestVerification.uncertainCount} | ${view.latestVerification.summary}`
-			: "  Verification: <none>",
-	);
-	const latestRollback = view.rollbacks.at(-1);
-	lines.push(
-		latestRollback
-			? `  Rollback: ${latestRollback.summary} | snapshots ${countRollbackSnapshots(view.rollbacks)}`
-			: `  Rollback: <none> | snapshots ${countRollbackSnapshots(view.rollbacks)}`,
-	);
+	if (mode === "expanded" || hasVerificationRollback) {
+		lines.push(section("Verification / Rollback"));
+		lines.push(
+			view.latestVerification
+				? `  Verification: ${view.latestVerification.status} | failed ${view.latestVerification.failedCount} | uncertain ${view.latestVerification.uncertainCount} | ${view.latestVerification.summary}`
+				: "  Verification: <none>",
+		);
+		const latestRollback = view.rollbacks.at(-1);
+		lines.push(
+			latestRollback
+				? `  Rollback: ${latestRollback.summary} | snapshots ${countRollbackSnapshots(view.rollbacks)}`
+				: `  Rollback: <none> | snapshots ${countRollbackSnapshots(view.rollbacks)}`,
+		);
+	}
 	lines.push(
 		view.preferredInspectorTarget
 			? "Mission Inspector: Ctrl+S opens linked contract trace first"
@@ -331,7 +357,30 @@ function getMissionStrip(missions: MissionView[], selected: MissionView): string
 	if (missions.length <= 1) return undefined;
 	const index = missions.findIndex(view => view.mission.id === selected.mission.id);
 	const position = index >= 0 ? index + 1 : 1;
-	return `Missions: ${missions.length} total | selected ${position}/${missions.length} | ${selected.mission.title}`;
+	// Short, single-line label — never lets a multi-line objective bleed across rows.
+	const label = formatHeaderLabel(selected.mission.title);
+	return `Missions: ${missions.length} total | selected ${position}/${missions.length} | ${label}`;
+}
+
+/** Single-line, length-capped label for the panel header — never lets a multi-line objective bleed across rows. */
+function formatHeaderLabel(raw: string): string {
+	return truncateForHeader(firstLine(raw), 60);
+}
+
+/** Single-line, length-capped label for the Objective row — same cleanup, slightly more room. */
+function formatObjectiveLine(raw: string): string {
+	return truncateForHeader(firstLine(raw), 96);
+}
+
+function firstLine(value: string): string {
+	const cleaned = value.replace(/\r\n?/g, "\n").trim();
+	const newlineIdx = cleaned.indexOf("\n");
+	return (newlineIdx === -1 ? cleaned : cleaned.slice(0, newlineIdx)).trim();
+}
+
+function truncateForHeader(value: string, max: number): string {
+	if (value.length <= max) return value || "(no title)";
+	return `${value.slice(0, Math.max(0, max - 1))}…`;
 }
 
 function summarizeLaneRuns(view: MissionView): string {

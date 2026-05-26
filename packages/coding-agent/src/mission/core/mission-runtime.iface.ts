@@ -3,7 +3,7 @@ import type { MissionIntent } from "../policy/intent";
 import type { Mission, MissionLifecycleState, MissionPlan, MissionVerification } from "./mission";
 import type { MissionInput } from "./mission-input";
 import type { MissionOutcome } from "./mission-outcome";
-import type { GoalBudgetSteering, GoalModeState, GoalTokenUsage } from "./objective-state";
+import type { MissionPhase, MissionPhaseInput } from "./mission-phase";
 
 /**
  * Runtime contract for the refactored mission core. TYPES ONLY — this module
@@ -92,22 +92,6 @@ export interface MissionRuntimeEvent {
 /** Listener disposer returned by {@link MissionRuntime.emit}/subscribe paths. */
 export type MissionEventUnsubscribe = () => void;
 
-export interface LiveObjectiveControl {
-	onTurnStart(turnId: string, baselineUsage: GoalTokenUsage): void;
-	onToolCompleted(toolName: string): Promise<void>;
-	onAgentEnd(options?: { turnCompleted?: boolean; currentUsage?: GoalTokenUsage }): Promise<void>;
-	flushUsage(steering: GoalBudgetSteering, currentUsage?: GoalTokenUsage): Promise<void>;
-	addExternalUsage(delta: number): Promise<void>;
-	buildActivePrompt(): string | undefined;
-}
-
-export interface InteractiveObjectiveLifecycle {
-	createObjective(input: { objective: string; tokenBudget?: number }): Promise<GoalModeState>;
-	resumeObjective(): Promise<GoalModeState>;
-	pauseObjective(): Promise<GoalModeState | undefined>;
-	dropObjective(): Promise<void>;
-}
-
 /**
  * The mission runtime contract. Implementations own state transitions; this
  * interface only describes the operations and their option/result shapes.
@@ -128,14 +112,35 @@ export interface MissionRuntime {
 	/** Verify the mission outcome, advancing through `verifying`. */
 	verify(missionId: string, options?: MissionVerifyOptions): Promise<MissionVerifyResult>;
 
+	/** Declare ordered phases with scoped acceptance criteria. */
+	declarePhases(missionId: string, phases: MissionPhaseInput[]): Promise<MissionPhase[]>;
+
+	/** Verify a single mission phase. */
+	verifyPhase(
+		missionId: string,
+		phaseId: string,
+		options?: { force?: boolean },
+	): Promise<{ verification: MissionVerification }>;
+
+	/** Close a previously verified mission phase. */
+	closePhase(missionId: string, phaseId: string, options?: { force?: boolean }): Promise<MissionPhase>;
+
+	/** List phases for a mission. */
+	listPhases(missionId: string): Promise<MissionPhase[]>;
+
 	/** Complete the mission with a terminal outcome. */
 	complete(missionId: string, options: MissionCompleteOptions): Promise<Mission>;
 
+	/** Record an ambient verification verdict against a mission without changing lifecycle. */
+	recordVerification(missionId: string, verification: MissionVerification): Mission;
 	/** Block the mission pending external input. */
 	block(missionId: string, options: MissionBlockOptions): Promise<Mission>;
 
 	/** Cancel the mission. */
 	cancel(missionId: string, options?: MissionCancelOptions): Promise<Mission>;
+
+	/** Capture design-interview answers onto a mission, one-shot. No-op if answers already present or input is empty. Returns the (possibly unchanged) mission. */
+	recordDesignAnswers(missionId: string, answers: Record<string, string>): Mission;
 
 	/** Emit a runtime event (and/or subscribe; returns an unsubscribe handle). */
 	emit(event: MissionRuntimeEvent): MissionEventUnsubscribe | undefined;
@@ -143,5 +148,3 @@ export interface MissionRuntime {
 	/** Fetch the current mission aggregate. */
 	get(missionId: string): Promise<Mission | undefined>;
 }
-
-export interface ObjectiveRuntime extends MissionRuntime, LiveObjectiveControl, InteractiveObjectiveLifecycle {}

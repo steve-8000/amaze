@@ -26,6 +26,14 @@ describe("inferIntent", () => {
 		["refactor the session manager", "runtime_refactor"],
 		["리팩터 하자", "runtime_refactor"],
 		["change the mission control architecture", "architecture_change"],
+		["rebrand paseo and amaze to fpacs", "architecture_change"],
+		["rename the @amaze/* packages to @fpacs/*", "architecture_change"],
+		["quarantine packages/app/src into legacy-src", "architecture_change"],
+		["wipe runtime memory under ~/.fpacs", "architecture_change"],
+		["clean cutover from amaze to fpacs", "architecture_change"],
+		["리브랜딩 진행", "architecture_change"],
+		["전체 격리 후 재구축", "architecture_change"],
+		["패키지 이름 바꾸기", "architecture_change"],
 		["prepare for the v3 release hardening", "release_hardening"],
 		["안정화 작업", "release_hardening"],
 		["ssh into prod and patch the cert", "external_side_effect"],
@@ -44,5 +52,13 @@ describe("inferIntent", () => {
 		);
 		expect(decision.intent).toBe("architecture_change");
 		expect(riskAtLeast(decision.riskLevel, "medium")).toBe(true);
+	});
+
+	test("classifier includes destructive architecture intent", () => {
+		const decision = defaultMissionClassifier.classify(
+			mission({ objective: "rebrand the monorepo architecture and migrate the schema" }),
+		);
+		expect(decision.intent).toBe("architecture_change");
+		expect(riskAtLeast(decision.riskLevel, "high")).toBe(true);
 	});
 });

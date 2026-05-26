@@ -305,14 +305,43 @@ function applyParams(phases: TodoPhase[], params: TodoWriteParams): { phases: To
 function applyParamsToMission(
 	mission: NonNullable<ReturnType<NonNullable<ToolSession["getActiveMission"]>>>,
 	params: TodoWriteParams,
-): { phases: TodoPhase[]; errors: string[] } {
+): { phases: TodoPhase[]; errors: string[]; notices: string[] } {
 	const errors: string[] = [];
+	const notices: string[] = [];
 	const previousPhases = projectMissionToTodoPhases(mission);
+
+	// Mission-projection phases other than `Execution` (Frame, Decision, Regression,
+	// Verification) are synthesized from mission state. Their tasks ("Decision record",
+	// "Verification verdict", etc.) advance only when the model calls the corresponding
+	// mission runtime tool — not via `todo_write`. Silently skipping such ops (as the
+	// previous implementation did via a hidden lookup miss) surfaced as confusing
+	// `Task "X" not found` errors and aborted whole batches. We pre-filter and emit a
+	// notice instead, so the agent learns the right surface without erroring out.
+	const syntheticPhaseNames = new Set<string>();
+	const syntheticTaskContents = new Set<string>();
+	for (const phase of previousPhases) {
+		if (phase.name === "Execution") continue;
+		syntheticPhaseNames.add(phase.name);
+		for (const task of phase.tasks) syntheticTaskContents.add(task.content);
+	}
+	const projectionAdvice =
+		"Mission-projection items advance through mission runtime tools (e.g. `/mission decision record`, `/mission verify`, `/mission complete`), not `todo_write`.";
+
 	let executionPhase = previousPhases.find(phase => phase.name === "Execution");
 	if (!executionPhase) {
 		executionPhase = { name: "Execution", tasks: [] };
 	}
 	for (const entry of params.ops) {
+		if (entry.task && syntheticTaskContents.has(entry.task)) {
+			const supplemental = describeRecordedSyntheticState(mission, entry.task);
+			const base = `Skipped op "${entry.op}" on "${entry.task}" — projection-only. ${projectionAdvice}`;
+			notices.push(supplemental ? `${base} ${supplemental}` : base);
+			continue;
+		}
+		if (entry.phase && syntheticPhaseNames.has(entry.phase)) {
+			notices.push(`Skipped op "${entry.op}" on phase "${entry.phase}" — projection-only. ${projectionAdvice}`);
+			continue;
+		}
 		const before = executionPhase.tasks.length;
 		const nextPhases = applyEntry([executionPhase], entry, errors);
 		executionPhase = nextPhases[0] ?? { name: "Execution", tasks: [] };
@@ -345,7 +374,26 @@ function applyParamsToMission(
 	normalizeInProgressTask(executionPhase.tasks.length > 0 ? [executionPhase] : []);
 	syncMissionTasksFromExecutionPhase(mission, executionPhase);
 	mission.updatedAt = Date.now();
-	return { phases: projectMissionToTodoPhases(mission), errors };
+	return { phases: projectMissionToTodoPhases(mission), errors, notices };
+}
+
+function describeRecordedSyntheticState(
+	mission: NonNullable<ReturnType<NonNullable<ToolSession["getActiveMission"]>>>,
+	taskName: string | undefined,
+): string | undefined {
+	if (!taskName) return undefined;
+	if (taskName === "Decision record" && mission.decisionId) {
+		return `Decision is already recorded (decisionId=${mission.decisionId}); this row will project as completed on next session reload.`;
+	}
+	if (taskName === "Regression contract" && mission.regressionContractId) {
+		return `Regression contract is already recorded (regressionContractId=${mission.regressionContractId}); this row will project as completed on next session reload.`;
+	}
+	if (taskName === "Verification verdict" && mission.verification?.verdict) {
+		return `Verification is already recorded (verdict=${mission.verification.verdict}); this row will project as ${
+			mission.verification.verdict === "pass" ? "completed" : "abandoned"
+		} on next session reload.`;
+	}
+	return undefined;
 }
 
 function syncMissionTasksFromExecutionPhase(
@@ -589,14 +637,23 @@ export class TodoWriteTool implements AgentTool<typeof todoWriteSchema, TodoWrit
 		_context?: AgentToolContext,
 	): Promise<AgentToolResult<TodoWriteToolDetails>> {
 		const activeMission = this.session.getActiveMission?.();
-		const { phases: updated, errors } = activeMission
+		const result = activeMission
 			? applyParamsToMission(activeMission, params)
-			: applyParams(clonePhases(this.session.getTodoPhases?.() ?? []), params);
-		this.session.setTodoPhases?.(updated);
+			: { ...applyParams(clonePhases(this.session.getTodoPhases?.() ?? []), params), notices: [] as string[] };
+		const { phases: updated, errors, notices } = result;
+		// P6: when a mission is active, mission tasks are the single source of truth for the todo
+		// projection. The legacy `setTodoPhases` cache caused the "stuck stored phases" bug where
+		// stale synthetic projection rows were preserved across sessions. Only persist the cache
+		// when no mission is bound; otherwise rely on the next projection read for hydration.
+		if (!activeMission) {
+			this.session.setTodoPhases?.(updated);
+		}
 		const storage = this.session.getSessionFile() ? "session" : "memory";
+		const summary = formatSummary(updated, errors);
+		const text = notices.length > 0 ? `${notices.join("\n")}\n${summary}` : summary;
 
 		return {
-			content: [{ type: "text", text: formatSummary(updated, errors) }],
+			content: [{ type: "text", text }],
 			details: { phases: updated, storage },
 			isError: errors.length > 0 ? true : undefined,
 		};

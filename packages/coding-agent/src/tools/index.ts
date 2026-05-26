@@ -11,8 +11,6 @@ import { resolveMemoryBackend } from "../memory-backend";
 import type { Mission } from "../mission/core/mission";
 import type { MissionControlRuntime } from "../mission/core/mission-control-runtime";
 import type { MissionScopeGuard } from "../mission/core/mission-scope";
-import type { ObjectiveRuntimeImpl } from "../mission/core/objective-runtime";
-import type { GoalModeState } from "../mission/core/objective-state";
 import type { PlanModeState } from "../plan-mode/state";
 import { type AgentRegistry, MAIN_AGENT_ID } from "../registry/agent-registry";
 import type { ArtifactManager } from "../session/artifacts";
@@ -42,7 +40,6 @@ import { DebugTool } from "./debug";
 import { EvalTool } from "./eval";
 import { FindTool } from "./find";
 import { GithubTool } from "./gh";
-import { GoalTool } from "./goal-tool";
 import { InspectImageTool } from "./inspect-image";
 import { IrcTool } from "./irc";
 import { JobTool } from "./job";
@@ -71,7 +68,6 @@ export * from "../exa";
 export type * from "../exa/types";
 export * from "../lsp";
 export * from "../mission/core";
-export * from "../mission/core/objective-runtime";
 export * from "../session/streaming-output";
 export * from "../task";
 export * from "../web/search";
@@ -194,10 +190,6 @@ export interface ToolSession {
 	settings: Settings;
 	/** Plan mode state (if active) */
 	getPlanModeState?: () => PlanModeState | undefined;
-	/** Goal mode state (if active or paused) */
-	getGoalModeState?: () => GoalModeState | undefined;
-	/** Goal runtime for the active agent session. */
-	getGoalRuntime?: () => ObjectiveRuntimeImpl | undefined;
 	/**
 	 * SubagentContract governing this session, if any. Set by the task executor when this
 	 * session is spawned as a subagent under a structured contract. Tools (edit, write)
@@ -208,15 +200,13 @@ export interface ToolSession {
 	/**
 	 * Scope guard of the Mission this session is bound to, if any. When present and no
 	 * SubagentContract is active, the mutation guard enforces this INSTEAD of the legacy
-	 * Goal scope — making the Mission the single authority and removing goal/mission
-	 * divergence. Undefined ⇒ no mission scope; the guard falls back to goal scope.
+	 * Goal scope — making the Mission the single authority and removing mission divergence. Undefined ⇒ no mission scope; the guard falls back to goal scope.
 	 */
 	getActiveMissionScope?: () => MissionScopeGuard | undefined;
 	getActiveMission?: () => Mission | undefined;
 	missionControl?: MissionControlRuntime;
 	/**
-	 * Accessor for the session's V3 coordination telemetry aggregator. Tools (ask, goal,
-	 * task) call its `record*` methods directly. Optional — tools should no-op gracefully
+	 * Accessor for the session's V3 coordination telemetry aggregator. Tools (ask and task) call its `record*` methods directly. Optional — tools should no-op gracefully
 	 * when undefined to preserve test/standalone tool usage.
 	 */
 	getV3Telemetry?: () => import("../mission/core/telemetry").V3Telemetry | undefined;
@@ -371,7 +361,6 @@ export const HIDDEN_TOOLS: Record<string, ToolFactory> = {
 	report_finding: () => reportFindingTool,
 	report_tool_issue: s => createReportToolIssueTool(s),
 	resolve: s => new ResolveTool(s),
-	goal: s => new GoalTool(s),
 };
 
 export type ToolName = keyof typeof BUILTIN_TOOLS;
@@ -470,13 +459,6 @@ export async function createTools(session: ToolSession, toolNames?: string[]): P
 	const enableLsp = session.enableLsp ?? true;
 	let requestedTools =
 		toolNames && toolNames.length > 0 ? [...new Set(toolNames.map(name => name.toLowerCase()))] : undefined;
-	const goalEnabled = session.settings.get("goal.enabled");
-	const goalModeActive = goalEnabled && session.getGoalModeState?.()?.enabled === true;
-	const planModeActive = session.getPlanModeState?.()?.enabled === true;
-	const goalToolActive = goalModeActive && !planModeActive;
-	if (goalToolActive && requestedTools && !requestedTools.includes("goal")) {
-		requestedTools = [...requestedTools, "goal"];
-	}
 	const backends = resolveEvalBackends(session);
 	const activeMemoryBackendId = resolveMemoryBackend(session.settings).id;
 	const allowPython = backends.python;
@@ -549,7 +531,6 @@ export async function createTools(session: ToolSession, toolNames?: string[]): P
 
 	const allTools: Record<string, ToolFactory> = { ...BUILTIN_TOOLS, ...HIDDEN_TOOLS };
 	const isToolAllowed = (name: string) => {
-		if (name === "goal") return goalEnabled && goalToolActive;
 		if (name === "lsp") return enableLsp && session.settings.get("lsp.enabled");
 		if (name === "bash") return true;
 		if (name === "eval") return allowEval;
@@ -587,7 +568,7 @@ export async function createTools(session: ToolSession, toolNames?: string[]): P
 		return true;
 	};
 	if (includeYield && requestedTools && !requestedTools.includes("yield")) {
-		requestedTools.push("yield");
+		requestedTools = [...requestedTools, "yield"];
 	}
 
 	const filteredRequestedTools = requestedTools?.filter(name => name in allTools && isToolAllowed(name));
@@ -599,7 +580,6 @@ export async function createTools(session: ToolSession, toolNames?: string[]): P
 						.filter(([name]) => isToolAllowed(name))
 						.map(([name, factory]) => [name, factory] as const),
 					...(includeYield ? ([["yield", HIDDEN_TOOLS.yield]] as const) : []),
-					...(goalToolActive ? ([["goal", HIDDEN_TOOLS.goal]] as const) : []),
 				];
 
 	const baseResults = await Promise.all(

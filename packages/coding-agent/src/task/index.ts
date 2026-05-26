@@ -1618,23 +1618,15 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 				}
 			}
 
-			// Subagent usage rollup into active mission / parent goal: subagents run under their own session
-			// and never trigger the parent's per-turn flush. Without this hop, a 5-task fan-out
+			// Subagent usage rollup into active mission: subagents run under their own session
+			// and never trigger the parent's per-turn accounting. Without this hop, a 5-task fan-out
 			// that burns 30K tokens wouldn't dent the parent's delegation budget.
 			// (input + cacheWrite + output, cacheRead excluded as it's reused prefix).
 			if (hasAggregatedUsage) {
 				const delta =
 					(aggregatedUsage.input ?? 0) + (aggregatedUsage.cacheWrite ?? 0) + (aggregatedUsage.output ?? 0);
-				if (delta > 0) {
-					if (activeMission) {
-						this.session.missionControl?.recordTaskUsage?.(activeMission.id, delta);
-					} else {
-						const goalRuntime = this.session.getGoalRuntime?.();
-						const goalState = this.session.getGoalModeState?.();
-						if (goalRuntime && goalState?.enabled && goalState.goal) {
-							await goalRuntime.addExternalUsage(delta);
-						}
-					}
+				if (delta > 0 && activeMission) {
+					this.session.missionControl?.recordTaskUsage?.(activeMission.id, delta);
 				}
 			}
 

@@ -161,11 +161,9 @@ describe("runSubprocess yield reminders", () => {
 			settings: parentSettings,
 		});
 
-		expect(parentSettings.get("goal.enabled")).toBe(true);
 		expect(parentSettings.get("todo.enabled")).toBe(true);
 		const call = createAgentSessionSpy.mock.calls[0]?.[0];
 		if (!call?.settings) throw new Error("Expected subagent settings");
-		expect(call.settings.get("goal.enabled")).toBe(false);
 		expect(call.settings.get("todo.enabled")).toBe(false);
 		expect(call.settings.get("todo.eager")).toBe(false);
 	});

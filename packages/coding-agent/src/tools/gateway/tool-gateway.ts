@@ -52,7 +52,7 @@ export interface ToolGatewayOptions {
 	permissionGate?: PermissionGate;
 	mutationGuard?: MutationScopeGuard;
 	/**
-	 * Optional async mutation-scope guard (e.g. subagent/goal scope enforcement
+	 * Optional async mutation-scope guard (e.g. subagent/mission scope enforcement
 	 * that must touch the filesystem). Consulted by {@link ToolGateway.guard} in
 	 * addition to the synchronous {@link mutationGuard}. Absent ⇒ skipped.
 	 */

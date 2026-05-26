@@ -156,6 +156,42 @@ export type NewMissionContractRecord = Omit<MissionContractRecord, "id" | "creat
 	sessionFile?: string | null;
 };
 
+export interface MissionPhaseRecord {
+	id: string;
+	missionId: string;
+	ordinal: number;
+	name: string;
+	description: string | null;
+	status: "pending" | "active" | "verified" | "failed" | "rolled_back";
+	planStepIds: string[];
+	acceptanceCriteriaJson: string;
+	createdAt: number;
+	updatedAt: number;
+	closedAt: number | null;
+}
+
+export type NewMissionPhaseRecord = Omit<MissionPhaseRecord, "id" | "createdAt" | "updatedAt"> & {
+	id?: string;
+	createdAt?: number;
+	updatedAt?: number;
+};
+
+export interface MissionPhaseVerificationRecord {
+	id: string;
+	missionId: string;
+	phaseId: string;
+	status: "pass" | "fail" | "uncertain" | "force";
+	failedCount: number;
+	uncertainCount: number;
+	summary: string;
+	createdAt: number;
+}
+
+export type NewMissionPhaseVerificationRecord = Omit<MissionPhaseVerificationRecord, "id" | "createdAt"> & {
+	id?: string;
+	createdAt?: number;
+};
+
 export interface MissionVerificationRecord {
 	id: string;
 	missionId: string;

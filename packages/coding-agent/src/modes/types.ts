@@ -250,6 +250,7 @@ export interface InteractiveModeContext {
 	selectNextMission(): void;
 	selectPreviousMission(): void;
 	toggleMissionControlDisplayMode(): void;
+	setMissionControlDisplayMode(mode: "off" | "compact" | "expanded"): void;
 	resetObserverRegistry(): void;
 
 	// Input handling
@@ -270,7 +271,6 @@ export interface InteractiveModeContext {
 	openExternalEditor(): void;
 	registerExtensionShortcuts(): void;
 	handlePlanModeCommand(initialPrompt?: string): Promise<void>;
-	handleGoalModeCommand(rest?: string): Promise<void>;
 	handleLoopCommand(args?: string): Promise<void>;
 	disableLoopMode(): void;
 	pauseLoop(): void;

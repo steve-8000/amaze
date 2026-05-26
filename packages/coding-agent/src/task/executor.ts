@@ -496,7 +496,6 @@ function createSubagentSettings(baseSettings: Settings): Settings {
 		...snapshot,
 		"async.enabled": false,
 		"bash.autoBackground.enabled": false,
-		"goal.enabled": false,
 		"memory.backend": "off",
 		"todo.enabled": false,
 		"todo.eager": false,

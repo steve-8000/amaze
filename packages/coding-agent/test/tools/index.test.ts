@@ -23,23 +23,6 @@ function createSettingsWithOverrides(overrides: Partial<Record<SettingPath, unkn
 	});
 }
 
-function createActiveGoalState() {
-	return {
-		enabled: true,
-		mode: "active" as const,
-		goal: {
-			id: "goal-1",
-			objective: "Ship the release",
-			status: "active" as const,
-			tokenBudget: 25,
-			tokensUsed: 5,
-			timeUsedSeconds: 0,
-			createdAt: 1,
-			updatedAt: 1,
-		},
-	};
-}
-
 function createDiscoverySessionHooks(): Partial<ToolSession> {
 	const selected: string[] = [];
 	return {
@@ -258,36 +241,6 @@ describe("createTools", () => {
 		const requestedTools = await createTools(session, ["read"]);
 		expect(requestedTools.map(t => t.name)).toEqual(["read", "resolve"]);
 	});
-	it("auto-includes goal when goal mode is active", async () => {
-		const session = createTestSession({
-			settings: createSettingsWithOverrides({
-				"goal.enabled": true,
-			}),
-			getGoalModeState: () => createActiveGoalState(),
-		});
-		const tools = await createTools(session, ["read"]);
-		const names = tools.map(t => t.name);
-
-		expect(names).toEqual(["read", "goal", "resolve"]);
-	});
-
-	it("suppresses the goal tool while plan mode is active", async () => {
-		const session = createTestSession({
-			settings: createSettingsWithOverrides({
-				"goal.enabled": true,
-			}),
-			getGoalModeState: () => createActiveGoalState(),
-			getPlanModeState: () => ({
-				enabled: true,
-				planFilePath: "local://PLAN.md",
-				goalId: "goal-1",
-			}),
-		});
-		const tools = await createTools(session, ["read"]);
-
-		expect(tools.map(t => t.name)).toEqual(["read", "resolve"]);
-	});
-
 	it("includes search_tool_bm25 when MCP tool discovery is enabled and executable", async () => {
 		const session = createTestSession({
 			settings: createSettingsWithOverrides({
@@ -301,13 +254,7 @@ describe("createTools", () => {
 		expect(names).toContain("search_tool_bm25");
 	});
 
-	it("HIDDEN_TOOLS contains review tools and goal", () => {
-		expect(Object.keys(HIDDEN_TOOLS).sort()).toEqual([
-			"goal",
-			"report_finding",
-			"report_tool_issue",
-			"resolve",
-			"yield",
-		]);
+	it("HIDDEN_TOOLS contains review tools", () => {
+		expect(Object.keys(HIDDEN_TOOLS).sort()).toEqual(["report_finding", "report_tool_issue", "resolve", "yield"]);
 	});
 });

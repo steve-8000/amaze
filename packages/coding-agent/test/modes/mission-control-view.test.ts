@@ -92,16 +92,14 @@ describe("MissionControlView", () => {
 		expect(rendered).toContain("[repo truth] explore | repo | completed | evidence 1");
 		expect(rendered).toContain("── Evidence Board ──");
 		expect(rendered).toContain("[repo] ev-1 | grade A | src/file.ts:1");
-		expect(rendered).toContain("── Synthesis / Critique ──");
-		expect(rendered).toContain("Synthesis: <none>");
-		expect(rendered).toContain("Critique: <none>");
+		// P9.2: empty Synthesis / Critique section is suppressed in compact mode.
+		expect(rendered).not.toContain("── Synthesis / Critique ──");
 		expect(rendered).toContain("── Decision Contract ──");
 		expect(rendered).toContain("Decision: select | high | Ship the compact panel");
 		expect(rendered).toContain("Evidence refs: ev-1 | rejected options 1 | next actions 1");
 		expect(rendered).toContain("Execution contract: <none>");
-		expect(rendered).toContain("── Verification / Rollback ──");
-		expect(rendered).toContain("Verification: <none>");
-		expect(rendered).toContain("Rollback: <none> | snapshots 0");
+		// P9.2: empty Verification / Rollback section is suppressed in compact mode.
+		expect(rendered).not.toContain("── Verification / Rollback ──");
 		expect(rendered).toContain("Mission Inspector: Ctrl+S for tool traces, artifacts, and subagent details");
 	});
 

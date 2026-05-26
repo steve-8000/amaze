@@ -355,15 +355,6 @@ describe("system Handlebars prompt templates", () => {
 					totalLines: 2,
 					agentsMdFiles: [],
 				},
-				activeGoal: {
-					id: "g-x",
-					objective: "Anything",
-					status: "active",
-					tokensUsed: 0,
-					timeUsedSeconds: 0,
-					createdAt: 0,
-					updatedAt: 0,
-				},
 			});
 
 			expect(systemPrompt).toHaveLength(1);
@@ -379,7 +370,7 @@ describe("system Handlebars prompt templates", () => {
 		});
 	});
 
-	test("buildSystemPrompt renders active goal block with design answers into DYNAMIC_TAIL", async () => {
+	test("buildSystemPrompt renders active mission block into DYNAMIC_TAIL", async () => {
 		await withTempDir(async dir => {
 			const { systemPrompt } = await buildSystemPrompt({
 				cwd: dir,
@@ -387,32 +378,28 @@ describe("system Handlebars prompt templates", () => {
 				skills: [],
 				rules: [],
 				toolNames: ["read"],
-				activeGoal: {
-					id: "g-test",
-					objective: "Wire goal block",
-					status: "active",
-					tokenBudget: 5000,
-					tokensUsed: 0,
-					timeUsedSeconds: 0,
-					createdAt: 0,
-					updatedAt: 0,
-					designAnswers: {
-						scope: "files A, B",
-						acceptance: "tests pass",
+				activeMission: {
+					objective: "Wire mission block",
+					state: "executing",
+					decision: null,
+					activeContract: null,
+					evidenceClaims: [],
+					blockingCritique: null,
+					nextActions: [],
+					omitted: {
+						evidenceClaims: 0,
+						evidenceCards: 0,
+						contracts: 0,
+						contractIncludes: 0,
+						contractCriteria: 0,
+						nextActions: 0,
 					},
 				},
 			});
 
-			// Active goal renders into DYNAMIC_TAIL (systemPrompt[1]), NOT into STABLE_CORE.
-			// This is essential: goal changes per turn (tokensUsed, status, answer edits) and
-			// putting it in STABLE_CORE would invalidate the cache prefix on every update.
-			expect(systemPrompt[0]).not.toContain(`<goal id="g-test"`);
-			expect(systemPrompt[1]).toContain(
-				`<goal id="g-test" status="active" budget="5000" remaining="5000" contract-revision="0">`,
-			);
-			expect(systemPrompt[1]).toContain(`<objective>Wire goal block</objective>`);
-			expect(systemPrompt[1]).toContain(`<design key="scope">files A, B</design>`);
-			expect(systemPrompt[1]).toContain(`<design key="acceptance">tests pass</design>`);
+			expect(systemPrompt[0]).not.toContain("Wire mission block");
+			expect(systemPrompt[1]).toContain("<active-mission>");
+			expect(systemPrompt[1]).toContain("Objective: Wire mission block");
 		});
 	});
 	test("buildSystemPrompt renders workspace tree after directory context in project prompt", async () => {

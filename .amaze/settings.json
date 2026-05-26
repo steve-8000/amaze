@@ -57,7 +57,8 @@
 			"perf",
 			"docs",
 			"browser-qa",
-			"system-prompts"
+			"system-prompts",
+			"destructive-mission"
 		]
 	},
 	"task": {

@@ -559,35 +559,17 @@ export class AskTool implements AgentTool<typeof askSchema, AskToolDetails> {
 		const responseLines = results.map(formatQuestionResult);
 		const responseText = `User answers:\n${responseLines.join("\n")}`;
 
-		// Design Interview integration: when the active goal has not yet recorded its design
-		// answers, the first `ask` call against it IS the Design Interview (per system prompt).
-		// Capture the answers keyed by question id so the goal anchor in DYNAMIC_TAIL gains
-		// scope/constraints/approach/acceptance lines on the next rebuild. Subsequent ask
-		// calls are no-ops (one-shot enforcement lives in `captureDesignAnswers`).
-		//
-		// Telemetry: classify every ask invocation so future runs can tune the skip clause
-		// from real data (`fired` = Design Interview captured, `already_captured` = goal already
-		// has answers, `no_goal` = ad-hoc clarification, `capture_failed` = error path).
 		let classification: "fired" | "already_captured" | "no_goal" | "capture_failed" = "no_goal";
 		try {
-			const goalState = this.session.getGoalModeState?.();
-			const hasAnswersAlready =
-				goalState?.goal?.designAnswers && Object.keys(goalState.goal.designAnswers).length > 0;
-			if (goalState?.enabled && goalState.goal) {
-				if (hasAnswersAlready) {
-					classification = "already_captured";
-				} else {
-					const goalRuntime = this.session.getGoalRuntime?.();
-					if (goalRuntime) {
-						const answers: Record<string, string> = {};
-						for (const r of results) {
-							const value = r.customInput?.trim() ?? r.selectedOptions.join(", ").trim();
-							if (value) answers[r.id] = value;
-						}
-						const captured = await goalRuntime.captureDesignAnswers(answers);
-						classification = captured ? "fired" : "already_captured";
-					}
-				}
+			const answers: Record<string, string> = {};
+			for (const r of results) {
+				const value = r.customInput?.trim() ?? r.selectedOptions.join(", ").trim();
+				if (value) answers[r.id] = value;
+			}
+			if (Object.keys(answers).length > 0 && this.session.missionControl?.getActiveMission()) {
+				const before = this.session.missionControl.getActiveMission()?.designAnswers;
+				this.session.missionControl.recordActiveDesignAnswers(answers);
+				classification = before && Object.keys(before).length > 0 ? "already_captured" : "fired";
 			}
 		} catch (error) {
 			classification = "capture_failed";
@@ -597,7 +579,7 @@ export class AskTool implements AgentTool<typeof askSchema, AskToolDetails> {
 			classification,
 			questionCount: params.questions.length,
 			answeredCount: results.filter(r => r.selectedOptions.length > 0 || r.customInput?.trim()).length,
-			goalId: this.session.getGoalModeState?.()?.goal?.id,
+			missionId: this.session.missionControl?.getActiveMission()?.id,
 		});
 		// V3 telemetry — feeds the session's aggregator so it's surfaceable via `getV3Stats`
 		// or formatV3TelemetrySummary. The logger.info above is for external log consumers;

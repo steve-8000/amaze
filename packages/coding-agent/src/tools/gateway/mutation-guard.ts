@@ -46,7 +46,7 @@ export class AllowAllMutationScopeGuard implements MutationScopeGuard {
 }
 
 /**
- * Async mutation-scope guard surface. The subagent/goal scope check is async
+ * Async mutation-scope guard surface. The subagent/mission scope check is async
  * (it realpaths the filesystem), so the gateway seam consults this variant
  * directly rather than the synchronous {@link MutationScopeGuard}.
  */
@@ -61,7 +61,6 @@ export interface AsyncMutationScopeGuard {
 export interface MutationScopeSession {
 	cwd: string;
 	getSubagentContract?: () => unknown;
-	getGoalModeState?: () => unknown;
 	conflictHistory?: { get(id: number): { absolutePath: string } | undefined };
 }
 
@@ -90,9 +89,9 @@ function extractMutationPaths(toolName: string, input: unknown): { path: string;
 }
 
 /**
- * Lane H — routes the EXISTING subagent/goal mutation-scope enforcement through
+ * Lane H — routes the EXISTING subagent/mission mutation-scope enforcement through
  * the gateway. It delegates to the same `enforceMutationScope` used inline by the
- * write/edit tools, so a subagent (or goal-scoped session) writing outside its
+ * write/edit tools, so a subagent (or mission-scoped session) writing outside its
  * declared scope is denied EXACTLY as today — only surfaced as a `MutationDecision`
  * deny instead of a thrown error at this layer. Non-mutating tools and calls with
  * no resolvable path or no session are allowed (transparent pass-through).

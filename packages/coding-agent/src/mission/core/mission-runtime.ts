@@ -2,7 +2,7 @@ import type { ConfidenceLevel, RiskLevel } from "../../research/types";
 import type { MissionEventBus } from "../event-bus";
 import { defaultMissionClassifier, toCoreRiskLevel } from "../policy";
 import { MissionStore } from "../store";
-import type { MissionState as LegacyMissionState } from "../types";
+import type { MissionState as LegacyMissionState, MissionPhaseRecord } from "../types";
 import type { AcceptanceCriterion } from "./acceptance-criteria";
 import { templateFor } from "./lifecycle-template";
 import type {
@@ -14,6 +14,7 @@ import type {
 	MissionVerification,
 } from "./mission";
 import type { MissionInput, MissionMode } from "./mission-input";
+import type { MissionPhase, MissionPhaseInput } from "./mission-phase";
 import type {
 	MissionBlockOptions,
 	MissionCancelOptions,
@@ -36,11 +37,7 @@ const MAX_TITLE_LENGTH = 4_000;
 const DEFAULT_TOKEN_BUDGET = 0;
 const DEFAULT_MAX_CONTEXT_TOKENS = 0;
 
-/**
- * Token usage snapshot consumed by {@link missionTokenDelta}. Mirrors the
- * `GoalTokenUsage` shape used by ObjectiveRuntimeImpl so callers can pass the same
- * provider-reported counters into either runtime.
- */
+/** Token usage snapshot consumed by {@link missionTokenDelta}. */
 export interface MissionTokenUsage {
 	input: number;
 	output: number;
@@ -164,6 +161,27 @@ function cloneCriterion(criterion: AcceptanceCriterion): AcceptanceCriterion {
 	};
 }
 
+function phaseRecordToPhase(record: MissionPhaseRecord): MissionPhase {
+	const criteria = JSON.parse(record.acceptanceCriteriaJson) as AcceptanceCriterion[];
+	return {
+		id: record.id,
+		missionId: record.missionId,
+		ordinal: record.ordinal,
+		name: record.name,
+		...(record.description !== null ? { description: record.description } : {}),
+		planStepIds: [...record.planStepIds],
+		acceptanceCriteria: criteria.map(cloneCriterion),
+		status: record.status,
+		createdAt: record.createdAt,
+		updatedAt: record.updatedAt,
+		...(record.closedAt !== null ? { closedAt: record.closedAt } : {}),
+	};
+}
+
+function serializeCriteria(criteria: AcceptanceCriterion[]): string {
+	return JSON.stringify(criteria.map(cloneCriterion));
+}
+
 export type MissionRuntimeImplOptions = {
 	store?: MissionStore;
 	dbPath?: string;
@@ -178,12 +196,9 @@ export type MissionRuntimeImplOptions = {
  * Owns:
  *   - the rich core {@link Mission} aggregate per mission (held in memory),
  *   - a durable thin record via {@link MissionStore} (lifecycle mapped to legacy state),
- *   - a per-mission token budget + accounting (mirrors ObjectiveRuntimeImpl semantics) tracked on
- *     `mission.budget`,
+ *   - a per-mission token budget + accounting tracked on `mission.budget`,
  *   - canonical lifecycle event emission via the {@link MissionEventBus} (and therefore the
  *     jsonl sink).
- *
- * Runs in parallel with ObjectiveRuntimeImpl; nothing here mutates goal state.
  */
 export class MissionRuntimeImpl implements MissionRuntime {
 	readonly #store: MissionStore;
@@ -217,7 +232,25 @@ export class MissionRuntimeImpl implements MissionRuntime {
 	}
 
 	tryGet(missionId: string): Mission | undefined {
-		return this.#missions.get(missionId) ?? this.#hydrate(missionId);
+		const cached = this.#missions.get(missionId);
+		if (cached) {
+			// Stale-cache detection: when external mutation (direct DB write, sibling runtime
+			// instance, /mission complete from another session) changes the stored lifecycle, the
+			// in-memory copy is invalid. Re-read the row's lifecycle column cheaply (single SELECT)
+			// and if it diverges from the cached object, drop the entry and re-hydrate.
+			const storedRow = this.#store.getMission(missionId);
+			if (!storedRow) {
+				this.#missions.delete(missionId);
+				return undefined;
+			}
+			const storedLifecycle = (storedRow.lifecycle as Mission["lifecycle"] | null) ?? undefined;
+			if (storedLifecycle && storedLifecycle !== cached.lifecycle) {
+				this.#missions.delete(missionId);
+				return this.#hydrate(missionId);
+			}
+			return cached;
+		}
+		return this.#hydrate(missionId);
 	}
 
 	#require(missionId: string): Mission {
@@ -230,8 +263,9 @@ export class MissionRuntimeImpl implements MissionRuntime {
 	 * Rebuild an in-memory {@link Mission} from the durable store when it is not yet
 	 * resident (e.g. after a session restart). Restores the gate-critical pointers —
 	 * intent, lifecycle, proposalId, regressionContractId, decisionId — so the policy and
-	 * close gates behave identically across restarts. Plan/task/budget detail is not
-	 * persisted in the thin record and is restored to empty defaults.
+	 * close gates behave identically across restarts. Plan / tasks / acceptance criteria /
+	 * budget / scope guard are rehydrated from the durable aggregate (P2) when present;
+	 * absent aggregate rows fall back to empty defaults.
 	 */
 	#hydrate(missionId: string): Mission | undefined {
 		const record = this.#store.getMission(missionId);
@@ -245,10 +279,11 @@ export class MissionRuntimeImpl implements MissionRuntime {
 			riskLevel: record.riskLevel,
 			...(record.intent ? { intent: record.intent as Mission["intent"] } : {}),
 			constraints: [],
-			acceptanceCriteria: [],
+			acceptanceCriteria: this.#store.listAcceptanceCriteria(record.id),
 			budget: { tokenBudget: DEFAULT_TOKEN_BUDGET, tokensUsed: 0 },
 			contextBudget: { maxContextTokens: DEFAULT_MAX_CONTEXT_TOKENS, contextTokensUsed: 0 },
-			tasks: [],
+			tasks: this.#store.listTasks(record.id),
+			phases: this.#store.listPhases(record.id).map(phaseRecordToPhase),
 			evidenceRefs: [],
 			...(record.decisionId ? { decisionId: record.decisionId } : {}),
 			...(record.regressionContractId ? { regressionContractId: record.regressionContractId } : {}),
@@ -256,14 +291,54 @@ export class MissionRuntimeImpl implements MissionRuntime {
 			createdAt: record.createdAt,
 			updatedAt: record.updatedAt,
 		};
+		const budgetRow = this.#store.getBudget(record.id);
+		if (budgetRow) {
+			mission.budget = budgetRow.budget;
+			mission.contextBudget = budgetRow.contextBudget;
+		}
+		const plan = this.#store.getPlan(record.id);
+		if (plan) mission.plan = plan;
+		const scope = this.#store.getScopeGuard(record.id);
+		if (scope) mission.scopeGuard = scope;
+		const designAnswers = this.#store.getMissionDesignAnswers(record.id);
+		if (designAnswers && Object.keys(designAnswers).length > 0) mission.designAnswers = designAnswers;
+		try {
+			const latestVerification = this.#store.getLatestVerification(record.id);
+			if (latestVerification) {
+				mission.verification = {
+					status: latestVerification.status,
+					verdict:
+						latestVerification.status === "pass" || latestVerification.status === "force"
+							? "pass"
+							: latestVerification.status === "fail"
+								? "fail"
+								: "pending",
+					summary: latestVerification.summary,
+					failedCount: latestVerification.failedCount,
+					uncertainCount: latestVerification.uncertainCount,
+				};
+			}
+		} catch {
+			// Preserve legacy hydrate behavior when verification storage is unavailable.
+		}
 		this.#missions.set(mission.id, mission);
 		return mission;
+	}
+
+	#notifyUpdated(mission: Mission): void {
+		this.emit({
+			missionId: mission.id,
+			lifecycle: mission.lifecycle,
+			at: mission.updatedAt,
+			detail: { kind: "mission_updated", mission },
+		});
 	}
 
 	#advance(mission: Mission, lifecycle: MissionLifecycleState): Mission {
 		mission.lifecycle = lifecycle;
 		mission.updatedAt = this.#now();
 		this.#store.updateMission(mission.id, { state: lifecycleToStoreState(lifecycle), lifecycle });
+		this.#notifyUpdated(mission);
 		return mission;
 	}
 
@@ -323,6 +398,7 @@ export class MissionRuntimeImpl implements MissionRuntime {
 		if (input.parentMissionId !== undefined) mission.parentMissionId = input.parentMissionId;
 		if (input.scopeGuard !== undefined) mission.scopeGuard = input.scopeGuard;
 		this.#missions.set(mission.id, mission);
+		this.#notifyUpdated(mission);
 
 		this.#emit({
 			type: "mission.created",
@@ -386,12 +462,48 @@ export class MissionRuntimeImpl implements MissionRuntime {
 	 * tools on proposal-required intents are denied (see {@link MissionPolicyGate}). Idempotent
 	 * per mission — re-attaching overwrites the pointer and re-emits.
 	 */
-	attachProposal(missionId: string, input: { proposalId?: string; planRef?: string | null } = {}): Mission {
+	attachProposal(
+		missionId: string,
+		input: {
+			proposalId?: string;
+			planRef?: string | null;
+			/** P4: artifact URI (e.g. `local://PLAN.md`) for the approved plan. */
+			artifactUri?: string;
+			/** P4: SHA-256 of the artifact bytes at approval time. */
+			contentHash?: string;
+			/** P4: short summary describing the proposed change. */
+			summary?: string;
+			/** P4: who approved (defaults to "user"). */
+			approvedBy?: string;
+		} = {},
+	): Mission {
 		const mission = this.#require(missionId);
 		const proposalId = input.proposalId ?? `proposal-${mission.id}-${this.#now()}`;
 		mission.proposalId = proposalId;
 		mission.updatedAt = this.#now();
 		this.#store.updateMission(mission.id, { proposalId });
+
+		// P4: when artifact metadata is supplied, persist a real proposal row marked
+		// approved. The policy gate consults this row to verify the proposalId is backed by
+		// an approved, hash-bearing artifact rather than just a string pointer.
+		if (input.artifactUri && input.contentHash) {
+			const existing = this.#store.getProposal(proposalId);
+			if (existing) {
+				this.#store.updateProposalStatus(proposalId, "approved", input.approvedBy ?? "user");
+			} else {
+				this.#store.saveProposal({
+					id: proposalId,
+					missionId: mission.id,
+					artifactUri: input.artifactUri,
+					contentHash: input.contentHash,
+					status: "approved",
+					approvedBy: input.approvedBy ?? "user",
+					approvedAt: this.#now(),
+					summary: input.summary ?? null,
+				});
+			}
+		}
+
 		this.#emit({
 			type: "mission.proposal.attached",
 			missionId: mission.id,
@@ -399,6 +511,7 @@ export class MissionRuntimeImpl implements MissionRuntime {
 			planRef: input.planRef ?? null,
 			ts: mission.updatedAt,
 		});
+		this.#notifyUpdated(mission);
 		// An approved proposal is the signal to begin execution; leave terminal/active states alone.
 		if (mission.lifecycle === "created" || mission.lifecycle === "classified" || mission.lifecycle === "planning") {
 			this.#advance(mission, "executing");
@@ -462,6 +575,7 @@ export class MissionRuntimeImpl implements MissionRuntime {
 			});
 		}
 		mission.updatedAt = this.#now();
+		this.#notifyUpdated(mission);
 		return result;
 	}
 
@@ -486,7 +600,156 @@ export class MissionRuntimeImpl implements MissionRuntime {
 			uncertainCount: verification.uncertainCount ?? 0,
 			ts: mission.updatedAt,
 		});
+		this.#notifyUpdated(mission);
 		return { verification };
+	}
+
+	recordVerification(missionId: string, verification: MissionVerification): Mission {
+		const mission = this.#require(missionId);
+		mission.verification = { ...verification };
+		mission.updatedAt = this.#now();
+		this.#store.recordVerification({
+			missionId: mission.id,
+			status: verification.status,
+			failedCount: verification.failedCount ?? 0,
+			uncertainCount: verification.uncertainCount ?? 0,
+			summary: verification.summary,
+		});
+		this.#notifyUpdated(mission);
+		return mission;
+	}
+
+	async declarePhases(missionId: string, phases: MissionPhaseInput[]): Promise<MissionPhase[]> {
+		const mission = this.#require(missionId);
+		const ordinals = new Set<number>();
+		for (const phase of phases) {
+			if (ordinals.has(phase.ordinal)) throw new Error(`Duplicate mission phase ordinal: ${phase.ordinal}`);
+			ordinals.add(phase.ordinal);
+		}
+		const declared = phases.map(input => {
+			const record = this.#store.createPhase({
+				...(input.id ? { id: input.id } : {}),
+				missionId: mission.id,
+				ordinal: input.ordinal,
+				name: input.name,
+				description: input.description ?? null,
+				status: input.ordinal === 0 ? "active" : "pending",
+				planStepIds: input.planStepIds ? [...input.planStepIds] : [],
+				acceptanceCriteriaJson: serializeCriteria(input.acceptanceCriteria ?? []),
+				closedAt: null,
+			});
+			const phase = phaseRecordToPhase(record);
+			this.#emit({
+				type: "mission.phase.declared",
+				missionId: mission.id,
+				phaseId: phase.id,
+				ordinal: phase.ordinal,
+				name: phase.name,
+				ts: phase.createdAt,
+			});
+			return phase;
+		});
+		mission.phases = [...(mission.phases ?? []), ...declared].sort((a, b) => a.ordinal - b.ordinal);
+		mission.updatedAt = this.#now();
+		this.#notifyUpdated(mission);
+		return mission.phases;
+	}
+
+	async listPhases(missionId: string): Promise<MissionPhase[]> {
+		const mission = this.#require(missionId);
+		if (mission.phases !== undefined) return mission.phases;
+		mission.phases = this.#store.listPhases(mission.id).map(phaseRecordToPhase);
+		return mission.phases;
+	}
+
+	async verifyPhase(
+		missionId: string,
+		phaseId: string,
+		options: { force?: boolean } = {},
+	): Promise<{ verification: MissionVerification }> {
+		const mission = this.#require(missionId);
+		const phases = await this.listPhases(missionId);
+		const phase = phases.find(p => p.id === phaseId);
+		if (!phase) throw new Error(`Mission phase not found: ${phaseId}`);
+		const verification = this.#evaluateAcceptance(
+			{ ...mission, acceptanceCriteria: phase.acceptanceCriteria },
+			options.force ?? false,
+		);
+		phase.verification = verification;
+		if (verification.status === "pass" || verification.status === "force") phase.status = "verified";
+		else if (verification.status === "fail") phase.status = "failed";
+		else phase.status = "active";
+		phase.updatedAt = this.#now();
+		this.#store.updatePhase(phase.id, {
+			status: phase.status,
+			updatedAt: phase.updatedAt,
+			acceptanceCriteriaJson: serializeCriteria(phase.acceptanceCriteria),
+			closedAt: phase.closedAt ?? null,
+		});
+		const record = this.#store.recordPhaseVerification({
+			missionId: mission.id,
+			phaseId: phase.id,
+			status: verification.status,
+			failedCount: verification.failedCount ?? 0,
+			uncertainCount: verification.uncertainCount ?? 0,
+			summary: verification.summary,
+		});
+		this.#emit({
+			type: "mission.phase.verified",
+			missionId: mission.id,
+			phaseId: phase.id,
+			verificationId: record.id,
+			status: verification.status,
+			failedCount: verification.failedCount ?? 0,
+			uncertainCount: verification.uncertainCount ?? 0,
+			ts: record.createdAt,
+		});
+		return { verification };
+	}
+
+	async closePhase(missionId: string, phaseId: string, options: { force?: boolean } = {}): Promise<MissionPhase> {
+		const phases = await this.listPhases(missionId);
+		const phase = phases.find(p => p.id === phaseId);
+		if (!phase) throw new Error(`Mission phase not found: ${phaseId}`);
+		let latest = this.#store
+			.listPhaseVerifications(missionId)
+			.filter(v => v.phaseId === phaseId)
+			.at(-1);
+		if (!latest && options.force) {
+			await this.verifyPhase(missionId, phaseId, { force: true });
+			latest = this.#store
+				.listPhaseVerifications(missionId)
+				.filter(v => v.phaseId === phaseId)
+				.at(-1);
+		}
+		if (latest?.status !== "pass" && latest?.status !== "force") {
+			throw new MissionAcceptanceFailureError(
+				{
+					status: "fail",
+					verdict: "fail",
+					summary: `Mission "${missionId}" cannot close phase "${phase.name}": phase not verified.`,
+					failedCount: 1,
+					uncertainCount: 0,
+				},
+				phase.acceptanceCriteria.filter(c => !c.satisfied),
+			);
+		}
+		phase.status = "verified";
+		phase.closedAt = this.#now();
+		phase.updatedAt = phase.closedAt;
+		this.#store.updatePhase(phase.id, {
+			status: phase.status,
+			updatedAt: phase.updatedAt,
+			closedAt: phase.closedAt,
+			acceptanceCriteriaJson: serializeCriteria(phase.acceptanceCriteria),
+		});
+		this.#emit({
+			type: "mission.phase.closed",
+			missionId,
+			phaseId: phase.id,
+			ts: phase.closedAt,
+		});
+		return phase;
 	}
 
 	/**
@@ -562,6 +825,21 @@ export class MissionRuntimeImpl implements MissionRuntime {
 				`Mission "${mission.id}" cannot complete: missing ${missing.join(", ")}`,
 			);
 		}
+		const unverifiedPhases = mission.phases?.filter(phase => phase.status !== "verified") ?? [];
+		if (unverifiedPhases.length > 0) {
+			const names = unverifiedPhases.map(phase => phase.name).join(", ");
+			throw new MissionAcceptanceFailureError(
+				{
+					status: "fail",
+					verdict: "fail",
+					summary: `Mission "${mission.id}" cannot complete: phase(s) ${names} not verified.`,
+					failedCount: unverifiedPhases.length,
+					uncertainCount: 0,
+				},
+				[],
+				`Mission "${mission.id}" cannot complete: phase(s) ${names} not verified.`,
+			);
+		}
 		const force = mission.verification?.status === "force";
 		let verification = mission.verification;
 		if (!force && !verification) {
@@ -610,6 +888,17 @@ export class MissionRuntimeImpl implements MissionRuntime {
 		return mission;
 	}
 
+	recordDesignAnswers(missionId: string, answers: Record<string, string>): Mission {
+		const mission = this.#require(missionId);
+		if (Object.keys(answers).length === 0) return mission;
+		if (mission.designAnswers && Object.keys(mission.designAnswers).length > 0) return mission;
+		mission.designAnswers = { ...answers };
+		mission.updatedAt = this.#now();
+		this.#store.setMissionDesignAnswers(mission.id, mission.designAnswers);
+		this.#notifyUpdated(mission);
+		return mission;
+	}
+
 	/**
 	 * Record a runtime event and notify subscribers. Per the canonical contract this
 	 * doubles as a subscription seam: when called with a listener-bearing detail it
@@ -640,13 +929,12 @@ export class MissionRuntimeImpl implements MissionRuntime {
 	}
 
 	async get(missionId: string): Promise<Mission | undefined> {
-		return this.#missions.get(missionId);
+		return this.#missions.get(missionId) ?? this.#hydrate(missionId);
 	}
 
 	/**
-	 * Account for tokens consumed by a tool call against the mission budget, mirroring
-	 * ObjectiveRuntimeImpl's `goalTokenDelta` semantics. Adds the delta to `budget.tokensUsed` and
-	 * emits a `mission.tool.completed` lifecycle event. Returns the delta applied.
+	 * Account for tokens consumed by a tool call against the mission budget. Adds the delta to
+	 * `budget.tokensUsed` and emits a `mission.tool.completed` lifecycle event. Returns the delta applied.
 	 */
 	accountTokens(missionId: string, input: MissionTokenAccountInput): number {
 		const mission = this.#require(missionId);
@@ -655,6 +943,7 @@ export class MissionRuntimeImpl implements MissionRuntime {
 		if (delta > 0) {
 			mission.budget.tokensUsed += delta;
 			mission.updatedAt = this.#now();
+			this.#notifyUpdated(mission);
 		}
 		this.#emit({
 			type: "mission.tool.completed",

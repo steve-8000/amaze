@@ -5,7 +5,13 @@ import type { Mission, MissionTask } from "./mission";
 type MissionTaskWithNotes = MissionTask & { notes?: string[] };
 
 export function projectMissionToTodoPhases(mission: Mission): TodoPhase[] {
-	const template = templateFor(mission.intent ?? "code_change");
+	const template = templateFor(mission.intent ?? "conversation");
+	const isTerminal =
+		mission.lifecycle === "completed" ||
+		mission.lifecycle === "cancelled" ||
+		mission.lifecycle === "rolled_back" ||
+		mission.lifecycle === "blocked";
+	const terminalStatus: TodoItem["status"] = mission.lifecycle === "completed" ? "completed" : "abandoned";
 	const phases: TodoPhase[] = [];
 
 	const framePhase: TodoPhase = { name: "Frame", tasks: [] };
@@ -25,7 +31,12 @@ export function projectMissionToTodoPhases(mission: Mission): TodoPhase[] {
 	if (template.requireDecisionRecord) {
 		phases.push({
 			name: "Decision",
-			tasks: [{ content: "Decision record", status: mission.decisionId ? "completed" : "pending" }],
+			tasks: [
+				{
+					content: "Decision record",
+					status: mission.decisionId ? "completed" : isTerminal ? terminalStatus : "pending",
+				},
+			],
 		});
 	}
 
@@ -35,7 +46,7 @@ export function projectMissionToTodoPhases(mission: Mission): TodoPhase[] {
 			tasks: [
 				{
 					content: "Regression contract",
-					status: mission.regressionContractId ? "completed" : "pending",
+					status: mission.regressionContractId ? "completed" : isTerminal ? terminalStatus : "pending",
 				},
 			],
 		});
@@ -67,7 +78,9 @@ export function projectMissionToTodoPhases(mission: Mission): TodoPhase[] {
 							? "completed"
 							: mission.verification?.verdict === "fail"
 								? "abandoned"
-								: "pending",
+								: isTerminal
+									? terminalStatus
+									: "pending",
 				},
 			],
 		});

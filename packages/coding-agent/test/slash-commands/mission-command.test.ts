@@ -3,6 +3,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { ObjectiveStore } from "../../src/autonomy/store";
+import { Settings } from "../../src/config/settings";
 import { MissionStore } from "../../src/mission/store";
 import { ResearchStore } from "../../src/research/store";
 import { BUILTIN_SLASH_COMMANDS_INTERNAL, lookupBuiltinSlashCommand } from "../../src/slash-commands/builtin-registry";
@@ -58,24 +59,12 @@ describe("/mission slash command registration", () => {
 			"verify",
 			"approve",
 			"complete",
+			"cancel",
 			"rollback",
+			"panel",
 		]);
 		// Subcommand metadata mirrors the shared source of truth.
 		expect(names).toEqual(MISSION_SUBCOMMANDS.map(sub => sub.name));
-	});
-
-	test("/goal alias still registered and carries a deprecation note", () => {
-		const goal = lookupBuiltinSlashCommand("goal");
-		expect(goal).toBeDefined();
-		// Behavior-preserving: still a TUI handler driving goal mode.
-		expect(goal?.handleTui).toBeDefined();
-		expect(goal?.description.toLowerCase()).toContain("deprecated");
-		expect(goal?.description.toLowerCase()).toContain("/mission");
-		// §6 alias mapping is documented in the subcommand help text.
-		const set = goal?.subcommands?.find(sub => sub.name === "set");
-		const drop = goal?.subcommands?.find(sub => sub.name === "drop");
-		expect(set?.description).toContain("/mission create");
-		expect(drop?.description).toContain("/mission cancel");
 	});
 
 	test("only one canonical mission command exists in the registry", () => {
@@ -91,18 +80,22 @@ describe("/mission subcommand behavior", () => {
 		expect(result.output).toContain("Usage: /mission");
 	});
 
-	test("create returns a not-yet-available stub pointing at /goal", async () => {
+	test("create without a session reports the session requirement", async () => {
 		const result = await runMissionSlashCommand("create build the thing");
 		expect(result.stub).toBe(true);
-		expect(result.output).toContain("not yet available");
-		expect(result.output).toContain("/goal set");
+		expect(result.output).toContain("requires a live session");
 	});
 
-	test("complete returns a not-yet-available stub pointing at /goal", async () => {
+	test("complete without a session reports the session requirement", async () => {
 		const result = await runMissionSlashCommand("complete");
 		expect(result.stub).toBe(true);
-		expect(result.output).toContain("not yet available");
-		expect(result.output).toContain("/goal complete");
+		expect(result.output).toContain("requires a live session");
+	});
+
+	test("cancel without a session reports the session requirement", async () => {
+		const result = await runMissionSlashCommand("cancel");
+		expect(result.stub).toBe(true);
+		expect(result.output).toContain("requires a live session");
 	});
 
 	test("read verb without a mission id returns per-verb usage", async () => {
@@ -131,5 +124,76 @@ describe("/mission subcommand behavior", () => {
 		expect(result.stub).toBe(false);
 		expect(result.output).toContain(`Mission: ${mission.id}`);
 		expect(result.output.toLowerCase()).toContain("verification");
+	});
+});
+
+describe("/mission panel (ACP/text-mode handle)", () => {
+	test("panel subcommand is registered with usage hint", () => {
+		const sub = MISSION_SUBCOMMANDS.find(s => s.name === "panel");
+		expect(sub).toBeDefined();
+		expect(sub?.usage).toContain("off");
+		expect(sub?.usage).toContain("compact");
+		expect(sub?.usage).toContain("expanded");
+		expect(sub?.usage).toContain("toggle");
+	});
+
+	test("panel without args reports current value via runtime.output", async () => {
+		const spec = lookupBuiltinSlashCommand("mission");
+		expect(spec?.handle).toBeDefined();
+		const settings = Settings.isolated();
+		const captured: string[] = [];
+		await spec!.handle!({ name: "mission", args: "panel", text: "/mission panel" }, {
+			settings,
+			output: (text: string) => {
+				captured.push(text);
+			},
+		} as never);
+		expect(captured.join("\n")).toMatch(/Mission Control panel: (off|compact|expanded)/);
+	});
+
+	test("panel with valid mode persists the setting", async () => {
+		const settings = Settings.isolated();
+		const spec = lookupBuiltinSlashCommand("mission");
+		const captured: string[] = [];
+		await spec!.handle!({ name: "mission", args: "panel compact", text: "/mission panel compact" }, {
+			settings,
+			output: (text: string) => {
+				captured.push(text);
+			},
+		} as never);
+		expect(settings.get("mission.terminalPanel")).toBe("compact");
+		expect(captured.join("\n")).toContain("compact");
+	});
+
+	test("panel toggle cycles off → compact → expanded → off", async () => {
+		// Default for `mission.terminalPanel` is `off`; isolated() pulls that default in.
+		// We deliberately do NOT pass an override because Settings.isolated overrides
+		// always win over `set()`, which would freeze the toggle at "off".
+		const settings = Settings.isolated();
+		const spec = lookupBuiltinSlashCommand("mission");
+		const invoke = async () =>
+			spec!.handle!({ name: "mission", args: "panel toggle", text: "/mission panel toggle" }, {
+				settings,
+				output: () => {},
+			} as never);
+		await invoke();
+		expect(settings.get("mission.terminalPanel")).toBe("compact");
+		await invoke();
+		expect(settings.get("mission.terminalPanel")).toBe("expanded");
+		await invoke();
+		expect(settings.get("mission.terminalPanel")).toBe("off");
+	});
+
+	test("panel with unknown mode rejects with usage", async () => {
+		const settings = Settings.isolated();
+		const spec = lookupBuiltinSlashCommand("mission");
+		const captured: string[] = [];
+		await spec!.handle!({ name: "mission", args: "panel banana", text: "/mission panel banana" }, {
+			settings,
+			output: (text: string) => {
+				captured.push(text);
+			},
+		} as never);
+		expect(captured.join("\n")).toContain("Usage: /mission panel");
 	});
 });

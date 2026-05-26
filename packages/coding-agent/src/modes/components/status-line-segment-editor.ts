@@ -37,7 +37,6 @@ const SEGMENT_INFO: Record<StatusLineSegmentId, { label: string; short: string }
 	cache_read: { label: "Cache ↑", short: "cache read" },
 	cache_write: { label: "Cache ↓", short: "cache write" },
 	cache_hit_ratio: { label: "Cache %", short: "cache hit ratio" },
-	goal_budget_warning: { label: "Goal %", short: "budget warning" },
 	session_name: { label: "Session Name", short: "named session" },
 };
 

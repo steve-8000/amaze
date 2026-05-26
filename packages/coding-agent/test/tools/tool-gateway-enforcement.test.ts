@@ -26,7 +26,6 @@ function fakeSession(cwd: string, contract?: { include: string[]; exclude: strin
 						escalation: { onUncertainty: "block", budgetCap: 0 },
 					}
 				: undefined,
-		getGoalModeState: () => undefined,
 	};
 }
 

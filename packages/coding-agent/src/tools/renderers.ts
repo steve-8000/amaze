@@ -21,7 +21,6 @@ import { debugToolRenderer } from "./debug";
 import { evalToolRenderer } from "./eval";
 import { findToolRenderer } from "./find";
 import { githubToolRenderer } from "./gh-renderer";
-import { goalToolRenderer } from "./goal-tool";
 import { inspectImageToolRenderer } from "./inspect-image-renderer";
 import { jobToolRenderer } from "./job";
 import { readToolRenderer } from "./read";
@@ -73,7 +72,6 @@ export const toolRenderers: Record<string, ToolRenderer> = {
 	todo_write: todoWriteToolRenderer as ToolRenderer,
 	todo_read: todoReadToolRenderer as ToolRenderer,
 	github: githubToolRenderer as ToolRenderer,
-	goal: goalToolRenderer as ToolRenderer,
 	web_search: webSearchToolRenderer as ToolRenderer,
 	write: writeToolRenderer as ToolRenderer,
 	x_search: xSearchToolRenderer as ToolRenderer,

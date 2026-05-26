@@ -11,6 +11,13 @@ import {
 	RISK_LEVELS,
 	type RiskLevel,
 } from "../research/types";
+import type { AcceptanceCriterion } from "./core/acceptance-criteria";
+import type { MissionPlan, MissionPlanStep, MissionPlanStepEdge } from "./core/mission";
+import type { MissionBudget, MissionContextBudget } from "./core/mission-budget";
+import type { MissionProposal, MissionProposalStatus, NewMissionProposal } from "./core/mission-proposal";
+import { MISSION_PROPOSAL_STATUSES } from "./core/mission-proposal";
+import type { MissionScopeGuard } from "./core/mission-scope";
+import type { MissionTask, MissionTaskStatus } from "./core/mission-task";
 import type { MissionEventBus } from "./event-bus";
 import { getMissionEventBus } from "./runtime";
 import {
@@ -23,6 +30,8 @@ import {
 	type MissionCriticDialogueTurn,
 	type MissionLaneRun,
 	type MissionLaneStatus,
+	type MissionPhaseRecord,
+	type MissionPhaseVerificationRecord,
 	type MissionRollbackRecord,
 	type MissionState,
 	type MissionTaskAttemptCheckpoint,
@@ -34,6 +43,8 @@ import {
 	type NewMissionContractRecord,
 	type NewMissionCriticDialogueTurn,
 	type NewMissionLaneRun,
+	type NewMissionPhaseRecord,
+	type NewMissionPhaseVerificationRecord,
 	type NewMissionRollbackRecord,
 	type NewMissionTaskAttemptCheckpoint,
 	type NewMissionVerificationRecord,
@@ -111,6 +122,31 @@ type MissionContractRow = {
 	must_produce_json: string;
 	task_id: string | null;
 	session_file: string | null;
+	created_at: number;
+};
+
+type MissionPhaseRow = {
+	id: string;
+	mission_id: string;
+	ordinal: number;
+	name: string;
+	description: string | null;
+	status: MissionPhaseRecord["status"];
+	plan_step_ids_json: string;
+	acceptance_criteria_json: string;
+	created_at: number;
+	updated_at: number;
+	closed_at: number | null;
+};
+
+type MissionPhaseVerificationRow = {
+	id: string;
+	mission_id: string;
+	phase_id: string;
+	status: MissionPhaseVerificationRecord["status"];
+	failed_count: number;
+	uncertain_count: number;
+	summary: string;
 	created_at: number;
 };
 
@@ -385,6 +421,21 @@ export class MissionStore {
 		return next;
 	}
 
+	setMissionDesignAnswers(missionId: string, answers: Record<string, string> | null): void {
+		if (!this.getMission(missionId)) throw new Error(`Mission not found: ${missionId}`);
+		this.#db
+			.query("UPDATE missions SET design_answers_json = ?, updated_at = ? WHERE id = ?")
+			.run(answers ? JSON.stringify(answers) : null, Date.now(), missionId);
+	}
+
+	getMissionDesignAnswers(missionId: string): Record<string, string> | undefined {
+		const row = this.#db.query("SELECT design_answers_json FROM missions WHERE id = ?").get(missionId) as {
+			design_answers_json: string | null;
+		} | null;
+		if (!row?.design_answers_json) return undefined;
+		return JSON.parse(row.design_answers_json) as Record<string, string>;
+	}
+
 	createLaneRun(input: NewMissionLaneRun): MissionLaneRun {
 		if (!this.getMission(input.missionId)) {
 			throw new Error(`Mission not found: ${input.missionId}`);
@@ -585,6 +636,113 @@ export class MissionStore {
 			.query("SELECT * FROM mission_contracts WHERE mission_id = ? ORDER BY created_at ASC, id ASC")
 			.all(missionId) as MissionContractRow[];
 		return rows.map(rowToContract);
+	}
+
+	createPhase(input: NewMissionPhaseRecord): MissionPhaseRecord {
+		if (!this.getMission(input.missionId)) throw new Error(`Mission not found: ${input.missionId}`);
+		const now = Date.now();
+		const record: MissionPhaseRecord = {
+			...input,
+			id: input.id ?? generateId("mission-phase", now),
+			planStepIds: [...input.planStepIds],
+			createdAt: input.createdAt ?? now,
+			updatedAt: input.updatedAt ?? now,
+		};
+		this.#db
+			.query(
+				`INSERT INTO mission_phases
+					(id, mission_id, ordinal, name, description, status, plan_step_ids_json, acceptance_criteria_json, created_at, updated_at, closed_at)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			)
+			.run(
+				record.id,
+				record.missionId,
+				record.ordinal,
+				record.name,
+				record.description,
+				record.status,
+				JSON.stringify(record.planStepIds),
+				record.acceptanceCriteriaJson,
+				record.createdAt,
+				record.updatedAt,
+				record.closedAt,
+			);
+		return record;
+	}
+
+	updatePhase(
+		id: string,
+		patch: Partial<Omit<MissionPhaseRecord, "id" | "missionId" | "createdAt">>,
+	): MissionPhaseRecord {
+		const row = this.#db.query("SELECT * FROM mission_phases WHERE id = ?").get(id) as MissionPhaseRow | null;
+		if (!row) throw new Error(`Mission phase not found: ${id}`);
+		const current = rowToPhase(row);
+		const updated: MissionPhaseRecord = {
+			...current,
+			...patch,
+			planStepIds: patch.planStepIds ? [...patch.planStepIds] : current.planStepIds,
+			updatedAt: patch.updatedAt ?? Date.now(),
+		};
+		this.#db
+			.query(
+				`UPDATE mission_phases SET
+					ordinal = ?, name = ?, description = ?, status = ?, plan_step_ids_json = ?,
+					acceptance_criteria_json = ?, updated_at = ?, closed_at = ?
+				WHERE id = ?`,
+			)
+			.run(
+				updated.ordinal,
+				updated.name,
+				updated.description,
+				updated.status,
+				JSON.stringify(updated.planStepIds),
+				updated.acceptanceCriteriaJson,
+				updated.updatedAt,
+				updated.closedAt,
+				updated.id,
+			);
+		return updated;
+	}
+
+	listPhases(missionId: string): MissionPhaseRecord[] {
+		const rows = this.#db
+			.query("SELECT * FROM mission_phases WHERE mission_id = ? ORDER BY ordinal ASC, created_at ASC, id ASC")
+			.all(missionId) as MissionPhaseRow[];
+		return rows.map(rowToPhase);
+	}
+
+	recordPhaseVerification(input: NewMissionPhaseVerificationRecord): MissionPhaseVerificationRecord {
+		if (!this.getMission(input.missionId)) throw new Error(`Mission not found: ${input.missionId}`);
+		const now = input.createdAt ?? Date.now();
+		const record: MissionPhaseVerificationRecord = {
+			...input,
+			id: input.id ?? generateId("phase-verification", now),
+			createdAt: now,
+		};
+		this.#db
+			.query(
+				`INSERT INTO mission_phase_verifications
+					(id, mission_id, phase_id, status, failed_count, uncertain_count, summary, created_at)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+			)
+			.run(
+				record.id,
+				record.missionId,
+				record.phaseId,
+				record.status,
+				record.failedCount,
+				record.uncertainCount,
+				record.summary,
+				record.createdAt,
+			);
+		return record;
+	}
+
+	listPhaseVerifications(missionId: string): MissionPhaseVerificationRecord[] {
+		const rows = this.#db
+			.query("SELECT * FROM mission_phase_verifications WHERE mission_id = ? ORDER BY created_at ASC, id ASC")
+			.all(missionId) as MissionPhaseVerificationRow[];
+		return rows.map(rowToPhaseVerification);
 	}
 
 	recordVerification(input: NewMissionVerificationRecord): MissionVerificationRecord {
@@ -937,6 +1095,36 @@ export class MissionStore {
 			);
 			CREATE INDEX IF NOT EXISTS mission_contracts_mission_idx ON mission_contracts(mission_id);
 
+			CREATE TABLE IF NOT EXISTS mission_phases (
+				id TEXT PRIMARY KEY,
+				mission_id TEXT NOT NULL,
+				ordinal INTEGER NOT NULL,
+				name TEXT NOT NULL,
+				description TEXT,
+				status TEXT NOT NULL,
+				plan_step_ids_json TEXT NOT NULL CHECK (json_valid(plan_step_ids_json)),
+				acceptance_criteria_json TEXT NOT NULL CHECK (json_valid(acceptance_criteria_json)),
+				created_at INTEGER NOT NULL,
+				updated_at INTEGER NOT NULL,
+				closed_at INTEGER,
+				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
+			);
+			CREATE INDEX IF NOT EXISTS mission_phases_mission_idx ON mission_phases(mission_id);
+
+			CREATE TABLE IF NOT EXISTS mission_phase_verifications (
+				id TEXT PRIMARY KEY,
+				mission_id TEXT NOT NULL,
+				phase_id TEXT NOT NULL,
+				status TEXT NOT NULL,
+				failed_count INTEGER NOT NULL,
+				uncertain_count INTEGER NOT NULL,
+				summary TEXT NOT NULL,
+				created_at INTEGER NOT NULL,
+				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE,
+				FOREIGN KEY (phase_id) REFERENCES mission_phases(id) ON DELETE CASCADE
+			);
+			CREATE INDEX IF NOT EXISTS mission_phase_verifications_mission_idx ON mission_phase_verifications(mission_id);
+
 			CREATE TABLE IF NOT EXISTS mission_verifications (
 				id TEXT PRIMARY KEY,
 				mission_id TEXT NOT NULL,
@@ -1013,11 +1201,104 @@ export class MissionStore {
 				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
 			);
 			CREATE INDEX IF NOT EXISTS mission_world_model_mission_idx ON mission_world_model(mission_id);
+
+			CREATE TABLE IF NOT EXISTS mission_tasks (
+				id TEXT PRIMARY KEY,
+				mission_id TEXT NOT NULL,
+				title TEXT NOT NULL,
+				objective TEXT,
+				status TEXT NOT NULL,
+				assigned_agent TEXT,
+				plan_step_id TEXT,
+				data_json TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(data_json)),
+				created_at INTEGER NOT NULL,
+				updated_at INTEGER NOT NULL,
+				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
+			);
+			CREATE INDEX IF NOT EXISTS mission_tasks_mission_idx ON mission_tasks(mission_id);
+			CREATE INDEX IF NOT EXISTS mission_tasks_status_idx ON mission_tasks(mission_id, status);
+
+			CREATE TABLE IF NOT EXISTS mission_plans (
+				mission_id TEXT PRIMARY KEY,
+				rationale TEXT,
+				revision INTEGER,
+				updated_at INTEGER NOT NULL,
+				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
+			);
+
+			CREATE TABLE IF NOT EXISTS mission_plan_steps (
+				id TEXT PRIMARY KEY,
+				mission_id TEXT NOT NULL,
+				ordinal INTEGER NOT NULL,
+				description TEXT NOT NULL,
+				edges_json TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(edges_json)),
+				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
+			);
+			CREATE INDEX IF NOT EXISTS mission_plan_steps_mission_idx ON mission_plan_steps(mission_id);
+
+			CREATE TABLE IF NOT EXISTS mission_acceptance_criteria (
+				id TEXT PRIMARY KEY,
+				mission_id TEXT NOT NULL,
+				ordinal INTEGER NOT NULL,
+				description TEXT NOT NULL,
+				satisfied INTEGER NOT NULL DEFAULT 0,
+				verification_method TEXT,
+				evidence_refs_json TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(evidence_refs_json)),
+				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
+			);
+			CREATE INDEX IF NOT EXISTS mission_acceptance_criteria_mission_idx ON mission_acceptance_criteria(mission_id);
+
+			CREATE TABLE IF NOT EXISTS mission_budgets (
+				mission_id TEXT PRIMARY KEY,
+				token_budget INTEGER NOT NULL,
+				tokens_used INTEGER NOT NULL DEFAULT 0,
+				time_budget_ms INTEGER,
+				time_used_ms INTEGER,
+				task_budget INTEGER,
+				tasks_used INTEGER,
+				max_context_tokens INTEGER NOT NULL,
+				context_tokens_used INTEGER NOT NULL DEFAULT 0,
+				compaction_threshold REAL,
+				updated_at INTEGER NOT NULL,
+				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
+			);
+
+			CREATE TABLE IF NOT EXISTS mission_scope_guards (
+				mission_id TEXT PRIMARY KEY,
+				allowed_paths_json TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(allowed_paths_json)),
+				denied_paths_json TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(denied_paths_json)),
+				allowed_tools_json TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(allowed_tools_json)),
+				allow_sub_missions INTEGER NOT NULL DEFAULT 0,
+				notes TEXT,
+				updated_at INTEGER NOT NULL,
+				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
+			);
+
+			CREATE TABLE IF NOT EXISTS mission_proposals (
+				id TEXT PRIMARY KEY,
+				mission_id TEXT NOT NULL,
+				artifact_uri TEXT NOT NULL,
+				content_hash TEXT NOT NULL,
+				status TEXT NOT NULL,
+				approved_by TEXT,
+				approved_at INTEGER,
+				summary TEXT,
+				created_at INTEGER NOT NULL,
+				updated_at INTEGER NOT NULL,
+				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
+			);
+			CREATE INDEX IF NOT EXISTS mission_proposals_mission_idx ON mission_proposals(mission_id);
+			CREATE INDEX IF NOT EXISTS mission_proposals_status_idx ON mission_proposals(mission_id, status);
 		`);
 		this.#ensureColumn("missions", "intent", "TEXT");
 		this.#ensureColumn("missions", "lifecycle", "TEXT");
 		this.#ensureColumn("missions", "proposal_id", "TEXT");
 		this.#ensureColumn("missions", "regression_contract_id", "TEXT");
+		this.#ensureColumn(
+			"missions",
+			"design_answers_json",
+			"TEXT CHECK (design_answers_json IS NULL OR json_valid(design_answers_json))",
+		);
 		this.#ensureColumn("mission_contracts", "task_id", "TEXT");
 		this.#ensureColumn("mission_contracts", "session_file", "TEXT");
 		this.#ensureColumn(
@@ -1032,6 +1313,379 @@ export class MissionStore {
 		const rows = this.#db.query(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
 		if (rows.some(row => row.name === column)) return;
 		this.#db.run(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+	}
+
+	// ──────────────────────────────────────────────────────────────────────────
+	// Mission durable aggregate (P2): tasks, plans, acceptance criteria,
+	// budgets, scope guards, proposals. Variable shapes (edges, scope lists,
+	// tool policies) live in JSON columns; flat scalars live as columns to keep
+	// indexing/queries straightforward.
+	// ──────────────────────────────────────────────────────────────────────────
+
+	saveTask(input: MissionTask & { missionId: string }): MissionTask {
+		if (!this.getMission(input.missionId)) {
+			throw new Error(`Mission not found: ${input.missionId}`);
+		}
+		const now = Date.now();
+		const task: MissionTask = {
+			...input,
+			createdAt: input.createdAt ?? now,
+			updatedAt: now,
+		};
+		const dataJson = JSON.stringify({
+			scope: task.scope ?? null,
+			successCriteria: task.successCriteria ?? null,
+			escalationCriteria: task.escalationCriteria ?? null,
+			allowedTools: task.allowedTools ?? null,
+			deniedTools: task.deniedTools ?? null,
+			evidenceRefs: task.evidenceRefs ?? null,
+			output: task.output ?? null,
+		});
+		this.#db
+			.query(
+				`INSERT INTO mission_tasks
+					(id, mission_id, title, objective, status, assigned_agent, plan_step_id, data_json, created_at, updated_at)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				ON CONFLICT(id) DO UPDATE SET
+					title = excluded.title,
+					objective = excluded.objective,
+					status = excluded.status,
+					assigned_agent = excluded.assigned_agent,
+					plan_step_id = excluded.plan_step_id,
+					data_json = excluded.data_json,
+					updated_at = excluded.updated_at`,
+			)
+			.run(
+				task.id,
+				input.missionId,
+				task.title,
+				task.objective ?? null,
+				task.status,
+				task.assignedAgent ?? null,
+				task.planStepId ?? null,
+				dataJson,
+				task.createdAt ?? now,
+				task.updatedAt ?? now,
+			);
+		return task;
+	}
+
+	listTasks(missionId: string): MissionTask[] {
+		const rows = this.#db
+			.query(
+				`SELECT id, mission_id, title, objective, status, assigned_agent, plan_step_id, data_json, created_at, updated_at
+				 FROM mission_tasks WHERE mission_id = ? ORDER BY created_at ASC, rowid ASC`,
+			)
+			.all(missionId) as MissionTaskRow[];
+		return rows.map(rowToMissionTask);
+	}
+
+	deleteTask(taskId: string): void {
+		this.#db.query("DELETE FROM mission_tasks WHERE id = ?").run(taskId);
+	}
+
+	savePlan(missionId: string, plan: MissionPlan): void {
+		if (!this.getMission(missionId)) throw new Error(`Mission not found: ${missionId}`);
+		const now = Date.now();
+		this.#db
+			.query(
+				`INSERT INTO mission_plans (mission_id, rationale, revision, updated_at)
+				 VALUES (?, ?, ?, ?)
+				 ON CONFLICT(mission_id) DO UPDATE SET
+					rationale = excluded.rationale,
+					revision = excluded.revision,
+					updated_at = excluded.updated_at`,
+			)
+			.run(missionId, plan.rationale ?? null, plan.revision ?? null, now);
+		// Plan steps: full replace — simplest and matches MissionPlan semantics.
+		this.#db.query("DELETE FROM mission_plan_steps WHERE mission_id = ?").run(missionId);
+		const insert = this.#db.query(
+			`INSERT INTO mission_plan_steps (id, mission_id, ordinal, description, edges_json)
+			 VALUES (?, ?, ?, ?, ?)`,
+		);
+		plan.steps.forEach((step, idx) => {
+			insert.run(step.id, missionId, idx, step.description, JSON.stringify(step.edges ?? []));
+		});
+	}
+
+	getPlan(missionId: string): MissionPlan | undefined {
+		const head = this.#db
+			.query("SELECT rationale, revision FROM mission_plans WHERE mission_id = ?")
+			.get(missionId) as { rationale: string | null; revision: number | null } | null;
+		const stepRows = this.#db
+			.query(
+				`SELECT id, description, edges_json FROM mission_plan_steps WHERE mission_id = ? ORDER BY ordinal ASC, rowid ASC`,
+			)
+			.all(missionId) as Array<{ id: string; description: string; edges_json: string }>;
+		if (!head && stepRows.length === 0) return undefined;
+		const steps: MissionPlanStep[] = stepRows.map(r => ({
+			id: r.id,
+			description: r.description,
+			edges: JSON.parse(r.edges_json) as MissionPlanStepEdge[],
+		}));
+		const plan: MissionPlan = { steps };
+		if (head?.rationale != null) plan.rationale = head.rationale;
+		if (head?.revision != null) plan.revision = head.revision;
+		return plan;
+	}
+
+	saveAcceptanceCriteria(missionId: string, criteria: AcceptanceCriterion[]): void {
+		if (!this.getMission(missionId)) throw new Error(`Mission not found: ${missionId}`);
+		this.#db.query("DELETE FROM mission_acceptance_criteria WHERE mission_id = ?").run(missionId);
+		const insert = this.#db.query(
+			`INSERT INTO mission_acceptance_criteria
+				(id, mission_id, ordinal, description, satisfied, verification_method, evidence_refs_json)
+			 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		);
+		criteria.forEach((c, idx) => {
+			insert.run(
+				c.id,
+				missionId,
+				idx,
+				c.description,
+				c.satisfied ? 1 : 0,
+				c.verificationMethod ?? null,
+				JSON.stringify(c.evidenceRefs ?? []),
+			);
+		});
+	}
+
+	listAcceptanceCriteria(missionId: string): AcceptanceCriterion[] {
+		const rows = this.#db
+			.query(
+				`SELECT id, description, satisfied, verification_method, evidence_refs_json
+				 FROM mission_acceptance_criteria WHERE mission_id = ? ORDER BY ordinal ASC, rowid ASC`,
+			)
+			.all(missionId) as Array<{
+			id: string;
+			description: string;
+			satisfied: number;
+			verification_method: string | null;
+			evidence_refs_json: string;
+		}>;
+		return rows.map(r => {
+			const out: AcceptanceCriterion = {
+				id: r.id,
+				description: r.description,
+				satisfied: r.satisfied !== 0,
+			};
+			if (r.verification_method) out.verificationMethod = r.verification_method;
+			const refs = JSON.parse(r.evidence_refs_json) as string[];
+			if (refs.length > 0) out.evidenceRefs = refs;
+			return out;
+		});
+	}
+
+	saveBudget(missionId: string, budget: MissionBudget, contextBudget: MissionContextBudget): void {
+		if (!this.getMission(missionId)) throw new Error(`Mission not found: ${missionId}`);
+		this.#db
+			.query(
+				`INSERT INTO mission_budgets
+					(mission_id, token_budget, tokens_used, time_budget_ms, time_used_ms,
+					 task_budget, tasks_used, max_context_tokens, context_tokens_used,
+					 compaction_threshold, updated_at)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				 ON CONFLICT(mission_id) DO UPDATE SET
+					token_budget = excluded.token_budget,
+					tokens_used = excluded.tokens_used,
+					time_budget_ms = excluded.time_budget_ms,
+					time_used_ms = excluded.time_used_ms,
+					task_budget = excluded.task_budget,
+					tasks_used = excluded.tasks_used,
+					max_context_tokens = excluded.max_context_tokens,
+					context_tokens_used = excluded.context_tokens_used,
+					compaction_threshold = excluded.compaction_threshold,
+					updated_at = excluded.updated_at`,
+			)
+			.run(
+				missionId,
+				budget.tokenBudget,
+				budget.tokensUsed,
+				budget.timeBudgetMs ?? null,
+				budget.timeUsedMs ?? null,
+				budget.taskBudget ?? null,
+				budget.tasksUsed ?? null,
+				contextBudget.maxContextTokens,
+				contextBudget.contextTokensUsed,
+				contextBudget.compactionThreshold ?? null,
+				Date.now(),
+			);
+	}
+
+	getBudget(missionId: string): { budget: MissionBudget; contextBudget: MissionContextBudget } | undefined {
+		const row = this.#db
+			.query(
+				`SELECT token_budget, tokens_used, time_budget_ms, time_used_ms,
+						task_budget, tasks_used, max_context_tokens, context_tokens_used,
+						compaction_threshold
+				 FROM mission_budgets WHERE mission_id = ?`,
+			)
+			.get(missionId) as {
+			token_budget: number;
+			tokens_used: number;
+			time_budget_ms: number | null;
+			time_used_ms: number | null;
+			task_budget: number | null;
+			tasks_used: number | null;
+			max_context_tokens: number;
+			context_tokens_used: number;
+			compaction_threshold: number | null;
+		} | null;
+		if (!row) return undefined;
+		const budget: MissionBudget = { tokenBudget: row.token_budget, tokensUsed: row.tokens_used };
+		if (row.time_budget_ms != null) budget.timeBudgetMs = row.time_budget_ms;
+		if (row.time_used_ms != null) budget.timeUsedMs = row.time_used_ms;
+		if (row.task_budget != null) budget.taskBudget = row.task_budget;
+		if (row.tasks_used != null) budget.tasksUsed = row.tasks_used;
+		const contextBudget: MissionContextBudget = {
+			maxContextTokens: row.max_context_tokens,
+			contextTokensUsed: row.context_tokens_used,
+		};
+		if (row.compaction_threshold != null) contextBudget.compactionThreshold = row.compaction_threshold;
+		return { budget, contextBudget };
+	}
+
+	saveScopeGuard(missionId: string, guard: MissionScopeGuard): void {
+		if (!this.getMission(missionId)) throw new Error(`Mission not found: ${missionId}`);
+		this.#db
+			.query(
+				`INSERT INTO mission_scope_guards
+					(mission_id, allowed_paths_json, denied_paths_json, allowed_tools_json,
+					 allow_sub_missions, notes, updated_at)
+				 VALUES (?, ?, ?, ?, ?, ?, ?)
+				 ON CONFLICT(mission_id) DO UPDATE SET
+					allowed_paths_json = excluded.allowed_paths_json,
+					denied_paths_json = excluded.denied_paths_json,
+					allowed_tools_json = excluded.allowed_tools_json,
+					allow_sub_missions = excluded.allow_sub_missions,
+					notes = excluded.notes,
+					updated_at = excluded.updated_at`,
+			)
+			.run(
+				missionId,
+				JSON.stringify(guard.allowedPaths ?? []),
+				JSON.stringify(guard.deniedPaths ?? []),
+				JSON.stringify(guard.allowedTools ?? []),
+				guard.allowSubMissions ? 1 : 0,
+				guard.notes ?? null,
+				Date.now(),
+			);
+	}
+
+	getScopeGuard(missionId: string): MissionScopeGuard | undefined {
+		const row = this.#db
+			.query(
+				`SELECT allowed_paths_json, denied_paths_json, allowed_tools_json,
+						allow_sub_missions, notes
+				 FROM mission_scope_guards WHERE mission_id = ?`,
+			)
+			.get(missionId) as {
+			allowed_paths_json: string;
+			denied_paths_json: string;
+			allowed_tools_json: string;
+			allow_sub_missions: number;
+			notes: string | null;
+		} | null;
+		if (!row) return undefined;
+		const guard: MissionScopeGuard = {
+			allowedPaths: JSON.parse(row.allowed_paths_json) as string[],
+			deniedPaths: JSON.parse(row.denied_paths_json) as string[],
+		};
+		const tools = JSON.parse(row.allowed_tools_json) as string[];
+		if (tools.length > 0) guard.allowedTools = tools;
+		if (row.allow_sub_missions !== 0) guard.allowSubMissions = true;
+		if (row.notes != null) guard.notes = row.notes;
+		return guard;
+	}
+
+	saveProposal(input: NewMissionProposal): MissionProposal {
+		if (!this.getMission(input.missionId)) throw new Error(`Mission not found: ${input.missionId}`);
+		const status: MissionProposalStatus = input.status ?? "draft";
+		assertProposalStatus(status);
+		const now = Date.now();
+		const proposal: MissionProposal = {
+			id: input.id ?? generateId("proposal", now),
+			missionId: input.missionId,
+			artifactUri: input.artifactUri,
+			contentHash: input.contentHash,
+			status,
+			approvedBy: input.approvedBy ?? null,
+			approvedAt: input.approvedAt ?? null,
+			summary: input.summary ?? null,
+			createdAt: now,
+			updatedAt: now,
+		};
+		this.#db
+			.query(
+				`INSERT INTO mission_proposals
+					(id, mission_id, artifact_uri, content_hash, status, approved_by,
+					 approved_at, summary, created_at, updated_at)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			)
+			.run(
+				proposal.id,
+				proposal.missionId,
+				proposal.artifactUri,
+				proposal.contentHash,
+				proposal.status,
+				proposal.approvedBy,
+				proposal.approvedAt,
+				proposal.summary,
+				proposal.createdAt,
+				proposal.updatedAt,
+			);
+		return proposal;
+	}
+
+	getProposal(id: string): MissionProposal | undefined {
+		const row = this.#db.query("SELECT * FROM mission_proposals WHERE id = ?").get(id) as MissionProposalRow | null;
+		return row ? rowToProposal(row) : undefined;
+	}
+
+	listProposals(missionId: string): MissionProposal[] {
+		const rows = this.#db
+			.query("SELECT * FROM mission_proposals WHERE mission_id = ? ORDER BY created_at DESC")
+			.all(missionId) as MissionProposalRow[];
+		return rows.map(rowToProposal);
+	}
+
+	getLatestApprovedProposal(missionId: string): MissionProposal | undefined {
+		const row = this.#db
+			.query(
+				`SELECT * FROM mission_proposals
+				 WHERE mission_id = ? AND status = 'approved'
+				 ORDER BY approved_at DESC, created_at DESC LIMIT 1`,
+			)
+			.get(missionId) as MissionProposalRow | null;
+		return row ? rowToProposal(row) : undefined;
+	}
+
+	updateProposalStatus(
+		id: string,
+		status: MissionProposalStatus,
+		approvedBy?: string | null,
+		approvedAt?: number | null,
+	): MissionProposal {
+		assertProposalStatus(status);
+		const existing = this.getProposal(id);
+		if (!existing) throw new Error(`Proposal not found: ${id}`);
+		const now = Date.now();
+		const nextApprovedBy = status === "approved" ? (approvedBy ?? existing.approvedBy) : existing.approvedBy;
+		const nextApprovedAt = status === "approved" ? (approvedAt ?? existing.approvedAt ?? now) : existing.approvedAt;
+		this.#db
+			.query(
+				`UPDATE mission_proposals
+				 SET status = ?, approved_by = ?, approved_at = ?, updated_at = ?
+				 WHERE id = ?`,
+			)
+			.run(status, nextApprovedBy, nextApprovedAt, now, id);
+		return {
+			...existing,
+			status,
+			approvedBy: nextApprovedBy,
+			approvedAt: nextApprovedAt,
+			updatedAt: now,
+		};
 	}
 }
 
@@ -1059,6 +1713,35 @@ function assertMissionState(state: MissionState): void {
 	if (!VALID_MISSION_STATES.has(state)) {
 		throw new Error(`Invalid mission state: ${state}`);
 	}
+}
+
+function rowToPhase(row: MissionPhaseRow): MissionPhaseRecord {
+	return {
+		id: row.id,
+		missionId: row.mission_id,
+		ordinal: row.ordinal,
+		name: row.name,
+		description: row.description,
+		status: row.status,
+		planStepIds: parseStringArray(row.plan_step_ids_json, "plan_step_ids_json"),
+		acceptanceCriteriaJson: row.acceptance_criteria_json,
+		createdAt: row.created_at,
+		updatedAt: row.updated_at,
+		closedAt: row.closed_at,
+	};
+}
+
+function rowToPhaseVerification(row: MissionPhaseVerificationRow): MissionPhaseVerificationRecord {
+	return {
+		id: row.id,
+		missionId: row.mission_id,
+		phaseId: row.phase_id,
+		status: row.status,
+		failedCount: row.failed_count,
+		uncertainCount: row.uncertain_count,
+		summary: row.summary,
+		createdAt: row.created_at,
+	};
 }
 
 function assertEpistemicRole(role: EpistemicRole): void {
@@ -1282,4 +1965,84 @@ function parseEscalation(value: string): MissionContractRecord["escalation"] {
 		throw new Error("Invalid mission contract JSON column: escalation_json");
 	}
 	return { onUncertainty: parsed.onUncertainty, budgetCap: parsed.budgetCap };
+}
+
+type MissionTaskRow = {
+	id: string;
+	mission_id: string;
+	title: string;
+	objective: string | null;
+	status: string;
+	assigned_agent: string | null;
+	plan_step_id: string | null;
+	data_json: string;
+	created_at: number;
+	updated_at: number;
+};
+
+function rowToMissionTask(row: MissionTaskRow): MissionTask {
+	const data = JSON.parse(row.data_json) as {
+		scope?: MissionTask["scope"] | null;
+		successCriteria?: string[] | null;
+		escalationCriteria?: string[] | null;
+		allowedTools?: string[] | null;
+		deniedTools?: string[] | null;
+		evidenceRefs?: string[] | null;
+		output?: string | null;
+	};
+	const task: MissionTask = {
+		id: row.id,
+		missionId: row.mission_id,
+		title: row.title,
+		status: row.status as MissionTaskStatus,
+		createdAt: row.created_at,
+		updatedAt: row.updated_at,
+	};
+	if (row.objective != null) task.objective = row.objective;
+	if (row.assigned_agent != null) task.assignedAgent = row.assigned_agent;
+	if (row.plan_step_id != null) task.planStepId = row.plan_step_id;
+	if (data.scope) task.scope = data.scope;
+	if (data.successCriteria && data.successCriteria.length > 0) task.successCriteria = data.successCriteria;
+	if (data.escalationCriteria && data.escalationCriteria.length > 0) task.escalationCriteria = data.escalationCriteria;
+	if (data.allowedTools && data.allowedTools.length > 0) task.allowedTools = data.allowedTools;
+	if (data.deniedTools && data.deniedTools.length > 0) task.deniedTools = data.deniedTools;
+	if (data.evidenceRefs && data.evidenceRefs.length > 0) task.evidenceRefs = data.evidenceRefs;
+	if (data.output != null) task.output = data.output;
+	return task;
+}
+
+type MissionProposalRow = {
+	id: string;
+	mission_id: string;
+	artifact_uri: string;
+	content_hash: string;
+	status: string;
+	approved_by: string | null;
+	approved_at: number | null;
+	summary: string | null;
+	created_at: number;
+	updated_at: number;
+};
+
+function rowToProposal(row: MissionProposalRow): MissionProposal {
+	const status = row.status as MissionProposalStatus;
+	assertProposalStatus(status);
+	return {
+		id: row.id,
+		missionId: row.mission_id,
+		artifactUri: row.artifact_uri,
+		contentHash: row.content_hash,
+		status,
+		approvedBy: row.approved_by,
+		approvedAt: row.approved_at,
+		summary: row.summary,
+		createdAt: row.created_at,
+		updatedAt: row.updated_at,
+	};
+}
+
+function assertProposalStatus(status: MissionProposalStatus): void {
+	if (!MISSION_PROPOSAL_STATUSES.includes(status)) {
+		throw new Error(`Invalid mission proposal status: ${status}`);
+	}
 }

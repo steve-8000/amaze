@@ -55,7 +55,7 @@ import type {
 	AutoRetryEndEvent,
 	AutoRetryStartEvent,
 	ContextEvent,
-	GoalUpdatedEvent,
+	MissionUpdatedEvent,
 	SessionBeforeBranchEvent,
 	SessionBeforeBranchResult,
 	SessionBeforeCompactEvent,
@@ -729,7 +729,7 @@ export type ExtensionEvent =
 	| AutoRetryEndEvent
 	| TtsrTriggeredEvent
 	| TodoReminderEvent
-	| GoalUpdatedEvent
+	| MissionUpdatedEvent
 	| CredentialDisabledEvent
 	| UserBashEvent
 	| UserPythonEvent
@@ -891,7 +891,7 @@ export interface ExtensionAPI {
 	on(event: "auto_retry_end", handler: ExtensionHandler<AutoRetryEndEvent>): void;
 	on(event: "ttsr_triggered", handler: ExtensionHandler<TtsrTriggeredEvent>): void;
 	on(event: "todo_reminder", handler: ExtensionHandler<TodoReminderEvent>): void;
-	on(event: "goal_updated", handler: ExtensionHandler<GoalUpdatedEvent>): void;
+	on(event: "mission_updated", handler: ExtensionHandler<MissionUpdatedEvent>): void;
 	on(event: "credential_disabled", handler: ExtensionHandler<CredentialDisabledEvent>): void;
 	on(event: "input", handler: ExtensionHandler<InputEvent, InputEventResult>): void;
 	on(event: "tool_call", handler: ExtensionHandler<ToolCallEvent, ToolCallEventResult>): void;

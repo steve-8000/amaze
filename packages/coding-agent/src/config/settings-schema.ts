@@ -82,7 +82,6 @@ export type StatusLineSegmentId =
 	| "cache_read"
 	| "cache_write"
 	| "cache_hit_ratio"
-	| "goal_budget_warning"
 	| "session_name";
 
 /** Submenu choice metadata. */
@@ -2200,26 +2199,6 @@ export const SETTINGS_SCHEMA = {
 		},
 	},
 
-	"goal.enabled": {
-		type: "boolean",
-		default: true,
-		ui: {
-			tab: "tasks",
-			label: "Goal Mode",
-			description: "Enable per-session goal mode and the hidden goal tool",
-		},
-	},
-
-	"goal.statusInFooter": {
-		type: "boolean",
-		default: true,
-		ui: {
-			tab: "tasks",
-			label: "Goal Status In Footer",
-			description: "Show token budget alongside the goal indicator in the status line",
-		},
-	},
-
 	"autonomy.enabled": {
 		type: "boolean",
 		default: false,
@@ -2227,31 +2206,6 @@ export const SETTINGS_SCHEMA = {
 			tab: "tasks",
 			label: "Autonomy",
 			description: "Enable the autonomous long-horizon objective loop",
-		},
-	},
-
-	"goal.uncertainPolicy": {
-		type: "enum",
-		values: ["allow", "warn", "block-manual", "block-all"] as const,
-		default: "block-manual",
-		ui: {
-			tab: "tasks",
-			label: "Goal Uncertain Policy",
-			description: "Controls whether uncertain acceptance verifier results block goal completion",
-			options: [
-				{ value: "allow", label: "Allow", description: "Do not block or escalate uncertain verifier results" },
-				{
-					value: "warn",
-					label: "Warn",
-					description: "Surface uncertain verifier results without blocking completion",
-				},
-				{
-					value: "block-manual",
-					label: "Block Non-Manual",
-					description: "Block uncertain automated criteria while allowing manual review criteria",
-				},
-				{ value: "block-all", label: "Block All", description: "Block every uncertain verifier result" },
-			],
 		},
 	},
 
@@ -2272,16 +2226,6 @@ export const SETTINGS_SCHEMA = {
 			tab: "tasks",
 			label: "Yield Schema Bypass",
 			description: "Allow structured yield output to bypass schema validation after the first failed attempt",
-		},
-	},
-
-	"goal.continuationModes": {
-		type: "array",
-		default: ["interactive"],
-		ui: {
-			tab: "tasks",
-			label: "Goal Continuation Modes",
-			description: "Run modes where active goals may auto-continue between turns",
 		},
 	},
 

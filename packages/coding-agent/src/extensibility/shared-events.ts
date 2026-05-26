@@ -16,7 +16,7 @@ import type { AgentMessage } from "@amaze/agent-core";
 import type { CompactionPreparation, CompactionResult } from "@amaze/agent-core/compaction";
 import type { ImageContent, TextContent, ToolResultMessage } from "@amaze/ai";
 import type { Rule } from "../capability/rule";
-import type { Goal, GoalModeState } from "../mission/core/objective-state";
+import type { Mission } from "../mission/core/mission";
 import type { BranchSummaryEntry, CompactionEntry, SessionEntry } from "../session/session-manager";
 import type { TodoItem } from "../tools/todo-write";
 
@@ -130,10 +130,9 @@ export interface SessionTreeEvent {
 }
 
 /** Union of all session event types */
-export interface GoalUpdatedEvent {
-	type: "goal_updated";
-	goal: Goal | null;
-	state?: GoalModeState;
+export interface MissionUpdatedEvent {
+	type: "mission_updated";
+	state?: Mission | null;
 }
 
 export type SessionEvent =
@@ -148,7 +147,7 @@ export type SessionEvent =
 	| SessionShutdownEvent
 	| SessionBeforeTreeEvent
 	| SessionTreeEvent
-	| GoalUpdatedEvent;
+	| MissionUpdatedEvent;
 
 // ============================================================================
 // Agent / Turn Events

@@ -214,7 +214,7 @@ export class AstEditTool implements AgentTool<typeof astEditSchema, AstEditToolD
 			});
 
 			// Scope guard: the dry-run above enumerates exactly which files would be
-			// mutated. Enforce the contract/mission/goal boundary on each target before
+			// mutated. Enforce the contract/mission/mission boundary on each target before
 			// any apply path runs — `ast_edit` must not be a way around the mutation
 			// scope that `write`/`edit` enforce (it writes via the native astEdit with
 			// dryRun:false in the resolve/apply step below).

@@ -1,7 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import type { ToolSession } from "../tools";
-import { enforceContractScope, enforceGoalScope, enforceMissionScope } from "./contract";
+import { enforceContractScope, enforceMissionScope } from "./contract";
 
 export type MutationTarget = {
 	raw: string;
@@ -97,21 +97,13 @@ export async function enforceMutationScope(
 		);
 	}
 
-	// Single enforcement precedence — contract > mission > goal. Exactly one layer
-	// decides each mutation, so the legacy Goal guard and the canonical Mission guard
-	// can never disagree on the same path:
-	//   1. SubagentContract: most specific; when present it is the sole authority.
-	//   2. Mission scope: canonical guard when the session is bound to a mission that
-	//      declared one.
-	//   3. Objective (goal) scope: the objective runtime's scope, when neither applies.
+	// Single enforcement precedence — contract > mission. Exactly one layer decides
+	// each mutation: SubagentContract is most specific; otherwise the active Mission
+	// scope is canonical when declared.
 	const contract = session.getSubagentContract?.();
 	enforceContractScope(contract, target.relativeToCwd, throwError);
 	if (!contract) {
 		const missionScope = session.getActiveMissionScope?.();
-		if (missionScope) {
-			enforceMissionScope(missionScope, target.relativeToCwd, throwError);
-		} else {
-			enforceGoalScope(session.getGoalModeState?.()?.goal?.scopeGuard, target.relativeToCwd, throwError);
-		}
+		if (missionScope) enforceMissionScope(missionScope, target.relativeToCwd, throwError);
 	}
 }

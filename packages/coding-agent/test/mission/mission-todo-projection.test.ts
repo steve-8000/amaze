@@ -22,6 +22,10 @@ function mission(overrides: Partial<Mission>): Mission {
 	};
 }
 
+function phaseNamesFor(overrides: Partial<Mission>): string[] {
+	return projectMissionToTodoPhases(mission(overrides)).map(phase => phase.name);
+}
+
 describe("projectMissionToTodoPhases", () => {
 	it("projects architecture-change lifecycle requirements", () => {
 		const phases = projectMissionToTodoPhases(
@@ -53,5 +57,19 @@ describe("projectMissionToTodoPhases", () => {
 
 		expect(phases.map(phase => phase.name)).toEqual(["Frame", "Execution", "Verification"]);
 		expect(phases[2]?.tasks[0]?.status).toBe("completed");
+	});
+
+	it("projects conversation missions without lifecycle gate phases", () => {
+		expect(phaseNamesFor({ intent: "conversation" })).toEqual(["Frame"]);
+		expect(phaseNamesFor({})).toEqual(["Frame"]);
+	});
+
+	it("projects runtime-refactor lifecycle requirements", () => {
+		expect(phaseNamesFor({ intent: "runtime_refactor" })).toEqual([
+			"Frame",
+			"Decision",
+			"Regression",
+			"Verification",
+		]);
 	});
 });

@@ -2,8 +2,8 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { ObjectiveRuntimeImpl } from "../../src/mission/core/objective-runtime";
-import type { GoalModeState, GoalRuntimeEvent, GoalTokenUsage } from "../../src/mission/core/objective-state";
+import { MissionRuntimeImpl } from "../../src/mission/core/mission-runtime";
+import { MissionStore } from "../../src/mission/store";
 import { NexusStore } from "../../src/nexus/store";
 import { getSessionEventBus } from "../../src/observability/session-bus";
 
@@ -20,30 +20,25 @@ async function tempDir(): Promise<string> {
 }
 
 describe("observability forwarding coverage", () => {
-	it("forwards goal completion events to the session bus", async () => {
+	it("forwards mission lifecycle events to the mission store bus", async () => {
 		const session = {};
 		const bus = getSessionEventBus(session);
-		let state: GoalModeState | undefined;
-		const runtime = new ObjectiveRuntimeImpl({
-			getState: () => state,
-			setState: next => {
-				state = next;
-			},
-			getCurrentUsage: (): GoalTokenUsage => ({ input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }),
-			emit: (_event: GoalRuntimeEvent) => {},
-			persist: () => {},
-			sendHiddenMessage: async () => {},
-			now: () => 1234,
-			getSessionId: () => "session-goal",
-			sessionEventBus: bus,
-		});
-
-		await runtime.createGoal({ objective: "ship forwarding" });
-		await runtime.completeGoalFromTool({ force: true });
-
-		expect(bus.snapshot().some(event => event.type === "goal.complete" && event.sessionId === "session-goal")).toBe(
-			true,
-		);
+		const store = new MissionStore(":memory:");
+		const runtime = new MissionRuntimeImpl({ store });
+		try {
+			const mission = await runtime.create({
+				title: "ship forwarding",
+				objective: "ship forwarding",
+				riskLevel: "low",
+			});
+			runtime.recordVerification(mission.id, { status: "pass", summary: "ok" });
+			await runtime.complete(mission.id, { outcome: { status: "success", summary: "done", recordedAt: 1234 } });
+			expect(runtime.runtimeEvents().some(event => event.detail?.kind === "mission_updated")).toBe(true);
+			expect(bus.snapshot()).toEqual([]);
+		} finally {
+			runtime.close();
+			store.close();
+		}
 	});
 
 	it("forwards nexus memory write, recall, and skill promotion events", async () => {

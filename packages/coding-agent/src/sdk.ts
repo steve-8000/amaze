@@ -1125,13 +1125,11 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 			getModelString: () => (hasExplicitModel && model ? formatModelString(model) : undefined),
 			getActiveModelString,
 			getPlanModeState: () => session?.getPlanModeState(),
-			getGoalModeState: () => session?.getGoalModeState(),
-			getGoalRuntime: () => session?.goalRuntime,
 			// SubagentContract is per-session immutable: set at createAgentSession time, never
 			// mutated after. Tool guards (write/edit) read it on every mutation; system-prompt
 			// builder reads it once per rebuild.
 			getSubagentContract: options.subagentContract ? () => options.subagentContract : undefined,
-			// Mission scope: contract > mission > goal (see subagent/mutation-scope.ts).
+			// Mission scope: contract > mission (see subagent/mutation-scope.ts).
 			getActiveMissionScope: () => session?.getActiveMissionScope(),
 			getActiveMission: () => session?.getActiveMission(),
 			missionControl: session?.missionControl,
@@ -1465,12 +1463,6 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 		for (const tool of builtinTools) {
 			toolRegistry.set(tool.name, tool);
 		}
-		if (!toolRegistry.has("goal") && settings.get("goal.enabled")) {
-			const goalTool = await logger.time("createTools:goal:session", HIDDEN_TOOLS.goal, toolSession);
-			if (goalTool) {
-				toolRegistry.set(goalTool.name, wrapToolWithMetaNotice(goalTool));
-			}
-		}
 		for (const tool of wrappedExtensionTools) {
 			toolRegistry.set(tool.name, tool);
 		}
@@ -1578,12 +1570,6 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 				}
 				appendPrompt = parts.join("\n\n");
 			}
-			// Surface the active goal (if any) into the system prompt's DYNAMIC_TAIL so the model
-			// re-sees the contract every turn — survives compaction. `renderGoalBlock` collapses
-			// complete/dropped goals to a stable sentinel automatically, so this also handles
-			// lifecycle transitions: next rebuild after `completeGoalFromTool`/`dropGoal` emits
-			// the empty sentinel and the goal anchor disappears from attention.
-			const activeGoal = session?.getGoalModeState()?.goal ?? null;
 			const activeMission = session?.getActiveMission?.();
 			const activeMissionInput = activeMission ? { missionId: activeMission.id } : undefined;
 			const defaultPrompt = await buildSystemPromptInternal({
@@ -1603,7 +1589,6 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 				secretsEnabled,
 				workspaceTree: workspaceTreePromise,
 				projectContextMode: promptCachePolicy.projectContextMode,
-				activeGoal,
 				activeMission: getActiveMissionPacket(activeMissionInput),
 				subagentContract: options.subagentContract,
 			});

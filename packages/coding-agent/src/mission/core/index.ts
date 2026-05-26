@@ -1,21 +1,20 @@
-export type { AcceptanceCriterion } from "./acceptance-criteria";
-export { LIFECYCLE_TEMPLATES, type MissionLifecycleTemplate, templateFor } from "./lifecycle-template";
-export {
-	MISSION_LIFECYCLE_STATES,
-	type Mission,
-	type MissionLifecycleState,
-	type MissionPlan,
-	type MissionPlanStep,
-	type MissionRollback,
-	type MissionTask,
-	type MissionTaskStatus,
-	type MissionVerification,
-} from "./mission";
-export type { MissionBudget, MissionContextBudget } from "./mission-budget";
-export type { MissionInput, MissionMode } from "./mission-input";
-export type { MissionOutcome, MissionOutcomeStatus } from "./mission-outcome";
 export type {
-	MissionBlockOptions,
+	Mission,
+	MissionLifecycleState,
+	MissionPlan,
+	MissionPlanStep,
+	MissionPlanStepEdge,
+	MissionPlanStepEdgeKind,
+	MissionRollback,
+	MissionTask,
+	MissionTaskStatus,
+	MissionVerification,
+} from "./mission";
+export { MISSION_LIFECYCLE_STATES, MISSION_PLAN_STEP_EDGE_KINDS, normalizePlanStepEdges } from "./mission";
+export type { MissionInput, MissionMode } from "./mission-input";
+export type { MissionOutcome } from "./mission-outcome";
+export type { MissionPhase, MissionPhaseInput } from "./mission-phase";
+export type {
 	MissionCancelOptions,
 	MissionClassifyOptions,
 	MissionClassifyResult,
@@ -31,18 +30,6 @@ export type {
 	MissionVerifyResult,
 } from "./mission-runtime.iface";
 export type { MissionScopeGuard } from "./mission-scope";
-export type { MissionTaskToolPolicy } from "./mission-task";
-export { type DispatchContext, MissionTaskDispatcher, type MissionTaskDispatchResult } from "./mission-task-dispatcher";
-export type {
-	Goal,
-	GoalBudgetSteering,
-	GoalModeState,
-	GoalRuntimeEvent,
-	GoalStatus,
-	GoalTerminalMetricEmission,
-	GoalTokenUsage,
-	GoalToolDetails,
-} from "./objective-state";
 export type { V3Stats } from "./telemetry";
 export { formatV3Stats, V3Telemetry } from "./telemetry";
 export {

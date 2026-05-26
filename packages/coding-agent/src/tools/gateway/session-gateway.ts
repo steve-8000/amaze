@@ -6,7 +6,7 @@
  * allow/deny + timeout + telemetry decision through a single per-session gateway
  * BEFORE the tool's real execution runs. The gateway is a TRANSPARENT pass-through
  * by default: the production policy/permission gates allow-all, so observable
- * behavior for allowed calls is unchanged. The existing inline subagent/goal scope
+ * behavior for allowed calls is unchanged. The existing inline subagent/mission scope
  * enforcement inside the write/edit tools remains the authoritative deny path and
  * is left untouched; the gateway's {@link SubagentMutationScopeGuard} mirrors it for
  * callers that opt to enforce at the seam (see tests).

@@ -238,6 +238,33 @@ export type MissionVerificationCompletedEvent = {
 	ts: number;
 };
 
+export type MissionPhaseDeclaredEvent = {
+	type: "mission.phase.declared";
+	missionId: string;
+	phaseId: string;
+	ordinal: number;
+	name: string;
+	ts: number;
+};
+
+export type MissionPhaseVerifiedEvent = {
+	type: "mission.phase.verified";
+	missionId: string;
+	phaseId: string;
+	verificationId: string;
+	status: "pass" | "fail" | "uncertain" | "force";
+	failedCount: number;
+	uncertainCount: number;
+	ts: number;
+};
+
+export type MissionPhaseClosedEvent = {
+	type: "mission.phase.closed";
+	missionId: string;
+	phaseId: string;
+	ts: number;
+};
+
 export type MissionCompletedEvent = {
 	type: "mission.completed";
 	missionId: string;
@@ -283,6 +310,9 @@ export type MissionLifecycleEvent =
 	| MissionCriticCompletedEvent
 	| MissionVerificationCompletedEvent
 	| MissionCompletedEvent
+	| MissionPhaseDeclaredEvent
+	| MissionPhaseVerifiedEvent
+	| MissionPhaseClosedEvent
 	| MissionBlockedEvent
 	| MissionCancelledEvent
 	| MissionRolledBackEvent;

@@ -145,18 +145,15 @@ import {
 } from "../mcp/discoverable-tool-metadata";
 import { resolveMemoryBackend } from "../memory-backend";
 import type { Mission } from "../mission/core/mission";
-import { MissionControlRuntime } from "../mission/core/mission-control-runtime";
+import type { MissionControlRuntime } from "../mission/core/mission-control-runtime";
 import type { MissionScopeGuard } from "../mission/core/mission-scope";
 import { projectMissionToTodoPhases } from "../mission/core/mission-todo-projection";
-import { ObjectiveRuntimeImpl, renderGoalBlock } from "../mission/core/objective-runtime";
-import type { Goal, GoalModeState } from "../mission/core/objective-state";
-import { getMissionEventBus } from "../mission/runtime";
-import { DEFAULT_DB_PATH as DEFAULT_MISSION_DB_PATH, MissionStore } from "../mission/store";
+import type { MissionStore } from "../mission/store";
 import { getCurrentThemeName, theme } from "../modes/theme/theme";
 import type { Unsubscribe } from "../observability/event-bus";
 import { emitPromptCacheEventIfPossible, type PromptCacheResponse } from "../observability/prompt-cache-emit";
 import { getSessionEventBus } from "../observability/session-bus";
-import { type PlanModeState, planGoalDriftReason } from "../plan-mode/state";
+import type { PlanModeState } from "../plan-mode/state";
 import autoContinuePrompt from "../prompts/system/auto-continue.md" with { type: "text" };
 import eagerTodoPrompt from "../prompts/system/eager-todo.md" with { type: "text" };
 import ircIncomingTemplate from "../prompts/system/irc-incoming.md" with { type: "text" };
@@ -205,6 +202,7 @@ import {
 	readPendingDisplayTag,
 	SILENT_ABORT_MARKER,
 } from "./messages";
+import { MissionSessionBinding } from "./mission-session-binding";
 import { recordOptimizationMetric } from "./optimization-metrics";
 import { formatSessionDumpText } from "./session-dump-format";
 import type {
@@ -242,7 +240,7 @@ export type AgentSessionEvent =
 	| { type: "irc_message"; message: CustomMessage }
 	| { type: "notice"; level: "info" | "warning" | "error"; message: string; source?: string }
 	| { type: "thinking_level_changed"; thinkingLevel: ThinkingLevel | undefined }
-	| { type: "goal_updated"; goal: Goal | null; state?: GoalModeState };
+	| { type: "mission_updated"; state?: Mission | null };
 
 /** Listener function for agent session events */
 export type AgentSessionEventListener = (event: AgentSessionEvent) => void;
@@ -824,14 +822,11 @@ export class AgentSession {
 	#pendingNextTurnMessages: CustomMessage[] = [];
 	#scheduledHiddenNextTurnGeneration: number | undefined = undefined;
 	#planModeState: PlanModeState | undefined;
-	#goalModeState: GoalModeState | undefined;
 	#activeMissionId: string | undefined = undefined;
 	#missionControl: MissionControlRuntime;
+	#missionBinding: MissionSessionBinding;
 	#missionStoreInstance: MissionStore | undefined;
-	#goalRuntime: ObjectiveRuntimeImpl;
-	#objectiveRuntime: ObjectiveRuntimeImpl | undefined;
 	#selfImproveLoopUnsub: Unsubscribe | undefined;
-	#goalTurnCounter = 0;
 	/**
 	 * V3 coordination state — extracted from this monolith into its own class to keep
 	 * AgentSession's surface from growing. Owns the V3Telemetry aggregator and the
@@ -1180,60 +1175,16 @@ export class AgentSession {
 		this.agent.providerSessionState = this.#providerSessionState;
 		this.#syncAgentSessionId();
 		this.#syncTodoPhasesFromBranch();
-		this.#goalRuntime = new ObjectiveRuntimeImpl({
-			getState: () => this.#goalModeState,
-			setState: state => {
-				this.#goalModeState = state;
-			},
-			getCurrentUsage: () => {
-				const usage = this.getSessionStats().tokens;
-				return {
-					input: usage.input,
-					output: usage.output,
-					cacheRead: usage.cacheRead,
-					cacheWrite: usage.cacheWrite,
-				};
-			},
-			emit: event => {
-				if (event.type === "goal_updated") {
-					return this.#emitSessionEvent({ type: "goal_updated", goal: event.goal, state: event.state });
-				}
-			},
-			persist: (mode, state) => {
-				if (mode === "none") {
-					this.sessionManager.appendModeChange("none");
-				} else if (state) {
-					this.sessionManager.appendModeChange(mode, { goal: state.goal });
-				}
-			},
-			sendHiddenMessage: async message => {
-				await this.sendCustomMessage(
-					{
-						customType: message.customType,
-						content: message.content,
-						display: false,
-						attribution: "agent",
-					},
-					{ deliverAs: message.deliverAs },
-				);
-			},
-			// Publish objective lifecycle events (goal.complete, …) onto the per-session
-			// observability bus so the JSONL sink AND the self-improvement loop receive them.
-			// Without this the runtime's #emitSessionEvent is a no-op for the main session.
-			getSessionId: () => this.sessionId,
-			sessionEventBus: getSessionEventBus(this),
-		});
-
-		this.#missionStoreInstance = new MissionStore(DEFAULT_MISSION_DB_PATH);
-		this.#missionControl = new MissionControlRuntime({
-			store: this.#missionStoreInstance,
+		this.#missionBinding = new MissionSessionBinding({
 			setActiveMissionId: id => {
 				this.#activeMissionId = id;
 			},
 			getActiveMissionId: () => this.#activeMissionId,
-			// Emit lifecycle transitions onto the shared mission bus (same sink the store uses) so
-			// the Mission Board / event replay observe create→classify→proposal→execute.
-			...(getMissionEventBus() ? { eventBus: getMissionEventBus() } : {}),
+		});
+		this.#missionStoreInstance = this.#missionBinding.store;
+		this.#missionControl = this.#missionBinding.runtime;
+		this.#missionControl.onMissionUpdated(mission => {
+			this.#emitSessionEvent({ type: "mission_updated", state: mission });
 		});
 		this.#toolGateway = new SessionToolGateway({ missionControl: this.#missionControl });
 
@@ -1552,16 +1503,10 @@ export class AgentSession {
 		}
 
 		if (event.type === "turn_start") {
-			const usage = this.getSessionStats().tokens;
-			this.objectiveRuntime.onTurnStart(`turn-${++this.#goalTurnCounter}`, {
-				input: usage.input,
-				output: usage.output,
-				cacheRead: usage.cacheRead,
-				cacheWrite: usage.cacheWrite,
-			});
 			// Cache thrash detection now lives in V3SessionExtension — AgentSession just
 			// threads the snapshot. Keeps this monolith from carrying yet more state.
-			this.#v3.onTurnStart({ cacheRead: usage.cacheRead, cacheWrite: usage.cacheWrite });
+			const tokens = this.getSessionStats().tokens;
+			this.#v3.onTurnStart({ cacheRead: tokens.cacheRead, cacheWrite: tokens.cacheWrite });
 		}
 
 		await this.#emitSessionEvent(displayEvent);
@@ -1593,13 +1538,6 @@ export class AgentSession {
 				this.#toolChoiceQueue.reject(msg.stopReason === "error" ? "error" : "aborted");
 			} else {
 				this.#toolChoiceQueue.resolve();
-			}
-		}
-		if (event.type === "tool_execution_end") {
-			if (event.toolName === "goal") {
-				await this.#goalRuntime.onGoalToolCompleted();
-			} else {
-				await this.objectiveRuntime.onToolCompleted(event.toolName);
 			}
 		}
 		if (event.type === "tool_execution_end" && event.toolName === "yield" && !event.isError) {
@@ -1857,15 +1795,6 @@ export class AgentSession {
 
 		// Check auto-retry and auto-compaction after agent completes
 		if (event.type === "agent_end") {
-			const usage = this.getSessionStats().tokens;
-			await this.objectiveRuntime.onAgentEnd({
-				currentUsage: {
-					input: usage.input,
-					output: usage.output,
-					cacheRead: usage.cacheRead,
-					cacheWrite: usage.cacheWrite,
-				},
-			});
 			const fallbackAssistant = [...event.messages]
 				.reverse()
 				.find((message): message is AssistantMessage => message.role === "assistant");
@@ -2778,12 +2707,8 @@ export class AgentSession {
 				attempt: event.attempt,
 				maxAttempts: event.maxAttempts,
 			});
-		} else if (event.type === "goal_updated") {
-			await this.#extensionRunner.emit({
-				type: "goal_updated",
-				goal: event.goal,
-				state: event.state,
-			});
+		} else if (event.type === "mission_updated") {
+			await this.#extensionRunner.emit({ type: "mission_updated", state: event.state });
 		}
 	}
 
@@ -3282,6 +3207,7 @@ export class AgentSession {
 					const gctx: ToolExecutionContext = {
 						toolCallId,
 						input: args,
+						agentRole: session.#role,
 						...(signal ? { signal } : {}),
 						...(session.#missionToolContext ? { mission: session.#missionToolContext } : {}),
 					};
@@ -3646,21 +3572,17 @@ export class AgentSession {
 			instructionsSegment = entries.join("\u0006");
 		}
 		const date = new Date().toISOString().slice(0, 10);
-		// Goal state is rendered into the system prompt's DYNAMIC_TAIL via `renderGoalBlock`.
-		// Include the identifying triple (id|status|designAnswers keys) in the signature so a
-		// goal lifecycle transition (create / complete / drop) or new design answers invalidate
-		// the prompt cache prefix at the next rebuild — otherwise the agent would continue with
-		// a stale goal anchor until some unrelated tool change happened to flip the signature.
-		// Token counters (tokensUsed) are deliberately excluded: they change every turn and
-		// would thrash the signature, defeating the cache. The block renders tokens through
-		// the budget/remaining attributes, which are accepted as DYNAMIC_TAIL churn.
-		let goalSegment = "";
-		const goalState = this.getGoalModeState();
-		if (goalState?.goal) {
-			const answers = goalState.goal.designAnswers ? Object.keys(goalState.goal.designAnswers).sort().join(",") : "";
-			goalSegment = `${goalState.goal.id}|${goalState.goal.status}|${answers}`;
-		}
-		return `${nameSegment}\u0003${descriptionSegment}\u0005${registrySegment}\u0007${instructionsSegment}|${date}|${goalSegment}`;
+		const mission = this.getActiveMission();
+		const missionSegment = mission
+			? [
+					mission.id,
+					mission.lifecycle,
+					mission.decisionId ?? "",
+					mission.regressionContractId ?? "",
+					mission.verification?.verdict ?? mission.verification?.status ?? "",
+				].join("|")
+			: "";
+		return `${nameSegment}\u0003${descriptionSegment}\u0005${registrySegment}\u0007${instructionsSegment}|${date}|${missionSegment}`;
 	}
 
 	/**
@@ -3886,13 +3808,6 @@ export class AgentSession {
 		}
 	}
 
-	getGoalModeState(): GoalModeState | undefined {
-		return this.#goalModeState;
-	}
-
-	setGoalModeState(state: GoalModeState | undefined): void {
-		this.#goalModeState = state;
-	}
 	getActiveMission(): Mission | undefined {
 		return this.#missionControl.getActiveMission();
 	}
@@ -3907,17 +3822,6 @@ export class AgentSession {
 
 	get missionControl(): MissionControlRuntime {
 		return this.#missionControl;
-	}
-
-	get goalRuntime(): ObjectiveRuntimeImpl {
-		return this.#goalRuntime;
-	}
-
-	get objectiveRuntime(): ObjectiveRuntimeImpl {
-		if (!this.#objectiveRuntime) {
-			this.#objectiveRuntime = this.#goalRuntime;
-		}
-		return this.#objectiveRuntime;
 	}
 
 	/**
@@ -3982,21 +3886,6 @@ export class AgentSession {
 				content: message.content,
 				display: message.display,
 				details: message.details,
-			},
-			options ? { deliverAs: options.deliverAs } : undefined,
-		);
-	}
-
-	async sendGoalModeContext(options?: { deliverAs?: "steer" | "followUp" | "nextTurn" }): Promise<void> {
-		const message = this.#buildGoalModeMessage();
-		if (!message) return;
-		await this.sendCustomMessage(
-			{
-				customType: message.customType,
-				content: message.content,
-				display: message.display,
-				details: message.details,
-				attribution: message.attribution,
 			},
 			options ? { deliverAs: options.deliverAs } : undefined,
 		);
@@ -4091,7 +3980,7 @@ export class AgentSession {
 				: sessionPlanUrl;
 
 		const planExists = fs.existsSync(resolvedPlanPath);
-		const activeGoal = this.#goalModeState?.enabled ? this.#goalModeState.goal : undefined;
+		const activeMission = this.getActiveMission();
 		const content = prompt.render(planModeActivePrompt, {
 			planFilePath: displayPlanPath,
 			planExists,
@@ -4100,8 +3989,8 @@ export class AgentSession {
 			editToolName: "edit",
 			reentry: state.reentry ?? false,
 			iterative: state.workflow === "iterative",
-			goalBlock: activeGoal ? renderGoalBlock(activeGoal) : undefined,
-			goalPlanStaleReason: planGoalDriftReason(state, activeGoal),
+			goalBlock: activeMission ? `Mission: ${activeMission.objective}` : undefined,
+			goalPlanStaleReason: undefined,
 		});
 
 		return {
@@ -4114,28 +4003,6 @@ export class AgentSession {
 		};
 	}
 
-	#buildGoalModeMessage(): CustomMessage | null {
-		const content = this.objectiveRuntime.buildActivePrompt();
-		if (!content) return null;
-		return {
-			role: "custom",
-			customType: "goal-mode-context",
-			content,
-			display: false,
-			attribution: "agent",
-			timestamp: Date.now(),
-		};
-	}
-
-	/**
-	 * Send a prompt to the agent.
-	 * - Handles extension commands (registered via pi.registerCommand) immediately, even during streaming
-	 * - Expands file-based prompt templates by default
-	 * - During streaming, queues via steer() or followUp() based on streamingBehavior option
-	 * - Validates model and API key before sending (when not streaming)
-	 * @throws Error if streaming and no streamingBehavior specified
-	 * @throws Error if no model selected or no API key available (when not streaming)
-	 */
 	async prompt(text: string, options?: PromptOptions): Promise<void> {
 		const expandPromptTemplates = options?.expandPromptTemplates ?? true;
 
@@ -4305,10 +4172,6 @@ export class AgentSession {
 			const planModeMessage = await this.#buildPlanModeMessage();
 			if (planModeMessage) {
 				messages.push(planModeMessage);
-			}
-			const goalModeMessage = this.#buildGoalModeMessage();
-			if (goalModeMessage) {
-				messages.push(goalModeMessage);
 			}
 			if (options?.prependMessages) {
 				messages.push(...options.prependMessages);
@@ -4983,7 +4846,7 @@ export class AgentSession {
 	/**
 	 * Abort current operation and wait for agent to become idle.
 	 */
-	async abort(options?: { goalReason?: "interrupted" | "internal" }): Promise<void> {
+	async abort(_options?: { goalReason?: "interrupted" | "internal" }): Promise<void> {
 		this.abortRetry();
 		this.#promptGeneration++;
 		this.#scheduledHiddenNextTurnGeneration = undefined;
@@ -4995,7 +4858,6 @@ export class AgentSession {
 		this.agent.abort();
 		await postPromptDrain;
 		await this.agent.waitForIdle();
-		await this.#goalRuntime.onTaskAborted({ reason: options?.goalReason ?? "interrupted" });
 		// Clear prompt-in-flight state: waitForIdle resolves when the agent loop's finally
 		// block runs, but nested prompt setup/finalizers may still be unwinding. Without this,
 		// a subsequent prompt() can incorrectly observe the session as busy after an abort.
@@ -8947,16 +8809,12 @@ export class AgentSession {
 		);
 		lines.push("");
 
-		// Propagate the parent's active goal (with captured Design Interview answers) into the
-		// subagent's context so its work respects the same scope/constraints/acceptance contract.
-		// Subagents don't inherit goal *mode* (no shared token budget, no design interview firing
-		// on the child), but they MUST see the constraint surface — otherwise the parent and
-		// child can drift on what "done" means.
-		const goalState = this.getGoalModeState();
-		if (goalState?.enabled && goalState.goal && goalState.goal.status === "active") {
-			lines.push("## Parent Goal");
+		const activeMission = this.getActiveMission();
+		if (activeMission) {
+			lines.push("## Parent Mission");
 			lines.push("");
-			lines.push(renderGoalBlock(goalState.goal));
+			lines.push(`Mission: ${activeMission.objective}`);
+			lines.push(`Lifecycle: ${activeMission.lifecycle}`);
 			lines.push("");
 		}
 

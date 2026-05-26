@@ -103,51 +103,6 @@ const modelSegment: StatusLineSegment = {
 	},
 };
 
-function formatGoalBudget(current: number, budget?: number): string {
-	const used = formatNumber(current);
-	if (budget === undefined) return used;
-	return `${used}/${formatNumber(budget)}`;
-}
-
-function renderGoalMode(ctx: SegmentContext, mode: { enabled: boolean; paused: boolean }): RenderedSegment {
-	const goal = ctx.session.getGoalModeState()?.goal;
-	const status = goal?.status ?? (mode.paused ? "paused" : "active");
-
-	let icon: string = theme.icon.goal;
-	let color: ThemeColor = "accent";
-	switch (status) {
-		case "paused":
-			icon = theme.icon.pause || theme.symbol("status.pending");
-			color = "warning";
-			break;
-		case "complete":
-			icon = theme.symbol("status.success");
-			color = "success";
-			break;
-		case "budget-limited":
-			icon = theme.symbol("status.warning");
-			color = "warning";
-			break;
-		case "blocked":
-			icon = theme.symbol("status.warning");
-			color = "warning";
-			break;
-		case "dropped":
-			icon = theme.symbol("status.aborted");
-			color = "dim";
-			break;
-		default:
-			break;
-	}
-
-	const parts: string[] = [withIcon(icon, "Goal")];
-	const showBudget = ctx.session.settings.get("goal.statusInFooter") === true;
-	if (showBudget && goal) {
-		parts.push(formatGoalBudget(goal.tokensUsed, goal.tokenBudget));
-	}
-	return { content: theme.fg(color, parts.join(" ")), visible: true };
-}
-
 const modeSegment: StatusLineSegment = {
 	id: "mode",
 	render(ctx) {
@@ -159,11 +114,6 @@ const modeSegment: StatusLineSegment = {
 			const content = withIcon(theme.icon.plan, label);
 			const color = plan.paused ? "warning" : "accent";
 			return { content: theme.fg(color, content), visible: true };
-		}
-
-		const goal = ctx.goalMode;
-		if (goal && (goal.enabled || goal.paused)) {
-			return renderGoalMode(ctx, goal);
 		}
 
 		const loop = ctx.loopMode;
@@ -474,37 +424,6 @@ const cacheHitRatioSegment: StatusLineSegment = {
 	},
 };
 
-/**
- * Goal budget warning — surfaces approaching budget exhaustion BEFORE the hard limit fires.
- *
- * Three states:
- *   - <50% used: hidden (no clutter when there's plenty of runway)
- *   - 50%–79% used: amber chip "Goal 50%" so operator sees pace
- *   - ≥80% used: warning chip "Goal 80%! 1.2K left" so operator can decide to scope down,
- *     adjust the budget with `/goal budget`, or wrap up before the hard cap
- *     forces a budget-limited steer
- *
- * Without this segment the operator only learns about budget pressure at 100% via the steer
- * message — too late to make scoping decisions. Pre-warnings ARE the budget-control loop.
- */
-const goalBudgetWarningSegment: StatusLineSegment = {
-	id: "goal_budget_warning",
-	render(ctx) {
-		const goal = ctx.session.getGoalModeState()?.goal;
-		if (!goal || goal.tokenBudget === undefined || goal.tokenBudget <= 0) {
-			return { content: "", visible: false };
-		}
-		const used = Math.max(0, goal.tokensUsed);
-		const ratio = used / goal.tokenBudget;
-		if (ratio < 0.5) return { content: "", visible: false };
-		const pct = Math.min(100, Math.round(ratio * 100));
-		const remaining = Math.max(0, goal.tokenBudget - used);
-		const color: ThemeColor = ratio >= 0.8 ? "warning" : "statusLineOutput";
-		const label = ratio >= 0.8 ? `Goal ${pct}%! ${formatNumber(remaining)} left` : `Goal ${pct}%`;
-		return { content: theme.fg(color, label), visible: true };
-	},
-};
-
 const sessionNameSegment: StatusLineSegment = {
 	id: "session_name",
 	render(ctx) {
@@ -543,7 +462,6 @@ export const SEGMENTS: Record<StatusLineSegmentId, StatusLineSegment> = {
 	cache_read: cacheReadSegment,
 	cache_write: cacheWriteSegment,
 	cache_hit_ratio: cacheHitRatioSegment,
-	goal_budget_warning: goalBudgetWarningSegment,
 	session_name: sessionNameSegment,
 };
 

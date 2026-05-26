@@ -4,7 +4,6 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { recordProposalApplyRollbackAnchor, recordProposalRollbackAnchor } from "../../src/cli/proposals";
 import { ProposalStore } from "../../src/learning";
-import { recordMissionVerificationFromGoalObjective } from "../../src/mission/core/objective-runtime";
 import { MissionStore } from "../../src/mission/store";
 import type { NewResearchCampaign } from "../../src/mission/types";
 import { ResearchStore } from "../../src/research/store";
@@ -189,12 +188,12 @@ describe("mission write-side producers", () => {
 			mission({ id: "mission-goal", title: "Goal objective", state: "verifying" }),
 		);
 
-		recordMissionVerificationFromGoalObjective({
-			objective: "Goal objective",
-			dbPath: db,
+		store.recordVerification({
 			missionId: createdMission.id,
-			verdict: { verdict: "pass", failedCount: 0, uncertainCount: 0, passedCount: 1, results: [] },
-			summary: "passed",
+			status: "pass",
+			failedCount: 0,
+			uncertainCount: 0,
+			summary: "ok",
 		});
 
 		expect(store.getLatestVerification(createdMission.id)).toMatchObject({
@@ -202,9 +201,8 @@ describe("mission write-side producers", () => {
 			status: "pass",
 			failedCount: 0,
 			uncertainCount: 0,
-			summary: "pass verification; 0 failed; 0 uncertain",
+			summary: "ok",
 		});
-		expect(store.getMission(createdMission.id)?.state).toBe("completed");
 	});
 
 	test("records task contracts by explicit mission id before title lookup", async () => {
@@ -244,21 +242,20 @@ describe("mission write-side producers", () => {
 			mission({ id: "mission-verify-id", title: "Different objective", state: "verifying" }),
 		);
 
-		recordMissionVerificationFromGoalObjective({
-			objective: "Shared objective",
+		store.recordVerification({
 			missionId: byId.id,
-			dbPath: db,
-			verdict: { verdict: "fail", failedCount: 1, uncertainCount: 0, passedCount: 0, results: [] },
-			summary: "",
+			status: "fail",
+			failedCount: 1,
+			uncertainCount: 0,
+			summary: "not ok",
 		});
 
 		expect(store.getLatestVerification(byTitle.id)).toBeUndefined();
 		expect(store.getLatestVerification(byId.id)).toMatchObject({
 			missionId: byId.id,
 			status: "fail",
-			summary: "fail verification; 1 failed; 0 uncertain",
+			summary: "not ok",
 		});
-		expect(store.getMission(byId.id)?.state).toBe("blocked");
 	});
 
 	test("does not fall back to title when explicit task mission id is missing", async () => {
@@ -295,13 +292,15 @@ describe("mission write-side producers", () => {
 			mission({ id: "mission-verify-title-fallback", title: "Fallback verify objective", state: "verifying" }),
 		);
 
-		recordMissionVerificationFromGoalObjective({
-			objective: "Fallback verify objective",
-			missionId: "missing-mission",
-			dbPath: db,
-			verdict: { verdict: "pass", failedCount: 0, uncertainCount: 0, passedCount: 1, results: [] },
-			summary: "",
-		});
+		expect(() =>
+			store.recordVerification({
+				missionId: "missing-mission",
+				status: "pass",
+				failedCount: 0,
+				uncertainCount: 0,
+				summary: "ok",
+			}),
+		).toThrow();
 
 		expect(store.getLatestVerification(byTitle.id)).toBeUndefined();
 		expect(store.getMission(byTitle.id)?.state).toBe("verifying");

@@ -27,7 +27,7 @@ import { buildContextReportText } from "./helpers/context-report";
 import { formatDuration } from "./helpers/format";
 import { createMarketplaceManager } from "./helpers/marketplace-manager";
 import { handleMcpAcp } from "./helpers/mcp";
-import { MISSION_SUBCOMMANDS, runMissionSlashCommand } from "./helpers/mission-command";
+import { handleMissionWriteVerb, MISSION_SUBCOMMANDS, runMissionSlashCommand } from "./helpers/mission-command";
 import { commandConsumed, errorMessage, parseSlashCommand, parseSubcommand, usage } from "./helpers/parse";
 import { handleSshAcp } from "./helpers/ssh";
 import { handleTodoAcp } from "./helpers/todo";
@@ -59,6 +59,14 @@ const shutdownHandlerTui = (_command: ParsedSlashCommand, runtime: TuiSlashComma
 	return commandConsumed();
 };
 
+const MISSION_PANEL_CYCLE = ["off", "compact", "expanded"] as const;
+type MissionPanelMode = (typeof MISSION_PANEL_CYCLE)[number];
+function cycleMissionPanelMode(current: string): MissionPanelMode {
+	const idx = (MISSION_PANEL_CYCLE as readonly string[]).indexOf(current);
+	const next = (idx + 1) % MISSION_PANEL_CYCLE.length;
+	return MISSION_PANEL_CYCLE[next < 0 ? 0 : next] ?? "off";
+}
+
 const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "settings",
@@ -79,31 +87,8 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 		},
 	},
 	{
-		name: "goal",
-		description:
-			"Toggle goal mode (persistent autonomous objective). Deprecated; use /mission. " +
-			"set→/mission create, show→/mission show, drop→/mission cancel, complete→/mission complete, block→/mission block.",
-		subcommands: [
-			{ name: "set", description: "Set or replace the goal (alias of /mission create)", usage: "<objective>" },
-			{ name: "show", description: "Show current goal details (alias of /mission show)" },
-			{ name: "pause", description: "Pause the current goal" },
-			{ name: "resume", description: "Resume a paused goal" },
-			{ name: "drop", description: "Drop the current goal (alias of /mission cancel)" },
-			{ name: "budget", description: "Adjust the token budget", usage: "<N|off>" },
-		],
-		inlineHint: "[objective]",
-		allowArgs: true,
-		handleTui: async (command, runtime) => {
-			// Deprecated alias for /mission — behavior is unchanged: it still
-			// drives goal mode through the session. Only the help text carries
-			// the deprecation/mapping hint.
-			await runtime.ctx.handleGoalModeCommand(command.args || undefined);
-			runtime.ctx.editor.setText("");
-		},
-	},
-	{
 		name: "mission",
-		description: "Inspect and operate the mission runtime (canonical surface; /goal is the legacy alias)",
+		description: "Inspect and operate the mission runtime",
 		acpDescription: "Inspect missions",
 		acpInputHint: "<subcommand> <missionId>",
 		subcommands: [...MISSION_SUBCOMMANDS],
@@ -122,8 +107,109 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 				);
 				return commandConsumed();
 			}
+			const writerResult = await handleMissionWriteVerb(
+				verb ?? "",
+				command.args || "",
+				runtime.session?.missionControl,
+			);
+			if (writerResult !== undefined) {
+				await runtime.output(writerResult);
+				return commandConsumed();
+			}
+			if (verb === "panel") {
+				// ACP/text mode: persist only — live UI refresh requires the TUI handler.
+				const rest = (command.args || "").trim().split(/\s+/).slice(1).join(" ").toLowerCase();
+				const current = runtime.settings.get("mission.terminalPanel" as SettingPath) as string;
+				if (!rest) {
+					await runtime.output(
+						`Mission Control panel: ${current} (usage: /mission panel [off|compact|expanded|toggle])`,
+					);
+					return commandConsumed();
+				}
+				const next =
+					rest === "toggle"
+						? cycleMissionPanelMode(current)
+						: rest === "off" || rest === "compact" || rest === "expanded"
+							? rest
+							: null;
+				if (!next) {
+					await runtime.output("Usage: /mission panel [off|compact|expanded|toggle]");
+					return commandConsumed();
+				}
+				runtime.settings.set("mission.terminalPanel" as SettingPath, next as SettingValue<SettingPath>);
+				await runtime.output(
+					`Mission Control panel set to ${next}. Reopen the TUI (or toggle Alt+M) to refresh the live view.`,
+				);
+				return commandConsumed();
+			}
 			const result = await runMissionSlashCommand(command.args || "");
 			await runtime.output(result.output);
+			return commandConsumed();
+		},
+		handleTui: async (command, runtime) => {
+			const ctx = runtime.ctx;
+			const verb = (command.args || "").trim().split(/\s+/)[0]?.toLowerCase();
+			if (verb === "panel") {
+				const rest = (command.args || "").trim().split(/\s+/).slice(1).join(" ").toLowerCase();
+				if (!rest) {
+					const current = ctx.settings.get("mission.terminalPanel" as SettingPath) as string;
+					ctx.showStatus(`Mission Control: ${current} (usage: /mission panel [off|compact|expanded|toggle])`);
+					ctx.editor.setText("");
+					return commandConsumed();
+				}
+				if (rest === "toggle") {
+					ctx.toggleMissionControlDisplayMode();
+					ctx.editor.setText("");
+					return commandConsumed();
+				}
+				if (rest === "off" || rest === "compact" || rest === "expanded") {
+					ctx.setMissionControlDisplayMode(rest);
+					ctx.editor.setText("");
+					return commandConsumed();
+				}
+				ctx.showStatus("Usage: /mission panel [off|compact|expanded|toggle]");
+				ctx.editor.setText("");
+				return commandConsumed();
+			}
+			// Other verbs: delegate to `handle` via a synthesized SlashCommandRuntime.
+			const adapted: SlashCommandRuntime = {
+				session: ctx.session,
+				sessionManager: ctx.sessionManager,
+				settings: ctx.settings,
+				cwd: ctx.sessionManager.getCwd(),
+				output: (text: string) => {
+					ctx.showStatus(text);
+				},
+				refreshCommands: () => ctx.refreshSlashCommandState(),
+				reloadPlugins: async () => {
+					await ctx.refreshSlashCommandState();
+				},
+			};
+			const verbForApprove = verb;
+			if (verbForApprove === "approve") {
+				const missionControl = ctx.session.missionControl;
+				const mission = missionControl?.approveActiveProposal();
+				ctx.showStatus(
+					mission
+						? `Approved proposal for mission ${mission.id}. Mutations are now permitted.`
+						: "No active mission to approve.",
+				);
+				ctx.editor.setText("");
+				return commandConsumed();
+			}
+			const writerResultTui = await handleMissionWriteVerb(
+				verb ?? "",
+				command.args || "",
+				ctx.session?.missionControl,
+			);
+			if (writerResultTui !== undefined) {
+				ctx.showStatus(writerResultTui);
+				ctx.editor.setText("");
+				return commandConsumed();
+			}
+			const result = await runMissionSlashCommand(command.args || "");
+			adapted.output(result.output);
+			ctx.editor.setText("");
 			return commandConsumed();
 		},
 	},

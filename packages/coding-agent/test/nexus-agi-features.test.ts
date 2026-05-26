@@ -211,7 +211,7 @@ describe("Nexus AGI roadmap features", () => {
 				getCwd: () => cwd,
 				getSessionId: () => "sess-auto-recall",
 			},
-			getGoalModeState: () => ({ goal: { objective: "use Nexus memory active recall safely" } }),
+			getActiveMission: () => ({ objective: "use Nexus memory active recall safely" }),
 		} as any;
 		const recall = await nexusBackend.beforeAgentStartPrompt!(session, "How is Nexus active recall limited?");
 		expect(recall).toContain("## Relevant Nexus Context");
