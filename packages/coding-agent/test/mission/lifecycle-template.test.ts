@@ -50,7 +50,7 @@ describe("mission lifecycle templates", () => {
 			allowDirectTaskCompletion: false,
 			requireDecisionRecord: true,
 			requireRegressionContract: true,
-			requireProposalBeforeMutation: false,
+			requireProposalBeforeMutation: true,
 			requireVerification: true,
 		},
 		external_side_effect: {

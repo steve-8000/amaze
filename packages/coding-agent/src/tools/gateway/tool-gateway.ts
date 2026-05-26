@@ -21,6 +21,7 @@ export interface PolicyDecision {
 	allowed: boolean;
 	reason?: string;
 	code?: string;
+	details?: Record<string, unknown>;
 }
 
 /**

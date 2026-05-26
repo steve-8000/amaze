@@ -7,6 +7,7 @@ const BUILTIN_RULE_DIR = join(import.meta.dir, "../../src/rules/builtin");
 
 const expectedRuleIds = [
 	"force-complete-rate",
+	"destructive-mission-discipline",
 	"subagent-no-yield",
 	"repeated-prompts",
 	"stale-contract",

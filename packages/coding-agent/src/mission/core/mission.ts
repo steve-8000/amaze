@@ -151,6 +151,12 @@ export interface Mission {
 	outcome?: MissionOutcome;
 	createdAt: number;
 	updatedAt: number;
+	/**
+	 * Monotonically-increasing aggregate revision; bumped on every mutation across
+	 * mission row + durable aggregate tables. Used for cross-session stale-cache
+	 * detection.
+	 */
+	revision: number;
 }
 
 export type { MissionInput, MissionMode };

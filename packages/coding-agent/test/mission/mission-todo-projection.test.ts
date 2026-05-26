@@ -18,6 +18,7 @@ function mission(overrides: Partial<Mission>): Mission {
 		evidenceRefs: [],
 		createdAt: 1,
 		updatedAt: 1,
+		revision: 1,
 		...overrides,
 	};
 }

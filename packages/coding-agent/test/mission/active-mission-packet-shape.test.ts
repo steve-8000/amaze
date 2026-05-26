@@ -53,6 +53,7 @@ function mission(intent: MissionIntent, taskCount = 5): MissionLike {
 		verification: { status: "uncertain", verdict: "pending", summary: "Verification not complete." },
 		createdAt: 1,
 		updatedAt: 2,
+		revision: 1,
 	};
 }
 

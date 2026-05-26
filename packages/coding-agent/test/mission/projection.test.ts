@@ -16,6 +16,7 @@ function mission(overrides: Partial<ResearchCampaign> = {}): ResearchCampaign {
 		snapshotRef: null,
 		createdAt: 1,
 		updatedAt: 1,
+		revision: 1,
 		...overrides,
 	};
 }

@@ -241,27 +241,26 @@ export class StaleContractError extends Error {
 		this.parentRevision = parentRevision;
 	}
 }
+export interface ContractFreshnessResult {
+	stale: boolean;
+	staleness?: { stamped: number; current: number };
+}
 
 /**
- * Structural enforcement of contract freshness. Throws `StaleContractError` when stale;
- * returns silently when fresh or when the comparison cannot be made (missing baselines,
- * missing parent revision). The parent's revision-loop or the turn-start hook should
- * call this BEFORE the subagent invests further work.
- *
- * The behavior is intentionally fail-closed only when both revisions are known and the
- * parent has advanced. We never *invent* staleness from incomplete data — model can run
- * with old contract until parent issues fresh.
+ * Structural contract freshness comparison. Returns staleness metadata when both
+ * revisions are known and the live parent mission has advanced past the stamped
+ * contract revision; incomplete data is treated as fresh for backward compatibility.
  */
 export function enforceContractFreshness(
-	contract: SubagentContract | undefined,
-	parentCurrentRevision: number | undefined,
-): void {
-	if (!contract) return;
-	if (contract.parentMissionRev === undefined) return;
-	if (parentCurrentRevision === undefined) return;
-	if (parentCurrentRevision > contract.parentMissionRev) {
-		throw new StaleContractError(contract.role, contract.parentMissionRev, parentCurrentRevision);
+	stampedRevision: number | undefined,
+	currentRevision: number | undefined,
+): ContractFreshnessResult {
+	if (stampedRevision === undefined) return { stale: false };
+	if (currentRevision === undefined) return { stale: false };
+	if (currentRevision > stampedRevision) {
+		return { stale: true, staleness: { stamped: stampedRevision, current: currentRevision } };
 	}
+	return { stale: false };
 }
 
 /**

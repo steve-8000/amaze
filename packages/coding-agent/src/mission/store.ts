@@ -67,6 +67,315 @@ const VALID_LANES = new Set<ResearchLane>(RESEARCH_LANES);
 const VALID_RISK_LEVELS = new Set<RiskLevel>(RISK_LEVELS);
 const VALID_CONFIDENCE = new Set<ConfidenceLevel>(CONFIDENCE_LEVELS);
 
+type StoreMigration = {
+	version: number;
+	description: string;
+	up: (db: Database) => void;
+};
+
+const MIGRATIONS: StoreMigration[] = [
+	{
+		version: 1,
+		description: "baseline schema (all current CREATE TABLE/INDEX + ensureColumn additive backfills)",
+		up: db => {
+			db.exec(`
+			CREATE TABLE IF NOT EXISTS missions (
+				id TEXT PRIMARY KEY,
+				title TEXT NOT NULL,
+				objective_id TEXT,
+				brief_id TEXT,
+				decision_id TEXT,
+				risk_level TEXT NOT NULL,
+				state TEXT NOT NULL,
+				confidence TEXT,
+				snapshot_ref TEXT,
+				created_at INTEGER NOT NULL,
+				updated_at INTEGER NOT NULL
+			);
+			CREATE INDEX IF NOT EXISTS missions_objective_idx ON missions(objective_id);
+			CREATE INDEX IF NOT EXISTS missions_brief_idx ON missions(brief_id);
+			CREATE INDEX IF NOT EXISTS missions_state_idx ON missions(state);
+
+			CREATE TABLE IF NOT EXISTS mission_lane_runs (
+				id TEXT PRIMARY KEY,
+				mission_id TEXT NOT NULL,
+				lane TEXT NOT NULL,
+				agent TEXT NOT NULL,
+				epistemic_role TEXT NOT NULL,
+				status TEXT NOT NULL,
+				evidence_count INTEGER NOT NULL,
+				empty_reason TEXT,
+				task_id TEXT,
+				started_at INTEGER,
+				ended_at INTEGER,
+				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
+			);
+			CREATE INDEX IF NOT EXISTS mission_lane_runs_mission_idx ON mission_lane_runs(mission_id);
+			CREATE INDEX IF NOT EXISTS mission_lane_runs_status_idx ON mission_lane_runs(mission_id, status);
+
+			CREATE TABLE IF NOT EXISTS research_runs (
+				id TEXT PRIMARY KEY,
+				mission_id TEXT NOT NULL,
+				brief_id TEXT NOT NULL,
+				objective_id TEXT,
+				status TEXT NOT NULL,
+				started_at INTEGER NOT NULL,
+				completed_at INTEGER,
+				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
+			);
+			CREATE INDEX IF NOT EXISTS research_runs_mission_idx ON research_runs(mission_id);
+			CREATE INDEX IF NOT EXISTS research_runs_brief_idx ON research_runs(brief_id);
+			CREATE INDEX IF NOT EXISTS research_runs_status_idx ON research_runs(status);
+
+			CREATE TABLE IF NOT EXISTS mission_contracts (
+				id TEXT PRIMARY KEY,
+				mission_id TEXT NOT NULL,
+				role TEXT NOT NULL,
+				parent_contract_revision INTEGER,
+				include_json TEXT NOT NULL CHECK (json_valid(include_json)),
+				exclude_json TEXT NOT NULL CHECK (json_valid(exclude_json)),
+				success_criteria_json TEXT NOT NULL CHECK (json_valid(success_criteria_json)),
+				escalation_json TEXT NOT NULL CHECK (json_valid(escalation_json)),
+				input_artifact TEXT,
+				must_produce_json TEXT NOT NULL CHECK (json_valid(must_produce_json)),
+				task_id TEXT,
+				session_file TEXT,
+				created_at INTEGER NOT NULL,
+				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
+			);
+			CREATE INDEX IF NOT EXISTS mission_contracts_mission_idx ON mission_contracts(mission_id);
+
+			CREATE TABLE IF NOT EXISTS mission_phases (
+				id TEXT PRIMARY KEY,
+				mission_id TEXT NOT NULL,
+				ordinal INTEGER NOT NULL,
+				name TEXT NOT NULL,
+				description TEXT,
+				status TEXT NOT NULL,
+				plan_step_ids_json TEXT NOT NULL CHECK (json_valid(plan_step_ids_json)),
+				acceptance_criteria_json TEXT NOT NULL CHECK (json_valid(acceptance_criteria_json)),
+				created_at INTEGER NOT NULL,
+				updated_at INTEGER NOT NULL,
+				closed_at INTEGER,
+				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
+			);
+			CREATE INDEX IF NOT EXISTS mission_phases_mission_idx ON mission_phases(mission_id);
+
+			CREATE TABLE IF NOT EXISTS mission_phase_verifications (
+				id TEXT PRIMARY KEY,
+				mission_id TEXT NOT NULL,
+				phase_id TEXT NOT NULL,
+				status TEXT NOT NULL,
+				failed_count INTEGER NOT NULL,
+				uncertain_count INTEGER NOT NULL,
+				summary TEXT NOT NULL,
+				created_at INTEGER NOT NULL,
+				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE,
+				FOREIGN KEY (phase_id) REFERENCES mission_phases(id) ON DELETE CASCADE
+			);
+			CREATE INDEX IF NOT EXISTS mission_phase_verifications_mission_idx ON mission_phase_verifications(mission_id);
+
+			CREATE TABLE IF NOT EXISTS mission_verifications (
+				id TEXT PRIMARY KEY,
+				mission_id TEXT NOT NULL,
+				status TEXT NOT NULL,
+				failed_count INTEGER NOT NULL,
+				uncertain_count INTEGER NOT NULL,
+				summary TEXT NOT NULL,
+				created_at INTEGER NOT NULL,
+				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
+			);
+			CREATE INDEX IF NOT EXISTS mission_verifications_mission_idx ON mission_verifications(mission_id);
+
+			CREATE TABLE IF NOT EXISTS mission_task_attempt_checkpoints (
+				id TEXT PRIMARY KEY,
+				mission_id TEXT NOT NULL,
+				task_id TEXT NOT NULL,
+				agent TEXT NOT NULL,
+				role TEXT NOT NULL,
+				attempt INTEGER NOT NULL,
+				status TEXT NOT NULL,
+				failure_mode TEXT,
+				last_verdict TEXT,
+				failed_count INTEGER NOT NULL,
+				uncertain_count INTEGER NOT NULL,
+				remediation_action TEXT NOT NULL,
+				session_file TEXT,
+				artifact_refs_json TEXT NOT NULL CHECK (json_valid(artifact_refs_json)),
+				error TEXT,
+				created_at INTEGER NOT NULL,
+				updated_at INTEGER NOT NULL,
+				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
+			);
+			CREATE INDEX IF NOT EXISTS mission_task_attempt_checkpoints_mission_idx ON mission_task_attempt_checkpoints(mission_id);
+			CREATE INDEX IF NOT EXISTS mission_task_attempt_checkpoints_task_idx ON mission_task_attempt_checkpoints(mission_id, task_id);
+
+
+			CREATE TABLE IF NOT EXISTS mission_rollbacks (
+				id TEXT PRIMARY KEY,
+				mission_id TEXT NOT NULL,
+				target_type TEXT NOT NULL,
+				target_id TEXT NOT NULL,
+				snapshot_ref TEXT,
+				summary TEXT NOT NULL,
+				created_at INTEGER NOT NULL,
+				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
+			);
+
+			CREATE INDEX IF NOT EXISTS mission_rollbacks_mission_idx ON mission_rollbacks(mission_id);
+
+			CREATE TABLE IF NOT EXISTS mission_critic_dialogue (
+				id TEXT PRIMARY KEY,
+				mission_id TEXT NOT NULL,
+				role TEXT NOT NULL,
+				summary TEXT NOT NULL,
+				check_ids_json TEXT NOT NULL CHECK (json_valid(check_ids_json)),
+				created_at INTEGER NOT NULL,
+				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
+			);
+			CREATE INDEX IF NOT EXISTS mission_critic_dialogue_mission_idx ON mission_critic_dialogue(mission_id);
+
+
+			CREATE TABLE IF NOT EXISTS mission_world_model (
+				id TEXT PRIMARY KEY,
+				mission_id TEXT NOT NULL,
+				kind TEXT NOT NULL,
+				source TEXT NOT NULL,
+				source_id TEXT NOT NULL,
+				claim TEXT NOT NULL,
+				evidence_refs_json TEXT NOT NULL CHECK (json_valid(evidence_refs_json)),
+				links_json TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(links_json)),
+				outcome_status TEXT,
+				verified INTEGER NOT NULL,
+				created_at INTEGER NOT NULL,
+				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
+			);
+			CREATE INDEX IF NOT EXISTS mission_world_model_mission_idx ON mission_world_model(mission_id);
+
+			CREATE TABLE IF NOT EXISTS mission_tasks (
+				id TEXT PRIMARY KEY,
+				mission_id TEXT NOT NULL,
+				title TEXT NOT NULL,
+				objective TEXT,
+				status TEXT NOT NULL,
+				assigned_agent TEXT,
+				plan_step_id TEXT,
+				data_json TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(data_json)),
+				created_at INTEGER NOT NULL,
+				updated_at INTEGER NOT NULL,
+				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
+			);
+			CREATE INDEX IF NOT EXISTS mission_tasks_mission_idx ON mission_tasks(mission_id);
+			CREATE INDEX IF NOT EXISTS mission_tasks_status_idx ON mission_tasks(mission_id, status);
+
+			CREATE TABLE IF NOT EXISTS mission_plans (
+				mission_id TEXT PRIMARY KEY,
+				rationale TEXT,
+				revision INTEGER,
+				updated_at INTEGER NOT NULL,
+				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
+			);
+
+			CREATE TABLE IF NOT EXISTS mission_plan_steps (
+				id TEXT PRIMARY KEY,
+				mission_id TEXT NOT NULL,
+				ordinal INTEGER NOT NULL,
+				description TEXT NOT NULL,
+				edges_json TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(edges_json)),
+				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
+			);
+			CREATE INDEX IF NOT EXISTS mission_plan_steps_mission_idx ON mission_plan_steps(mission_id);
+
+			CREATE TABLE IF NOT EXISTS mission_acceptance_criteria (
+				id TEXT PRIMARY KEY,
+				mission_id TEXT NOT NULL,
+				ordinal INTEGER NOT NULL,
+				description TEXT NOT NULL,
+				satisfied INTEGER NOT NULL DEFAULT 0,
+				verification_method TEXT,
+				evidence_refs_json TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(evidence_refs_json)),
+				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
+			);
+			CREATE INDEX IF NOT EXISTS mission_acceptance_criteria_mission_idx ON mission_acceptance_criteria(mission_id);
+
+			CREATE TABLE IF NOT EXISTS mission_budgets (
+				mission_id TEXT PRIMARY KEY,
+				token_budget INTEGER NOT NULL,
+				tokens_used INTEGER NOT NULL DEFAULT 0,
+				time_budget_ms INTEGER,
+				time_used_ms INTEGER,
+				task_budget INTEGER,
+				tasks_used INTEGER,
+				max_context_tokens INTEGER NOT NULL,
+				context_tokens_used INTEGER NOT NULL DEFAULT 0,
+				compaction_threshold REAL,
+				updated_at INTEGER NOT NULL,
+				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
+			);
+
+			CREATE TABLE IF NOT EXISTS mission_scope_guards (
+				mission_id TEXT PRIMARY KEY,
+				allowed_paths_json TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(allowed_paths_json)),
+				denied_paths_json TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(denied_paths_json)),
+				allowed_tools_json TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(allowed_tools_json)),
+				allow_sub_missions INTEGER NOT NULL DEFAULT 0,
+				notes TEXT,
+				updated_at INTEGER NOT NULL,
+				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
+			);
+
+			CREATE TABLE IF NOT EXISTS mission_proposals (
+				id TEXT PRIMARY KEY,
+				mission_id TEXT NOT NULL,
+				artifact_uri TEXT NOT NULL,
+				content_hash TEXT NOT NULL,
+				status TEXT NOT NULL,
+				approved_by TEXT,
+				approved_at INTEGER,
+				summary TEXT,
+				created_at INTEGER NOT NULL,
+				updated_at INTEGER NOT NULL,
+				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
+			);
+			CREATE INDEX IF NOT EXISTS mission_proposals_mission_idx ON mission_proposals(mission_id);
+			CREATE INDEX IF NOT EXISTS mission_proposals_status_idx ON mission_proposals(mission_id, status);
+			`);
+			ensureColumn(db, "missions", "intent", "TEXT");
+			ensureColumn(db, "missions", "lifecycle", "TEXT");
+			ensureColumn(db, "missions", "proposal_id", "TEXT");
+			ensureColumn(db, "missions", "regression_contract_id", "TEXT");
+			ensureColumn(
+				db,
+				"missions",
+				"design_answers_json",
+				"TEXT CHECK (design_answers_json IS NULL OR json_valid(design_answers_json))",
+			);
+			ensureColumn(db, "mission_contracts", "task_id", "TEXT");
+			ensureColumn(db, "mission_contracts", "session_file", "TEXT");
+			ensureColumn(
+				db,
+				"mission_world_model",
+				"links_json",
+				"TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(links_json))",
+			);
+			ensureColumn(db, "mission_world_model", "outcome_status", "TEXT");
+		},
+	},
+	{
+		version: 2,
+		description: "add missions.revision",
+		up: db => {
+			ensureColumn(db, "missions", "revision", "INTEGER NOT NULL DEFAULT 0");
+		},
+	},
+];
+
+function ensureColumn(db: Database, table: string, column: string, definition: string): void {
+	const rows = db.query(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
+	if (rows.some(row => row.name === column)) return;
+	db.run(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+}
+
 type MissionRow = {
 	id: string;
 	title: string;
@@ -79,6 +388,7 @@ type MissionRow = {
 	snapshot_ref: string | null;
 	created_at: number;
 	updated_at: number;
+	revision: number;
 	intent: string | null;
 	lifecycle: string | null;
 	proposal_id: string | null;
@@ -224,8 +534,6 @@ export class MissionStore {
 			fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 		}
 		this.#db = new Database(dbPath, { create: true, strict: true });
-		this.#db.run("PRAGMA busy_timeout = 3000");
-		this.#db.run("PRAGMA foreign_keys = ON");
 		this.#eventBus = eventBus ?? (dbPath === ":memory:" ? undefined : getMissionEventBus());
 		this.#init();
 	}
@@ -246,6 +554,7 @@ export class MissionStore {
 			id: input.id ?? generateId("mission", now),
 			createdAt: now,
 			updatedAt: now,
+			revision: input.revision ?? 0,
 			// Normalize the durable core pointers so the returned aggregate matches what a
 			// subsequent getMission()/listMissions() read reconstructs from the row.
 			intent: input.intent ?? null,
@@ -256,9 +565,9 @@ export class MissionStore {
 		this.#db
 			.query(
 				`INSERT INTO missions
-					(id, title, objective_id, brief_id, decision_id, risk_level, state, confidence, snapshot_ref, created_at, updated_at,
+					(id, title, objective_id, brief_id, decision_id, risk_level, state, confidence, snapshot_ref, created_at, updated_at, revision,
 					 intent, lifecycle, proposal_id, regression_contract_id)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			)
 			.run(
 				mission.id,
@@ -272,6 +581,7 @@ export class MissionStore {
 				mission.snapshotRef,
 				mission.createdAt,
 				mission.updatedAt,
+				mission.revision,
 				mission.intent ?? null,
 				mission.lifecycle ?? null,
 				mission.proposalId ?? null,
@@ -389,6 +699,7 @@ export class MissionStore {
 			...existing,
 			...patch,
 			updatedAt: Date.now(),
+			revision: existing.revision + 1,
 		};
 		assertMissionState(next.state);
 		assertRiskLevel(next.riskLevel);
@@ -399,7 +710,7 @@ export class MissionStore {
 			.query(
 				`UPDATE missions
 				SET title = ?, state = ?, confidence = ?, decision_id = ?, snapshot_ref = ?, objective_id = ?, brief_id = ?, risk_level = ?, updated_at = ?,
-					intent = ?, lifecycle = ?, proposal_id = ?, regression_contract_id = ?
+					revision = revision + 1, intent = ?, lifecycle = ?, proposal_id = ?, regression_contract_id = ?
 				WHERE id = ?`,
 			)
 			.run(
@@ -424,8 +735,15 @@ export class MissionStore {
 	setMissionDesignAnswers(missionId: string, answers: Record<string, string> | null): void {
 		if (!this.getMission(missionId)) throw new Error(`Mission not found: ${missionId}`);
 		this.#db
-			.query("UPDATE missions SET design_answers_json = ?, updated_at = ? WHERE id = ?")
+			.query("UPDATE missions SET design_answers_json = ?, updated_at = ?, revision = revision + 1 WHERE id = ?")
 			.run(answers ? JSON.stringify(answers) : null, Date.now(), missionId);
+	}
+
+	getMissionRevision(missionId: string): number | undefined {
+		const row = this.#db.query("SELECT revision FROM missions WHERE id = ?").get(missionId) as {
+			revision: number;
+		} | null;
+		return row?.revision;
 	}
 
 	getMissionDesignAnswers(missionId: string): Record<string, string> | undefined {
@@ -753,21 +1071,24 @@ export class MissionStore {
 			id: input.id ?? generateId("verification", now),
 			createdAt: now,
 		};
-		this.#db
-			.query(
-				`INSERT INTO mission_verifications
+		this.#tx(() => {
+			this.#db
+				.query(
+					`INSERT INTO mission_verifications
 					(id, mission_id, status, failed_count, uncertain_count, summary, created_at)
 				VALUES (?, ?, ?, ?, ?, ?, ?)`,
-			)
-			.run(
-				record.id,
-				record.missionId,
-				record.status,
-				record.failedCount,
-				record.uncertainCount,
-				record.summary,
-				record.createdAt,
-			);
+				)
+				.run(
+					record.id,
+					record.missionId,
+					record.status,
+					record.failedCount,
+					record.uncertainCount,
+					record.summary,
+					record.createdAt,
+				);
+			this.#bumpRevision(input.missionId);
+		});
 		this.#eventBus?.emit({
 			type: "verification.completed",
 			missionId: record.missionId,
@@ -956,21 +1277,24 @@ export class MissionStore {
 			id: input.id ?? generateId("rollback", now),
 			createdAt: now,
 		};
-		this.#db
-			.query(
-				`INSERT INTO mission_rollbacks
+		this.#tx(() => {
+			this.#db
+				.query(
+					`INSERT INTO mission_rollbacks
 					(id, mission_id, target_type, target_id, snapshot_ref, summary, created_at)
 				VALUES (?, ?, ?, ?, ?, ?, ?)`,
-			)
-			.run(
-				record.id,
-				record.missionId,
-				record.targetType,
-				record.targetId,
-				record.snapshotRef,
-				record.summary,
-				record.createdAt,
-			);
+				)
+				.run(
+					record.id,
+					record.missionId,
+					record.targetType,
+					record.targetId,
+					record.snapshotRef,
+					record.summary,
+					record.createdAt,
+				);
+			this.#bumpRevision(input.missionId);
+		});
 		this.#eventBus?.emit({
 			type: "rollback.snapshot.created",
 			missionId: record.missionId,
@@ -1028,291 +1352,33 @@ export class MissionStore {
 	}
 
 	#init(): void {
-		this.#db.exec(`
-			CREATE TABLE IF NOT EXISTS missions (
-				id TEXT PRIMARY KEY,
-				title TEXT NOT NULL,
-				objective_id TEXT,
-				brief_id TEXT,
-				decision_id TEXT,
-				risk_level TEXT NOT NULL,
-				state TEXT NOT NULL,
-				confidence TEXT,
-				snapshot_ref TEXT,
-				created_at INTEGER NOT NULL,
-				updated_at INTEGER NOT NULL
-			);
-			CREATE INDEX IF NOT EXISTS missions_objective_idx ON missions(objective_id);
-			CREATE INDEX IF NOT EXISTS missions_brief_idx ON missions(brief_id);
-			CREATE INDEX IF NOT EXISTS missions_state_idx ON missions(state);
-
-			CREATE TABLE IF NOT EXISTS mission_lane_runs (
-				id TEXT PRIMARY KEY,
-				mission_id TEXT NOT NULL,
-				lane TEXT NOT NULL,
-				agent TEXT NOT NULL,
-				epistemic_role TEXT NOT NULL,
-				status TEXT NOT NULL,
-				evidence_count INTEGER NOT NULL,
-				empty_reason TEXT,
-				task_id TEXT,
-				started_at INTEGER,
-				ended_at INTEGER,
-				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
-			);
-			CREATE INDEX IF NOT EXISTS mission_lane_runs_mission_idx ON mission_lane_runs(mission_id);
-			CREATE INDEX IF NOT EXISTS mission_lane_runs_status_idx ON mission_lane_runs(mission_id, status);
-
-			CREATE TABLE IF NOT EXISTS research_runs (
-				id TEXT PRIMARY KEY,
-				mission_id TEXT NOT NULL,
-				brief_id TEXT NOT NULL,
-				objective_id TEXT,
-				status TEXT NOT NULL,
-				started_at INTEGER NOT NULL,
-				completed_at INTEGER,
-				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
-			);
-			CREATE INDEX IF NOT EXISTS research_runs_mission_idx ON research_runs(mission_id);
-			CREATE INDEX IF NOT EXISTS research_runs_brief_idx ON research_runs(brief_id);
-			CREATE INDEX IF NOT EXISTS research_runs_status_idx ON research_runs(status);
-
-			CREATE TABLE IF NOT EXISTS mission_contracts (
-				id TEXT PRIMARY KEY,
-				mission_id TEXT NOT NULL,
-				role TEXT NOT NULL,
-				parent_contract_revision INTEGER,
-				include_json TEXT NOT NULL CHECK (json_valid(include_json)),
-				exclude_json TEXT NOT NULL CHECK (json_valid(exclude_json)),
-				success_criteria_json TEXT NOT NULL CHECK (json_valid(success_criteria_json)),
-				escalation_json TEXT NOT NULL CHECK (json_valid(escalation_json)),
-				input_artifact TEXT,
-				must_produce_json TEXT NOT NULL CHECK (json_valid(must_produce_json)),
-				task_id TEXT,
-				session_file TEXT,
-				created_at INTEGER NOT NULL,
-				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
-			);
-			CREATE INDEX IF NOT EXISTS mission_contracts_mission_idx ON mission_contracts(mission_id);
-
-			CREATE TABLE IF NOT EXISTS mission_phases (
-				id TEXT PRIMARY KEY,
-				mission_id TEXT NOT NULL,
-				ordinal INTEGER NOT NULL,
-				name TEXT NOT NULL,
-				description TEXT,
-				status TEXT NOT NULL,
-				plan_step_ids_json TEXT NOT NULL CHECK (json_valid(plan_step_ids_json)),
-				acceptance_criteria_json TEXT NOT NULL CHECK (json_valid(acceptance_criteria_json)),
-				created_at INTEGER NOT NULL,
-				updated_at INTEGER NOT NULL,
-				closed_at INTEGER,
-				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
-			);
-			CREATE INDEX IF NOT EXISTS mission_phases_mission_idx ON mission_phases(mission_id);
-
-			CREATE TABLE IF NOT EXISTS mission_phase_verifications (
-				id TEXT PRIMARY KEY,
-				mission_id TEXT NOT NULL,
-				phase_id TEXT NOT NULL,
-				status TEXT NOT NULL,
-				failed_count INTEGER NOT NULL,
-				uncertain_count INTEGER NOT NULL,
-				summary TEXT NOT NULL,
-				created_at INTEGER NOT NULL,
-				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE,
-				FOREIGN KEY (phase_id) REFERENCES mission_phases(id) ON DELETE CASCADE
-			);
-			CREATE INDEX IF NOT EXISTS mission_phase_verifications_mission_idx ON mission_phase_verifications(mission_id);
-
-			CREATE TABLE IF NOT EXISTS mission_verifications (
-				id TEXT PRIMARY KEY,
-				mission_id TEXT NOT NULL,
-				status TEXT NOT NULL,
-				failed_count INTEGER NOT NULL,
-				uncertain_count INTEGER NOT NULL,
-				summary TEXT NOT NULL,
-				created_at INTEGER NOT NULL,
-				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
-			);
-			CREATE INDEX IF NOT EXISTS mission_verifications_mission_idx ON mission_verifications(mission_id);
-
-			CREATE TABLE IF NOT EXISTS mission_task_attempt_checkpoints (
-				id TEXT PRIMARY KEY,
-				mission_id TEXT NOT NULL,
-				task_id TEXT NOT NULL,
-				agent TEXT NOT NULL,
-				role TEXT NOT NULL,
-				attempt INTEGER NOT NULL,
-				status TEXT NOT NULL,
-				failure_mode TEXT,
-				last_verdict TEXT,
-				failed_count INTEGER NOT NULL,
-				uncertain_count INTEGER NOT NULL,
-				remediation_action TEXT NOT NULL,
-				session_file TEXT,
-				artifact_refs_json TEXT NOT NULL CHECK (json_valid(artifact_refs_json)),
-				error TEXT,
-				created_at INTEGER NOT NULL,
-				updated_at INTEGER NOT NULL,
-				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
-			);
-			CREATE INDEX IF NOT EXISTS mission_task_attempt_checkpoints_mission_idx ON mission_task_attempt_checkpoints(mission_id);
-			CREATE INDEX IF NOT EXISTS mission_task_attempt_checkpoints_task_idx ON mission_task_attempt_checkpoints(mission_id, task_id);
-
-
-			CREATE TABLE IF NOT EXISTS mission_rollbacks (
-				id TEXT PRIMARY KEY,
-				mission_id TEXT NOT NULL,
-				target_type TEXT NOT NULL,
-				target_id TEXT NOT NULL,
-				snapshot_ref TEXT,
-				summary TEXT NOT NULL,
-				created_at INTEGER NOT NULL,
-				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
-			);
-
-			CREATE INDEX IF NOT EXISTS mission_rollbacks_mission_idx ON mission_rollbacks(mission_id);
-
-			CREATE TABLE IF NOT EXISTS mission_critic_dialogue (
-				id TEXT PRIMARY KEY,
-				mission_id TEXT NOT NULL,
-				role TEXT NOT NULL,
-				summary TEXT NOT NULL,
-				check_ids_json TEXT NOT NULL CHECK (json_valid(check_ids_json)),
-				created_at INTEGER NOT NULL,
-				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
-			);
-			CREATE INDEX IF NOT EXISTS mission_critic_dialogue_mission_idx ON mission_critic_dialogue(mission_id);
-
-
-			CREATE TABLE IF NOT EXISTS mission_world_model (
-				id TEXT PRIMARY KEY,
-				mission_id TEXT NOT NULL,
-				kind TEXT NOT NULL,
-				source TEXT NOT NULL,
-				source_id TEXT NOT NULL,
-				claim TEXT NOT NULL,
-				evidence_refs_json TEXT NOT NULL CHECK (json_valid(evidence_refs_json)),
-				links_json TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(links_json)),
-				outcome_status TEXT,
-				verified INTEGER NOT NULL,
-				created_at INTEGER NOT NULL,
-				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
-			);
-			CREATE INDEX IF NOT EXISTS mission_world_model_mission_idx ON mission_world_model(mission_id);
-
-			CREATE TABLE IF NOT EXISTS mission_tasks (
-				id TEXT PRIMARY KEY,
-				mission_id TEXT NOT NULL,
-				title TEXT NOT NULL,
-				objective TEXT,
-				status TEXT NOT NULL,
-				assigned_agent TEXT,
-				plan_step_id TEXT,
-				data_json TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(data_json)),
-				created_at INTEGER NOT NULL,
-				updated_at INTEGER NOT NULL,
-				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
-			);
-			CREATE INDEX IF NOT EXISTS mission_tasks_mission_idx ON mission_tasks(mission_id);
-			CREATE INDEX IF NOT EXISTS mission_tasks_status_idx ON mission_tasks(mission_id, status);
-
-			CREATE TABLE IF NOT EXISTS mission_plans (
-				mission_id TEXT PRIMARY KEY,
-				rationale TEXT,
-				revision INTEGER,
-				updated_at INTEGER NOT NULL,
-				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
-			);
-
-			CREATE TABLE IF NOT EXISTS mission_plan_steps (
-				id TEXT PRIMARY KEY,
-				mission_id TEXT NOT NULL,
-				ordinal INTEGER NOT NULL,
-				description TEXT NOT NULL,
-				edges_json TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(edges_json)),
-				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
-			);
-			CREATE INDEX IF NOT EXISTS mission_plan_steps_mission_idx ON mission_plan_steps(mission_id);
-
-			CREATE TABLE IF NOT EXISTS mission_acceptance_criteria (
-				id TEXT PRIMARY KEY,
-				mission_id TEXT NOT NULL,
-				ordinal INTEGER NOT NULL,
-				description TEXT NOT NULL,
-				satisfied INTEGER NOT NULL DEFAULT 0,
-				verification_method TEXT,
-				evidence_refs_json TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(evidence_refs_json)),
-				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
-			);
-			CREATE INDEX IF NOT EXISTS mission_acceptance_criteria_mission_idx ON mission_acceptance_criteria(mission_id);
-
-			CREATE TABLE IF NOT EXISTS mission_budgets (
-				mission_id TEXT PRIMARY KEY,
-				token_budget INTEGER NOT NULL,
-				tokens_used INTEGER NOT NULL DEFAULT 0,
-				time_budget_ms INTEGER,
-				time_used_ms INTEGER,
-				task_budget INTEGER,
-				tasks_used INTEGER,
-				max_context_tokens INTEGER NOT NULL,
-				context_tokens_used INTEGER NOT NULL DEFAULT 0,
-				compaction_threshold REAL,
-				updated_at INTEGER NOT NULL,
-				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
-			);
-
-			CREATE TABLE IF NOT EXISTS mission_scope_guards (
-				mission_id TEXT PRIMARY KEY,
-				allowed_paths_json TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(allowed_paths_json)),
-				denied_paths_json TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(denied_paths_json)),
-				allowed_tools_json TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(allowed_tools_json)),
-				allow_sub_missions INTEGER NOT NULL DEFAULT 0,
-				notes TEXT,
-				updated_at INTEGER NOT NULL,
-				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
-			);
-
-			CREATE TABLE IF NOT EXISTS mission_proposals (
-				id TEXT PRIMARY KEY,
-				mission_id TEXT NOT NULL,
-				artifact_uri TEXT NOT NULL,
-				content_hash TEXT NOT NULL,
-				status TEXT NOT NULL,
-				approved_by TEXT,
-				approved_at INTEGER,
-				summary TEXT,
-				created_at INTEGER NOT NULL,
-				updated_at INTEGER NOT NULL,
-				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
-			);
-			CREATE INDEX IF NOT EXISTS mission_proposals_mission_idx ON mission_proposals(mission_id);
-			CREATE INDEX IF NOT EXISTS mission_proposals_status_idx ON mission_proposals(mission_id, status);
-		`);
-		this.#ensureColumn("missions", "intent", "TEXT");
-		this.#ensureColumn("missions", "lifecycle", "TEXT");
-		this.#ensureColumn("missions", "proposal_id", "TEXT");
-		this.#ensureColumn("missions", "regression_contract_id", "TEXT");
-		this.#ensureColumn(
-			"missions",
-			"design_answers_json",
-			"TEXT CHECK (design_answers_json IS NULL OR json_valid(design_answers_json))",
-		);
-		this.#ensureColumn("mission_contracts", "task_id", "TEXT");
-		this.#ensureColumn("mission_contracts", "session_file", "TEXT");
-		this.#ensureColumn(
-			"mission_world_model",
-			"links_json",
-			"TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(links_json))",
-		);
-		this.#ensureColumn("mission_world_model", "outcome_status", "TEXT");
+		this.#db.run("PRAGMA busy_timeout = 3000");
+		this.#db.run("PRAGMA foreign_keys = ON");
+		this.#runMigrations();
 	}
 
-	#ensureColumn(table: string, column: string, definition: string): void {
-		const rows = this.#db.query(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
-		if (rows.some(row => row.name === column)) return;
-		this.#db.run(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+	#runMigrations(): void {
+		const row = this.#db.query("PRAGMA user_version").get() as { user_version?: number } | null;
+		let current = row?.user_version ?? 0;
+		for (const migration of MIGRATIONS) {
+			if (migration.version <= current) continue;
+			console.debug(`Applying mission store migration v${migration.version}: ${migration.description}`);
+			this.#tx(() => migration.up(this.#db));
+			this.#db.exec(`PRAGMA user_version = ${migration.version}`);
+			current = migration.version;
+		}
+	}
+
+	#tx<T>(work: () => T): T {
+		return this.#db.transaction(work)();
+	}
+
+	#bumpRevision(missionId: string): number {
+		const row = this.#db
+			.query("UPDATE missions SET revision = revision + 1, updated_at = ? WHERE id = ? RETURNING revision")
+			.get(Date.now(), missionId) as { revision: number } | null;
+		if (!row) throw new Error(`Mission not found: ${missionId}`);
+		return row.revision;
 	}
 
 	// ──────────────────────────────────────────────────────────────────────────
@@ -1341,9 +1407,10 @@ export class MissionStore {
 			evidenceRefs: task.evidenceRefs ?? null,
 			output: task.output ?? null,
 		});
-		this.#db
-			.query(
-				`INSERT INTO mission_tasks
+		this.#tx(() => {
+			this.#db
+				.query(
+					`INSERT INTO mission_tasks
 					(id, mission_id, title, objective, status, assigned_agent, plan_step_id, data_json, created_at, updated_at)
 				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 				ON CONFLICT(id) DO UPDATE SET
@@ -1354,19 +1421,21 @@ export class MissionStore {
 					plan_step_id = excluded.plan_step_id,
 					data_json = excluded.data_json,
 					updated_at = excluded.updated_at`,
-			)
-			.run(
-				task.id,
-				input.missionId,
-				task.title,
-				task.objective ?? null,
-				task.status,
-				task.assignedAgent ?? null,
-				task.planStepId ?? null,
-				dataJson,
-				task.createdAt ?? now,
-				task.updatedAt ?? now,
-			);
+				)
+				.run(
+					task.id,
+					input.missionId,
+					task.title,
+					task.objective ?? null,
+					task.status,
+					task.assignedAgent ?? null,
+					task.planStepId ?? null,
+					dataJson,
+					task.createdAt ?? now,
+					task.updatedAt ?? now,
+				);
+			this.#bumpRevision(input.missionId);
+		});
 		return task;
 	}
 
@@ -1387,24 +1456,27 @@ export class MissionStore {
 	savePlan(missionId: string, plan: MissionPlan): void {
 		if (!this.getMission(missionId)) throw new Error(`Mission not found: ${missionId}`);
 		const now = Date.now();
-		this.#db
-			.query(
-				`INSERT INTO mission_plans (mission_id, rationale, revision, updated_at)
-				 VALUES (?, ?, ?, ?)
-				 ON CONFLICT(mission_id) DO UPDATE SET
-					rationale = excluded.rationale,
-					revision = excluded.revision,
-					updated_at = excluded.updated_at`,
-			)
-			.run(missionId, plan.rationale ?? null, plan.revision ?? null, now);
-		// Plan steps: full replace — simplest and matches MissionPlan semantics.
-		this.#db.query("DELETE FROM mission_plan_steps WHERE mission_id = ?").run(missionId);
-		const insert = this.#db.query(
-			`INSERT INTO mission_plan_steps (id, mission_id, ordinal, description, edges_json)
-			 VALUES (?, ?, ?, ?, ?)`,
-		);
-		plan.steps.forEach((step, idx) => {
-			insert.run(step.id, missionId, idx, step.description, JSON.stringify(step.edges ?? []));
+		this.#tx(() => {
+			this.#db
+				.query(
+					`INSERT INTO mission_plans (mission_id, rationale, revision, updated_at)
+					 VALUES (?, ?, ?, ?)
+					 ON CONFLICT(mission_id) DO UPDATE SET
+						rationale = excluded.rationale,
+						revision = excluded.revision,
+						updated_at = excluded.updated_at`,
+				)
+				.run(missionId, plan.rationale ?? null, plan.revision ?? null, now);
+			// Plan steps: full replace — simplest and matches MissionPlan semantics.
+			this.#db.query("DELETE FROM mission_plan_steps WHERE mission_id = ?").run(missionId);
+			const insert = this.#db.query(
+				`INSERT INTO mission_plan_steps (id, mission_id, ordinal, description, edges_json)
+				 VALUES (?, ?, ?, ?, ?)`,
+			);
+			plan.steps.forEach((step, idx) => {
+				insert.run(step.id, missionId, idx, step.description, JSON.stringify(step.edges ?? []));
+			});
+			this.#bumpRevision(missionId);
 		});
 	}
 
@@ -1431,22 +1503,25 @@ export class MissionStore {
 
 	saveAcceptanceCriteria(missionId: string, criteria: AcceptanceCriterion[]): void {
 		if (!this.getMission(missionId)) throw new Error(`Mission not found: ${missionId}`);
-		this.#db.query("DELETE FROM mission_acceptance_criteria WHERE mission_id = ?").run(missionId);
-		const insert = this.#db.query(
-			`INSERT INTO mission_acceptance_criteria
-				(id, mission_id, ordinal, description, satisfied, verification_method, evidence_refs_json)
-			 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		);
-		criteria.forEach((c, idx) => {
-			insert.run(
-				c.id,
-				missionId,
-				idx,
-				c.description,
-				c.satisfied ? 1 : 0,
-				c.verificationMethod ?? null,
-				JSON.stringify(c.evidenceRefs ?? []),
+		this.#tx(() => {
+			this.#db.query("DELETE FROM mission_acceptance_criteria WHERE mission_id = ?").run(missionId);
+			const insert = this.#db.query(
+				`INSERT INTO mission_acceptance_criteria
+					(id, mission_id, ordinal, description, satisfied, verification_method, evidence_refs_json)
+				 VALUES (?, ?, ?, ?, ?, ?, ?)`,
 			);
+			criteria.forEach((c, idx) => {
+				insert.run(
+					c.id,
+					missionId,
+					idx,
+					c.description,
+					c.satisfied ? 1 : 0,
+					c.verificationMethod ?? null,
+					JSON.stringify(c.evidenceRefs ?? []),
+				);
+			});
+			this.#bumpRevision(missionId);
 		});
 	}
 
@@ -1478,9 +1553,10 @@ export class MissionStore {
 
 	saveBudget(missionId: string, budget: MissionBudget, contextBudget: MissionContextBudget): void {
 		if (!this.getMission(missionId)) throw new Error(`Mission not found: ${missionId}`);
-		this.#db
-			.query(
-				`INSERT INTO mission_budgets
+		this.#tx(() => {
+			this.#db
+				.query(
+					`INSERT INTO mission_budgets
 					(mission_id, token_budget, tokens_used, time_budget_ms, time_used_ms,
 					 task_budget, tasks_used, max_context_tokens, context_tokens_used,
 					 compaction_threshold, updated_at)
@@ -1496,20 +1572,22 @@ export class MissionStore {
 					context_tokens_used = excluded.context_tokens_used,
 					compaction_threshold = excluded.compaction_threshold,
 					updated_at = excluded.updated_at`,
-			)
-			.run(
-				missionId,
-				budget.tokenBudget,
-				budget.tokensUsed,
-				budget.timeBudgetMs ?? null,
-				budget.timeUsedMs ?? null,
-				budget.taskBudget ?? null,
-				budget.tasksUsed ?? null,
-				contextBudget.maxContextTokens,
-				contextBudget.contextTokensUsed,
-				contextBudget.compactionThreshold ?? null,
-				Date.now(),
-			);
+				)
+				.run(
+					missionId,
+					budget.tokenBudget,
+					budget.tokensUsed,
+					budget.timeBudgetMs ?? null,
+					budget.timeUsedMs ?? null,
+					budget.taskBudget ?? null,
+					budget.tasksUsed ?? null,
+					contextBudget.maxContextTokens,
+					contextBudget.contextTokensUsed,
+					contextBudget.compactionThreshold ?? null,
+					Date.now(),
+				);
+			this.#bumpRevision(missionId);
+		});
 	}
 
 	getBudget(missionId: string): { budget: MissionBudget; contextBudget: MissionContextBudget } | undefined {
@@ -1547,9 +1625,10 @@ export class MissionStore {
 
 	saveScopeGuard(missionId: string, guard: MissionScopeGuard): void {
 		if (!this.getMission(missionId)) throw new Error(`Mission not found: ${missionId}`);
-		this.#db
-			.query(
-				`INSERT INTO mission_scope_guards
+		this.#tx(() => {
+			this.#db
+				.query(
+					`INSERT INTO mission_scope_guards
 					(mission_id, allowed_paths_json, denied_paths_json, allowed_tools_json,
 					 allow_sub_missions, notes, updated_at)
 				 VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -1560,16 +1639,18 @@ export class MissionStore {
 					allow_sub_missions = excluded.allow_sub_missions,
 					notes = excluded.notes,
 					updated_at = excluded.updated_at`,
-			)
-			.run(
-				missionId,
-				JSON.stringify(guard.allowedPaths ?? []),
-				JSON.stringify(guard.deniedPaths ?? []),
-				JSON.stringify(guard.allowedTools ?? []),
-				guard.allowSubMissions ? 1 : 0,
-				guard.notes ?? null,
-				Date.now(),
-			);
+				)
+				.run(
+					missionId,
+					JSON.stringify(guard.allowedPaths ?? []),
+					JSON.stringify(guard.deniedPaths ?? []),
+					JSON.stringify(guard.allowedTools ?? []),
+					guard.allowSubMissions ? 1 : 0,
+					guard.notes ?? null,
+					Date.now(),
+				);
+			this.#bumpRevision(missionId);
+		});
 	}
 
 	getScopeGuard(missionId: string): MissionScopeGuard | undefined {
@@ -1615,25 +1696,28 @@ export class MissionStore {
 			createdAt: now,
 			updatedAt: now,
 		};
-		this.#db
-			.query(
-				`INSERT INTO mission_proposals
+		this.#tx(() => {
+			this.#db
+				.query(
+					`INSERT INTO mission_proposals
 					(id, mission_id, artifact_uri, content_hash, status, approved_by,
 					 approved_at, summary, created_at, updated_at)
 				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			)
-			.run(
-				proposal.id,
-				proposal.missionId,
-				proposal.artifactUri,
-				proposal.contentHash,
-				proposal.status,
-				proposal.approvedBy,
-				proposal.approvedAt,
-				proposal.summary,
-				proposal.createdAt,
-				proposal.updatedAt,
-			);
+				)
+				.run(
+					proposal.id,
+					proposal.missionId,
+					proposal.artifactUri,
+					proposal.contentHash,
+					proposal.status,
+					proposal.approvedBy,
+					proposal.approvedAt,
+					proposal.summary,
+					proposal.createdAt,
+					proposal.updatedAt,
+				);
+			this.#bumpRevision(input.missionId);
+		});
 		return proposal;
 	}
 
@@ -1672,13 +1756,16 @@ export class MissionStore {
 		const now = Date.now();
 		const nextApprovedBy = status === "approved" ? (approvedBy ?? existing.approvedBy) : existing.approvedBy;
 		const nextApprovedAt = status === "approved" ? (approvedAt ?? existing.approvedAt ?? now) : existing.approvedAt;
-		this.#db
-			.query(
-				`UPDATE mission_proposals
-				 SET status = ?, approved_by = ?, approved_at = ?, updated_at = ?
-				 WHERE id = ?`,
-			)
-			.run(status, nextApprovedBy, nextApprovedAt, now, id);
+		this.#tx(() => {
+			this.#db
+				.query(
+					`UPDATE mission_proposals
+					 SET status = ?, approved_by = ?, approved_at = ?, updated_at = ?
+					 WHERE id = ?`,
+				)
+				.run(status, nextApprovedBy, nextApprovedAt, now, id);
+			this.#bumpRevision(existing.missionId);
+		});
 		return {
 			...existing,
 			status,
@@ -1803,6 +1890,7 @@ function rowToMission(row: MissionRow): ResearchCampaign {
 		snapshotRef: row.snapshot_ref,
 		createdAt: row.created_at,
 		updatedAt: row.updated_at,
+		revision: row.revision ?? 0,
 		intent: row.intent ?? null,
 		lifecycle: row.lifecycle ?? null,
 		proposalId: row.proposal_id ?? null,

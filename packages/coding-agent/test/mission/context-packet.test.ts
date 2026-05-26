@@ -17,6 +17,7 @@ function missionView(): MissionView {
 			snapshotRef: null,
 			createdAt: now,
 			updatedAt: now,
+			revision: 1,
 		},
 		brief: null,
 		decision: {

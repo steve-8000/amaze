@@ -1,5 +1,6 @@
 import { templateFor } from "../../mission/core/lifecycle-template";
 import type { MissionControlRuntime } from "../../mission/core/mission-control-runtime";
+import { computeArtifactSha256HexSync } from "../../utils/artifact-hash";
 import type { ToolDescriptor, ToolExecutionContext, ToolRiskLevel } from "../registry/tool-descriptor";
 import { isReadOnlyBashCommand } from "./bash-readonly-classifier";
 import { GATEWAY_MUTATION_TOOLS } from "./session-gateway";
@@ -77,6 +78,19 @@ export class MissionPolicyGate implements PolicyGate {
 					reason: `proposal-not-approved: the attached proposal is in status "${record.status}". Ask the orchestrator (\`0-Main\`) via \`irc\` to re-approve it before mutating.`,
 					code: "PROPOSAL_NOT_APPROVED",
 				};
+			}
+			if (record?.artifactUri && record.contentHash) {
+				// PolicyGate.check is synchronous and used by the pre-execution guard pipeline;
+				// re-hash synchronously here so mutation gating remains a same-turn decision.
+				const actual = computeArtifactSha256HexSync(record.artifactUri);
+				if (actual !== record.contentHash) {
+					return {
+						allowed: false,
+						reason: "proposal-artifact-drift",
+						code: "PROPOSAL_ARTIFACT_DRIFT",
+						details: { proposalId: record.id, expected: record.contentHash, actual },
+					};
+				}
 			}
 		}
 

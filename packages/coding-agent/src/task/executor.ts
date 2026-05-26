@@ -579,6 +579,7 @@ export async function runSubprocess(options: ExecutorOptions): Promise<SingleRes
 		role: options.contract?.role ?? agent.name,
 		isolated: Boolean(worktree),
 		hasContract: options.contract !== undefined,
+		contractRevision: options.contract?.parentMissionRev,
 	});
 
 	// F7 (H3) telemetry — record every subagent spawn so we can validate A1's

@@ -108,6 +108,7 @@ describe("MissionStore", () => {
 			decisionId: "decision-1",
 			snapshotRef: "snapshot-1",
 			updatedAt: updated.updatedAt,
+			revision: created.revision + 1,
 		});
 		expect(updated.updatedAt).toBeGreaterThanOrEqual(created.updatedAt);
 		expect(store.getMission("mission-1")).toEqual(updated);

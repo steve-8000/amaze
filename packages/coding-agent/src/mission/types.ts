@@ -50,6 +50,7 @@ export interface ResearchCampaign {
 	snapshotRef: string | null;
 	createdAt: number;
 	updatedAt: number;
+	revision: number;
 	/**
 	 * Durable core-mission pointers (workplan: durable Mission aggregate). These mirror the
 	 * rich {@link core/mission.Mission} fields the policy/close gates read, so they survive a
@@ -62,8 +63,9 @@ export interface ResearchCampaign {
 	regressionContractId?: string | null;
 }
 
-export type NewResearchCampaign = Omit<ResearchCampaign, "id" | "createdAt" | "updatedAt"> & {
+export type NewResearchCampaign = Omit<ResearchCampaign, "id" | "createdAt" | "updatedAt" | "revision"> & {
 	id?: string;
+	revision?: number;
 };
 
 export interface MissionLaneRun {

@@ -63,7 +63,7 @@ export const LIFECYCLE_TEMPLATES: Record<MissionIntent, MissionLifecycleTemplate
 		allowDirectTaskCompletion: false,
 		requireDecisionRecord: true,
 		requireRegressionContract: true,
-		requireProposalBeforeMutation: false,
+		requireProposalBeforeMutation: true,
 		requireVerification: true,
 	},
 	external_side_effect: {

@@ -168,6 +168,7 @@ import ttsrToolReminderTemplate from "../prompts/system/ttsr-tool-reminder.md" w
 import { type AgentRegistry, MAIN_AGENT_ID } from "../registry/agent-registry";
 import { deobfuscateSessionContext, type SecretObfuscator } from "../secrets/obfuscator";
 import { invalidateHostMetadata } from "../ssh/connection-manager";
+import { enforceContractFreshness, type SubagentContract } from "../subagent/contract";
 import { resolveThinkingLevelForModel, toReasoningEffort } from "../thinking";
 import {
 	buildDiscoverableToolSearchIndex,
@@ -338,6 +339,8 @@ export interface AgentSessionConfig {
 	 * **MUST NOT** dispose it on their own teardown.
 	 */
 	ownedAsyncJobManager?: AsyncJobManager;
+	/** Structured SubagentContract governing this subagent session, when spawned under contract. */
+	subagentContract?: SubagentContract;
 	/** Agent identity (registry id like "0-Main" or "3-Alice") used for IRC routing. */
 	agentId?: string;
 	/** Shared agent registry (for forwarding IRC observations to the main session UI). */
@@ -828,6 +831,7 @@ export class AgentSession {
 	#missionBinding: MissionSessionBinding;
 	#missionStoreInstance: MissionStore | undefined;
 	#selfImproveLoopUnsub: Unsubscribe | undefined;
+	readonly #subagentContract: SubagentContract | undefined;
 	/**
 	 * V3 coordination state — extracted from this monolith into its own class to keep
 	 * AgentSession's surface from growing. Owns the V3Telemetry aggregator and the
@@ -1088,6 +1092,7 @@ export class AgentSession {
 		this.#evalKernelOwnerId = config.evalKernelOwnerId ?? `agent-session:${Snowflake.next()}`;
 		this.#ownedAsyncJobManager = config.ownedAsyncJobManager;
 		this.#role = config.role ?? "orchestrator";
+		this.#subagentContract = config.subagentContract;
 		this.#scopedModels = config.scopedModels ?? [];
 		this.#thinkingLevel = config.thinkingLevel;
 		this.#promptTemplates = config.promptTemplates ?? [];
@@ -1518,6 +1523,7 @@ export class AgentSession {
 			// threads the snapshot. Keeps this monolith from carrying yet more state.
 			const tokens = this.getSessionStats().tokens;
 			this.#v3.onTurnStart({ cacheRead: tokens.cacheRead, cacheWrite: tokens.cacheWrite });
+			this.#handleSubagentContractFreshnessTurnStart();
 		}
 
 		await this.#emitSessionEvent(displayEvent);
@@ -3190,6 +3196,41 @@ export class AgentSession {
 	 */
 	setMissionToolContext(context: ToolMissionContext | undefined): void {
 		this.#missionToolContext = context;
+	}
+
+	#handleSubagentContractFreshnessTurnStart(): void {
+		if (this.#role !== "subagent") return;
+		const stampedRevision = this.#subagentContract?.parentMissionRev;
+		if (stampedRevision === undefined) return;
+
+		const parentMission = this.#missionControl.getActiveMission();
+		if (!parentMission) {
+			logger.debug("Subagent contract freshness check skipped: parent mission unreachable", {
+				sessionId: this.sessionId,
+				role: this.#subagentContract?.role,
+				stampedRevision,
+			});
+			return;
+		}
+
+		const currentRevision = parentMission.revision;
+		const freshness = enforceContractFreshness(stampedRevision, currentRevision);
+		if (!freshness.stale || !freshness.staleness) return;
+
+		const { stamped, current } = freshness.staleness;
+		const message = `Parent mission moved from rev ${stamped} to rev ${current}; re-fetching latest contract.`;
+		this.emitNotice("warning", message, "subagent-contract-freshness");
+		this.agent.appendMessage({
+			role: "developer",
+			content: [
+				{
+					type: "text",
+					text: `Parent mission contract revision changed from ${stamped} to ${current}. Re-read the mission packet before acting.`,
+				},
+			],
+			attribution: "agent",
+			timestamp: Date.now(),
+		});
 	}
 
 	/**

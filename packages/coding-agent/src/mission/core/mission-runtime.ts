@@ -182,6 +182,16 @@ function serializeCriteria(criteria: AcceptanceCriterion[]): string {
 	return JSON.stringify(criteria.map(cloneCriterion));
 }
 
+function verificationVerdict(
+	verification: MissionVerification | undefined,
+): MissionVerification["verdict"] | undefined {
+	if (!verification) return undefined;
+	if (verification.verdict) return verification.verdict;
+	if (verification.status === "pass" || verification.status === "force") return "pass";
+	if (verification.status === "fail") return "fail";
+	return "pending";
+}
+
 export type MissionRuntimeImplOptions = {
 	store?: MissionStore;
 	dbPath?: string;
@@ -234,17 +244,12 @@ export class MissionRuntimeImpl implements MissionRuntime {
 	tryGet(missionId: string): Mission | undefined {
 		const cached = this.#missions.get(missionId);
 		if (cached) {
-			// Stale-cache detection: when external mutation (direct DB write, sibling runtime
-			// instance, /mission complete from another session) changes the stored lifecycle, the
-			// in-memory copy is invalid. Re-read the row's lifecycle column cheaply (single SELECT)
-			// and if it diverges from the cached object, drop the entry and re-hydrate.
-			const storedRow = this.#store.getMission(missionId);
-			if (!storedRow) {
+			const storedRevision = this.#store.getMissionRevision(missionId);
+			if (storedRevision === undefined) {
 				this.#missions.delete(missionId);
 				return undefined;
 			}
-			const storedLifecycle = (storedRow.lifecycle as Mission["lifecycle"] | null) ?? undefined;
-			if (storedLifecycle && storedLifecycle !== cached.lifecycle) {
+			if (storedRevision !== cached.revision) {
 				this.#missions.delete(missionId);
 				return this.#hydrate(missionId);
 			}
@@ -290,6 +295,7 @@ export class MissionRuntimeImpl implements MissionRuntime {
 			...(record.proposalId ? { proposalId: record.proposalId } : {}),
 			createdAt: record.createdAt,
 			updatedAt: record.updatedAt,
+			revision: record.revision ?? 0,
 		};
 		const budgetRow = this.#store.getBudget(record.id);
 		if (budgetRow) {
@@ -336,10 +342,16 @@ export class MissionRuntimeImpl implements MissionRuntime {
 
 	#advance(mission: Mission, lifecycle: MissionLifecycleState): Mission {
 		mission.lifecycle = lifecycle;
-		mission.updatedAt = this.#now();
-		this.#store.updateMission(mission.id, { state: lifecycleToStoreState(lifecycle), lifecycle });
+		const persisted = this.#store.updateMission(mission.id, { state: lifecycleToStoreState(lifecycle), lifecycle });
+		mission.updatedAt = persisted.updatedAt;
+		mission.revision = persisted.revision;
 		this.#notifyUpdated(mission);
 		return mission;
+	}
+
+	#markMutated(mission: Mission): void {
+		mission.updatedAt = this.#now();
+		mission.revision += 1;
 	}
 
 	async create(input: MissionInput): Promise<Mission> {
@@ -392,6 +404,7 @@ export class MissionRuntimeImpl implements MissionRuntime {
 			evidenceRefs: [],
 			createdAt: record.createdAt,
 			updatedAt: record.updatedAt,
+			revision: record.revision ?? 0,
 		};
 		if (input.projectId !== undefined) mission.projectId = input.projectId;
 		if (input.sessionId !== undefined) mission.sessionId = input.sessionId;
@@ -480,8 +493,17 @@ export class MissionRuntimeImpl implements MissionRuntime {
 		const mission = this.#require(missionId);
 		const proposalId = input.proposalId ?? `proposal-${mission.id}-${this.#now()}`;
 		mission.proposalId = proposalId;
-		mission.updatedAt = this.#now();
-		this.#store.updateMission(mission.id, { proposalId });
+		const shouldBeginExecution =
+			mission.lifecycle === "created" || mission.lifecycle === "classified" || mission.lifecycle === "planning";
+		if (shouldBeginExecution) mission.lifecycle = "executing";
+		const proposalPersisted = this.#store.updateMission(mission.id, {
+			proposalId,
+			...(shouldBeginExecution
+				? { state: lifecycleToStoreState("executing"), lifecycle: "executing" as const }
+				: {}),
+		});
+		mission.updatedAt = proposalPersisted.updatedAt;
+		mission.revision = proposalPersisted.revision;
 
 		// P4: when artifact metadata is supplied, persist a real proposal row marked
 		// approved. The policy gate consults this row to verify the proposalId is backed by
@@ -512,10 +534,6 @@ export class MissionRuntimeImpl implements MissionRuntime {
 			ts: mission.updatedAt,
 		});
 		this.#notifyUpdated(mission);
-		// An approved proposal is the signal to begin execution; leave terminal/active states alone.
-		if (mission.lifecycle === "created" || mission.lifecycle === "classified" || mission.lifecycle === "planning") {
-			this.#advance(mission, "executing");
-		}
 		return mission;
 	}
 
@@ -574,16 +592,24 @@ export class MissionRuntimeImpl implements MissionRuntime {
 				ts: this.#now(),
 			});
 		}
-		mission.updatedAt = this.#now();
+		this.#markMutated(mission);
 		this.#notifyUpdated(mission);
 		return result;
 	}
 
+	/**
+	 * Verify the mission against acceptance criteria and record the resulting verdict.
+	 *
+	 * Notes: a verifier verdict is authoritative for mission completion; a `pass`
+	 * verdict means completion may proceed even if stale criterion flags disagree,
+	 * while a `fail` verdict blocks completion unless the verifier was forced.
+	 */
 	async verify(missionId: string, options: MissionVerifyOptions = {}): Promise<MissionVerifyResult> {
 		const mission = this.#require(missionId);
 		this.#advance(mission, "verifying");
 		const verification = this.#evaluateAcceptance(mission, options.force ?? false);
 		mission.verification = verification;
+		this.#markMutated(mission);
 		const verificationRecord = this.#store.recordVerification({
 			missionId: mission.id,
 			status: verification.status,
@@ -604,10 +630,23 @@ export class MissionRuntimeImpl implements MissionRuntime {
 		return { verification };
 	}
 
+	/**
+	 * Record an external verifier verdict without changing lifecycle.
+	 *
+	 * Notes: the verifier verdict is the authority. A `pass` verdict projects
+	 * success onto criteria by marking every criterion satisfied; explicit fail
+	 * and uncertain/pending verdicts leave per-criterion flags as recorded.
+	 */
 	recordVerification(missionId: string, verification: MissionVerification): Mission {
 		const mission = this.#require(missionId);
 		mission.verification = { ...verification };
-		mission.updatedAt = this.#now();
+		if (verification.verdict === "pass") {
+			for (const criterion of mission.acceptanceCriteria) {
+				criterion.satisfied = true;
+			}
+			this.#store.saveAcceptanceCriteria(mission.id, mission.acceptanceCriteria);
+		}
+		this.#markMutated(mission);
 		this.#store.recordVerification({
 			missionId: mission.id,
 			status: verification.status,
@@ -650,7 +689,7 @@ export class MissionRuntimeImpl implements MissionRuntime {
 			return phase;
 		});
 		mission.phases = [...(mission.phases ?? []), ...declared].sort((a, b) => a.ordinal - b.ordinal);
-		mission.updatedAt = this.#now();
+		this.#markMutated(mission);
 		this.#notifyUpdated(mission);
 		return mission.phases;
 	}
@@ -680,6 +719,7 @@ export class MissionRuntimeImpl implements MissionRuntime {
 		else if (verification.status === "fail") phase.status = "failed";
 		else phase.status = "active";
 		phase.updatedAt = this.#now();
+		this.#markMutated(mission);
 		this.#store.updatePhase(phase.id, {
 			status: phase.status,
 			updatedAt: phase.updatedAt,
@@ -708,6 +748,7 @@ export class MissionRuntimeImpl implements MissionRuntime {
 	}
 
 	async closePhase(missionId: string, phaseId: string, options: { force?: boolean } = {}): Promise<MissionPhase> {
+		const mission = this.#require(missionId);
 		const phases = await this.listPhases(missionId);
 		const phase = phases.find(p => p.id === phaseId);
 		if (!phase) throw new Error(`Mission phase not found: ${phaseId}`);
@@ -737,6 +778,7 @@ export class MissionRuntimeImpl implements MissionRuntime {
 		phase.status = "verified";
 		phase.closedAt = this.#now();
 		phase.updatedAt = phase.closedAt;
+		this.#markMutated(mission);
 		this.#store.updatePhase(phase.id, {
 			status: phase.status,
 			updatedAt: phase.updatedAt,
@@ -757,6 +799,9 @@ export class MissionRuntimeImpl implements MissionRuntime {
 	 * Unsatisfied criteria with no verification method are treated as `uncertain`
 	 * (a human/llm-judged item) rather than a hard fail; unsatisfied criteria that
 	 * declare a verification method are `fail`. `force` collapses to a `force` verdict.
+	 *
+	 * Notes: when a mission already carries a verifier verdict, completion treats
+	 * that verdict as authoritative instead of recomputing divergent criterion state.
 	 */
 	#evaluateAcceptance(mission: Mission, force: boolean): MissionVerification {
 		const criteria = mission.acceptanceCriteria;
@@ -800,16 +845,21 @@ export class MissionRuntimeImpl implements MissionRuntime {
 		};
 	}
 
+	/**
+	 * Complete the mission with verifier verdicts as the source of truth.
+	 *
+	 * Notes: a recorded `pass` verdict satisfies acceptance even if stale
+	 * criterion flags disagree; a recorded `fail` verdict blocks completion unless
+	 * the verification status is `force`. Missing verification still falls back to
+	 * criterion evaluation.
+	 */
 	async complete(missionId: string, options: MissionCompleteOptions): Promise<Mission> {
 		const mission = this.#require(missionId);
 		const template = templateFor(mission.intent ?? "conversation");
 		const missing: string[] = [];
 		if (template.requireDecisionRecord && !mission.decisionId) missing.push("decisionId");
 		if (template.requireRegressionContract && !mission.regressionContractId) missing.push("regressionContractId");
-		if (
-			template.requireVerification &&
-			(mission.verification?.verdict ?? mission.verification?.status ?? "pending") !== "pass"
-		) {
+		if (template.requireVerification && verificationVerdict(mission.verification) !== "pass") {
 			missing.push("verification.verdict=pass");
 		}
 		if (missing.length) {
@@ -842,7 +892,20 @@ export class MissionRuntimeImpl implements MissionRuntime {
 		}
 		const force = mission.verification?.status === "force";
 		let verification = mission.verification;
-		if (!force && !verification) {
+		const verdict = verificationVerdict(verification);
+		if (!force && verdict === "fail") {
+			throw new MissionAcceptanceFailureError(
+				verification ?? {
+					status: "fail",
+					verdict: "fail",
+					summary: `Mission "${mission.id}" cannot complete: verifier recorded a failing verdict.`,
+					failedCount: 1,
+					uncertainCount: 0,
+				},
+				mission.acceptanceCriteria.filter(c => !c.satisfied && c.verificationMethod),
+			);
+		}
+		if (!force && verdict !== "pass" && !verification) {
 			verification = this.#evaluateAcceptance(mission, false);
 			mission.verification = verification;
 			if (verification.status === "fail") {
@@ -893,7 +956,7 @@ export class MissionRuntimeImpl implements MissionRuntime {
 		if (Object.keys(answers).length === 0) return mission;
 		if (mission.designAnswers && Object.keys(mission.designAnswers).length > 0) return mission;
 		mission.designAnswers = { ...answers };
-		mission.updatedAt = this.#now();
+		this.#markMutated(mission);
 		this.#store.setMissionDesignAnswers(mission.id, mission.designAnswers);
 		this.#notifyUpdated(mission);
 		return mission;
@@ -942,7 +1005,7 @@ export class MissionRuntimeImpl implements MissionRuntime {
 		const delta = missionTokenDelta(input.usage, baseline);
 		if (delta > 0) {
 			mission.budget.tokensUsed += delta;
-			mission.updatedAt = this.#now();
+			this.#markMutated(mission);
 			this.#notifyUpdated(mission);
 		}
 		this.#emit({

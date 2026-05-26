@@ -39,6 +39,7 @@ export type SessionEvent =
 			role: string;
 			isolated: boolean;
 			hasContract: boolean;
+			contractRevision?: number;
 	  }
 	| {
 			type: "subagent.end";

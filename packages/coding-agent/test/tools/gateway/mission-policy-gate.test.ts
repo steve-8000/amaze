@@ -34,6 +34,7 @@ function mission(overrides: Partial<Mission>): Mission {
 		evidenceRefs: [],
 		createdAt: 1,
 		updatedAt: 1,
+		revision: 1,
 		...overrides,
 	};
 }
@@ -191,8 +192,8 @@ describe("MissionPolicyGate proposal-artifact verification (P4)", () => {
 		const decision = gate(m, {
 			id: "p1",
 			missionId: m.id,
-			artifactUri: "local://PLAN.md",
-			contentHash: "h",
+			artifactUri: "",
+			contentHash: "",
 			status: "approved",
 			approvedBy: "user",
 			approvedAt: 1,

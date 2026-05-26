@@ -86,6 +86,7 @@ function coreMission(overrides: Partial<CoreMission> = {}): CoreMission {
 		evidenceRefs: [],
 		createdAt: 1,
 		updatedAt: 2,
+		revision: 1,
 		...overrides,
 	};
 }
@@ -103,6 +104,7 @@ function legacyMission(overrides: Partial<LegacyMission> = {}): LegacyMission {
 		snapshotRef: null,
 		createdAt: 1,
 		updatedAt: 2,
+		revision: 1,
 		...overrides,
 	};
 }

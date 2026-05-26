@@ -31,6 +31,7 @@ const activeMission: Mission = {
 	evidenceRefs: [],
 	createdAt: 1,
 	updatedAt: 1,
+	revision: 0,
 };
 
 const runSubprocessMock = mock(
