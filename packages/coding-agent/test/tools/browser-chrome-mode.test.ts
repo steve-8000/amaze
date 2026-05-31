@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { Settings } from "@amaze/coding-agent/config/settings";
+import { resolveBrowserKind } from "@amaze/coding-agent/tools/browser";
 import type { ToolSession } from "../../src/sdk";
-import { resolveBrowserKind } from "../../src/tools/browser";
 
 function session(cwd = "/workspace/project"): ToolSession {
 	return {
