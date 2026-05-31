@@ -22,6 +22,12 @@ const appSchema = z.object({
 	cdp_url: z.string().describe("existing cdp endpoint").optional(),
 	args: z.array(z.string()).describe("extra cli args").optional(),
 	target: z.string().describe("substring to pick a window").optional(),
+	kind: z
+		.enum(["chrome"] as const)
+		.describe("launch a persistent Chrome/Chromium profile")
+		.optional(),
+	user_data_dir: z.string().describe("persistent Chrome profile directory for chrome mode").optional(),
+	extension_path: z.string().describe("unpacked Chrome extension directory for chrome mode").optional(),
 });
 
 const browserSchema = z.object({
@@ -66,22 +72,37 @@ export interface BrowserToolDetails {
 	meta?: OutputMeta;
 }
 
-function resolveBrowserKind(params: BrowserParams, session: ToolSession): BrowserKind {
+export function resolveBrowserKind(params: BrowserParams, session: ToolSession): BrowserKind {
 	const app = params.app;
 	if (app?.cdp_url) {
 		return { kind: "connected", cdpUrl: app.cdp_url.replace(/\/+$/, "") };
 	}
 	if (app?.path) {
 		const exe = resolveToCwd(app.path, session.cwd);
+		if (app.kind === "chrome") {
+			return {
+				kind: "chrome-extension",
+				path: exe,
+				userDataDir: app.user_data_dir ? resolveToCwd(app.user_data_dir, session.cwd) : undefined,
+				extensionPath: app.extension_path ? resolveToCwd(app.extension_path, session.cwd) : undefined,
+			};
+		}
 		return { kind: "spawned", path: exe };
 	}
-	const headless = session.settings.get("browser.headless") as boolean;
+	if (app?.kind === "chrome" || app?.user_data_dir || app?.extension_path) {
+		return {
+			kind: "chrome-extension",
+			userDataDir: app?.user_data_dir ? resolveToCwd(app.user_data_dir, session.cwd) : undefined,
+			extensionPath: app?.extension_path ? resolveToCwd(app.extension_path, session.cwd) : undefined,
+		};
+	}
+	const headless = session.settings.get("browser.headless") ?? true;
 	return { kind: "headless", headless };
 }
 
 /**
  * Browser tool: stateful, multi-tab. Three actions:
- * - `open`  → acquire/create a named tab on a browser kind (headless | spawned | connected) and optionally goto a url.
+ * - `open`  → acquire/create a named tab on a browser kind (headless | chrome-extension | spawned | connected) and optionally goto a url.
  * - `close` → release a named tab (or all tabs); dispose browser when refcount hits 0.
  * - `run`   → execute JS code against an existing tab with `page`/`browser`/`tab` helpers in scope.
  */
@@ -89,7 +110,7 @@ export class BrowserTool implements AgentTool<typeof browserSchema, BrowserToolD
 	readonly name = "browser";
 	readonly label = "Browser";
 	readonly loadMode = "discoverable";
-	readonly summary = "Control a headless browser to navigate and interact with web pages";
+	readonly summary = "Control Chromium tabs, including persistent Chrome-profile automation";
 	readonly parameters = browserSchema;
 	readonly strict = true;
 
@@ -265,6 +286,8 @@ function describeBrowser(handle: BrowserHandle): string {
 	switch (handle.kind.kind) {
 		case "headless":
 			return `headless browser (${handle.kind.headless ? "hidden" : "visible"})`;
+		case "chrome-extension":
+			return `Chrome extension browser${handle.pid ? ` (pid ${handle.pid})` : ""}`;
 		case "spawned":
 			return `spawned ${handle.kind.path} (pid ${handle.pid ?? "?"})`;
 		case "connected":
@@ -276,6 +299,8 @@ function describeKind(kind: BrowserKind): string {
 	switch (kind.kind) {
 		case "headless":
 			return `headless ${kind.headless ? "hidden" : "visible"}`;
+		case "chrome-extension":
+			return `chrome${kind.path ? `:${kind.path}` : ""}`;
 		case "spawned":
 			return `spawned:${kind.path}`;
 		case "connected":
@@ -288,6 +313,9 @@ function sameBrowserKind(a: BrowserKind, b: BrowserKind): boolean {
 	if (a.kind === "headless" && b.kind === "headless") return a.headless === b.headless;
 	if (a.kind === "spawned" && b.kind === "spawned") return a.path === b.path;
 	if (a.kind === "connected" && b.kind === "connected") return a.cdpUrl === b.cdpUrl;
+	if (a.kind === "chrome-extension" && b.kind === "chrome-extension") {
+		return a.path === b.path && a.userDataDir === b.userDataDir && a.extensionPath === b.extensionPath;
+	}
 	return false;
 }
 

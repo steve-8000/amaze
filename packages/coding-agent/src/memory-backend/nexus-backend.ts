@@ -174,6 +174,7 @@ export const nexusBackend: MemoryBackend & { getDegradationStatus(): NexusDegrad
 	async preCompactionContext(messages: AgentMessage[], settings: Settings, session): Promise<string | undefined> {
 		const config = loadNexusConfig(settings);
 		if (!config.enabled || !session) return undefined;
+		if (!config.autoRecall && !(config.knowledgeEnabled && config.knowledgeAutoRecall)) return undefined;
 		const query = stripRecallFences(findLatestUserText(messages) ?? "");
 		if (!query) return undefined;
 		const cwd = session.sessionManager.getCwd();

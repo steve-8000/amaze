@@ -34,6 +34,8 @@ export interface BashExecutorOptions {
 		originalText: string,
 		info: { filter: string; inputBytes: number; outputBytes: number },
 	) => Promise<string | undefined>;
+	/** Redacts stdout/stderr chunks before streaming, truncation, artifacts, and tool results. */
+	redactChunk?: (chunk: string) => string;
 }
 
 export interface BashResult {
@@ -107,7 +109,7 @@ export async function executeBash(command: string, options?: BashExecutorOptions
 	// all run inline. File writes (artifact path) are handled asynchronously
 	// inside the sink. No promise chain needed.
 	const enqueueChunk = (chunk: string) => {
-		sink.push(chunk);
+		sink.push(options?.redactChunk ? options.redactChunk(chunk) : chunk);
 	};
 
 	if (options?.signal?.aborted) {

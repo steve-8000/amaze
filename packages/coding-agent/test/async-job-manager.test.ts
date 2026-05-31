@@ -375,3 +375,155 @@ describe("AsyncJobManager", () => {
 		expect(manager.getJob(parentJobId)?.status).toBe("cancelled");
 	});
 });
+describe("per-owner quota and lifecycle hooks", () => {
+	const holdUntilAbort = (signal: AbortSignal) =>
+		new Promise<string>(resolve => {
+			signal.addEventListener("abort", () => resolve("cancelled"), { once: true });
+		});
+
+	test("maxJobsPerOwner caps one owner while another owner can register", () => {
+		const manager = new AsyncJobManager({
+			maxRunningJobs: 10,
+			maxJobsPerOwner: 2,
+			onJobComplete: async () => {},
+		});
+
+		const ownerAFirst = manager.register("bash", "owner-a-1", async ({ signal }) => holdUntilAbort(signal), {
+			ownerId: "owner-A",
+		});
+		const ownerASecond = manager.register("bash", "owner-a-2", async ({ signal }) => holdUntilAbort(signal), {
+			ownerId: "owner-A",
+		});
+
+		expect(() =>
+			manager.register("bash", "owner-a-3", async ({ signal }) => holdUntilAbort(signal), {
+				ownerId: "owner-A",
+			}),
+		).toThrow(/Per-owner background job limit reached for owner-A \(2\)/);
+
+		const ownerBJob = manager.register("bash", "owner-b-1", async ({ signal }) => holdUntilAbort(signal), {
+			ownerId: "owner-B",
+		});
+		expect(manager.getJob(ownerBJob)?.status).toBe("running");
+
+		manager.cancel(ownerAFirst);
+		manager.cancel(ownerASecond);
+		manager.cancel(ownerBJob);
+	});
+
+	test("omitted maxJobsPerOwner allows one owner up to the global cap", () => {
+		const manager = new AsyncJobManager({
+			maxRunningJobs: 3,
+			onJobComplete: async () => {},
+		});
+
+		const jobIds = [
+			manager.register("bash", "owner-a-1", async ({ signal }) => holdUntilAbort(signal), { ownerId: "owner-A" }),
+			manager.register("bash", "owner-a-2", async ({ signal }) => holdUntilAbort(signal), { ownerId: "owner-A" }),
+			manager.register("bash", "owner-a-3", async ({ signal }) => holdUntilAbort(signal), { ownerId: "owner-A" }),
+		];
+
+		expect(manager.getRunningJobs({ ownerId: "owner-A" }).map(job => job.id)).toEqual(jobIds);
+
+		for (const jobId of jobIds) {
+			manager.cancel(jobId);
+		}
+	});
+
+	test("drainOwners cancels only matching running jobs and reaps matching finished jobs", async () => {
+		const manager = new AsyncJobManager({
+			retentionMs: 1_000,
+			onJobComplete: async () => {},
+		});
+
+		const ownerARunning = manager.register("bash", "owner-a-running", async ({ signal }) => holdUntilAbort(signal), {
+			ownerId: "A",
+		});
+		const ownerAFinished = manager.register("task", "owner-a-finished", async () => "done", { ownerId: "A" });
+		const ownerBRunning = manager.register("bash", "owner-b-running", async ({ signal }) => holdUntilAbort(signal), {
+			ownerId: "B",
+		});
+		const ownerCRunning = manager.register("bash", "owner-c-running", async ({ signal }) => holdUntilAbort(signal), {
+			ownerId: "C",
+		});
+
+		while (manager.getJob(ownerAFinished)?.status === "running") {
+			await Bun.sleep(5);
+		}
+
+		const cancelled = manager.drainOwners(ownerId => ownerId === "A");
+
+		expect(cancelled).toBe(1);
+		expect(manager.getJob(ownerARunning)?.status).toBe("cancelled");
+		expect(manager.getJob(ownerAFinished)?.status).toBe("completed");
+		expect(manager.getJob(ownerBRunning)?.status).toBe("running");
+		expect(manager.getJob(ownerCRunning)?.status).toBe("running");
+
+		manager.cancel(ownerBRunning);
+		manager.cancel(ownerCRunning);
+	});
+
+	test("drainOwners schedules eviction after cancelling matching running jobs", async () => {
+		const manager = new AsyncJobManager({
+			retentionMs: 25,
+			onJobComplete: async () => {},
+		});
+
+		const targetJobId = manager.register("bash", "target-running", async ({ signal }) => holdUntilAbort(signal), {
+			ownerId: "target",
+		});
+		const otherJobId = manager.register("bash", "other-running", async ({ signal }) => holdUntilAbort(signal), {
+			ownerId: "other",
+		});
+
+		const cancelled = manager.drainOwners(ownerId => ownerId === "target");
+
+		expect(cancelled).toBe(1);
+		expect(manager.getRecentJobs(10, { ownerId: "target" }).map(job => job.status)).toEqual(["cancelled"]);
+		await Bun.sleep(60);
+		expect(manager.getJob(targetJobId)).toBeUndefined();
+
+		manager.cancel(otherJobId);
+	});
+
+	test("drainOwners cancels all matching running jobs", () => {
+		const manager = new AsyncJobManager({
+			onJobComplete: async () => {},
+		});
+
+		const firstOwnerAJob = manager.register("bash", "owner-a-1", async ({ signal }) => holdUntilAbort(signal), {
+			ownerId: "A",
+		});
+		const secondOwnerAJob = manager.register("bash", "owner-a-2", async ({ signal }) => holdUntilAbort(signal), {
+			ownerId: "A",
+		});
+		const ownerBJob = manager.register("bash", "owner-b", async ({ signal }) => holdUntilAbort(signal), {
+			ownerId: "B",
+		});
+
+		const cancelled = manager.drainOwners(ownerId => ownerId === "A");
+
+		expect(cancelled).toBe(2);
+		expect(manager.getJob(firstOwnerAJob)?.status).toBe("cancelled");
+		expect(manager.getJob(secondOwnerAJob)?.status).toBe("cancelled");
+		expect(manager.getJob(ownerBJob)?.status).toBe("running");
+
+		manager.cancel(ownerBJob);
+	});
+
+	test("rejectWhenFull false still rejects until queueing exists", () => {
+		const manager = new AsyncJobManager({
+			maxRunningJobs: 1,
+			rejectWhenFull: false,
+			onJobComplete: async () => {},
+		});
+
+		const firstJobId = manager.register("bash", "first", async ({ signal }) => holdUntilAbort(signal));
+
+		expect(() => manager.register("bash", "second", async ({ signal }) => holdUntilAbort(signal))).toThrow(
+			/Background job limit reached \(1\)/,
+		);
+
+		manager.cancel(firstJobId);
+	});
+});

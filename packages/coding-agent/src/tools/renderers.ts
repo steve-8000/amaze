@@ -16,7 +16,6 @@ import { astGrepToolRenderer } from "./ast-grep";
 import { bashToolRenderer } from "./bash";
 import { browserToolRenderer } from "./browser/render";
 import { calculatorToolRenderer } from "./calculator";
-import { cuaToolRenderer } from "./cua";
 import { debugToolRenderer } from "./debug";
 import { evalToolRenderer } from "./eval";
 import { findToolRenderer } from "./find";
@@ -52,7 +51,6 @@ export const toolRenderers: Record<string, ToolRenderer> = {
 	ast_edit: astEditToolRenderer as ToolRenderer,
 	bash: bashToolRenderer as ToolRenderer,
 	browser: browserToolRenderer as ToolRenderer,
-	cua: cuaToolRenderer as ToolRenderer,
 	recipe: recipeToolRenderer as ToolRenderer,
 	debug: debugToolRenderer as ToolRenderer,
 	eval: evalToolRenderer as ToolRenderer,

@@ -1,13 +1,22 @@
+import * as fs from "node:fs";
 import * as path from "node:path";
-import { logger } from "@amaze/utils";
+import { getPuppeteerDir, logger } from "@amaze/utils";
 import type { Subprocess } from "bun";
 import type { Browser, CDPSession } from "puppeteer-core";
 import { ToolAbortError, ToolError } from "../tool-errors";
 import { findFreeCdpPort, findReusableCdp, gracefulKillTreeOnce, killExistingByPath, waitForCdp } from "./attach";
-import { BROWSER_PROTOCOL_TIMEOUT_MS, launchHeadlessBrowser, loadPuppeteer, type UserAgentOverride } from "./launch";
+import {
+	BROWSER_PROTOCOL_TIMEOUT_MS,
+	ensureChromiumExecutable,
+	launchHeadlessBrowser,
+	loadPuppeteer,
+	resolveSystemChromium,
+	type UserAgentOverride,
+} from "./launch";
 
 export type BrowserKind =
 	| { kind: "headless"; headless: boolean }
+	| { kind: "chrome-extension"; path?: string; userDataDir?: string; extensionPath?: string }
 	| { kind: "spawned"; path: string }
 	| { kind: "connected"; cdpUrl: string };
 
@@ -30,6 +39,8 @@ function browserKey(kind: BrowserKind): string {
 	switch (kind.kind) {
 		case "headless":
 			return `headless:${kind.headless ? "1" : "0"}`;
+		case "chrome-extension":
+			return `chrome-extension:${kind.path ?? "auto"}:${kind.userDataDir ?? "default"}:${kind.extensionPath ?? ""}`;
 		case "spawned":
 			return `spawned:${kind.path}`;
 		case "connected":
@@ -58,6 +69,88 @@ export async function acquireBrowser(kind: BrowserKind, opts: AcquireBrowserOpti
 	return handle;
 }
 
+type ExtensionChromeLaunch = {
+	browser: Browser;
+	cdpUrl: string;
+	pid: number;
+	subprocess: Subprocess;
+};
+
+function defaultExtensionUserDataDir(): string {
+	return path.join(getPuppeteerDir(), "chrome-extension-profile");
+}
+
+function assertAbsoluteExecutable(exe: string, field: string): void {
+	if (!path.isAbsolute(exe)) {
+		throw new ToolError(`${field} must be absolute (got ${JSON.stringify(exe)}).`);
+	}
+}
+
+function assertExtensionDirectory(extensionPath: string): void {
+	let stat: fs.Stats;
+	try {
+		stat = fs.statSync(extensionPath);
+	} catch {
+		throw new ToolError(`Chrome extension path does not exist: ${extensionPath}`);
+	}
+	if (!stat.isDirectory()) throw new ToolError(`Chrome extension path must be a directory: ${extensionPath}`);
+}
+
+async function launchExtensionChrome(
+	kind: Extract<BrowserKind, { kind: "chrome-extension" }>,
+	opts: AcquireBrowserOptions,
+): Promise<ExtensionChromeLaunch> {
+	const exe = kind.path ?? resolveSystemChromium() ?? (await ensureChromiumExecutable());
+	if (!exe) {
+		throw new ToolError(
+			"Could not find Chrome/Chromium for chrome-extension browser mode. Pass app.path or set PUPPETEER_EXECUTABLE_PATH.",
+		);
+	}
+	assertAbsoluteExecutable(exe, "app.path");
+
+	const userDataDir = kind.userDataDir ?? defaultExtensionUserDataDir();
+	await fs.promises.mkdir(userDataDir, { recursive: true });
+
+	if (kind.extensionPath) assertExtensionDirectory(kind.extensionPath);
+
+	const port = await findFreeCdpPort();
+	const cdpUrl = `http://127.0.0.1:${port}`;
+	const extensionArgs = kind.extensionPath
+		? [`--disable-extensions-except=${kind.extensionPath}`, `--load-extension=${kind.extensionPath}`]
+		: [];
+	const launchArgs = [
+		`--remote-debugging-port=${port}`,
+		`--user-data-dir=${userDataDir}`,
+		"--no-first-run",
+		"--no-default-browser-check",
+		"--disable-backgrounding-occluded-windows",
+		...extensionArgs,
+		...(opts.appArgs ?? []),
+	];
+	const child = Bun.spawn([exe, ...launchArgs], {
+		stdout: "ignore",
+		stderr: "ignore",
+		stdin: "ignore",
+	});
+	child.unref();
+
+	try {
+		await waitForCdp(cdpUrl, 30_000, opts.signal);
+		const puppeteer = await loadPuppeteer();
+		const browser = await puppeteer.connect({
+			browserURL: cdpUrl,
+			defaultViewport: null,
+			protocolTimeout: BROWSER_PROTOCOL_TIMEOUT_MS,
+		});
+		return { browser, cdpUrl, pid: child.pid, subprocess: child };
+	} catch (err) {
+		await gracefulKillTreeOnce(child.pid).catch(() => undefined);
+		if (err instanceof ToolAbortError) throw err;
+		if (err instanceof Error && err.name === "AbortError") throw err;
+		throw new ToolError(`Failed to launch Chrome extension browser on ${cdpUrl}: ${(err as Error).message}`);
+	}
+}
+
 async function openBrowserHandle(kind: BrowserKind, opts: AcquireBrowserOptions): Promise<BrowserHandle> {
 	if (kind.kind === "headless") {
 		const browser = await launchHeadlessBrowser({ headless: kind.headless, viewport: opts.viewport });
@@ -65,6 +158,19 @@ async function openBrowserHandle(kind: BrowserKind, opts: AcquireBrowserOptions)
 			key: browserKey(kind),
 			kind,
 			browser,
+			refCount: 0,
+			stealth: { browserSession: null, override: null },
+		};
+	}
+	if (kind.kind === "chrome-extension") {
+		const { browser, cdpUrl, pid, subprocess } = await launchExtensionChrome(kind, opts);
+		return {
+			key: browserKey(kind),
+			kind,
+			browser,
+			cdpUrl,
+			pid,
+			subprocess,
 			refCount: 0,
 			stealth: { browserSession: null, override: null },
 		};
@@ -181,6 +287,17 @@ async function disposeBrowserHandle(handle: BrowserHandle, opts: { kill: boolean
 				logger.debug("Failed to disconnect from remote browser", { error: (err as Error).message });
 			}
 		}
+		return;
+	}
+	if (handle.kind.kind === "chrome-extension") {
+		if (handle.browser.connected) {
+			try {
+				handle.browser.disconnect();
+			} catch (err) {
+				logger.debug("Failed to disconnect from Chrome extension browser", { error: (err as Error).message });
+			}
+		}
+		if (opts.kill && handle.pid !== undefined) await gracefulKillTreeOnce(handle.pid);
 		return;
 	}
 	if (handle.browser.connected) {

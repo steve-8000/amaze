@@ -282,7 +282,11 @@ async function buildInitPayload(browser: BrowserHandle, opts: AcquireTabOptions)
 		browserWSEndpoint,
 		safeDir,
 		targetId,
+		viewport: opts.viewport,
 		dialogs: opts.dialogs,
+		url: opts.url,
+		waitUntil: opts.waitUntil,
+		timeoutMs: opts.timeoutMs,
 	};
 }
 

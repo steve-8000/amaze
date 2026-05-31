@@ -23,7 +23,14 @@ interface BrowserRenderArgs {
 	code?: string;
 	all?: boolean;
 	kill?: boolean;
-	app?: { path?: string; cdp_url?: string; target?: string };
+	app?: {
+		path?: string;
+		cdp_url?: string;
+		target?: string;
+		kind?: "chrome";
+		user_data_dir?: string;
+		extension_path?: string;
+	};
 	viewport?: { width: number; height: number; scale?: number };
 	timeout?: number;
 }
@@ -35,10 +42,13 @@ interface BrowserRenderContext {
 
 function describeBrowser(args: BrowserRenderArgs, details: BrowserToolDetails | undefined): string | undefined {
 	if (args.app?.cdp_url) return `connected ${args.app.cdp_url}`;
+	if (args.app?.kind === "chrome" || args.app?.user_data_dir || args.app?.extension_path) return "Chrome profile";
 	if (args.app?.path) return `spawned ${shortenPath(args.app.path)}`;
 	switch (details?.browser) {
 		case "headless":
 			return "headless";
+		case "chrome-extension":
+			return "Chrome profile";
 		case "spawned":
 			return "spawned";
 		case "connected":

@@ -90,6 +90,67 @@ describe("nexusBackend", () => {
 			store.close();
 		}
 	});
+
+	it("skips pre-compaction recall work when operational and knowledge recall are disabled", async () => {
+		const agentDir = await makeTempDir("nexus-backend-precompact-disabled-agent");
+		const cwd = await makeTempDir("nexus-backend-precompact-disabled-cwd");
+		const settings = Settings.isolated({
+			"memory.backend": "nexus",
+			"nexus.autoRecall": false,
+			"nexus.knowledge.enabled": true,
+			"nexus.knowledge.autoRecall": false,
+		});
+		Object.defineProperty(settings, "getAgentDir", { value: () => agentDir });
+		const searchSpy = vi.spyOn(NexusStore.prototype, "search");
+		const session = {
+			settings,
+			sessionManager: { getCwd: () => cwd },
+		} as any;
+
+		const result = await nexusBackend.preCompactionContext?.(
+			[{ role: "user", content: "recall disabled memory" } as any],
+			settings,
+			session,
+		);
+
+		expect(result).toBeUndefined();
+		expect(searchSpy).not.toHaveBeenCalled();
+	});
+
+	it("returns pre-compaction recall content when operational auto-recall is enabled", async () => {
+		const agentDir = await makeTempDir("nexus-backend-precompact-enabled-agent");
+		const cwd = await makeTempDir("nexus-backend-precompact-enabled-cwd");
+		const settings = Settings.isolated({
+			"memory.backend": "nexus",
+			"nexus.autoRecall": true,
+			"nexus.knowledge.enabled": false,
+		});
+		Object.defineProperty(settings, "getAgentDir", { value: () => agentDir });
+		const store = new NexusStore({ agentDir, cwd });
+		try {
+			const added = store.add({
+				target: "memory",
+				content: "Pre-compaction should recall the alpha retention policy.",
+				provenance: "fixture",
+			});
+			expect(added.entry).toBeDefined();
+		} finally {
+			store.close();
+		}
+		const session = {
+			settings,
+			sessionManager: { getCwd: () => cwd },
+		} as any;
+
+		const result = await nexusBackend.preCompactionContext?.(
+			[{ role: "user", content: "What is the alpha retention policy?" } as any],
+			settings,
+			session,
+		);
+
+		expect(result).toContain("Relevant durable memory:");
+		expect(result).toContain("alpha retention policy");
+	});
 });
 it("bounds startup knowledge maintenance with the configured interval", async () => {
 	const agentDir = await makeTempDir("nexus-backend-maintenance-agent");

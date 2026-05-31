@@ -11,6 +11,7 @@ import { InternalUrlRouter } from "../internal-urls";
 import { truncateToVisualLines } from "../modes/components/visual-truncate";
 import { highlightCode, type Theme } from "../modes/theme/theme";
 import bashDescription from "../prompts/tools/bash.md" with { type: "text" };
+import { type BashSafetyPolicyOptions, checkBashSafety, redactBashChunk } from "../security";
 import type { ClientBridgeTerminalExitStatus, ClientBridgeTerminalOutput } from "../session/client-bridge";
 import { DEFAULT_MAX_BYTES, streamTailUpdates, TailBuffer } from "../session/streaming-output";
 import { renderStatusLine } from "../tui";
@@ -358,6 +359,10 @@ export class BashTool implements AgentTool<BashToolSchema, BashToolDetails> {
 		let backgrounded = options.startBackgrounded;
 		const completion = Promise.withResolvers<ManagedBashJobCompletion>();
 
+		const redactChunk = this.session.settings.get("bash.safety.redactOutput")
+			? (chunk: string) => redactBashChunk(chunk, { obfuscator: this.session.getSecretObfuscator?.() })
+			: undefined;
+
 		const jobId = manager.register(
 			"bash",
 			label,
@@ -379,6 +384,7 @@ export class BashTool implements AgentTool<BashToolSchema, BashToolDetails> {
 							void reportProgress(latestText, { async: { state: "running", jobId, type: "bash" } });
 						},
 						onMinimizedSave: originalText => saveBashOriginalArtifact(this.session, originalText),
+						redactChunk,
 					});
 					const finalResult = this.#buildCompletedResult(result, options.timeoutSec, {
 						requestedTimeoutSec: options.requestedTimeoutSec,
@@ -510,6 +516,29 @@ export class BashTool implements AgentTool<BashToolSchema, BashToolDetails> {
 				if (interception.block) {
 					throw new ToolError(interception.message ?? "Command blocked");
 				}
+			}
+		}
+
+		const safetyOpts: BashSafetyPolicyOptions = {
+			enabled: this.session.settings.get("bash.safety.enabled"),
+			mode: this.session.settings.get("bash.safety.mode"),
+			allowPatterns: this.session.settings.get("bash.safety.allowPatterns") ?? [],
+			denyPatterns: this.session.settings.get("bash.safety.denyPatterns") ?? [],
+		};
+		const commandsToSafetyCheck = rawCommand === command ? [command] : [rawCommand, command];
+		for (const commandToCheck of commandsToSafetyCheck) {
+			const safetyDecision = checkBashSafety(commandToCheck, safetyOpts);
+			if (!safetyDecision.allowed) {
+				throw new ToolError(safetyDecision.reason ?? "Command blocked by bash safety policy");
+			}
+			if (safetyDecision.mode === "ask" && safetyDecision.matches.length > 0) {
+				logger.warn("bash.safety.ask", {
+					matches: safetyDecision.matches.map(match => ({
+						rule: match.rule.id,
+						severity: match.rule.severity,
+						matched: match.matched,
+					})),
+				});
 			}
 		}
 
@@ -808,6 +837,9 @@ export class BashTool implements AgentTool<BashToolSchema, BashToolDetails> {
 
 		// Allocate artifact for truncated output storage
 		const { path: artifactPath, id: artifactId } = (await this.session.allocateOutputArtifact?.("bash")) ?? {};
+		const redactChunk = this.session.settings.get("bash.safety.redactOutput")
+			? (chunk: string) => redactBashChunk(chunk, { obfuscator: this.session.getSecretObfuscator?.() })
+			: undefined;
 
 		const interactiveUi = canUseInteractiveBashPty(pty, ctx) ? ctx?.ui : undefined;
 		const result: BashResult | BashInteractiveResult = interactiveUi
@@ -819,6 +851,7 @@ export class BashTool implements AgentTool<BashToolSchema, BashToolDetails> {
 					env: resolvedEnv,
 					artifactPath,
 					artifactId,
+					redactChunk,
 				})
 			: await executeBash(command, {
 					cwd: commandCwd,
@@ -830,6 +863,7 @@ export class BashTool implements AgentTool<BashToolSchema, BashToolDetails> {
 					artifactId,
 					onChunk: streamTailUpdates(tailBuffer, onUpdate),
 					onMinimizedSave: originalText => saveBashOriginalArtifact(this.session, originalText),
+					redactChunk,
 				});
 		if (result.cancelled) {
 			if (signal?.aborted) {

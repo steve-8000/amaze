@@ -295,6 +295,7 @@ export async function runInteractiveBashPty(
 		env?: Record<string, string>;
 		artifactPath?: string;
 		artifactId?: string;
+		redactChunk?: (chunk: string) => string;
 	},
 ): Promise<BashInteractiveResult> {
 	const settings = await Settings.init();
@@ -371,7 +372,7 @@ export async function runInteractiveBashPty(
 						if (finished || err || !chunk) return;
 						component.appendOutput(chunk);
 						const normalizedChunk = normalizeCaptureChunk(chunk);
-						sink.push(normalizedChunk);
+						sink.push(options.redactChunk ? options.redactChunk(normalizedChunk) : normalizedChunk);
 						tui.requestRender();
 					},
 				)

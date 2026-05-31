@@ -7,9 +7,10 @@ import type { SessionEvent } from "../observability";
 import { evaluateRule } from "../rules";
 import type { LoadedRule } from "../rules/loader";
 import { loadRules } from "../rules/loader";
+import type { DoctorStatus } from "./doctor-types";
 import { getMemoryDoctorReport } from "./memory";
 
-export type DoctorStatus = "ok" | "degraded" | "failed";
+export type { DoctorStatus } from "./doctor-types";
 
 export interface DoctorCommandOptions {
 	json?: boolean;
@@ -182,7 +183,7 @@ async function latestMtime(dir: string): Promise<number | undefined> {
 	return latest;
 }
 
-function renderText(report: DoctorReport): string {
+export function renderText(report: DoctorReport): string {
 	const lines = [
 		"Memory subsystem:",
 		report.memory.error ? `  error: ${report.memory.error}` : indent(report.memory.text ?? "ok"),

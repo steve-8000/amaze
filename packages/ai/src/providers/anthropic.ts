@@ -2114,6 +2114,7 @@ export function convertAnthropicMessages(
 	const params: MessageParam[] = [];
 
 	const transformedMessages = transformMessages(messages, model, normalizeToolCallId);
+	const latestAssistantIndex = transformedMessages.findLastIndex(msg => msg.role === "assistant");
 
 	for (let i = 0; i < transformedMessages.length; i++) {
 		const msg = transformedMessages[i];
@@ -2146,10 +2147,11 @@ export function convertAnthropicMessages(
 			}
 		} else if (msg.role === "assistant") {
 			const blocks: ContentBlockParam[] = [];
-			const hasSignedThinking = msg.content.some(
-				block =>
-					block.type === "thinking" && !!block.thinkingSignature && block.thinkingSignature.trim().length > 0,
-			);
+			const hasSignedThinking = msg.content.some(block => {
+				if (block.type !== "thinking") return false;
+				if (!block.thinkingSignature || block.thinkingSignature.trim().length === 0) return false;
+				return block.thinking.trim().length > 0 || i === latestAssistantIndex;
+			});
 
 			for (const block of msg.content) {
 				if (block.type === "text") {

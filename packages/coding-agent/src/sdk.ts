@@ -1023,6 +1023,14 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 	const enableLsp = options.enableLsp ?? true;
 	const backgroundJobsEnabled = isBackgroundJobSupportEnabled(settings);
 	const asyncMaxJobs = Math.min(100, Math.max(1, settings.get("async.maxJobs") ?? 100));
+	const asyncMaxJobsPerOwnerSetting = settings.get("async.maxJobsPerOwner");
+	const asyncMaxJobsPerOwner =
+		typeof asyncMaxJobsPerOwnerSetting === "number" && asyncMaxJobsPerOwnerSetting > 0
+			? Math.max(1, asyncMaxJobsPerOwnerSetting)
+			: undefined;
+	const asyncJobTtlMs = Math.max(0, settings.get("async.jobTtlMs") ?? 600_000);
+	const asyncCleanupOnSessionClose = settings.get("async.cleanupOnSessionClose") ?? true;
+	const asyncRejectWhenFull = settings.get("async.rejectWhenFull") ?? true;
 	const ASYNC_INLINE_RESULT_MAX_CHARS = 12_000;
 	const ASYNC_PREVIEW_MAX_CHARS = 4_000;
 	const formatAsyncResultForFollowUp = async (result: string): Promise<string> => {
@@ -1053,6 +1061,9 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 		backgroundJobsEnabled && !options.parentTaskPrefix
 			? new AsyncJobManager({
 					maxRunningJobs: asyncMaxJobs,
+					maxJobsPerOwner: asyncMaxJobsPerOwner,
+					retentionMs: asyncJobTtlMs,
+					rejectWhenFull: asyncRejectWhenFull,
 					onJobComplete: async (jobId, result, job) => {
 						if (!session || asyncJobManager!.isDeliverySuppressed(jobId)) return;
 						const formattedResult = await formatAsyncResultForFollowUp(result);
@@ -1119,6 +1130,7 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 				session ? session.trackEvalExecution(execution, abortController) : execution,
 			getSessionId: () => sessionManager.getSessionId?.() ?? null,
 			getAgentId: () => resolvedAgentId,
+			getSecretObfuscator: () => session?.getSecretObfuscator(),
 			getToolByName: name => session?.getToolByName(name),
 			agentRegistry,
 			getSessionSpawns: () => options.spawns ?? "*",
@@ -1887,7 +1899,8 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 			// AgentSession uses this to decide whether it may dispose the global
 			// AsyncJobManager on teardown; subagents inherit the parent's and
 			// **MUST NOT** tear it down.
-			ownedAsyncJobManager: asyncJobManager,
+			ownedAsyncJobManager: asyncCleanupOnSessionClose ? asyncJobManager : undefined,
+			asyncCleanupOnSessionClose,
 			scopedModels: options.scopedModels,
 			promptTemplates,
 			slashCommands,

@@ -248,6 +248,12 @@ export class Settings {
 		return instance;
 	}
 
+	/** Create a fresh cwd-scoped instance for isolated callers such as doctor subcommands and tests. */
+	static async createForCwd(cwd: string): Promise<Settings> {
+		const instance = new Settings({ cwd });
+		return instance.#load();
+	}
+
 	/**
 	 * Get the global singleton.
 	 * Throws if not initialized.

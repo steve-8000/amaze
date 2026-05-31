@@ -210,4 +210,48 @@ describe("evaluateNexusDoctorLive", () => {
 		expect(embedCheck?.status).toBe("FAIL");
 		expect(result.status).toBe("FAIL");
 	}, 30_000);
+	it("passes llm_live when the provider needs a larger completion budget to emit final content", async () => {
+		const agentDir = await makeTempDir("nexus-doctor-live-reasoning");
+		const originalFetch = global.fetch;
+		const fetchMock: typeof fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+			const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+			if (url === "http://127.0.0.1:58100/v1/chat/completions") {
+				const body = JSON.parse(String(init?.body ?? "{}")) as { max_tokens?: number };
+				if (body.max_tokens === 64) {
+					return new Response(
+						JSON.stringify({
+							choices: [
+								{ message: { role: "assistant", reasoning: "Need a larger budget before final JSON." } },
+							],
+						}),
+						{ status: 200, headers: { "content-type": "application/json" } },
+					);
+				}
+			}
+			return originalFetch(input, init);
+		}) as typeof fetch;
+		fetchMock.preconnect = originalFetch.preconnect;
+		global.fetch = fetchMock;
+		try {
+			const settings = Settings.isolated({
+				"memory.backend": "nexus",
+				"nexus.llm.enabled": true,
+				"nexus.llm.provider": "openai-compatible",
+				"nexus.llm.baseUrl": "http://127.0.0.1:58100",
+				"nexus.llm.model": "LiquidAI/LFM2.5-8B-A1B-MLX-8bit",
+				"nexus.embeddings.enabled": true,
+				"nexus.embeddings.provider": "openai-compatible",
+				"nexus.embeddings.baseUrl": "http://127.0.0.1:58101",
+				"nexus.embeddings.model": "mlx-community/Qwen3-Embedding-0.6B-4bit-DWQ",
+			});
+			Object.defineProperty(settings, "getAgentDir", { value: () => agentDir });
+			const result = await evaluateNexusDoctorLive(settings, agentDir, { timeoutMs: 10_000 });
+			const llmCheck = result.checks.find(check => check.id === "llm_live");
+			const embedCheck = result.checks.find(check => check.id === "embeddings_live");
+			expect(llmCheck?.status).toBe("PASS");
+			expect(embedCheck?.status).toBe("PASS");
+		} finally {
+			global.fetch = originalFetch;
+		}
+	}, 30_000);
 });

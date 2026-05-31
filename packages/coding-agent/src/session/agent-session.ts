@@ -91,6 +91,7 @@ import {
 	formatModelString,
 	parseModelString,
 	type ResolvedModelRoleValue,
+	resolveModelFromString,
 	resolveModelRoleValue,
 } from "../config/model-resolver";
 import { expandPromptTemplate, type PromptTemplate } from "../config/prompt-templates";
@@ -167,6 +168,7 @@ import ttsrInterruptTemplate from "../prompts/system/ttsr-interrupt.md" with { t
 import ttsrToolReminderTemplate from "../prompts/system/ttsr-tool-reminder.md" with { type: "text" };
 import { type AgentRegistry, MAIN_AGENT_ID } from "../registry/agent-registry";
 import { deobfuscateSessionContext, type SecretObfuscator } from "../secrets/obfuscator";
+import { redactBashChunk } from "../security";
 import { invalidateHostMetadata } from "../ssh/connection-manager";
 import { enforceContractFreshness, type SubagentContract } from "../subagent/contract";
 import { resolveThinkingLevelForModel, toReasoningEffort } from "../thinking";
@@ -331,6 +333,8 @@ export interface AgentSessionConfig {
 	ttsrManager?: TtsrManager;
 	/** Secret obfuscator for deobfuscating streaming edit content */
 	obfuscator?: SecretObfuscator;
+	/** Whether closing this session should cancel and reap its owned async jobs. */
+	asyncCleanupOnSessionClose?: boolean;
 	/** Logical owner for retained Python kernels created by this session. */
 	evalKernelOwnerId?: string;
 	/**
@@ -892,6 +896,7 @@ export class AgentSession {
 	 * this undefined and **MUST NOT** dispose the global instance on teardown.
 	 */
 	readonly #ownedAsyncJobManager: AsyncJobManager | undefined;
+	readonly #asyncCleanupOnSessionClose: boolean;
 	/** Session role used for compaction-strategy resolution. */
 	readonly #role: "orchestrator" | "subagent";
 	/** F1 (H1) overlap guard for continuous demotion. */
@@ -1091,6 +1096,7 @@ export class AgentSession {
 		// Power assertions are taken per turn (see #beginInFlight); nothing acquired here.
 		this.#evalKernelOwnerId = config.evalKernelOwnerId ?? `agent-session:${Snowflake.next()}`;
 		this.#ownedAsyncJobManager = config.ownedAsyncJobManager;
+		this.#asyncCleanupOnSessionClose = config.asyncCleanupOnSessionClose ?? true;
 		this.#role = config.role ?? "orchestrator";
 		this.#subagentContract = config.subagentContract;
 		this.#scopedModels = config.scopedModels ?? [];
@@ -1359,8 +1365,8 @@ export class AgentSession {
 	 * No-op when no manager is installed or this session has no agent id.
 	 */
 	#cancelOwnAsyncJobs(): void {
-		if (!this.#agentId) return;
-		AsyncJobManager.instance()?.cancelAll({ ownerId: this.#agentId });
+		if (!this.#agentId || this.#asyncCleanupOnSessionClose === false) return;
+		AsyncJobManager.instance()?.drainOwners(ownerId => ownerId === this.#agentId);
 	}
 
 	// =========================================================================
@@ -3835,6 +3841,10 @@ export class AgentSession {
 	/** Current session ID */
 	get sessionId(): string {
 		return this.#providerSessionId ?? this.sessionManager.getSessionId();
+	}
+
+	getSecretObfuscator(): SecretObfuscator | undefined {
+		return this.#obfuscator;
 	}
 
 	/** Current session display name, if set */
@@ -6528,6 +6538,18 @@ export class AgentSession {
 			candidates.push(model);
 		};
 
+		const configuredReduceModel = this.settings.getModelRole("compaction_reduce");
+		if (configuredReduceModel) {
+			addCandidate(
+				resolveModelFromString(
+					configuredReduceModel,
+					availableModels,
+					{ usageOrder: this.settings.getStorage()?.getModelUsageOrder() },
+					this.#modelRegistry,
+				),
+			);
+		}
+
 		const currentModel = this.model;
 		const pinnedModels = availableModels
 			.filter(model => model.id === COMPACTION_PINNED_MODEL_ID)
@@ -6573,14 +6595,38 @@ export class AgentSession {
 		);
 	}
 
+	#resolveCompactionMapModel(availableModels: Model[]): Model | undefined {
+		const configured = this.settings.getModelRole("compaction_map") ?? "openai-codex/gpt-5.3-codex-spark";
+		return resolveModelRoleValue(configured, availableModels, {
+			settings: this.settings,
+			matchPreferences: { usageOrder: this.settings.getStorage()?.getModelUsageOrder() },
+			modelRegistry: this.#modelRegistry,
+		}).model;
+	}
+
+	async #withCompactionMapModel(
+		options: SummaryOptions | undefined,
+		availableModels: Model[],
+	): Promise<SummaryOptions | undefined> {
+		const compactionSettings = this.settings.getGroup("compaction");
+		if (compactionSettings.mode !== "map-reduce") return options;
+		const mapModel = this.#resolveCompactionMapModel(availableModels);
+		if (!mapModel) return options;
+		const mapApiKey = await this.#modelRegistry.getApiKey(mapModel, this.sessionId);
+		if (!mapApiKey) return options;
+		return { ...options, mapModel, mapApiKey };
+	}
+
 	async #compactWithFallbackModel(
 		preparation: CompactionPreparation,
 		customInstructions: string | undefined,
 		signal: AbortSignal,
 		options?: SummaryOptions,
 	): Promise<CompactionResult> {
-		const candidates = this.#getCompactionModelCandidates(this.#modelRegistry.getAvailable());
+		const availableModels = this.#modelRegistry.getAvailable();
+		const candidates = this.#getCompactionModelCandidates(availableModels);
 		const telemetry = resolveTelemetry(this.agent.telemetry, this.sessionId);
+		const compactionOptions = await this.#withCompactionMapModel(options, availableModels);
 
 		for (const candidate of candidates) {
 			const apiKey = await this.#modelRegistry.getApiKey(candidate, this.sessionId);
@@ -6588,7 +6634,7 @@ export class AgentSession {
 
 			try {
 				return await compact(preparation, candidate, apiKey, customInstructions, signal, {
-					...options,
+					...compactionOptions,
 					metadata: this.agent.metadataForProvider(candidate.provider),
 					convertToLlm,
 					telemetry,
@@ -6835,6 +6881,7 @@ export class AgentSession {
 				const candidates = this.#getCompactionModelCandidates(availableModels);
 				const retrySettings = this.settings.getGroup("retry");
 				const telemetry = resolveTelemetry(this.agent.telemetry, this.sessionId);
+				const compactionOptions = await this.#withCompactionMapModel(undefined, availableModels);
 				let compactResult: CompactionResult | undefined;
 				let lastError: unknown;
 
@@ -6846,6 +6893,7 @@ export class AgentSession {
 					while (true) {
 						try {
 							compactResult = await compact(preparation, candidate, apiKey, undefined, autoCompactionSignal, {
+								...compactionOptions,
 								promptOverride: compactionPrep.hookPrompt,
 								extraContext: compactionPrep.hookContext,
 								remoteInstructions: this.#baseSystemPrompt.join("\n\n"),
@@ -7580,6 +7628,9 @@ export class AgentSession {
 				sessionKey: this.sessionId,
 				timeout: clampTimeout("bash") * 1000,
 				onMinimizedSave: originalText => this.#saveBashOriginalArtifact(originalText),
+				redactChunk: this.settings.get("bash.safety.redactOutput")
+					? chunk => redactBashChunk(chunk, { obfuscator: this.getSecretObfuscator() })
+					: undefined,
 			});
 
 			this.recordBashResult(command, result, options);

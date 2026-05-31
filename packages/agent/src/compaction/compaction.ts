@@ -149,6 +149,9 @@ export interface CompactionSettings {
 	autoContinue?: boolean;
 	remoteEnabled?: boolean;
 	remoteEndpoint?: string;
+	mode?: "single-pass" | "map-reduce";
+	mapReduceSectionTokenBudget?: number;
+	mapReduceMaxSections?: number;
 }
 
 export const DEFAULT_COMPACTION_SETTINGS: CompactionSettings = {
@@ -160,6 +163,9 @@ export const DEFAULT_COMPACTION_SETTINGS: CompactionSettings = {
 	keepRecentTokens: 20000,
 	autoContinue: true,
 	remoteEnabled: true,
+	mode: "single-pass",
+	mapReduceSectionTokenBudget: 8000,
+	mapReduceMaxSections: 24,
 };
 
 // ============================================================================
@@ -529,6 +535,8 @@ export interface SummaryOptions {
 	 * or `compaction_turn_prefix`). `undefined` keeps the call paths zero-cost.
 	 */
 	telemetry?: AgentTelemetry;
+	mapModel?: Model;
+	mapApiKey?: string;
 }
 
 export async function generateSummary(
@@ -613,6 +621,108 @@ export async function generateSummary(
 		.join("\n");
 
 	return extractSummaryBlock(textContent);
+}
+
+function chunkMessagesForMapReduce(messages: AgentMessage[], tokenBudget: number, maxChunks: number): AgentMessage[][] {
+	const chunks: AgentMessage[][] = [];
+	let current: AgentMessage[] = [];
+	let currentTokens = 0;
+	const budget = Math.max(1, tokenBudget);
+	const chunkLimit = Math.max(1, maxChunks);
+
+	for (const message of messages) {
+		const messageTokens = Math.max(1, estimateTokens(message));
+		if (current.length > 0 && currentTokens + messageTokens > budget && chunks.length + 1 < chunkLimit) {
+			chunks.push(current);
+			current = [];
+			currentTokens = 0;
+		}
+		current.push(message);
+		currentTokens += messageTokens;
+	}
+
+	if (current.length > 0) chunks.push(current);
+	return chunks;
+}
+
+function renderMapReduceSummaryPrompt(chunkIndex: number, chunkCount: number, customInstructions?: string): string {
+	return [
+		"[INTERNAL MAP COMPACTION INSTRUCTION — NOT CONVERSATION HISTORY]",
+		`You are summarizing section ${chunkIndex + 1} of ${chunkCount} for a later reduce pass.`,
+		"Extract durable facts only. Preserve exact user requests, file paths, commands, configuration values, verification outcomes, decisions, blockers, and remaining tasks.",
+		"Do not invent facts. If a category has no evidence, omit it rather than guessing.",
+		"Output concise Markdown bullets grouped under the same seven section headings used by the final compaction format when applicable.",
+		customInstructions ? formatCustomInstructionsBlock(customInstructions) : "",
+	]
+		.filter(Boolean)
+		.join("\n\n");
+}
+
+async function generateMapReduceSummary(
+	currentMessages: AgentMessage[],
+	model: Model,
+	reserveTokens: number,
+	apiKey: string,
+	signal: AbortSignal | undefined,
+	customInstructions: string | undefined,
+	previousSummary: string | undefined,
+	options: SummaryOptions | undefined,
+	settings: CompactionSettings,
+): Promise<string> {
+	const sectionTokenBudget = Math.max(
+		1,
+		settings.mapReduceSectionTokenBudget ?? DEFAULT_COMPACTION_SETTINGS.mapReduceSectionTokenBudget ?? 8000,
+	);
+	const maxSections = Math.max(
+		1,
+		settings.mapReduceMaxSections ?? DEFAULT_COMPACTION_SETTINGS.mapReduceMaxSections ?? 24,
+	);
+	const chunks = chunkMessagesForMapReduce(currentMessages, sectionTokenBudget, maxSections);
+	if (chunks.length <= 1) {
+		return generateSummary(
+			currentMessages,
+			model,
+			reserveTokens,
+			apiKey,
+			signal,
+			customInstructions,
+			previousSummary,
+			options,
+		);
+	}
+
+	const mapModel = options?.mapModel ?? model;
+	const mapApiKey = options?.mapApiKey ?? apiKey;
+	const partials = await Promise.all(
+		chunks.map((chunk, index) =>
+			generateSummary(
+				chunk,
+				mapModel,
+				Math.max(1024, Math.floor(reserveTokens / 2)),
+				mapApiKey,
+				signal,
+				undefined,
+				undefined,
+				{
+					...options,
+					promptOverride: renderMapReduceSummaryPrompt(index, chunks.length, customInstructions),
+					remoteEndpoint: undefined,
+				},
+			),
+		),
+	);
+
+	const reduceMessages: AgentMessage[] = [
+		{
+			role: "user",
+			content: `<map-reduce-partials>\n${partials.map((partial, index) => `## Partial ${index + 1}\n${partial}`).join("\n\n")}\n</map-reduce-partials>`,
+			timestamp: Date.now(),
+		},
+	];
+	return generateSummary(reduceMessages, model, reserveTokens, apiKey, signal, customInstructions, previousSummary, {
+		...options,
+		remoteEndpoint: undefined,
+	});
 }
 
 // ============================================================================
@@ -911,6 +1021,8 @@ export async function compact(
 		metadata: options?.metadata,
 		convertToLlm: options?.convertToLlm,
 		telemetry: options?.telemetry,
+		mapModel: options?.mapModel,
+		mapApiKey: options?.mapApiKey,
 	};
 
 	let preserveData = withOpenAiRemoteCompactionPreserveData(previousPreserveData, undefined);
@@ -953,7 +1065,37 @@ export async function compact(
 		// Generate both summaries in parallel
 		const [historyResult, turnPrefixResult] = await Promise.all([
 			messagesToSummarize.length > 0
-				? generateSummary(
+				? settings.mode === "map-reduce"
+					? generateMapReduceSummary(
+							messagesToSummarize,
+							model,
+							settings.reserveTokens,
+							apiKey,
+							signal,
+							customInstructions,
+							previousSummary,
+							summaryOptions,
+							settings,
+						)
+					: generateSummary(
+							messagesToSummarize,
+							model,
+							settings.reserveTokens,
+							apiKey,
+							signal,
+							customInstructions,
+							previousSummary,
+							summaryOptions,
+						)
+				: Promise.resolve(extractSummaryBlock(previousSummary) || "No prior history."),
+			generateTurnPrefixSummary(turnPrefixMessages, model, settings.reserveTokens, apiKey, signal, summaryOptions),
+		]);
+		summary = mergeSplitTurnSummaries(historyResult, turnPrefixResult);
+	} else if (messagesToSummarize.length > 0) {
+		// Generate history summary from messages to summarize
+		summary =
+			settings.mode === "map-reduce"
+				? await generateMapReduceSummary(
 						messagesToSummarize,
 						model,
 						settings.reserveTokens,
@@ -962,23 +1104,18 @@ export async function compact(
 						customInstructions,
 						previousSummary,
 						summaryOptions,
+						settings,
 					)
-				: Promise.resolve(extractSummaryBlock(previousSummary) || "No prior history."),
-			generateTurnPrefixSummary(turnPrefixMessages, model, settings.reserveTokens, apiKey, signal, summaryOptions),
-		]);
-		summary = mergeSplitTurnSummaries(historyResult, turnPrefixResult);
-	} else if (messagesToSummarize.length > 0) {
-		// Generate history summary from messages to summarize
-		summary = await generateSummary(
-			messagesToSummarize,
-			model,
-			settings.reserveTokens,
-			apiKey,
-			signal,
-			customInstructions,
-			previousSummary,
-			summaryOptions,
-		);
+				: await generateSummary(
+						messagesToSummarize,
+						model,
+						settings.reserveTokens,
+						apiKey,
+						signal,
+						customInstructions,
+						previousSummary,
+						summaryOptions,
+					);
 	} else if (previousSummary) {
 		// No new messages to summarize, preserve previous summary
 		summary = extractSummaryBlock(previousSummary);

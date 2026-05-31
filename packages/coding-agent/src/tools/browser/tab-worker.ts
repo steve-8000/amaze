@@ -466,7 +466,14 @@ export class WorkerCore {
 				}
 			} else {
 				this.#page = await this.#findAttachedPage(payload.targetId);
+				if (payload.viewport) await applyViewport(this.#page, payload.viewport);
 				if (payload.dialogs) this.#applyDialogPolicy(payload.dialogs);
+				if (payload.url) {
+					await this.#page.goto(payload.url, {
+						waitUntil: payload.waitUntil ?? "load",
+						timeout: payload.timeoutMs,
+					});
+				}
 			}
 			this.#targetId = await targetIdForPage(this.#page);
 			this.#transport.send({ type: "ready", info: await this.#currentReadyInfo() });

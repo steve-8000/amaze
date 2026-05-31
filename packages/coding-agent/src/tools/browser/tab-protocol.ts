@@ -56,7 +56,11 @@ export type WorkerInitPayload =
 			browserWSEndpoint: string;
 			safeDir: string;
 			targetId: string;
+			viewport?: { width: number; height: number; deviceScaleFactor?: number };
 			dialogs?: "accept" | "dismiss";
+			url?: string;
+			waitUntil?: "load" | "domcontentloaded" | "networkidle0" | "networkidle2";
+			timeoutMs: number;
 	  };
 
 export type ToolReply = { ok: true; value: unknown } | { ok: false; error: RunErrorPayload };

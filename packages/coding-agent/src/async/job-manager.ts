@@ -28,6 +28,10 @@ export interface AsyncJob {
 export interface AsyncJobManagerOptions {
 	onJobComplete: (jobId: string, text: string, job?: AsyncJob) => void | Promise<void>;
 	maxRunningJobs?: number;
+	/** Per-owner concurrent-job cap. Falls back to no per-owner cap when undefined. */
+	maxJobsPerOwner?: number;
+	/** When true, throw on register() if the global cap is reached. Defaults true (preserves current behaviour). */
+	rejectWhenFull?: boolean;
 	retentionMs?: number;
 }
 
@@ -90,6 +94,8 @@ export class AsyncJobManager {
 	readonly #evictionTimers = new Map<string, NodeJS.Timeout>();
 	readonly #onJobComplete: AsyncJobManagerOptions["onJobComplete"];
 	readonly #maxRunningJobs: number;
+	readonly #maxJobsPerOwner: number | undefined;
+	readonly #rejectWhenFull: boolean;
 	readonly #retentionMs: number;
 	#deliveryLoop: Promise<void> | undefined;
 	#disposed = false;
@@ -107,6 +113,9 @@ export class AsyncJobManager {
 	constructor(options: AsyncJobManagerOptions) {
 		this.#onJobComplete = options.onJobComplete;
 		this.#maxRunningJobs = Math.max(1, Math.floor(options.maxRunningJobs ?? DEFAULT_MAX_RUNNING_JOBS));
+		const maxJobsPerOwner = options.maxJobsPerOwner === undefined ? undefined : Math.floor(options.maxJobsPerOwner);
+		this.#maxJobsPerOwner = maxJobsPerOwner !== undefined && maxJobsPerOwner > 0 ? maxJobsPerOwner : undefined;
+		this.#rejectWhenFull = options.rejectWhenFull ?? true;
 		this.#retentionMs = Math.max(0, Math.floor(options.retentionMs ?? DEFAULT_RETENTION_MS));
 	}
 
@@ -123,8 +132,22 @@ export class AsyncJobManager {
 		if (this.#disposed) {
 			throw new Error("Async job manager is disposed");
 		}
+		const ownerId = options?.ownerId;
+		if (ownerId && this.#maxJobsPerOwner !== undefined) {
+			const ownerRunningCount = this.getRunningJobs({ ownerId }).length;
+			if (ownerRunningCount >= this.#maxJobsPerOwner) {
+				throw new Error(
+					`Per-owner background job limit reached for ${ownerId} (${this.#maxJobsPerOwner}). Wait for one to finish or cancel one.`,
+				);
+			}
+		}
+
 		const runningCount = this.getRunningJobs().length;
 		if (runningCount >= this.#maxRunningJobs) {
+			if (!this.#rejectWhenFull) {
+				// Queueing is not implemented yet; rejectWhenFull=false reserves the settings/API wire for a future queue.
+				logger.warn("async.queue.full", { runningCount, max: this.#maxRunningJobs });
+			}
 			throw new Error(
 				`Background job limit reached (${this.#maxRunningJobs}). Wait for running jobs to finish or cancel one.`,
 			);
@@ -143,7 +166,7 @@ export class AsyncJobManager {
 			label,
 			abortController,
 			promise: Promise.resolve(),
-			ownerId: options?.ownerId,
+			ownerId,
 		};
 
 		const reportProgress = async (text: string, details?: Record<string, unknown>): Promise<void> => {
@@ -289,6 +312,25 @@ export class AsyncJobManager {
 			job.abortController.abort();
 			this.#scheduleEviction(job.id);
 		}
+	}
+
+	/**
+	 * Cancel running + reap finished jobs registered by any agent whose ownerId
+	 * matches `predicate`. Used at session close when `async.cleanupOnSessionClose`
+	 * is true. Returns the number of running jobs cancelled.
+	 */
+	drainOwners(predicate: (ownerId: string | undefined) => boolean): number {
+		let cancelled = 0;
+		for (const job of this.#jobs.values()) {
+			if (!predicate(job.ownerId)) continue;
+			if (job.status === "running") {
+				job.status = "cancelled";
+				job.abortController.abort();
+				cancelled += 1;
+			}
+			this.#scheduleEviction(job.id);
+		}
+		return cancelled;
 	}
 
 	async waitForAll(): Promise<void> {

@@ -1,7 +1,7 @@
 {
 	"modelRoles": {
 		"default": "openai-codex/gpt-5.5",
-		"local_scout": "vllm/Roy-llm"
+		"local_scout": "local-lfm/LiquidAI/LFM2.5-8B-A1B-MLX-8bit"
 	},
 	"hideThinkingBlock": true,
 	"localLlm": {
@@ -64,8 +64,8 @@
 	"task": {
 		"agentModelOverrides": {
 			"explore": "openai-codex/gpt-5.5",
-			"plan": "anthropic/claude-opus-4-7",
-			"reviewer": "anthropic/claude-opus-4-7",
+			"plan": "anthropic/claude-opus-4-8",
+			"reviewer": "anthropic/claude-opus-4-8",
 			"oracle": "openai-codex/gpt-5.5",
 			"visual_qa": "openai-codex/gpt-5.5",
 			"task": "openai-codex/gpt-5.5",

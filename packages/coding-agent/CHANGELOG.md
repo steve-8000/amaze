@@ -10,7 +10,7 @@
 - Subagents now receive the parent's active goal (objective + captured design answers) inside their compact context block, keeping the scope/acceptance contract consistent across delegation without inheriting goal-mode token accounting.
 - Added common npm-installable LSP servers to the package dependencies and resolve package-bundled bins before falling back to `PATH`, so plain installs can use TypeScript/JavaScript, web, Python, YAML, Bash, Tailwind, and Dockerfile servers without project-local or global installs.
 - Added Rockey local memory backend (`memory.backend=rockey`) with SQLite-backed durable memories, `memory`/`memory_search` tools, policy-only prompt guidance, markdown `memory://root` artifacts, correction capture, and non-destructive pi-hermes-memory import.
-- Added built-in `cua` computer-use support for CUA sandbox lifecycle and screenshot/click/type/key/scroll control, with `local`, `localhost`, and `cloud` modes plus AMAZE policy files at `.amaze/cua.jsonc` and `~/.amaze/cua.json`.
+- Added Chrome-profile browser automation to the built-in `browser` tool (`app.kind: "chrome"`), with persistent profile directories and optional unpacked-extension loading for signed-in browser workflows.
 
 - Added built-in xAI X Search tools (`x_search`, `x_search_deep`) and xAI Grok OAuth (`xai-oauth`) login support, with `XAI_API_KEY` retained as the API-key fallback.
 - Added built-in `erid` theme for Amaze, inspired by Rocky's homeworld in *Project Hail Mary*: a dark mineral palette with resonance-cyan accents, amber alloy highlights, and Erid-style export colors.

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import { Agent, type AgentMessage } from "@amaze/agent-core";
 import type { Message, SimpleStreamOptions } from "@amaze/ai";
 import { Settings } from "@amaze/coding-agent/config/settings";
+import { SecretObfuscator } from "@amaze/coding-agent/secrets/obfuscator";
 import { AgentSession, type AgentSessionEvent } from "@amaze/coding-agent/session/agent-session";
 import { SessionManager } from "@amaze/coding-agent/session/session-manager";
 
@@ -110,6 +111,30 @@ describe("AgentSession message pipeline", () => {
 			{ event: "message", data: "{}", raw: ["event: message", "data: {}"] },
 			undefined,
 		);
+	});
+
+	it("returns the configured secret obfuscator", async () => {
+		const obfuscator = new SecretObfuscator([{ type: "plain", content: "SECRET" }]);
+		const session = new AgentSession({
+			agent: createAgent(),
+			sessionManager: SessionManager.inMemory(),
+			settings: Settings.isolated({ "compaction.enabled": false }),
+			modelRegistry: {} as never,
+			obfuscator,
+		});
+		sessions.push(session);
+
+		expect(session.getSecretObfuscator()).toBe(obfuscator);
+
+		const sessionWithoutObfuscator = new AgentSession({
+			agent: createAgent(),
+			sessionManager: SessionManager.inMemory(),
+			settings: Settings.isolated({ "compaction.enabled": false }),
+			modelRegistry: {} as never,
+		});
+		sessions.push(sessionWithoutObfuscator);
+
+		expect(sessionWithoutObfuscator.getSecretObfuscator()).toBeUndefined();
 	});
 
 	it("emits message_update to session listeners before slow extension handlers finish", async () => {

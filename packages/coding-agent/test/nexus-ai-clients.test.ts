@@ -102,6 +102,44 @@ describe("nexus LLM client", () => {
 		expect(calls).toBe(2);
 	});
 
+	it("retries with a larger maxTokens budget when the provider returns reasoning-only output", async () => {
+		const payloads: Array<Record<string, unknown>> = [];
+		const fakeFetch: FetchLike = async (_input, init) => {
+			const payload = init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : {};
+			payloads.push(payload);
+			if (payload.max_tokens === 64) {
+				return jsonResponse({
+					choices: [{ message: { role: "assistant", reasoning: "Need a few more tokens before final JSON." } }],
+				});
+			}
+			return jsonResponse({
+				choices: [{ message: { role: "assistant", content: '{"ok":true}' } }],
+			});
+		};
+		const client = createNexusLlmClient(
+			loadNexusConfig(
+				makeSettings({
+					"memory.backend": "nexus",
+					"nexus.llm.enabled": true,
+					"nexus.llm.provider": "openai-compatible",
+					"nexus.llm.baseUrl": "http://127.0.0.1:8000",
+					"nexus.llm.model": "roy-llm",
+				}),
+			),
+			{ fetch: asFetch(fakeFetch), retries: 0 },
+		);
+		const result = await client!.completeJson<{ ok: true }>({
+			messages: [{ role: "user", content: 'Return {"ok":true}.' }],
+			system: "Return JSON only.",
+			temperature: 0,
+			maxTokens: 64,
+			validate: (value): value is { ok: true } =>
+				Boolean(value && typeof value === "object" && (value as { ok?: unknown }).ok === true),
+		});
+		expect(result.ok).toBe(true);
+		if (result.ok) expect(result.value).toEqual({ ok: true });
+		expect(payloads.map(payload => payload.max_tokens)).toEqual([64, 128]);
+	});
 	it("completeJson parses fenced JSON and rejects invalid payloads", async () => {
 		const fakeFetch: FetchLike = async () =>
 			jsonResponse({

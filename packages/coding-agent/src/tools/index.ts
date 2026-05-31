@@ -35,7 +35,6 @@ import { CodeCalleesTool } from "./code-callees";
 import { CodeCallersTool } from "./code-callers";
 import { CodeDefTool } from "./code-def";
 import { CodeRefsTool } from "./code-refs";
-import { CuaTool } from "./cua";
 import { DebugTool } from "./debug";
 import { EvalTool } from "./eval";
 import { FindTool } from "./find";
@@ -82,7 +81,6 @@ export * from "./code-callees";
 export * from "./code-callers";
 export * from "./code-def";
 export * from "./code-refs";
-export * from "./cua";
 export * from "./debug";
 export * from "./eval";
 export * from "./find";
@@ -188,6 +186,7 @@ export interface ToolSession {
 	agentOutputManager?: AgentOutputManager;
 	/** Settings instance for passing to subagents */
 	settings: Settings;
+	getSecretObfuscator?: () => import("../secrets/obfuscator").SecretObfuscator | undefined;
 	/** Plan mode state (if active) */
 	getPlanModeState?: () => PlanModeState | undefined;
 	/**
@@ -333,7 +332,6 @@ export const BUILTIN_TOOLS: Record<string, ToolFactory> = {
 	lsp: LspTool.createIf,
 	inspect_image: s => new InspectImageTool(s),
 	browser: s => new BrowserTool(s),
-	cua: s => new CuaTool(s),
 	checkpoint: CheckpointTool.createIf,
 	rewind: RewindTool.createIf,
 	task: s => TaskTool.create(s),
@@ -411,7 +409,7 @@ export function resolveEvalBackends(session: ToolSession): EvalBackendsAllowance
  *
  * - `ask`: blocks waiting for human input (its own timeout may be "wait forever").
  * - `ssh`: remote commands with a user-supplied timeout up to 3600s.
- * - `cua`: computer-use automation sessions that can run many minutes.
+ * - `browser`: browser automation sessions can run many minutes.
  * - `job`: background job management.
  * - `irc`: agent-to-agent messaging whose awaitReply can block on a peer's turn.
  * - `x_search_deep`: deep search that can exceed the safety-net window.
@@ -428,7 +426,6 @@ const SELF_TIMED_TOOLS = new Set([
 	"rewind",
 	"ask",
 	"ssh",
-	"cua",
 	"job",
 	"irc",
 	"x_search_deep",

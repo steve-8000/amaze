@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
 import { Agent } from "@amaze/agent-core";
+import * as compactionModule from "@amaze/agent-core/compaction";
 import type { AssistantMessage, Model, ProviderSessionState } from "@amaze/ai";
 import { ModelRegistry } from "@amaze/coding-agent/config/model-registry";
 import { Settings } from "@amaze/coding-agent/config/settings";
@@ -26,6 +27,7 @@ describe("AgentSession context promotion", () => {
 		if (session) {
 			await session.dispose();
 		}
+		vi.restoreAllMocks();
 		authStorage.close();
 		tempDir.removeSync();
 	});
@@ -173,6 +175,71 @@ describe("AgentSession context promotion", () => {
 
 		await waitFor(() => session.model?.id === codexModel.id);
 
+		expect(session.model?.provider).toBe(codexModel.provider);
+		expect(session.model?.id).toBe(codexModel.id);
+	});
+
+	it("compacts GPT-5.5 overflow without temporarily switching to GPT-5.4", async () => {
+		const codexModel = modelRegistry.find("openai-codex", "gpt-5.5");
+		if (!codexModel) {
+			throw new Error("Expected GPT-5.5 codex model to exist");
+		}
+
+		const settings = Settings.isolated({
+			"compaction.autoContinue": false,
+			"compaction.keepRecentTokens": 1,
+			"contextPromotion.enabled": true,
+		});
+
+		const agent = new Agent({
+			initialState: {
+				model: codexModel,
+				systemPrompt: ["Test"],
+				tools: [],
+				messages: [],
+			},
+		});
+
+		session = new AgentSession({
+			agent,
+			sessionManager: SessionManager.inMemory(),
+			settings,
+			modelRegistry,
+		});
+		session.subscribe(() => {});
+
+		for (const [userText, assistantText] of [
+			["first question", "first response"],
+			["second question", "second response"],
+		] as const) {
+			const userMessage = createUserMessage(userText);
+			const assistantMessage = createAssistantMessage(codexModel, assistantText);
+			session.agent.appendMessage(userMessage);
+			session.sessionManager.appendMessage(userMessage);
+			session.agent.appendMessage(assistantMessage);
+			session.sessionManager.appendMessage(assistantMessage);
+		}
+
+		const setModelTemporarySpy = vi.spyOn(session, "setModelTemporary");
+		vi.spyOn(session.agent, "continue").mockResolvedValue();
+		const compactSpy = vi.spyOn(compactionModule, "compact").mockImplementation(async preparation => ({
+			summary: "Recovered by compacting GPT-5.5 history in place.",
+			shortSummary: "Recovered in place",
+			firstKeptEntryId: preparation.firstKeptEntryId,
+			tokensBefore: preparation.tokensBefore,
+			details: { preservedModel: "openai-codex/gpt-5.5" },
+			preserveData: { nativeHistory: { provider: "test", encryptedContent: "preserved" } },
+		}));
+
+		const overflowMessage = createOverflowMessage(codexModel);
+		session.agent.emitExternalEvent({ type: "message_end", message: overflowMessage });
+		session.agent.emitExternalEvent({ type: "agent_end", messages: [overflowMessage] });
+
+		await waitFor(() => compactSpy.mock.calls.length > 0 || session.model?.id !== codexModel.id);
+		await session.waitForIdle();
+
+		expect(setModelTemporarySpy).not.toHaveBeenCalled();
+		expect(compactSpy).toHaveBeenCalledTimes(1);
 		expect(session.model?.provider).toBe(codexModel.provider);
 		expect(session.model?.id).toBe(codexModel.id);
 	});

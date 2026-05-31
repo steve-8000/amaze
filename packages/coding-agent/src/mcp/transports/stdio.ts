@@ -7,6 +7,7 @@
 
 import { getProjectDir, readJsonl, Snowflake } from "@amaze/utils";
 import { type Subprocess, spawn } from "bun";
+import { Settings } from "../../config/settings";
 import type {
 	JsonRpcError,
 	JsonRpcMessage,
@@ -17,6 +18,7 @@ import type {
 	MCPTransport,
 } from "../../mcp/types";
 import { toJsonRpcError } from "../../mcp/types";
+import { checkBashSafety, resolveBashSafetyOptions } from "../../security";
 
 /**
  * Stdio transport for MCP servers.
@@ -56,6 +58,16 @@ export class StdioTransport implements MCPTransport {
 			...Bun.env,
 			...this.config.env,
 		};
+		const commandLine = [this.config.command, ...args].map(shellQuote).join(" ");
+		const settings = await Settings.init();
+		if (settings.get("bash.safety.scope.mcp")) {
+			const safetyDecision = checkBashSafety(commandLine, resolveBashSafetyOptions(settings));
+			if (!safetyDecision.allowed) {
+				throw new Error(
+					`MCP server '${this.config.command}' command rejected by bash safety policy: ${safetyDecision.reason ?? "blocked"}`,
+				);
+			}
+		}
 
 		this.#process = spawn({
 			cmd: [this.config.command, ...args],
@@ -322,4 +334,9 @@ export async function createStdioTransport(config: MCPStdioServerConfig): Promis
 	const transport = new StdioTransport(config);
 	await transport.connect();
 	return transport;
+}
+
+function shellQuote(value: string): string {
+	if (/^[A-Za-z0-9_./:=@%+-]+$/.test(value)) return value;
+	return `'${value.replaceAll("'", `'"'"'`)}'`;
 }

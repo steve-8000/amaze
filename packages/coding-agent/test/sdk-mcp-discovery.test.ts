@@ -142,9 +142,7 @@ describe("createAgentSession MCP discovery prompt gating", () => {
 					"resolve",
 				]),
 			);
-			expect(session.getActiveToolNames()).not.toEqual(
-				expect.arrayContaining(["bash", "cua", "lsp", "browser", "eval"]),
-			);
+			expect(session.getActiveToolNames()).not.toEqual(expect.arrayContaining(["bash", "lsp", "browser", "eval"]));
 		} finally {
 			await session.dispose();
 		}

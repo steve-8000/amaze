@@ -5,6 +5,9 @@
  */
 
 import { executeShell } from "@amaze/natives";
+import { logger } from "@amaze/utils";
+import { checkBashSafety, resolveBashSafetyOptions } from "../security";
+import { Settings } from "./settings";
 
 /** Cache for successful shell command results (persists for process lifetime). */
 const commandResultCache = new Map<string, string>();
@@ -37,6 +40,14 @@ async function executeCommand(commandConfig: string): Promise<string | undefined
 	}
 
 	const command = commandConfig.slice(1);
+	const settings = await Settings.init();
+	if (settings.get("bash.safety.scope.configCommand")) {
+		const safetyDecision = checkBashSafety(command, resolveBashSafetyOptions(settings));
+		if (!safetyDecision.allowed) {
+			logger.warn("config.command.rejected", { reason: safetyDecision.reason ?? "blocked" });
+			return undefined;
+		}
+	}
 	const promise = runShellCommand(command, 10_000)
 		.then(result => {
 			if (result !== undefined) {

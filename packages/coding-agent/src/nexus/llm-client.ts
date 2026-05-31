@@ -51,6 +51,8 @@ export interface NexusLlmClientOptions {
 
 const DEFAULT_TIMEOUT_MS = 25_000;
 const DEFAULT_RETRIES = 1;
+const MIN_REASONING_COMPLETION_RETRY_TOKENS = 128;
+const MAX_REASONING_COMPLETION_RETRY_TOKENS = 256;
 
 export function createNexusLlmClient(config: NexusConfig, options: NexusLlmClientOptions = {}): NexusLlmClient | null {
 	if (!config.llmEnabled) return null;
@@ -83,6 +85,23 @@ function sanitizeBaseUrl(value: string | undefined): string | undefined {
 	return trimmed ? trimmed : undefined;
 }
 
+function extractReasoningText(message: {
+	reasoning?: unknown;
+	reasoning_content?: unknown;
+	reasoning_text?: unknown;
+}): string | undefined {
+	for (const value of [message.reasoning_content, message.reasoning, message.reasoning_text]) {
+		if (typeof value === "string" && value.trim()) return value;
+	}
+	return undefined;
+}
+
+function nextReasoningRetryMaxTokens(maxTokens: number): number | undefined {
+	const grown = Math.max(MIN_REASONING_COMPLETION_RETRY_TOKENS, maxTokens * 2);
+	const capped = Math.min(MAX_REASONING_COMPLETION_RETRY_TOKENS, grown);
+	return capped > maxTokens ? capped : undefined;
+}
+
 class OpenAiCompatibleLlmClient implements NexusLlmClient {
 	readonly provider: string;
 	readonly model: string;
@@ -113,19 +132,21 @@ class OpenAiCompatibleLlmClient implements NexusLlmClient {
 		const messages: NexusLlmMessage[] = input.system
 			? [{ role: "system", content: input.system }, ...input.messages]
 			: input.messages;
-		const body: Record<string, unknown> = {
-			model: this.model,
-			messages,
-			temperature: input.temperature ?? 0,
-			stream: false,
-		};
-		if (typeof input.maxTokens === "number") body.max_tokens = input.maxTokens;
-		if (input.stop && input.stop.length > 0) body.stop = input.stop;
-		if (input.jsonMode) body.response_format = { type: "json_object" };
-
-		const payload = JSON.stringify(body);
 		let lastError: unknown = null;
+		let requestMaxTokens = input.maxTokens;
+		let retriedForReasoningOnlyResponse = false;
 		for (let attempt = 0; attempt <= this.#retries; attempt += 1) {
+			const body: Record<string, unknown> = {
+				model: this.model,
+				messages,
+				temperature: input.temperature ?? 0,
+				stream: false,
+			};
+			if (typeof requestMaxTokens === "number") body.max_tokens = requestMaxTokens;
+			if (input.stop && input.stop.length > 0) body.stop = input.stop;
+			if (input.jsonMode) body.response_format = { type: "json_object" };
+
+			const payload = JSON.stringify(body);
 			const controller = new AbortController();
 			const upstreamSignal = input.signal;
 			const onAbort = () => controller.abort(upstreamSignal?.reason);
@@ -150,11 +171,29 @@ class OpenAiCompatibleLlmClient implements NexusLlmClient {
 					continue;
 				}
 				const json = (await response.json()) as {
-					choices?: Array<{ message?: { content?: string } }>;
+					choices?: Array<{
+						message?: {
+							content?: string;
+							reasoning?: unknown;
+							reasoning_content?: unknown;
+							reasoning_text?: unknown;
+						};
+					}>;
 					usage?: { prompt_tokens?: number; completion_tokens?: number };
 				};
-				const content = json.choices?.[0]?.message?.content ?? "";
+				const message = json.choices?.[0]?.message;
+				const content = message?.content ?? "";
 				if (!content.trim()) {
+					const retriedMaxTokens =
+						!retriedForReasoningOnlyResponse && typeof requestMaxTokens === "number"
+							? nextReasoningRetryMaxTokens(requestMaxTokens)
+							: undefined;
+					if (extractReasoningText(message ?? {}) && retriedMaxTokens !== undefined) {
+						retriedForReasoningOnlyResponse = true;
+						requestMaxTokens = retriedMaxTokens;
+						attempt -= 1;
+						continue;
+					}
 					lastError = "empty completion";
 					if (attempt === this.#retries) return { ok: false, error: "Empty completion" };
 					continue;

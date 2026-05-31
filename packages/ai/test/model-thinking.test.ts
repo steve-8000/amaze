@@ -253,18 +253,21 @@ describe("generated model policies", () => {
 		expect(models[2]?.maxTokens).toBe(64000);
 	});
 
-	it("links spark variants and gpt-5.5 to their context promotion targets", () => {
+	it("links spark variants and clears stale GPT-5.5 context promotion targets", () => {
 		const models = [
 			createModel({
 				id: "gpt-5.3-codex-spark",
 				api: "openai-codex-responses",
 				provider: "openai-codex",
 			}),
-			createModel({
-				id: "gpt-5.5",
-				api: "openai-codex-responses",
-				provider: "openai-codex",
-			}),
+			{
+				...createModel({
+					id: "gpt-5.5",
+					api: "openai-codex-responses",
+					provider: "openai-codex",
+				}),
+				contextPromotionTarget: "openai-codex/gpt-5.4",
+			},
 			createModel({
 				id: "gpt-5.4",
 				api: "openai-codex-responses",
@@ -275,7 +278,7 @@ describe("generated model policies", () => {
 		linkOpenAIPromotionTargets(models);
 
 		expect(models[0]?.contextPromotionTarget).toBe("openai-codex/gpt-5.5");
-		expect(models[1]?.contextPromotionTarget).toBe("openai-codex/gpt-5.4");
+		expect(models[1]?.contextPromotionTarget).toBeUndefined();
 	});
 
 	it("sets freeform apply_patch metadata for first-party GPT-5 Responses models", () => {

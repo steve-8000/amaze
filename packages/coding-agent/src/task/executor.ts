@@ -751,7 +751,7 @@ export async function runSubprocess(options: ExecutorOptions): Promise<SingleRes
 	};
 	const resolveAbortReasonText = (): string => {
 		if (runtimeLimitExceeded) {
-			return `Subagent runtime limit exceeded (task.maxRuntimeMs=${maxRuntimeMs})`;
+			return `Subagent runtime limit exceeded (task.maxRuntimeMs=${maxRuntimeMs}ms). Set task.maxRuntimeMs=0 in settings to opt out of the wall-clock limit.`;
 		}
 		return resolveSignalAbortReason();
 	};

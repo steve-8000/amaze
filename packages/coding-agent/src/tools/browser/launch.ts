@@ -84,7 +84,7 @@ export async function loadPuppeteerInWorker(safeDir: string): Promise<typeof Pup
  * The browser is cached under ~/.amaze/puppeteer (getPuppeteerDir).
  */
 let chromiumExecutablePromise: Promise<string | undefined> | undefined;
-async function ensureChromiumExecutable(): Promise<string | undefined> {
+export async function ensureChromiumExecutable(): Promise<string | undefined> {
 	const sysChrome = resolveSystemChromium();
 	if (sysChrome) return sysChrome;
 	const envPath = process.env.PUPPETEER_EXECUTABLE_PATH;
@@ -211,7 +211,7 @@ function systemChromiumCandidates(): string[] {
 	return candidates;
 }
 
-function resolveSystemChromium(): string | undefined {
+export function resolveSystemChromium(): string | undefined {
 	if (resolvedChromium !== undefined) return resolvedChromium ?? undefined;
 	const seen = new Set<string>();
 	for (const candidate of systemChromiumCandidates()) {

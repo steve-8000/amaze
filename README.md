@@ -104,7 +104,7 @@ Key current docs include:
 
 - [`docs/memory.md`](docs/memory.md) — Nexus memory cutover and commands.
 - [`docs/config-usage.md`](docs/config-usage.md) and [`docs/environment-variables.md`](docs/environment-variables.md) — configuration and environment reference.
-- [`docs/session.md`](docs/session.md), [`docs/tui.md`](docs/tui.md), and [`docs/cua.md`](docs/cua.md) — operator/runtime surfaces.
+- [`docs/session.md`](docs/session.md), [`docs/tui.md`](docs/tui.md), and browser tooling docs — operator/runtime surfaces.
 - [`docs/x-search.md`](docs/x-search.md), [`docs/custom-tools.md`](docs/custom-tools.md), [`docs/mcp-config.md`](docs/mcp-config.md), and [`docs/mcp-server-tool-authoring.md`](docs/mcp-server-tool-authoring.md) — tool and integration docs.
 
 Historical implementation records are preserved under `docs/Phase0` through `docs/Phase7` and `docs/analysis`.

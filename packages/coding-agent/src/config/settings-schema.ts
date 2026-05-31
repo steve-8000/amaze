@@ -1157,6 +1157,29 @@ export const SETTINGS_SCHEMA = {
 		},
 	},
 
+	"compaction.mode": {
+		type: "enum",
+		values: ["single-pass", "map-reduce"] as const,
+		default: "single-pass",
+		ui: {
+			tab: "context",
+			label: "Compaction Mode",
+			description: "Use single-pass summarization or sectioned map-reduce summarization for large contexts",
+			options: [
+				{
+					value: "single-pass",
+					label: "Single-pass",
+					description: "Summarize compacted history in one model call",
+				},
+				{
+					value: "map-reduce",
+					label: "Map-reduce",
+					description: "Summarize chunks first, then reduce into the final compaction summary",
+				},
+			],
+		},
+	},
+
 	"compaction.strategy": {
 		type: "enum",
 		values: ["context-full", "handoff", "off"] as const,
@@ -1272,6 +1295,10 @@ export const SETTINGS_SCHEMA = {
 	"compaction.reserveTokens": { type: "number", default: 16384 },
 
 	"compaction.keepRecentTokens": { type: "number", default: 20000 },
+
+	"compaction.mapReduceSectionTokenBudget": { type: "number", default: 8000 },
+
+	"compaction.mapReduceMaxSections": { type: "number", default: 24 },
 
 	// Continuous (post-turn) tool-output demotion. Independent of threshold
 	// compaction: ages out stale tool outputs by per-tool TTL after each turn
@@ -1718,6 +1745,83 @@ export const SETTINGS_SCHEMA = {
 		},
 	},
 
+	// Bash safety policy — destructive command guard. Operates independently of
+	// `bashInterceptor` (which only re-routes cat/grep/find/sed to dedicated
+	// tools). This layer blocks `rm -rf ~`, `curl | sh`, `sudo`, exfiltration
+	// patterns, etc. The interceptor stays narrow; safety stays narrow.
+	"bash.safety.enabled": {
+		type: "boolean",
+		default: true,
+		ui: {
+			tab: "tools",
+			label: "Bash Safety Policy",
+			description:
+				"Block destructive shell commands (rm -rf ~, curl|sh, sudo, env exfiltration) before execution. Independent of the bash interceptor.",
+		},
+	},
+	"bash.safety.mode": {
+		type: "enum",
+		values: ["block", "ask", "off"] as const,
+		default: "block",
+		ui: {
+			tab: "tools",
+			label: "Bash Safety Mode",
+			description: "What to do when a deny pattern matches.",
+			options: [
+				{ value: "block", label: "Block", description: "Refuse execution (default)" },
+				{
+					value: "ask",
+					label: "Ask",
+					description:
+						"Log a warning and allow execution (interactive consent UI not yet implemented; behaves like off + telemetry until then).",
+				},
+				{ value: "off", label: "Off", description: "Log only, do not block" },
+			],
+		},
+	},
+	"bash.safety.allowPatterns": { type: "array", default: EMPTY_STRING_ARRAY },
+	"bash.safety.denyPatterns": { type: "array", default: EMPTY_STRING_ARRAY },
+	"bash.safety.redactOutput": {
+		type: "boolean",
+		default: true,
+		ui: {
+			tab: "tools",
+			label: "Redact Bash Output",
+			description:
+				"Run bash stdout/stderr through the session secret obfuscator before streaming/artifact writes. Turn off only when redaction interferes with output (e.g. binary captures).",
+		},
+	},
+	"bash.safety.scope.mcp": {
+		type: "boolean",
+		default: true,
+		ui: {
+			tab: "tools",
+			label: "Apply Bash Safety to MCP servers",
+			description:
+				"Reject MCP stdio server commands that violate the bash safety policy. Off skips the guard for MCP spawn only (bash tool gate stays active).",
+		},
+	},
+	"bash.safety.scope.configCommand": {
+		type: "boolean",
+		default: true,
+		ui: {
+			tab: "tools",
+			label: "Apply Bash Safety to !cmd resolver",
+			description:
+				"Reject `!cmd` values in config resolution that violate the bash safety policy. Off skips the guard for that resolver only.",
+		},
+	},
+	"doctor.all.actions": {
+		type: "array",
+		default: ["legacy", "security", "model", "context", "local-llm", "config"],
+		ui: {
+			tab: "tools",
+			label: "Doctor `all` Actions",
+			description:
+				"Which subcommands `amaze doctor` (with no argument) runs and aggregates. Include `legacy` for the historical memory/metrics/rules/observability report.",
+		},
+	},
+
 	// Shell output minimizer
 	"shellMinimizer.enabled": {
 		type: "boolean",
@@ -2018,7 +2122,7 @@ export const SETTINGS_SCHEMA = {
 		ui: {
 			tab: "tools",
 			label: "Browser",
-			description: "Enable the browser tool (Ulixee Hero)",
+			description: "Enable the browser tool for Chromium and Chrome-profile automation",
 		},
 	},
 
@@ -2085,6 +2189,36 @@ export const SETTINGS_SCHEMA = {
 	"async.maxJobs": {
 		type: "number",
 		default: 100,
+	},
+
+	// Per-owner background-job cap. Caps how many concurrent jobs one agent
+	// (registry id, e.g. "0-Main" / "3-AuthLoader") can hold open at once,
+	// independent of the global `async.maxJobs` budget. Prevents a runaway
+	// subagent from monopolising the manager's slots.
+	"async.maxJobsPerOwner": {
+		type: "number",
+		default: 8,
+	},
+	// Retention/TTL for finished jobs in the in-memory ledger. After
+	// `jobTtlMs` the job row is evicted; 0 evicts immediately on completion.
+	"async.jobTtlMs": {
+		type: "number",
+		default: 600000,
+	},
+	// On session close, cancel + reap any still-running jobs owned by the
+	// closing session/agent. Defaults to true; off is reserved for explicit
+	// long-running detached use cases.
+	"async.cleanupOnSessionClose": {
+		type: "boolean",
+		default: true,
+	},
+	// PLACEHOLDER: Queueing is not implemented. Today `register` always throws
+	// when the global running-job cap is hit, regardless of this flag. Setting
+	// `false` only suppresses the immediate exception path until a real queue
+	// lands; it does not currently change behaviour. Telemetry only.
+	"async.rejectWhenFull": {
+		type: "boolean",
+		default: true,
 	},
 
 	"async.pollWaitDuration": {
@@ -2374,18 +2508,18 @@ export const SETTINGS_SCHEMA = {
 
 	"task.maxRuntimeMs": {
 		type: "number",
-		default: 0,
+		default: 3600000,
 		ui: {
 			tab: "tasks",
 			label: "Max Subagent Runtime",
 			description:
-				"Hard wall-clock limit per subagent (ms). 0 disables it. Defense-in-depth against provider-side stream hangs that escape the inference-layer watchdog; triggers a normal subagent abort with a 'timed out' reason.",
+				"Hard wall-clock limit per subagent (ms). 0 disables it (explicit opt-out). Defense-in-depth against provider-side stream hangs that escape the inference-layer watchdog; triggers a normal subagent abort with a 'timed out' reason.",
 			options: [
-				{ value: "0", label: "Unlimited", description: "Default" },
+				{ value: "0", label: "Unlimited", description: "Explicit opt-out" },
 				{ value: "300000", label: "5 minutes" },
 				{ value: "900000", label: "15 minutes" },
 				{ value: "1800000", label: "30 minutes" },
-				{ value: "3600000", label: "1 hour" },
+				{ value: "3600000", label: "1 hour", description: "Default" },
 			],
 		},
 	},
@@ -2794,6 +2928,7 @@ export type TreeFilterMode = SettingValue<"treeFilterMode">;
 export interface CompactionSettings {
 	enabled: boolean;
 	strategy: "context-full" | "handoff" | "off";
+	mode: "single-pass" | "map-reduce";
 	thresholdPercent: number;
 	thresholdTokens: number;
 	reserveTokens: number;
@@ -2802,6 +2937,8 @@ export interface CompactionSettings {
 	autoContinue: boolean;
 	remoteEnabled: boolean;
 	remoteEndpoint: string | undefined;
+	mapReduceSectionTokenBudget: number;
+	mapReduceMaxSections: number;
 	idleEnabled: boolean;
 	idleThresholdTokens: number;
 	idleTimeoutSeconds: number;

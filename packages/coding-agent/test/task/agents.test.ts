@@ -63,7 +63,8 @@ describe("bundled visual qa agent", () => {
 		const visualQa = getBundledAgent("visual_qa");
 		if (!visualQa) throw new Error("Expected bundled visual_qa agent");
 
-		expect(visualQa.tools).toEqual(expect.arrayContaining(["browser", "cua", "inspect_image", "read"]));
+		expect(visualQa.tools).toEqual(expect.arrayContaining(["browser", "inspect_image", "read"]));
+		expect(visualQa.tools).not.toContain("cua");
 		expect(visualQa.systemPrompt).toContain("visual QA specialist");
 		expect(visualQa.systemPrompt).toContain("You are NOT a coding agent.");
 	});
