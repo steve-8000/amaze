@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import { type Component, truncateToWidth, visibleWidth } from "@amaze/tui";
-import { formatCount, getProjectDir } from "@amaze/utils";
+import { formatCount, getProjectDir, procmgr } from "@amaze/utils";
 import { $ } from "bun";
 import { settings } from "../../config/settings";
 import type { StatusLinePreset, StatusLineSegmentId, StatusLineSeparatorStyle } from "../../config/settings-schema";
@@ -255,7 +255,10 @@ export class StatusLineComponent implements Component {
 			};
 			try {
 				// Requires `gh repo set-default` to be configured; fails gracefully if not
-				const result = await $`gh pr view --json number,url`.quiet().nothrow();
+				const result = await $`gh pr view --json number,url`
+					.env(procmgr.scrubProcessEnv(Bun.env))
+					.quiet()
+					.nothrow();
 				if (result.exitCode !== 0) {
 					setCachedPr(null);
 					return;

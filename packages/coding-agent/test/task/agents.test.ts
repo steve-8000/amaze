@@ -10,15 +10,14 @@ describe("bundled agents", () => {
 		const agents = loadBundledAgents();
 		const names = agents.map(agent => agent.name);
 
-		expect(agents).toHaveLength(10);
-		expect(names.filter(name => name === "x_researcher")).toHaveLength(1);
-		expect(names.filter(name => name === "source_scout")).toHaveLength(1);
-		expect(names.filter(name => name === "memory_scout")).toHaveLength(1);
+		expect(agents).toHaveLength(7);
+		expect(names.filter(name => name === "Resercher_X")).toHaveLength(1);
+		expect(names.filter(name => name === "Resercher")).toHaveLength(1);
 	});
 
-	it("registers the canonical x_researcher agent", () => {
-		const xResearcher = getBundledAgent("x_researcher");
-		if (!xResearcher) throw new Error("Expected bundled x_researcher agent");
+	it("registers the canonical Resercher_X agent", () => {
+		const xResearcher = getBundledAgent("Resercher_X");
+		if (!xResearcher) throw new Error("Expected bundled Resercher_X agent");
 
 		expect(xResearcher.tools?.filter(tool => tool !== "yield")).toEqual(["x_search", "x_search_deep"]);
 		expect(xResearcher.description).toContain("SocialSignalCards");
@@ -27,29 +26,19 @@ describe("bundled agents", () => {
 		expect(xResearcher.systemPrompt).toContain("verbatimAvailable: false");
 	});
 
-	it("registers source_scout with web source tools", () => {
-		const sourceScout = getBundledAgent("source_scout");
-		if (!sourceScout) throw new Error("Expected bundled source_scout agent");
+	it("registers Resercher with web source tools", () => {
+		const sourceScout = getBundledAgent("Resercher");
+		if (!sourceScout) throw new Error("Expected bundled Resercher agent");
 
 		expect(sourceScout.tools?.filter(tool => tool !== "yield")).toEqual(["web_search", "read"]);
 		expect(sourceScout.systemPrompt).toContain("source harvester, not a judge");
-		expect(sourceScout.model).toEqual(["pi/local_scout"]);
+		expect(sourceScout.model).toEqual(["Resercher"]);
 		expect(sourceScout.output).toBeDefined();
 	});
 
-	it("registers memory_scout with memory lookup tools", () => {
-		const memoryScout = getBundledAgent("memory_scout");
-		if (!memoryScout) throw new Error("Expected bundled memory_scout agent");
-
-		expect(memoryScout.tools?.filter(tool => tool !== "yield")).toEqual(["read", "search"]);
-		expect(memoryScout.systemPrompt).toContain("read memory://root");
-		expect(memoryScout.model).toEqual(["pi/local_scout"]);
-		expect(memoryScout.output).toBeDefined();
-	});
-
-	it("keeps explore repository-only", () => {
-		const explore = getBundledAgent("explore");
-		if (!explore) throw new Error("Expected bundled explore agent");
+	it("keeps Explore repository-only", () => {
+		const explore = getBundledAgent("Explore");
+		if (!explore) throw new Error("Expected bundled Explore agent");
 
 		expect(explore.tools?.filter(tool => tool !== "yield")).toEqual(["read", "search", "find"]);
 		expect(explore.tools).not.toContain("web_search");
@@ -58,10 +47,10 @@ describe("bundled agents", () => {
 });
 
 describe("bundled visual qa agent", () => {
-	it("registers the visual_qa runtime-inspection agent", () => {
+	it("registers the Designer runtime-inspection agent", () => {
 		clearBundledAgentsCache();
-		const visualQa = getBundledAgent("visual_qa");
-		if (!visualQa) throw new Error("Expected bundled visual_qa agent");
+		const visualQa = getBundledAgent("Designer");
+		if (!visualQa) throw new Error("Expected bundled Designer agent");
 
 		expect(visualQa.tools).toEqual(expect.arrayContaining(["browser", "inspect_image", "read"]));
 		expect(visualQa.tools).not.toContain("cua");
@@ -71,6 +60,6 @@ describe("bundled visual qa agent", () => {
 	it("appears in the bundled agent roster exactly once", () => {
 		clearBundledAgentsCache();
 		const names = loadBundledAgents().map(agent => agent.name);
-		expect(names.filter(name => name === "visual_qa")).toHaveLength(1);
+		expect(names.filter(name => name === "Designer")).toHaveLength(1);
 	});
 });

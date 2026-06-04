@@ -31,7 +31,7 @@ import {
 	SqliteAuthCredentialStore,
 	startAuthBroker,
 } from "@amaze/ai";
-import { $which, APP_NAME, getAgentDbPath, getConfigRootDir, isEnoent, logger, VERSION } from "@amaze/utils";
+import { $which, APP_NAME, getAgentDbPath, getConfigRootDir, isEnoent, logger, procmgr, VERSION } from "@amaze/utils";
 import { $ } from "bun";
 import chalk from "chalk";
 import { resolveAuthBrokerConfig } from "../session/auth-broker-config";
@@ -189,6 +189,7 @@ async function runLocalLogin(provider: OAuthProvider): Promise<void> {
 	const piAiCli = Bun.fileURLToPath(import.meta.resolve("@amaze/ai/cli"));
 	const proc = Bun.spawn({
 		cmd: [process.execPath, piAiCli, "login", provider],
+		env: procmgr.scrubProcessEnv(Bun.env),
 		stdin: "inherit",
 		stdout: "inherit",
 		stderr: "inherit",
@@ -224,6 +225,7 @@ async function runRemoteLogin(provider: string, via: string, dryRun: boolean): P
 	}
 	const proc = Bun.spawn({
 		cmd: [sshBin, ...sshArgs],
+		env: procmgr.scrubProcessEnv(Bun.env),
 		stdin: "inherit",
 		stdout: "inherit",
 		stderr: "inherit",

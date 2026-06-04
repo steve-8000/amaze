@@ -13,7 +13,7 @@ import {
 	SshTool,
 } from "../../src/tools/index";
 
-function createAllToolsSettings(memoryBackend: "nexus"): Settings {
+function createAllToolsSettings(): Settings {
 	return Settings.isolated({
 		"astGrep.enabled": true,
 		"astEdit.enabled": true,
@@ -31,12 +31,11 @@ function createAllToolsSettings(memoryBackend: "nexus"): Settings {
 		"irc.enabled": true,
 		"recipe.enabled": true,
 		"todo.enabled": true,
-		"memory.backend": memoryBackend,
 		"tools.discoveryMode": "all",
 	});
 }
 
-const allToolsSettings = createAllToolsSettings("nexus");
+const allToolsSettings = createAllToolsSettings();
 const toolSession: ToolSession = {
 	cwd: "/tmp/test",
 	hasUI: false,
@@ -50,10 +49,7 @@ const toolSession: ToolSession = {
 
 async function getToolMetadata(): Promise<Map<string, { loadMode?: string; summary?: string }>> {
 	const metadata = new Map<string, { loadMode?: string; summary?: string }>();
-	const tools = await createTools(
-		{ ...toolSession, settings: createAllToolsSettings("nexus") },
-		Object.keys(BUILTIN_TOOLS),
-	);
+	const tools = await createTools({ ...toolSession, settings: createAllToolsSettings() }, Object.keys(BUILTIN_TOOLS));
 	for (const tool of tools) {
 		metadata.set(tool.name, { loadMode: tool.loadMode, summary: tool.summary });
 	}

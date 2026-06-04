@@ -1,6 +1,7 @@
 import * as fs from "node:fs/promises";
 import type { ImageContent } from "@amaze/ai";
-import { formatBytes, readImageMetadata, SUPPORTED_IMAGE_MIME_TYPES } from "@amaze/utils";
+import { formatBytes, parseImageMetadata, readImageMetadata, SUPPORTED_IMAGE_MIME_TYPES } from "@amaze/utils";
+import type { ClientBridge } from "../session/client-bridge";
 import { resolveReadPath } from "../tools/path-utils";
 import { formatDimensionNote, resizeImage } from "./image-resize";
 
@@ -14,6 +15,7 @@ export interface LoadImageInputOptions {
 	maxBytes?: number;
 	resolvedPath?: string;
 	detectedMimeType?: string;
+	clientBridge?: ClientBridge;
 }
 
 export interface LoadedImageInput {
@@ -50,9 +52,16 @@ export async function ensureSupportedImageInput(image: ImageContent): Promise<Im
 	}
 }
 
-export async function loadImageInput(options: LoadImageInputOptions): Promise<LoadedImageInput | null> {
-	const maxBytes = options.maxBytes ?? MAX_IMAGE_INPUT_BYTES;
-	const resolvedPath = options.resolvedPath ?? resolveReadPath(options.path, options.cwd);
+function clientReadPath(filePath: string, resolvedPath: string): string {
+	if (!filePath.includes("\\") || resolvedPath !== filePath) return resolvedPath;
+	return filePath.replace(/\\([ \t"'(){}[\]])/g, "$1");
+}
+
+async function loadLocalImageInput(
+	options: LoadImageInputOptions,
+	resolvedPath: string,
+	maxBytes: number,
+): Promise<LoadedImageInput | null> {
 	const metadata = options.detectedMimeType
 		? { mimeType: options.detectedMimeType }
 		: await readImageMetadata(resolvedPath);
@@ -69,12 +78,46 @@ export async function loadImageInput(options: LoadImageInputOptions): Promise<Lo
 		throw new ImageInputTooLargeError(inputBuffer.byteLength, maxBytes);
 	}
 
+	return normalizeLoadedImageInput({ resolvedPath, inputBuffer, mimeType, autoResize: options.autoResize });
+}
+
+async function loadBridgeImageInput(
+	options: LoadImageInputOptions,
+	resolvedPath: string,
+	maxBytes: number,
+): Promise<LoadedImageInput | null> {
+	const clientBridge = options.clientBridge;
+	if (!clientBridge?.capabilities.readBinaryFile || !clientBridge.readBinaryFile) return null;
+
+	const result = await clientBridge.readBinaryFile({ path: clientReadPath(options.path, resolvedPath), maxBytes });
+	const inputBuffer = Buffer.from(result.dataBase64, "base64");
+	if (inputBuffer.byteLength > maxBytes) {
+		throw new ImageInputTooLargeError(inputBuffer.byteLength, maxBytes);
+	}
+
+	const metadata = parseImageMetadata(inputBuffer);
+	if (!metadata?.mimeType) return null;
+
+	return normalizeLoadedImageInput({
+		resolvedPath,
+		inputBuffer,
+		mimeType: metadata.mimeType,
+		autoResize: options.autoResize,
+	});
+}
+
+async function normalizeLoadedImageInput(input: {
+	resolvedPath: string;
+	inputBuffer: Buffer;
+	mimeType: string;
+	autoResize: boolean;
+}): Promise<LoadedImageInput> {
+	const { resolvedPath, inputBuffer, mimeType } = input;
 	let outputData = Buffer.from(inputBuffer).toBase64();
 	let outputMimeType = mimeType;
 	let outputBytes = inputBuffer.byteLength;
 	let dimensionNote: string | undefined;
-
-	if (options.autoResize) {
+	if (input.autoResize) {
 		try {
 			const resized = await resizeImage({ type: "image", data: outputData, mimeType });
 			outputData = resized.data;
@@ -99,4 +142,19 @@ export async function loadImageInput(options: LoadImageInputOptions): Promise<Lo
 		dimensionNote,
 		bytes: outputBytes,
 	};
+}
+
+export async function loadImageInput(options: LoadImageInputOptions): Promise<LoadedImageInput | null> {
+	const maxBytes = options.maxBytes ?? MAX_IMAGE_INPUT_BYTES;
+	const resolvedPath = options.resolvedPath ?? resolveReadPath(options.path, options.cwd);
+
+	try {
+		const local = await loadLocalImageInput(options, resolvedPath, maxBytes);
+		if (local) return local;
+	} catch (err) {
+		if (err instanceof ImageInputTooLargeError) throw err;
+		// fall back to an explicit client-side read when the server path is absent or not readable
+	}
+
+	return loadBridgeImageInput(options, resolvedPath, maxBytes);
 }

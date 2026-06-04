@@ -22,7 +22,7 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { $env, isEnoent, logger } from "@amaze/utils";
+import { $env, isEnoent, logger, procmgr } from "@amaze/utils";
 import type { AwsCredentials } from "./aws-sigv4";
 
 export interface ResolvedCredentials extends AwsCredentials {
@@ -304,6 +304,7 @@ async function readCredentialProcess(
 	const argv = buildCredentialProcessArgv(profile, command);
 
 	const child = Bun.spawn(argv, {
+		env: procmgr.scrubProcessEnv(Bun.env),
 		stdin: "ignore",
 		stdout: "pipe",
 		stderr: "pipe",

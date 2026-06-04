@@ -11,28 +11,27 @@ import {
 } from "@amaze/coding-agent/local-llm";
 
 describe("local LLM config", () => {
-	test("defaults to disabled local_scout role", () => {
+	test("defaults to disabled Resercher role", () => {
 		const settings = Settings.isolated();
 		const config = getLocalLlmConfig(settings);
 
 		expect(config.enabled).toBe(false);
 		expect(config.required).toBe(false);
-		expect(config.modelRole).toBe("local_scout");
-		expect(getLocalLlmRoleAlias(config)).toBe("pi/local_scout");
-		expect(isLocalLlmUseCaseEnabled(config, "source_scout")).toBe(false);
+		expect(config.modelRole).toBe("Resercher");
+		expect(getLocalLlmRoleAlias(config)).toBe("Resercher");
+		expect(isLocalLlmUseCaseEnabled(config, "Resercher")).toBe(false);
 	});
 
 	test("enables configured scout use cases", () => {
 		const settings = Settings.isolated({
 			"localLlm.enabled": true,
 			"localLlm.modelRole": "custom_local",
-			"localLlm.useForMemoryScout": false,
 		});
 		const config = getLocalLlmConfig(settings);
 
-		expect(getLocalLlmRoleAlias(config)).toBe("pi/custom_local");
-		expect(isLocalLlmUseCaseEnabled(config, "source_scout")).toBe(true);
-		expect(isLocalLlmUseCaseEnabled(config, "memory_scout")).toBe(false);
+		expect(getLocalLlmRoleAlias(config)).toBe("custom_local");
+		expect(isLocalLlmUseCaseEnabled(config, "Resercher")).toBe(true);
+		expect(isLocalLlmUseCaseEnabled(config, "log_summarizer")).toBe(true);
 	});
 });
 
@@ -56,7 +55,7 @@ describe("local evidence bundle", () => {
 	});
 
 	test("rejects invalid confidence and negative compression counts", () => {
-		const bundle = createEmptyLocalEvidenceBundle("source_scout", -1);
+		const bundle = createEmptyLocalEvidenceBundle("Resercher", -1);
 		bundle.compression.outputChars = -5;
 		bundle.claims.push({ claim: "Bad confidence", evidenceRefs: ["E1"], confidence: "certain" as "high" });
 

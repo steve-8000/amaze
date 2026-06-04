@@ -5,7 +5,7 @@
  * Messages are newline-delimited JSON.
  */
 
-import { getProjectDir, readJsonl, Snowflake } from "@amaze/utils";
+import { getProjectDir, procmgr, readJsonl, Snowflake } from "@amaze/utils";
 import { type Subprocess, spawn } from "bun";
 import { Settings } from "../../config/settings";
 import type {
@@ -54,10 +54,10 @@ export class StdioTransport implements MCPTransport {
 		if (this.#connected) return;
 
 		const args = this.config.args ?? [];
-		const env = {
+		const env = procmgr.scrubProcessEnv({
 			...Bun.env,
 			...this.config.env,
-		};
+		});
 		const commandLine = [this.config.command, ...args].map(shellQuote).join(" ");
 		const settings = await Settings.init();
 		if (settings.get("bash.safety.scope.mcp")) {

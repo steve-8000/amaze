@@ -40,7 +40,7 @@ Append `:<sel>` to `path`. Bare path falls back to the default mode.
 - **Archives** (`.tar`/`.tar.gz`/`.tgz`/`.zip`): `archive.ext:path/inside[:lines]`.
 - **SQLite** (`.sqlite`/`.sqlite3`/`.db`/`.db3`): `file.db` lists tables; `:table` schema+samples; `:table:key` single row; `:table?limit=&offset=&where=&order=` filtered; `?q=SELECT…` raw query.
 - **URLs**: reader-mode by default (HTML/PR/issue/SO/wiki/RSS/JSON/PDF → markdown). `:raw` returns raw HTML; line selectors paginate cached output. For `host:port` URLs add a trailing slash before the selector: `https://example.com/:80`.
-- **Internal URIs** (`skill://`, `agent://`, `artifact://`, `memory://root`, `rule://`, `local://`, `mcp://`): same selectors as filesystem paths. `artifact://<id>` recovers truncated tool output.
+- **Internal URIs** (`skill://`, `agent://`, `artifact://`, `rule://`, `local://`, `mcp://`): same selectors as filesystem paths. `artifact://<id>` recovers truncated tool output.
 
 <critical>
 - You MUST use `read` for every file/dir/archive/URL inspection. `cat`, `head`, `tail`, `less`, `more`, `ls`, `tar`, `unzip`, `curl`, `wget` are FORBIDDEN.

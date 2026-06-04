@@ -65,7 +65,7 @@ describe("MissionControlView", () => {
 			id: "lane-1",
 			missionId: mission.id,
 			lane: "repo",
-			agent: "explore",
+			agent: "Explore",
 			epistemicRole: "repo_truth",
 			status: "completed",
 			evidenceCount: 1,
@@ -89,7 +89,7 @@ describe("MissionControlView", () => {
 		expect(rendered).toContain("Research run: <none>");
 		expect(rendered).toContain("Snapshot: unavailable");
 		expect(rendered).toContain("── Orchestration ──");
-		expect(rendered).toContain("[repo truth] explore | repo | completed | evidence 1");
+		expect(rendered).toContain("[repo truth] Explore | repo | completed | evidence 1");
 		expect(rendered).toContain("── Evidence Board ──");
 		expect(rendered).toContain("[repo] ev-1 | grade A | src/file.ts:1");
 		// P9.2: empty Synthesis / Critique section is suppressed in compact mode.
@@ -244,7 +244,7 @@ describe("MissionControlView", () => {
 			id: "lane-rich",
 			missionId: mission.id,
 			lane: "repo",
-			agent: "explore",
+			agent: "Explore",
 			epistemicRole: "repo_truth",
 			status: "completed",
 			evidenceCount: 1,

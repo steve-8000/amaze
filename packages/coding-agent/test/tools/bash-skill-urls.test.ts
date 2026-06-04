@@ -152,20 +152,18 @@ describe("expandSkillUrls", () => {
 });
 
 describe("expandInternalUrls", () => {
-	it("expands skill/agent/artifact/memory/rule URLs in one command", async () => {
+	it("expands skill/agent/artifact/rule URLs in one command", async () => {
 		const skills = [createSkill("valid-skill", "/tmp/skills/valid-skill")];
 		const router = createInternalRouter({
 			"artifact://12": { sourcePath: "/tmp/artifacts/12.bash.log" },
 			"agent://reviewer_0": { sourcePath: "/tmp/session/reviewer_0.md" },
-			"memory://root/memory_summary.md": { sourcePath: "/tmp/memories/memory_summary.md" },
 			"rule://rs-no-unwrap": { sourcePath: "/tmp/rules/rs-no-unwrap.md" },
 		});
-		const command =
-			"cat agent://reviewer_0 artifact://12 memory://root/memory_summary.md rule://rs-no-unwrap skill://valid-skill/scripts/init.py";
+		const command = "cat agent://reviewer_0 artifact://12 rule://rs-no-unwrap skill://valid-skill/scripts/init.py";
 		const expectedSkillPath = path.join(skills[0].baseDir, "scripts/init.py");
 
 		await expect(expandInternalUrls(command, { skills, internalRouter: router })).resolves.toBe(
-			`cat ${shellEscape("/tmp/session/reviewer_0.md")} ${shellEscape("/tmp/artifacts/12.bash.log")} ${shellEscape("/tmp/memories/memory_summary.md")} ${shellEscape("/tmp/rules/rs-no-unwrap.md")} ${shellEscape(expectedSkillPath)}`,
+			`cat ${shellEscape("/tmp/session/reviewer_0.md")} ${shellEscape("/tmp/artifacts/12.bash.log")} ${shellEscape("/tmp/rules/rs-no-unwrap.md")} ${shellEscape(expectedSkillPath)}`,
 		);
 	});
 
@@ -262,11 +260,11 @@ describe("expandInternalUrls", () => {
 
 	it("surfaces resolver errors with actionable context", async () => {
 		const router = createInternalRouter({
-			"memory://root/missing.md": { error: "Memory file not found" },
+			"rule://missing": { error: "Rule not found" },
 		});
-		await expect(
-			expandInternalUrls("cat memory://root/missing.md", { skills: [], internalRouter: router }),
-		).rejects.toThrow("Failed to resolve memory:// URL in bash command");
+		await expect(expandInternalUrls("cat rule://missing", { skills: [], internalRouter: router })).rejects.toThrow(
+			"Failed to resolve rule:// URL in bash command",
+		);
 	});
 
 	it("does not match local:/ inside filesystem paths (e.g. /repo/local:/PLAN.md)", async () => {

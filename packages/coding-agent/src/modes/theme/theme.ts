@@ -188,7 +188,6 @@ export type SymbolKey =
 	| "tab.context"
 	| "tab.editing"
 	| "tab.tools"
-	| "tab.memory"
 	| "tab.tasks"
 	| "tab.providers";
 
@@ -352,7 +351,6 @@ const UNICODE_SYMBOLS: SymbolMap = {
 	"tab.context": "📋",
 	"tab.editing": "💻",
 	"tab.tools": "🔧",
-	"tab.memory": "🧠",
 	"tab.tasks": "📦",
 	"tab.providers": "🌐",
 };
@@ -611,7 +609,6 @@ const NERD_SYMBOLS: SymbolMap = {
 	"tab.context": "󰘸",
 	"tab.editing": "",
 	"tab.tools": "󰠭",
-	"tab.memory": "󰧑",
 	"tab.tasks": "󰐱",
 	"tab.providers": "󰖟",
 };
@@ -773,7 +770,6 @@ const ASCII_SYMBOLS: SymbolMap = {
 	"tab.context": "[X]",
 	"tab.editing": "[E]",
 	"tab.tools": "[T]",
-	"tab.memory": "[Y]",
 	"tab.tasks": "[K]",
 	"tab.providers": "[P]",
 };

@@ -477,7 +477,6 @@ function epistemicBadge(role: string): string {
 	if (role === "repo_truth") return "[repo truth]";
 	if (role === "source_harvest") return "[source]";
 	if (role === "social_signal") return "[social]";
-	if (role === "memory_prior") return "[memory]";
 	if (role === "synthesis") return "[synth]";
 	if (role === "critic") return "[critic]";
 	return "[unknown]";

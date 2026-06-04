@@ -228,7 +228,7 @@ export function renderActiveMissionPacket(packet: ActiveMissionPacket | null | u
 		if (packet.verificationVerdict !== undefined && packet.verificationVerdict !== null) {
 			lines.push(`verification: ${packet.verificationVerdict}`);
 		}
-		lines.push(`(For details: read memory://mission/{id}/decision | regression | evidence)`);
+		lines.push(`(For details: /mission decision <id> | /mission verify <id> | /mission evidence <id>)`);
 	}
 	lines.push(
 		`Omitted: ${packet.omitted.evidenceClaims} evidence claims, ${packet.omitted.evidenceCards} evidence cards, ${packet.omitted.contracts} older contracts, ${packet.omitted.contractIncludes} contract includes, ${packet.omitted.contractCriteria} contract criteria, ${packet.omitted.nextActions} next actions.`,

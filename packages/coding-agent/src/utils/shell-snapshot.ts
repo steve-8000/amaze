@@ -8,7 +8,7 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { postmortem } from "@amaze/utils";
+import { postmortem, procmgr } from "@amaze/utils";
 
 const cachedSnapshotPaths = new Map<string, string>();
 const SNAPSHOT_TIMEOUT_MS = 2_000;
@@ -159,7 +159,7 @@ export async function getOrCreateSnapshot(
 			}
 		}
 		const child = Bun.spawn([shell, "-c", script], {
-			env: spawnEnv,
+			env: procmgr.scrubProcessEnv(spawnEnv),
 			stdin: "ignore",
 			stdout: "ignore",
 			stderr: "ignore",

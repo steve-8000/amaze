@@ -3,10 +3,22 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { Effort, type Model, type OpenAICompat, type ThinkingConfig, writeModelCache } from "@amaze/ai";
-import { kNoAuth, ModelRegistry } from "@amaze/coding-agent/config/model-registry";
+import { hasUsableAuth, kNoAuth, ModelRegistry } from "@amaze/coding-agent/config/model-registry";
 import { resetSettingsForTest, Settings } from "@amaze/coding-agent/config/settings";
 import { AuthStorage } from "@amaze/coding-agent/session/auth-storage";
 import { hookFetch, Snowflake } from "@amaze/utils";
+
+describe("hasUsableAuth", () => {
+	test("accepts only string credentials and keyless sentinels", () => {
+		expect(hasUsableAuth(undefined)).toBe(false);
+		expect(hasUsableAuth("")).toBe(false);
+		expect(hasUsableAuth({ access: "oauth-token" })).toBe(false);
+		expect(hasUsableAuth("N/A")).toBe(true);
+		expect(hasUsableAuth("test-key")).toBe(true);
+		expect(hasUsableAuth("aaa.eyJhIjoxfQ.bbb")).toBe(true);
+		expect(hasUsableAuth('{"token":"oauth-token"}')).toBe(true);
+	});
+});
 
 describe("ModelRegistry", () => {
 	let tempDir: string;

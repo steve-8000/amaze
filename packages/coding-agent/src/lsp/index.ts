@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import path from "node:path";
 import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@amaze/agent-core";
-import { logger, once, prompt, untilAborted } from "@amaze/utils";
+import { logger, once, procmgr, prompt, untilAborted } from "@amaze/utils";
 import type { BunFile } from "bun";
 import { type Theme, theme } from "../modes/theme/theme";
 import lspDescription from "../prompts/tools/lsp.md" with { type: "text" };
@@ -507,6 +507,7 @@ async function runWorkspaceDiagnostics(
 	}
 	const proc = Bun.spawn(projectType.command, {
 		cwd,
+		env: procmgr.scrubProcessEnv(Bun.env),
 		stdout: "pipe",
 		stderr: "pipe",
 		windowsHide: true,

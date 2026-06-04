@@ -746,3 +746,32 @@ it("read tool: requestPermission is never called for non-gated tools", async () 
 	expect(permissionSpy).toHaveBeenCalledTimes(0);
 	expect(readTool.executeCalls).toBe(1);
 });
+
+// ---------------------------------------------------------------------------
+// infraApprovalOnly bridge: generic mutation tools are NOT gated (regression:
+// TUI bridge must not prompt for every bash/edit command — only infra commands,
+// which are gated separately inside the bash tool itself).
+// ---------------------------------------------------------------------------
+
+it("infraApprovalOnly bridge does not gate generic bash commands", async () => {
+	const bashTool = makeFakeTool("bash");
+	const bridge: ClientBridge = {
+		capabilities: { requestPermission: true },
+		infraApprovalOnly: true,
+		async requestPermission() {
+			return { outcome: "selected", optionId: "allow_once", kind: "allow_once" };
+		},
+	};
+	const permissionSpy = spyOn(bridge, "requestPermission");
+	session = await createSession([bashTool], bridge);
+
+	await session.setActiveToolsByName(["bash"]);
+	const wrappedBash = session.agent.state.tools.find(t => t.name === "bash");
+	expect(wrappedBash).toBeDefined();
+
+	await wrappedBash!.execute("call-1", { command: "echo hi" }, undefined, undefined as never, undefined as never);
+
+	// The generic ACP permission wrapper is skipped: no prompt, tool runs directly.
+	expect(permissionSpy).toHaveBeenCalledTimes(0);
+	expect(bashTool.executeCalls).toBe(1);
+});

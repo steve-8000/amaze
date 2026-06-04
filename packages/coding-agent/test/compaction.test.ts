@@ -5,12 +5,19 @@ import {
 	type CompactionSettings,
 	calculateContextTokens,
 	compact,
+	computeAdaptiveThresholdRatio,
+	computeEffectiveKeepRecentTokens,
+	computeEffectiveThresholdRatio,
 	DEFAULT_COMPACTION_SETTINGS,
+	DEFAULT_COMPACTION_THRESHOLD_PERCENT,
 	findCutPoint,
 	getLastAssistantUsage,
 	prepareCompaction,
+	resolveThresholdTokens,
 	shouldCompact,
-} from "@amaze/agent-core/compaction/compaction";
+	shouldStartSpeculativeCompaction,
+	shouldTriggerAdaptiveCompaction,
+} from "@amaze/agent-core/compaction";
 import * as ai from "@amaze/ai";
 import { getBundledModel } from "@amaze/ai/models";
 import { encodeTextSignatureV1 } from "@amaze/ai/providers/openai-responses-shared";
@@ -225,18 +232,13 @@ describe("getLastAssistantUsage", () => {
 });
 
 describe("shouldCompact", () => {
-	it("should return true when context exceeds threshold", () => {
-		const settings: CompactionSettings = {
-			enabled: true,
-			reserveTokens: 10000,
-			keepRecentTokens: 20000,
-		};
+	it("should use the default 80 percent proactive threshold", () => {
+		const settings: CompactionSettings = DEFAULT_COMPACTION_SETTINGS;
 
-		// default mode uses legacy reserve behavior:
-		// effective reserve = max(floor(100000 * 0.15), 10000) = 15000, threshold = 85000
-		expect(shouldCompact(95000, 100000, settings)).toBe(true);
-		expect(shouldCompact(86000, 100000, settings)).toBe(true);
-		expect(shouldCompact(84000, 100000, settings)).toBe(false);
+		expect(resolveThresholdTokens(100_000, settings)).toBe(80_000);
+		expect(shouldCompact(79_999, 100_000, settings)).toBe(false);
+		expect(shouldCompact(80_000, 100_000, settings)).toBe(true);
+		expect(DEFAULT_COMPACTION_THRESHOLD_PERCENT).toBe(80);
 	});
 
 	it("should use configured threshold percent", () => {
@@ -247,8 +249,8 @@ describe("shouldCompact", () => {
 			keepRecentTokens: 20000,
 		};
 
-		expect(shouldCompact(89_000, 100_000, settings)).toBe(false);
-		expect(shouldCompact(90_001, 100_000, settings)).toBe(true);
+		expect(shouldCompact(89_999, 100_000, settings)).toBe(false);
+		expect(shouldCompact(90_000, 100_000, settings)).toBe(true);
 	});
 
 	it("should use legacy reserve behavior when threshold is set to default sentinel", () => {
@@ -260,8 +262,8 @@ describe("shouldCompact", () => {
 		};
 
 		// effective reserve = max(15000, 30000) = 30000, threshold = 70000
-		expect(shouldCompact(70_000, 100_000, settings)).toBe(false);
-		expect(shouldCompact(70_001, 100_000, settings)).toBe(true);
+		expect(shouldCompact(69_999, 100_000, settings)).toBe(false);
+		expect(shouldCompact(70_000, 100_000, settings)).toBe(true);
 	});
 
 	it("should return false when strategy is off", () => {
@@ -284,6 +286,44 @@ describe("shouldCompact", () => {
 		};
 
 		expect(shouldCompact(95000, 100000, settings)).toBe(false);
+	});
+
+	it("exposes Senpi-style adaptive trigger helpers for proactive maintenance", () => {
+		const settings: CompactionSettings = DEFAULT_COMPACTION_SETTINGS;
+
+		expect(computeAdaptiveThresholdRatio(200_000)).toBe(0.65);
+		expect(computeEffectiveThresholdRatio(200_000)).toBe(0.65);
+		expect(shouldStartSpeculativeCompaction(97_499, 200_000, settings)).toBe(false);
+		expect(shouldStartSpeculativeCompaction(97_500, 200_000, settings)).toBe(true);
+		expect(shouldTriggerAdaptiveCompaction(129_999, 200_000, settings)).toBe(false);
+		expect(shouldTriggerAdaptiveCompaction(130_000, 200_000, settings)).toBe(true);
+		expect(computeEffectiveKeepRecentTokens(20_000, 200_000, 0.65)).toBe(20_000);
+		expect(computeEffectiveKeepRecentTokens(20_000, 16_000, 0.45)).toBe(8_000);
+	});
+
+	it("forceCut turns an over-budget keep-all cut into real compaction work", () => {
+		const largeAssistantText = "large assistant context ".repeat(2000);
+		const entries: SessionEntry[] = [
+			createMessageEntry(createUserMessage("old request")),
+			createMessageEntry(createAssistantMessage(largeAssistantText, createMockUsage(0, 100, 20_000, 0))),
+			createMessageEntry(createUserMessage("latest request")),
+			createMessageEntry(createAssistantMessage("latest answer", createMockUsage(0, 100, 80_000, 0))),
+		];
+		const baseSettings = {
+			...DEFAULT_COMPACTION_SETTINGS,
+			keepRecentTokens: 1_000_000,
+		};
+
+		expect(prepareCompaction(entries, baseSettings)).toBeUndefined();
+
+		const forced = prepareCompaction(entries, {
+			...baseSettings,
+			forceCut: true,
+		});
+
+		expect(forced).toBeDefined();
+		expect(forced?.messagesToSummarize.length).toBeGreaterThan(0);
+		expect(forced?.firstKeptEntryId).not.toBe(entries[0].id);
 	});
 });
 

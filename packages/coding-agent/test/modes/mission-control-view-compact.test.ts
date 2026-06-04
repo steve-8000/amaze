@@ -62,7 +62,7 @@ describe("Mission Control compact layout", () => {
 			{
 				lane: "source",
 				status: "running",
-				agent: "explore",
+				agent: "Explore",
 				epistemicRole: "for",
 				evidenceCount: 1,
 				emptyReason: null,

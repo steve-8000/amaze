@@ -41,14 +41,13 @@ interface BrowserRenderContext {
 }
 
 function describeBrowser(args: BrowserRenderArgs, details: BrowserToolDetails | undefined): string | undefined {
+	if (details?.browser === "chrome-extension") return "Chrome profile";
 	if (args.app?.cdp_url) return `connected ${args.app.cdp_url}`;
 	if (args.app?.kind === "chrome" || args.app?.user_data_dir || args.app?.extension_path) return "Chrome profile";
 	if (args.app?.path) return `spawned ${shortenPath(args.app.path)}`;
 	switch (details?.browser) {
 		case "headless":
 			return "headless";
-		case "chrome-extension":
-			return "Chrome profile";
 		case "spawned":
 			return "spawned";
 		case "connected":

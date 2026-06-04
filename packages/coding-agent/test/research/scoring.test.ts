@@ -7,7 +7,7 @@ function brief(overrides: Partial<ResearchBrief> = {}): ResearchBrief {
 		id: "brief-1",
 		objectiveId: null,
 		question: "What is true?",
-		lanes: ["repo", "source", "social", "memory"],
+		lanes: ["repo", "source", "social"],
 		requiredEvidence: [],
 		disallowedEvidence: [],
 		riskLevel: "medium",
@@ -45,12 +45,11 @@ describe("scoreComplementarity", () => {
 		expect(score.total).toBe(0);
 	});
 
-	test("balanced four-lane grade A evidence scores high", () => {
+	test("balanced three-lane grade A evidence scores high", () => {
 		const evidence: EvidenceCard[] = [
 			card({ id: "repo", lane: "repo" }),
 			card({ id: "source", lane: "source" }),
 			card({ id: "social", lane: "social" }),
-			card({ id: "memory", lane: "memory" }),
 		];
 		const score = scoreComplementarity(brief(), evidence);
 

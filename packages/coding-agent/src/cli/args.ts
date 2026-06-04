@@ -250,9 +250,9 @@ export function getExtraHelpText(): string {
   ${chalk.dim("# Configuration")}
   AMAZE_CODING_AGENT_DIR        - Session storage directory (default: ~/${CONFIG_DIR_NAME}/agent)
   AMAZE_PACKAGE_DIR             - Override package directory (for Nix/Guix store paths)
-  AMAZE_SMOL_MODEL              - Override smol/fast model (see --smol)
-  AMAZE_SLOW_MODEL              - Override slow/reasoning model (see --slow)
-  AMAZE_PLAN_MODEL              - Override planning model (see --plan)
+  AMAZE_SMOL_MODEL              - Override Explore model (legacy name; see --smol)
+  AMAZE_SLOW_MODEL              - Override Reviewer model (legacy name; see --slow)
+  AMAZE_PLAN_MODEL              - Override Planner model (see --plan)
   AMAZE_NO_PTY                  - Disable PTY-based interactive bash execution
 
   For complete environment variable reference, run ${chalk.bold(`${APP_NAME} --help`)}

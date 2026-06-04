@@ -46,6 +46,7 @@ packages/ai/test/.temp-images/
 
 # Project specific
 !.amaze/
+.amaze/*.ignored
 .amaze/plugins/
 .pi_config/
 .opencode/
@@ -68,6 +69,8 @@ python/amaze-rpc/src/amaze_rpc.egg-info/
 .wt/
 CPU*.md
 packages/coding-agent/binaries/
+packages/amaze/bin/
+packages/amaze/*.tgz
 
 # rocky runtime state
 python/rocky/data/

@@ -1,4 +1,5 @@
 import * as fs from "node:fs";
+import * as path from "node:path";
 import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@amaze/agent-core";
 import type { Component } from "@amaze/tui";
 import { ImageProtocol, TERMINAL, Text } from "@amaze/tui";
@@ -11,7 +12,7 @@ import { InternalUrlRouter } from "../internal-urls";
 import { truncateToVisualLines } from "../modes/components/visual-truncate";
 import { highlightCode, type Theme } from "../modes/theme/theme";
 import bashDescription from "../prompts/tools/bash.md" with { type: "text" };
-import { type BashSafetyPolicyOptions, checkBashSafety, redactBashChunk } from "../security";
+import { type BashSafetyPolicyOptions, checkBashSafety, classifyInfraCommand, redactBashChunk } from "../security";
 import type { ClientBridgeTerminalExitStatus, ClientBridgeTerminalOutput } from "../session/client-bridge";
 import { DEFAULT_MAX_BYTES, streamTailUpdates, TailBuffer } from "../session/streaming-output";
 import { renderStatusLine } from "../tui";
@@ -44,6 +45,17 @@ async function saveBashOriginalArtifact(session: ToolSession, originalText: stri
 	} catch {
 		return undefined;
 	}
+}
+/** Whether an infra command matches a user-configured approval-bypass pattern. */
+function matchesInfraAllowlist(command: string, patterns: readonly string[]): boolean {
+	for (const pattern of patterns) {
+		try {
+			if (new RegExp(pattern).test(command)) return true;
+		} catch {
+			// Ignore malformed user patterns — fail closed (no bypass).
+		}
+	}
+	return false;
 }
 
 const bashSchemaBase = z.object({
@@ -236,6 +248,8 @@ export class BashTool implements AgentTool<BashToolSchema, BashToolDetails> {
 	readonly #autoBackgroundEnabled: boolean;
 	readonly #autoBackgroundThresholdMs: number;
 	#bashFixupNoticeEmitted = false;
+	#infraApprovalCache = new Set<string>();
+	#infraApprovalCacheTurn: number | undefined;
 
 	constructor(private readonly session: ToolSession) {
 		this.#asyncEnabled = this.session.settings.get("async.enabled");
@@ -256,6 +270,64 @@ export class BashTool implements AgentTool<BashToolSchema, BashToolDetails> {
 			hasSearch: this.session.settings.get("search.enabled"),
 			hasFind: this.session.settings.get("find.enabled"),
 		});
+	}
+
+	/**
+	 * Request mandatory user approval for an infrastructure/deployment command.
+	 *
+	 * Returns true only when a connected client explicitly selects an "allow"
+	 * option. Approved exact commands are reused only within the same user turn,
+	 * effective cwd, and classifier-checked command string. Rejections are never
+	 * cached. When no approval channel exists (no client bridge, or it lacks
+	 * `requestPermission`), returns false so the caller blocks fail-closed.
+	 */
+	async #requestInfraApproval(
+		infra: { tool: string; operation: string; segment: string },
+		command: string,
+		effectiveCwd: string,
+	): Promise<boolean> {
+		const bridge = this.session.getClientBridge?.();
+		if (!bridge?.capabilities.requestPermission || !bridge.requestPermission) {
+			logger.warn("infra.approval.blocked_no_channel", { tool: infra.tool, operation: infra.operation });
+			return false;
+		}
+		const cacheKey = this.#getInfraApprovalCacheKey(command, effectiveCwd);
+		if (cacheKey && this.#infraApprovalCache.has(cacheKey)) return true;
+		try {
+			const outcome = await bridge.requestPermission(
+				{
+					toolCallId: `infra-${Date.now()}`,
+					toolName: "bash",
+					title: `Infrastructure deploy: ${infra.tool} ${infra.operation}`,
+					kind: "execute",
+					status: "pending",
+					rawInput: { command },
+					content: [{ type: "content", content: { type: "text", text: `$ ${command}` } }],
+				},
+				[
+					{ optionId: "allow_once", name: "Approve this infra command", kind: "allow_once" },
+					{ optionId: "reject_once", name: "Reject", kind: "reject_once" },
+				],
+			);
+			if (outcome.outcome !== "selected") return false;
+			const kind = outcome.kind ?? (outcome.optionId === "allow_once" ? "allow_once" : "reject_once");
+			const approved = kind === "allow_once";
+			if (approved && cacheKey) this.#infraApprovalCache.add(cacheKey);
+			return approved;
+		} catch (error) {
+			logger.warn("infra.approval.request_failed", { error: String(error) });
+			return false;
+		}
+	}
+
+	#getInfraApprovalCacheKey(command: string, effectiveCwd: string): string | undefined {
+		const turnIndex = this.session.getTurnIndex?.();
+		if (turnIndex === null || turnIndex === undefined) return undefined;
+		if (this.#infraApprovalCacheTurn !== turnIndex) {
+			this.#infraApprovalCacheTurn = turnIndex;
+			this.#infraApprovalCache.clear();
+		}
+		return JSON.stringify([turnIndex, path.resolve(effectiveCwd), command]);
 	}
 
 	#formatResultOutput(result: BashResult | BashInteractiveResult): string {
@@ -541,7 +613,6 @@ export class BashTool implements AgentTool<BashToolSchema, BashToolDetails> {
 				});
 			}
 		}
-
 		const internalUrlOptions: InternalUrlExpansionOptions = {
 			skills: this.session.skills ?? [],
 			internalRouter: InternalUrlRouter.instance(),
@@ -573,6 +644,30 @@ export class BashTool implements AgentTool<BashToolSchema, BashToolDetails> {
 
 		const commandCwd = cwd ? resolveToCwd(cwd, this.session.cwd) : this.session.cwd;
 		let cwdStat: fs.Stats;
+
+		// Infrastructure / deployment commands ALWAYS require explicit user approval,
+		// regardless of mission.autoApprove or any prior allow_always decision. When no
+		// interactive approval channel is connected (headless/RPC/autonomous turns) the
+		// command is blocked fail-closed. Approved exact commands are reused only within
+		// the current turn and effective cwd.
+		if (this.session.settings.get("infra.approval.enabled")) {
+			const allowlist = this.session.settings.get("infra.approval.allowlist") ?? [];
+			for (const commandToCheck of commandsToSafetyCheck) {
+				const infra = classifyInfraCommand(commandToCheck);
+				if (!infra) continue;
+				if (matchesInfraAllowlist(commandToCheck, allowlist)) continue;
+				const approved = await this.#requestInfraApproval(infra, commandToCheck, commandCwd);
+				if (!approved) {
+					throw new ToolError(
+						`Infrastructure command requires explicit user approval and was not approved: ` +
+							`${infra.tool} ${infra.operation}. ` +
+							`Infra/deploy commands (kubectl/helm/terraform/cloud CLIs) are never auto-approved. ` +
+							`Approve it interactively, or add a precise pattern to infra.approval.allowlist.`,
+					);
+				}
+			}
+		}
+
 		try {
 			cwdStat = await fs.promises.stat(commandCwd);
 		} catch (err) {

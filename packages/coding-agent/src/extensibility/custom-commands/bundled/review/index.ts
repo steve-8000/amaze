@@ -9,7 +9,7 @@
  *
  * Runs git diff upfront, parses results, filters noise, and provides
  * rich context for the orchestrating agent to distribute work across
- * multiple reviewer agents based on diff weight and locality.
+ * multiple Reviewer agents based on diff weight and locality.
  */
 import { prompt } from "@amaze/utils";
 import type { CustomCommand, CustomCommandAPI } from "../../../../extensibility/custom-commands/types";
@@ -144,7 +144,7 @@ function getFileExt(path: string): string {
 }
 
 /**
- * Determine recommended number of reviewer agents based on diff weight.
+ * Determine recommended number of Reviewer agents based on diff weight.
  * Uses total lines changed as the primary metric.
  */
 function getRecommendedAgentCount(stats: DiffStats): number {
@@ -233,7 +233,7 @@ export class ReviewCommand implements CustomCommand {
 
 	async execute(args: string[], ctx: HookCommandContext): Promise<string | undefined> {
 		if (!ctx.hasUI) {
-			const base = "Use the Task tool to run the 'reviewer' agent to review recent code changes.";
+			const base = "Use the Task tool to run the 'Reviewer' agent to review recent code changes.";
 			return args.length > 0 ? `${base} Focus: ${args.join(" ")}` : base;
 		}
 
@@ -412,7 +412,7 @@ Custom review instructions
 
 ${instructions}
 
-Use the Task tool with \`agent: "reviewer"\` to execute this review.`;
+Use the Task tool with \`agent: "Reviewer"\` to execute this review.`;
 			}
 
 			default:

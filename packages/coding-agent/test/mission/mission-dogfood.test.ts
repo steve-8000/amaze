@@ -54,7 +54,7 @@ describe("mission control dogfood", () => {
 			const brief = research.createBrief({
 				objectiveId: objective.id,
 				question: "Can Mission Control close Wave8?",
-				lanes: ["repo", "source", "memory"],
+				lanes: ["repo", "source", "social"],
 				requiredEvidence: [],
 				disallowedEvidence: [],
 				riskLevel: "medium",
@@ -89,9 +89,9 @@ describe("mission control dogfood", () => {
 			});
 			const conflictingEvidence = research.addEvidence({
 				briefId: brief.id,
-				lane: "memory",
+				lane: "social",
 				grade: "C",
-				sourceRef: "memory://root:mission",
+				sourceRef: "social://mission",
 				excerpt: "Prior contradicts repo",
 				claims: ["mission filters missing and not implemented"],
 				directness: 0.6,
@@ -118,7 +118,7 @@ describe("mission control dogfood", () => {
 			missions.createLaneRun({
 				missionId: mission.id,
 				lane: "repo",
-				agent: "explore",
+				agent: "Explore",
 				epistemicRole: "repo_truth",
 				status: "completed",
 				evidenceCount: 1,
@@ -130,7 +130,7 @@ describe("mission control dogfood", () => {
 			missions.createLaneRun({
 				missionId: mission.id,
 				lane: "source",
-				agent: "source_scout",
+				agent: "Resercher",
 				epistemicRole: "source_harvest",
 				status: "completed",
 				evidenceCount: 1,
@@ -200,8 +200,8 @@ describe("mission control dogfood", () => {
 			const controlLines = buildMissionControlLines(view!).join("\n");
 			expect(controlLines).toContain("Verification: pass | failed 0 | uncertain 0 | dogfood passed");
 			expect(controlLines).toContain("Rollback: restore pre-decision state | snapshots 1");
-			expect(controlLines).toContain("[repo truth] explore | repo | completed | evidence 1");
-			expect(controlLines).toContain("[source] source_scout | source | completed | evidence 1");
+			expect(controlLines).toContain("[repo truth] Explore | repo | completed | evidence 1");
+			expect(controlLines).toContain("[source] Resercher | source | completed | evidence 1");
 		} finally {
 			readModel.close();
 			missions.close();

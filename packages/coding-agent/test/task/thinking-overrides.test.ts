@@ -11,22 +11,22 @@ describe("resolveAgentThinkingLevelOverride", () => {
 	it("uses the configured per-agent thinking override when valid", () => {
 		const settings = Settings.isolated({
 			"task.agentThinkingOverrides": {
-				explore: "low",
+				Explore: "low",
 			},
 		});
 
-		expect(resolveAgentThinkingLevelOverride("explore", settings, ThinkingLevel.Medium)).toBe(ThinkingLevel.Low);
+		expect(resolveAgentThinkingLevelOverride("Explore", settings, ThinkingLevel.Medium)).toBe(ThinkingLevel.Low);
 	});
 
 	it("falls back to the agent default when the override is missing or invalid", () => {
 		const settings = Settings.isolated({
 			"task.agentThinkingOverrides": {
-				explore: "not-a-level",
+				Explore: "not-a-level",
 			},
 		});
 
-		expect(resolveAgentThinkingLevelOverride("explore", settings, ThinkingLevel.Medium)).toBe(ThinkingLevel.Medium);
-		expect(resolveAgentThinkingLevelOverride("reviewer", settings, ThinkingLevel.High)).toBe(ThinkingLevel.High);
+		expect(resolveAgentThinkingLevelOverride("Explore", settings, ThinkingLevel.Medium)).toBe(ThinkingLevel.Medium);
+		expect(resolveAgentThinkingLevelOverride("Reviewer", settings, ThinkingLevel.High)).toBe(ThinkingLevel.High);
 	});
 });
 
@@ -40,14 +40,14 @@ describe("local subagent override config", () => {
 					{
 						task: {
 							agentModelOverrides: {
-								explore: "openai/gpt-5.4",
-								oracle: "openai/gpt-5.5",
-								x_researcher: "xai/grok-4-fast-non-reasoning",
+								Explore: "openai/gpt-5.4",
+								Reviewer: "openai/gpt-5.5",
+								Resercher_X: "xai/grok-4-fast-non-reasoning",
 							},
 							agentThinkingOverrides: {
-								explore: "low",
-								oracle: "xhigh",
-								quick_task: "minimal",
+								Explore: "low",
+								Reviewer: "xhigh",
+								Builder: "minimal",
 							},
 						},
 					},
@@ -61,12 +61,12 @@ describe("local subagent override config", () => {
 			const modelOverrides = settings.get("task.agentModelOverrides");
 			const thinkingOverrides = settings.get("task.agentThinkingOverrides");
 
-			expect(modelOverrides.explore).toBe("openai/gpt-5.4");
-			expect(modelOverrides.oracle).toBe("openai/gpt-5.5");
-			expect(modelOverrides.x_researcher).toBe("xai/grok-4-fast-non-reasoning");
-			expect(resolveAgentThinkingLevelOverride("explore", settings, ThinkingLevel.Medium)).toBe(ThinkingLevel.Low);
-			expect(resolveAgentThinkingLevelOverride("oracle", settings, ThinkingLevel.High)).toBe(ThinkingLevel.XHigh);
-			expect(thinkingOverrides.quick_task).toBe("minimal");
+			expect(modelOverrides.Explore).toBe("openai/gpt-5.4");
+			expect(modelOverrides.Reviewer).toBe("openai/gpt-5.5");
+			expect(modelOverrides.Resercher_X).toBe("xai/grok-4-fast-non-reasoning");
+			expect(resolveAgentThinkingLevelOverride("Explore", settings, ThinkingLevel.Medium)).toBe(ThinkingLevel.Low);
+			expect(resolveAgentThinkingLevelOverride("Reviewer", settings, ThinkingLevel.High)).toBe(ThinkingLevel.XHigh);
+			expect(thinkingOverrides.Builder).toBe("minimal");
 		} finally {
 			resetSettingsForTest();
 			fs.rmSync(testDir, { recursive: true, force: true });

@@ -24,9 +24,9 @@ Do not use this skill for single-file edits, local feature additions, typo fixes
 
 ## The 7 Conventions
 
-### 1. Memory at boot
+### 1. Decision records at boot
 
-First action: call `memory_scout` for prior decisions on this surface area. If the memory backend is `off`, surface that as a risk in mission-board notes before planning.
+First action: review existing project decision records for prior decisions on this surface area before planning.
 
 ### 2. Locked decisions as ADRs
 
@@ -67,12 +67,12 @@ Before each phase begins mutation, record a `MissionRollbackRecord(targetType: "
 | Mission classifies as `code_change` | Update the objective text to include rebrand/quarantine/wipe/rename keywords (see `policy/intent.ts`). |
 | Phase marked `done` without `runtime.verifyPhase` | `close()` rejects; either run verification or invoke `force: true` with explicit human reason. |
 | Cross-task assumption picked unilaterally | Required to IRC `to: "all"` first; the destructive-mission-discipline rule fires if missing. |
-| No `memory_scout` at session start | Prior decisions silently absent; restart session with `bun run dev -- memory doctor` first. |
+| Prior decisions not reviewed at session start | Prior decisions silently absent; inspect MissionWorldModelRecord entries before planning. |
 | Mission complete attempted with phases unverified | Throws `MissionAcceptanceFailureError` per the gate in `mission-runtime.ts`. |
 
 ## Verification
 
-- [ ] `memory_scout` invoked at session start
+- [ ] Existing project decision records reviewed at session start
 - [ ] All locked decisions recorded as `MissionWorldModelRecord(source="decision")`
 - [ ] Every phase declared with deterministic acceptance criteria
 - [ ] `MissionPlanStepEdge`s populated for cross-task invariants

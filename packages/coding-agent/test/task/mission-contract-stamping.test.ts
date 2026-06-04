@@ -7,8 +7,8 @@ import type { AgentDefinition } from "../../src/task/types";
 import type { ToolSession } from "../../src/tools";
 
 const workerAgent: AgentDefinition = {
-	name: "task",
-	description: "test task agent",
+	name: "Builder",
+	description: "test Builder agent",
 	systemPrompt: "test",
 	source: "project",
 	spawns: "*",
@@ -37,7 +37,7 @@ const activeMission: Mission = {
 const runSubprocessMock = mock(
 	async (options: { contract?: { missionId?: string; taskId?: string; parentMissionRev?: number } }) => ({
 		id: "agent-result",
-		agent: "task",
+		agent: "Builder",
 		agentSource: "project" as const,
 		status: "completed" as const,
 		output: "ok",
@@ -87,7 +87,7 @@ describe("TaskTool mission contract stamping", () => {
 
 		const tool = await TaskTool.create(session);
 		await tool.execute("call-1", {
-			agent: "task",
+			agent: "Builder",
 			tasks: [
 				{
 					id: "mission-task",

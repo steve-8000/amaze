@@ -29,7 +29,7 @@ afterEach(() => {
 describe("research run CLI helper", () => {
 	it("creates a research run and pending lane runs with lane mappings", async () => {
 		const db = testDb();
-		const brief = await createBrief(db, "Which lanes should run?", "repo,source,social,memory");
+		const brief = await createBrief(db, "Which lanes should run?", "repo,source,social");
 
 		const stdout = await captureStdout(async () => {
 			await runResearchRunCommand({ db, briefId: brief.id, json: true });
@@ -40,8 +40,8 @@ describe("research run CLI helper", () => {
 		try {
 			const mission = missions.listMissions({ briefId: brief.id })[0];
 			expect(output.missionId).toBe(mission.id);
-			expect(output.lanes).toEqual(["repo", "source", "social", "memory"]);
-			expect(output.laneRunIds).toHaveLength(4);
+			expect(output.lanes).toEqual(["repo", "source", "social"]);
+			expect(output.laneRunIds).toHaveLength(3);
 			expect(missions.getResearchRun(output.runId)).toMatchObject({
 				missionId: mission.id,
 				briefId: brief.id,
@@ -54,7 +54,7 @@ describe("research run CLI helper", () => {
 				{
 					id: output.laneRunIds[0],
 					lane: "repo",
-					agent: "explore",
+					agent: "Explore",
 					epistemicRole: "repo_truth",
 					status: "pending",
 					evidenceCount: 0,
@@ -62,7 +62,7 @@ describe("research run CLI helper", () => {
 				{
 					id: output.laneRunIds[1],
 					lane: "source",
-					agent: "source_scout",
+					agent: "Resercher",
 					epistemicRole: "source_harvest",
 					status: "pending",
 					evidenceCount: 0,
@@ -70,16 +70,8 @@ describe("research run CLI helper", () => {
 				{
 					id: output.laneRunIds[2],
 					lane: "social",
-					agent: "x_researcher",
+					agent: "Resercher_X",
 					epistemicRole: "social_signal",
-					status: "pending",
-					evidenceCount: 0,
-				},
-				{
-					id: output.laneRunIds[3],
-					lane: "memory",
-					agent: "memory_scout",
-					epistemicRole: "memory_prior",
 					status: "pending",
 					evidenceCount: 0,
 				},
@@ -87,7 +79,6 @@ describe("research run CLI helper", () => {
 			expect(
 				missions.listLaneRuns(mission.id).map(run => [run.emptyReason, run.taskId, run.startedAt, run.endedAt]),
 			).toEqual([
-				[null, null, null, null],
 				[null, null, null, null],
 				[null, null, null, null],
 				[null, null, null, null],
@@ -99,7 +90,7 @@ describe("research run CLI helper", () => {
 
 	it("prints text output and creates a new latest run each time", async () => {
 		const db = testDb();
-		const brief = await createBrief(db, "Should repeated runs be distinct?", "repo,memory");
+		const brief = await createBrief(db, "Should repeated runs be distinct?", "repo,source");
 
 		const firstText = await captureStdout(async () => {
 			await runResearchRunCommand({ db, briefId: brief.id });
@@ -121,7 +112,7 @@ describe("research run CLI helper", () => {
 			expect(readModel.getMissionView(mission.id)?.researchRun?.id).toBe(secondJson.runId);
 			expect(firstText).toContain(`started research run: ${runs[1].id} for mission ${mission.id}`);
 			expect(firstText).toContain("  lane repo:");
-			expect(firstText).toContain("  lane memory:");
+			expect(firstText).toContain("  lane source:");
 		} finally {
 			readModel.close();
 			missions.close();

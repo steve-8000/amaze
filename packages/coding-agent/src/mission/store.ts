@@ -11,6 +11,7 @@ import {
 	RISK_LEVELS,
 	type RiskLevel,
 } from "../research/types";
+import type { ContinuationStatus, MissionContinuationRecord } from "./continuation/types";
 import type { AcceptanceCriterion } from "./core/acceptance-criteria";
 import type { MissionPlan, MissionPlanStep, MissionPlanStepEdge } from "./core/mission";
 import type { MissionBudget, MissionContextBudget } from "./core/mission-budget";
@@ -368,6 +369,35 @@ const MIGRATIONS: StoreMigration[] = [
 			ensureColumn(db, "missions", "revision", "INTEGER NOT NULL DEFAULT 0");
 		},
 	},
+	{
+		version: 3,
+		description: "add mission_continuation ledger",
+		up: db => {
+			db.exec(`
+			CREATE TABLE IF NOT EXISTS mission_continuation (
+				mission_id TEXT PRIMARY KEY,
+				session_id TEXT,
+				owner_branch TEXT,
+				owner_tree_id TEXT,
+				status TEXT NOT NULL,
+				generation INTEGER NOT NULL DEFAULT 0,
+				auto_turn_count INTEGER NOT NULL DEFAULT 0,
+				tokens_used INTEGER NOT NULL DEFAULT 0,
+				time_used_seconds INTEGER NOT NULL DEFAULT 0,
+				progress_fingerprint TEXT,
+				no_progress_count INTEGER NOT NULL DEFAULT 0,
+				last_reason TEXT,
+				last_scheduled_at INTEGER,
+				last_started_at INTEGER,
+				last_ended_at INTEGER,
+				last_turn_id TEXT,
+				updated_at INTEGER NOT NULL,
+				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
+			);
+			CREATE INDEX IF NOT EXISTS mission_continuation_status_idx ON mission_continuation(status);
+			`);
+		},
+	},
 ];
 
 function ensureColumn(db: Database, table: string, column: string, definition: string): void {
@@ -522,6 +552,48 @@ type MissionWorldModelRow = {
 	verified: number;
 	created_at: number;
 };
+type MissionContinuationRow = {
+	mission_id: string;
+	session_id: string | null;
+	owner_branch: string | null;
+	owner_tree_id: string | null;
+	status: string;
+	generation: number;
+	auto_turn_count: number;
+	tokens_used: number;
+	time_used_seconds: number;
+	progress_fingerprint: string | null;
+	no_progress_count: number;
+	last_reason: string | null;
+	last_scheduled_at: number | null;
+	last_started_at: number | null;
+	last_ended_at: number | null;
+	last_turn_id: string | null;
+	updated_at: number;
+};
+
+function rowToContinuation(row: MissionContinuationRow): MissionContinuationRecord {
+	return {
+		missionId: row.mission_id,
+		sessionId: row.session_id,
+		ownerBranch: row.owner_branch,
+		ownerTreeId: row.owner_tree_id,
+		status: row.status as ContinuationStatus,
+		generation: row.generation,
+		autoTurnCount: row.auto_turn_count,
+		tokensUsed: row.tokens_used,
+		timeUsedSeconds: row.time_used_seconds,
+		progressFingerprint: row.progress_fingerprint,
+		noProgressCount: row.no_progress_count,
+		lastReason: row.last_reason,
+		lastScheduledAt: row.last_scheduled_at,
+		lastStartedAt: row.last_started_at,
+		lastEndedAt: row.last_ended_at,
+		lastTurnId: row.last_turn_id,
+		updatedAt: row.updated_at,
+	};
+}
+
 export class MissionStore {
 	readonly dbPath: string;
 	readonly #db: Database;
@@ -1773,6 +1845,204 @@ export class MissionStore {
 			approvedAt: nextApprovedAt,
 			updatedAt: now,
 		};
+	}
+	// ──────────────────────────────────────────────────────────────────────────
+	// Continuation ledger (Codex thread-goal port). Keyed by missionId; CAS
+	// transitions guarantee at most one scheduled|running generation per mission.
+	// ──────────────────────────────────────────────────────────────────────────
+
+	getContinuation(missionId: string): MissionContinuationRecord | undefined {
+		const row = this.#db
+			.query("SELECT * FROM mission_continuation WHERE mission_id = ?")
+			.get(missionId) as MissionContinuationRow | null;
+		return row ? rowToContinuation(row) : undefined;
+	}
+
+	/** Idempotently create an `idle` ledger row for a mission. Returns the row. */
+	ensureContinuation(
+		missionId: string,
+		owner: { sessionId?: string | null; ownerBranch?: string | null; ownerTreeId?: string | null } = {},
+	): MissionContinuationRecord {
+		const existing = this.getContinuation(missionId);
+		if (existing) return existing;
+		if (!this.getMission(missionId)) throw new Error(`Mission not found: ${missionId}`);
+		const now = Date.now();
+		this.#db
+			.query(
+				`INSERT INTO mission_continuation
+				 (mission_id, session_id, owner_branch, owner_tree_id, status, generation,
+				  auto_turn_count, tokens_used, time_used_seconds, progress_fingerprint,
+				  no_progress_count, last_reason, last_scheduled_at, last_started_at,
+				  last_ended_at, last_turn_id, updated_at)
+				 VALUES (?, ?, ?, ?, 'idle', 0, 0, 0, 0, NULL, 0, NULL, NULL, NULL, NULL, NULL, ?)`,
+			)
+			.run(missionId, owner.sessionId ?? null, owner.ownerBranch ?? null, owner.ownerTreeId ?? null, now);
+		const created = this.getContinuation(missionId);
+		if (!created) throw new Error(`Failed to create continuation ledger for ${missionId}`);
+		return created;
+	}
+
+	/**
+	 * CAS: `idle`@expectedGeneration → `scheduled`@expectedGeneration+1.
+	 * Returns the new record on success, or undefined when the row is not idle at
+	 * the expected generation (duplicate-suppression).
+	 */
+	scheduleNextContinuation(
+		missionId: string,
+		expectedGeneration: number,
+		reason?: string,
+	): MissionContinuationRecord | undefined {
+		const now = Date.now();
+		const row = this.#db
+			.query(
+				`UPDATE mission_continuation
+				 SET status = 'scheduled', generation = generation + 1,
+				     last_scheduled_at = ?, last_reason = ?, updated_at = ?
+				 WHERE mission_id = ? AND status = 'idle' AND generation = ?
+				 RETURNING *`,
+			)
+			.get(now, reason ?? null, now, missionId, expectedGeneration) as MissionContinuationRow | null;
+		return row ? rowToContinuation(row) : undefined;
+	}
+
+	/**
+	 * CAS: `scheduled`@generation → `running`@generation, incrementing
+	 * autoTurnCount exactly once. Returns the record on success.
+	 */
+	markContinuationRunning(
+		missionId: string,
+		generation: number,
+		turnId?: string,
+	): MissionContinuationRecord | undefined {
+		const now = Date.now();
+		const row = this.#db
+			.query(
+				`UPDATE mission_continuation
+				 SET status = 'running', auto_turn_count = auto_turn_count + 1,
+				     last_started_at = ?, last_turn_id = ?, updated_at = ?
+				 WHERE mission_id = ? AND status = 'scheduled' AND generation = ?
+				 RETURNING *`,
+			)
+			.get(now, turnId ?? null, now, missionId, generation) as MissionContinuationRow | null;
+		return row ? rowToContinuation(row) : undefined;
+	}
+
+	/**
+	 * CAS: `running`@generation → `idle`. Used after an agent turn finishes
+	 * cleanly and the runtime re-evaluates whether to schedule again.
+	 */
+	markContinuationIdleAfterEnd(missionId: string, generation: number): MissionContinuationRecord | undefined {
+		const now = Date.now();
+		const row = this.#db
+			.query(
+				`UPDATE mission_continuation
+				 SET status = 'idle', last_ended_at = ?, updated_at = ?
+				 WHERE mission_id = ? AND status = 'running' AND generation = ?
+				 RETURNING *`,
+			)
+			.get(now, now, missionId, generation) as MissionContinuationRow | null;
+		return row ? rowToContinuation(row) : undefined;
+	}
+
+	/**
+	 * Clear a stale `running`/`scheduled` row back to `idle` after a process
+	 * restart or a user-authored turn interrupting an in-flight continuation.
+	 * Unconditional (no generation match) — recovery, not CAS.
+	 */
+	reconcileContinuationRunningToIdle(missionId: string, reason?: string): MissionContinuationRecord | undefined {
+		const now = Date.now();
+		const row = this.#db
+			.query(
+				`UPDATE mission_continuation
+				 SET status = 'idle', last_reason = ?, updated_at = ?
+				 WHERE mission_id = ? AND status IN ('scheduled', 'running')
+				 RETURNING *`,
+			)
+			.get(reason ?? "reconciled_stale_running", now, missionId) as MissionContinuationRow | null;
+		return row ? rowToContinuation(row) : undefined;
+	}
+
+	/** Set the continuation status directly (pause/resume/terminal observation). */
+	setContinuationStatus(
+		missionId: string,
+		status: ContinuationStatus,
+		reason?: string,
+	): MissionContinuationRecord | undefined {
+		const now = Date.now();
+		const row = this.#db
+			.query(
+				`UPDATE mission_continuation
+				 SET status = ?, last_reason = ?, updated_at = ?
+				 WHERE mission_id = ?
+				 RETURNING *`,
+			)
+			.get(status, reason ?? null, now, missionId) as MissionContinuationRow | null;
+		return row ? rowToContinuation(row) : undefined;
+	}
+
+	/**
+	 * Record the observable-state fingerprint for the just-finished generation and
+	 * advance the consecutive no-progress counter. Resets the counter to 0 when
+	 * the fingerprint changed.
+	 */
+	recordContinuationProgress(missionId: string, fingerprint: string): MissionContinuationRecord | undefined {
+		const existing = this.getContinuation(missionId);
+		if (!existing) return undefined;
+		const now = Date.now();
+		const noProgress = existing.progressFingerprint === fingerprint ? existing.noProgressCount + 1 : 0;
+		const row = this.#db
+			.query(
+				`UPDATE mission_continuation
+				 SET progress_fingerprint = ?, no_progress_count = ?, updated_at = ?
+				 WHERE mission_id = ?
+				 RETURNING *`,
+			)
+			.get(fingerprint, noProgress, now, missionId) as MissionContinuationRow | null;
+		return row ? rowToContinuation(row) : undefined;
+	}
+
+	/** Add positive token/time deltas to the continuation accounting counters. */
+	accountContinuationUsage(
+		missionId: string,
+		tokenDelta: number,
+		timeDeltaSeconds: number,
+	): MissionContinuationRecord | undefined {
+		const tokens = Math.max(0, Math.trunc(tokenDelta));
+		const seconds = Math.max(0, Math.trunc(timeDeltaSeconds));
+		if (tokens === 0 && seconds === 0) return this.getContinuation(missionId);
+		const now = Date.now();
+		const row = this.#db
+			.query(
+				`UPDATE mission_continuation
+				 SET tokens_used = tokens_used + ?, time_used_seconds = time_used_seconds + ?, updated_at = ?
+				 WHERE mission_id = ?
+				 RETURNING *`,
+			)
+			.get(tokens, seconds, now, missionId) as MissionContinuationRow | null;
+		return row ? rowToContinuation(row) : undefined;
+	}
+
+	/** Transfer continuation ownership to the current session/branch/tree. */
+	transferContinuationOwnership(
+		missionId: string,
+		owner: { sessionId?: string | null; ownerBranch?: string | null; ownerTreeId?: string | null },
+	): MissionContinuationRecord | undefined {
+		const now = Date.now();
+		const row = this.#db
+			.query(
+				`UPDATE mission_continuation
+				 SET session_id = ?, owner_branch = ?, owner_tree_id = ?, updated_at = ?
+				 WHERE mission_id = ?
+				 RETURNING *`,
+			)
+			.get(
+				owner.sessionId ?? null,
+				owner.ownerBranch ?? null,
+				owner.ownerTreeId ?? null,
+				now,
+				missionId,
+			) as MissionContinuationRow | null;
+		return row ? rowToContinuation(row) : undefined;
 	}
 }
 

@@ -9,8 +9,6 @@ import { parseAgentFields } from "../discovery/helpers";
 import exploreMd from "../prompts/agents/explore.md" with { type: "text" };
 // Embed agent markdown files at build time
 import agentFrontmatterTemplate from "../prompts/agents/frontmatter.md" with { type: "text" };
-import memoryScoutMd from "../prompts/agents/memory-scout.md" with { type: "text" };
-import oracleMd from "../prompts/agents/oracle.md" with { type: "text" };
 import planMd from "../prompts/agents/plan.md" with { type: "text" };
 import reviewerMd from "../prompts/agents/reviewer.md" with { type: "text" };
 import sourceScoutMd from "../prompts/agents/source-scout.md" with { type: "text" };
@@ -46,29 +44,18 @@ const EMBEDDED_AGENT_DEFS: EmbeddedAgentDef[] = [
 	{ fileName: "explore.md", template: exploreMd },
 	{ fileName: "plan.md", template: planMd },
 	{ fileName: "reviewer.md", template: reviewerMd },
-	{ fileName: "oracle.md", template: oracleMd },
 	{ fileName: "x-researcher.md", template: xResearcherMd },
 	{ fileName: "visual-qa.md", template: visualQaMd },
 	{ fileName: "source-scout.md", template: sourceScoutMd },
-	{ fileName: "memory-scout.md", template: memoryScoutMd },
 	{
-		fileName: "task.md",
+		fileName: "builder.md",
 		frontmatter: {
-			name: "task",
-			description: "General-purpose subagent with full capabilities for delegated multi-step tasks",
+			name: "Builder",
+			description:
+				"General-purpose implementation agent with full capabilities for delegated multi-step repository work",
 			spawns: "*",
-			model: "pi/task",
+			model: "Builder",
 			thinkingLevel: Effort.Medium,
-		},
-		template: taskMd,
-	},
-	{
-		fileName: "quick_task.md",
-		frontmatter: {
-			name: "quick_task",
-			description: "Low-reasoning agent for strictly mechanical updates or data collection only",
-			model: "pi/smol",
-			thinkingLevel: Effort.Minimal,
 		},
 		template: taskMd,
 	},

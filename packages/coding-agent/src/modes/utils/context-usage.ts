@@ -3,7 +3,6 @@ import { effectiveReserveTokens, estimateTokens, resolveThresholdTokens } from "
 import type { Model } from "@amaze/ai";
 import { countTokens } from "@amaze/natives";
 import { formatNumber } from "@amaze/utils";
-import type { Skill } from "../../extensibility/skills";
 import type { AgentSession } from "../../session/agent-session";
 import type { Tool } from "../../tools";
 import type { theme as Theme } from "../theme/theme";
@@ -37,14 +36,20 @@ export interface ContextBreakdown {
 	freeTokens: number;
 }
 
-function estimateSkillsTokens(skills: readonly Skill[]): number {
-	const fragments: string[] = [];
-	for (const skill of skills) {
-		// "- name: description\n" wire framing tokenizes ~identically to the
-		// concatenated form, so encode each piece separately and sum.
-		fragments.push(skill.name, skill.description);
-	}
-	return countTokens(fragments);
+function extractRenderedSkillsSection(systemPrompt: string): string {
+	const marker = "# Skills\n";
+	const start = systemPrompt.indexOf(marker);
+	if (start < 0) return "";
+	const bodyStart = start + marker.length;
+	const rest = systemPrompt.slice(bodyStart);
+	const nextHeading = rest.search(/\n# [^\n]+\n/);
+	const body = nextHeading < 0 ? rest : rest.slice(0, nextHeading);
+	return body.trim();
+}
+
+function estimateRenderedSkillsTokens(systemPrompt: string): number {
+	const renderedSkills = extractRenderedSkillsSection(systemPrompt);
+	return renderedSkills ? countTokens(renderedSkills) : 0;
 }
 
 function estimateToolSchemaTokens(tools: ReadonlyArray<Pick<Tool, "name" | "description" | "parameters">>): number {
@@ -68,7 +73,9 @@ export function computeContextBreakdown(session: AgentSession): ContextBreakdown
 	const model = session.model;
 	const contextWindow = model?.contextWindow ?? 0;
 
-	const skillsTokens = estimateSkillsTokens(session.skills ?? []);
+	const systemPromptParts = session.systemPrompt;
+	const renderedPromptHead = systemPromptParts?.[0] ?? "";
+	const skillsTokens = estimateRenderedSkillsTokens(renderedPromptHead);
 	const toolsTokens = estimateToolSchemaTokens(session.agent?.state?.tools ?? []);
 
 	let messagesTokens = 0;
@@ -79,14 +86,11 @@ export function computeContextBreakdown(session: AgentSession): ContextBreakdown
 		}
 	}
 
-	// The rendered system prompt already contains the skill descriptions and the
-	// markdown tool descriptions. To present a non-overlapping breakdown:
-	//   System prompt = total system prompt text - skills section (tool descriptions stay)
-	//   Tools         = JSON tool schema sent separately on the wire
-	//   Skills        = the skill list embedded in the system prompt
-	//   Messages      = conversation messages
-	const systemPromptParts = session.systemPrompt;
-	const systemPromptTokens = Math.max(0, countTokens(systemPromptParts?.[0] ?? "") - skillsTokens);
+	// The rendered system prompt may omit skills entirely in compact mode, and
+	// skills with `hide: true` remain reachable through skill:// without being
+	// listed. Count only the actual rendered # Skills section so /context reports
+	// wire cost, not every loaded skill in the registry.
+	const systemPromptTokens = Math.max(0, countTokens(renderedPromptHead) - skillsTokens);
 	const systemContextTokens = countTokens(systemPromptParts?.slice(1) ?? []);
 
 	const categories: CategoryInfo[] = [

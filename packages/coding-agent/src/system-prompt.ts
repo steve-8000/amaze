@@ -4,7 +4,7 @@
 
 import * as os from "node:os";
 import type { AgentTool } from "@amaze/agent-core";
-import { $env, getGpuCachePath, getProjectDir, hasFsCode, isEnoent, logger, prompt } from "@amaze/utils";
+import { $env, getGpuCachePath, getProjectDir, hasFsCode, isEnoent, logger, procmgr, prompt } from "@amaze/utils";
 import { $ } from "bun";
 import { contextFileCapability } from "./capability/context-file";
 import { systemPromptCapability } from "./capability/system-prompt";
@@ -94,6 +94,7 @@ async function getGpuModel(): Promise<string | null> {
 	switch (process.platform) {
 		case "win32": {
 			const output = await $`wmic path win32_VideoController get name`
+				.env(procmgr.scrubProcessEnv(Bun.env))
 				.quiet()
 				.text()
 				.catch(() => null);
@@ -101,6 +102,7 @@ async function getGpuModel(): Promise<string | null> {
 		}
 		case "linux": {
 			const output = await $`lspci`
+				.env(procmgr.scrubProcessEnv(Bun.env))
 				.quiet()
 				.text()
 				.catch(() => null);

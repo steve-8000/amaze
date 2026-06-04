@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { $which, hasFsCode, isEnoent, Snowflake } from "@amaze/utils";
+import { $which, hasFsCode, isEnoent, procmgr, Snowflake } from "@amaze/utils";
 import {
 	parseDiffHunks as parseCommitDiffHunks,
 	parseFileDiffs,
@@ -197,7 +197,11 @@ async function runCommand(
 	const commandArgs = withShortLivedGitConfig(options.readOnly ? withNoOptionalLocks(args) : [...args]);
 	const child = Bun.spawn(["git", ...commandArgs], {
 		cwd,
-		env: options.env ? { ...process.env, GIT_OPTIONAL_LOCKS: "0", ...options.env } : undefined,
+		env: procmgr.scrubProcessEnv(
+			options.env
+				? { ...process.env, GIT_OPTIONAL_LOCKS: "0", ...options.env }
+				: { ...process.env, GIT_OPTIONAL_LOCKS: "0" },
+		),
 		signal: options.signal,
 		stdin: normalizeStdin(options.stdin),
 		stdout: "pipe",
@@ -1478,6 +1482,7 @@ export const github = {
 		try {
 			const child = Bun.spawn(["gh", ...args], {
 				cwd,
+				env: procmgr.scrubProcessEnv(Bun.env),
 				stdin: "ignore",
 				stdout: "pipe",
 				stderr: "pipe",

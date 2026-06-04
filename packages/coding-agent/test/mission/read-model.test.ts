@@ -47,7 +47,7 @@ function brief(overrides: Partial<ResearchBrief> = {}): ResearchBrief {
 		id: "brief-1",
 		objectiveId: "objective-1",
 		question: "What is true?",
-		lanes: ["repo", "source", "social", "memory"],
+		lanes: ["repo", "source", "social"],
 		requiredEvidence: [],
 		disallowedEvidence: [],
 		riskLevel: "medium",
@@ -97,7 +97,7 @@ function laneRun(overrides: Partial<MissionLaneRun> = {}): MissionLaneRun {
 		id: "run-1",
 		missionId: "mission-1",
 		lane: "repo",
-		agent: "explore",
+		agent: "Explore",
 		epistemicRole: "repo_truth",
 		status: "completed",
 		evidenceCount: 1,
@@ -204,7 +204,7 @@ describe("buildMissionView", () => {
 					id: "attempt-1",
 					missionId: "mission-1",
 					taskId: "task-1",
-					agent: "explore",
+					agent: "Explore",
 					role: "repo scout",
 					attempt: 1,
 					status: "completed",
@@ -261,7 +261,7 @@ describe("buildMissionView", () => {
 		expect(view.policyGuidance).toEqual({
 			missionId: "mission-1",
 			verifiedOutcomeCount: 1,
-			recommendedAgents: ["explore"],
+			recommendedAgents: ["Explore"],
 			retryPolicy: "standard",
 			laneMix: ["repo"],
 			rationale: ["explore completed with passing verification"],
@@ -291,7 +291,7 @@ describe("deriveMissionPolicyGuidance", () => {
 					id: "attempt-good",
 					missionId: "mission-1",
 					taskId: "task-good",
-					agent: "explore",
+					agent: "Explore",
 					role: "repo scout",
 					attempt: 1,
 					status: "completed",
@@ -310,7 +310,7 @@ describe("deriveMissionPolicyGuidance", () => {
 					id: "attempt-speculative",
 					missionId: "mission-1",
 					taskId: "task-speculative",
-					agent: "source_scout",
+					agent: "Resercher",
 					role: "source scout",
 					attempt: 1,
 					status: "completed",
@@ -335,7 +335,7 @@ describe("deriveMissionPolicyGuidance", () => {
 		expect(guidance).toEqual({
 			missionId: "mission-1",
 			verifiedOutcomeCount: 1,
-			recommendedAgents: ["explore"],
+			recommendedAgents: ["Explore"],
 			retryPolicy: "standard",
 			laneMix: ["repo"],
 			rationale: ["repo lane succeeded after verification"],
@@ -440,7 +440,7 @@ describe("MissionReadModel", () => {
 		missionStore.recordTaskAttemptCheckpoint({
 			missionId: mission.id,
 			taskId: "task-verified",
-			agent: "explore",
+			agent: "Explore",
 			role: "repo scout",
 			attempt: 1,
 			status: "completed",
@@ -457,7 +457,7 @@ describe("MissionReadModel", () => {
 		missionStore.createLaneRun({
 			missionId: mission.id,
 			lane: "repo",
-			agent: "explore",
+			agent: "Explore",
 			epistemicRole: "repo_truth",
 			status: "completed",
 			evidenceCount: 1,
@@ -513,7 +513,7 @@ describe("MissionReadModel", () => {
 		expect(view?.policyGuidance).toEqual({
 			missionId: mission.id,
 			verifiedOutcomeCount: 1,
-			recommendedAgents: ["explore"],
+			recommendedAgents: ["Explore"],
 			retryPolicy: "standard",
 			laneMix: ["repo"],
 			rationale: ["explore completed the verified repo task"],
@@ -531,7 +531,7 @@ describe("MissionReadModel", () => {
 		const createdBrief = research.createBrief({
 			objectiveId: null,
 			question: "Do we have enough evidence?",
-			lanes: ["repo", "memory"],
+			lanes: ["repo", "source"],
 			requiredEvidence: [],
 			disallowedEvidence: [],
 			riskLevel: "medium",
@@ -562,12 +562,12 @@ describe("MissionReadModel", () => {
 				trigger: "missing-lane-evidence",
 				severity: "blocking",
 				requiredAction: "collect-evidence",
-				lane: "memory",
+				lane: "source",
 			}),
 		]);
 		expect(view?.uncertaintyMap?.parts).toEqual([
 			expect.objectContaining({ lane: "repo", status: "satisfied", evidenceCount: 1 }),
-			expect.objectContaining({ lane: "memory", status: "uncertain", evidenceCount: 0 }),
+			expect.objectContaining({ lane: "source", status: "uncertain", evidenceCount: 0 }),
 		]);
 		expect(research.listRuntimeCriticChecks(createdBrief.id)).toEqual([]);
 	});

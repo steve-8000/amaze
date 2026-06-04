@@ -26,13 +26,13 @@ export default class Index extends Command {
 			description: 'Model to use (fuzzy match: "opus", "gpt-5.2", or "openai/gpt-5.2")',
 		}),
 		smol: Flags.string({
-			description: "Smol/fast model for lightweight tasks (or AMAZE_SMOL_MODEL env)",
+			description: "Explore model for lightweight tasks (or AMAZE_SMOL_MODEL env)",
 		}),
 		slow: Flags.string({
-			description: "Slow/reasoning model for thorough analysis (or AMAZE_SLOW_MODEL env)",
+			description: "Reviewer model for thorough analysis (or AMAZE_SLOW_MODEL env)",
 		}),
 		plan: Flags.string({
-			description: "Plan model for architectural planning (or AMAZE_PLAN_MODEL env)",
+			description: "Planner model for architectural planning (or AMAZE_PLAN_MODEL env)",
 		}),
 		provider: Flags.string({
 			description: "Provider to use (legacy; prefer --model)",

@@ -196,34 +196,6 @@ describe("runSubprocess yield reminders", () => {
 		expect(call.settings.get("tools.discoveryMode")).toBe("off");
 	});
 
-	it("disables durable memory tools inside subagents", async () => {
-		const session = createMockSession(({ emit }) => {
-			emit({
-				type: "tool_execution_end",
-				toolCallId: "tool-subagent-memory-off",
-				toolName: "yield",
-				result: {
-					content: [{ type: "text", text: "Result submitted." }],
-					details: { status: "success", data: { ok: true } },
-				},
-				isError: false,
-			});
-		});
-		const createAgentSessionSpy = mockCreateAgentSession(session);
-		const parentSettings = Settings.isolated({ "memory.backend": "nexus" });
-
-		await runSubprocess({
-			...baseOptions,
-			id: "subagent-memory-off",
-			settings: parentSettings,
-		});
-
-		expect(parentSettings.get("memory.backend")).toBe("nexus");
-		const call = createAgentSessionSpy.mock.calls[0]?.[0];
-		if (!call?.settings) throw new Error("Expected subagent settings");
-		expect(call.settings.get("memory.backend")).toBe("off");
-	});
-
 	it("renders shared task context at the end of the subagent system prompt", async () => {
 		let userPrompt = "";
 		const session = createMockSession(({ text, emit }) => {

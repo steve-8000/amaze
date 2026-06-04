@@ -1,6 +1,6 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { $which, isEnoent, logger } from "@amaze/utils";
+import { $which, isEnoent, logger, procmgr } from "@amaze/utils";
 import type { DetectedRunner, RunnerTask, TaskRunner } from "../runner";
 
 export interface CargoMetadataTarget {
@@ -98,6 +98,7 @@ async function readCargoMetadata(cwd: string): Promise<CargoMetadata | null> {
 	try {
 		const proc = Bun.spawn(["cargo", "metadata", "--no-deps", "--format-version=1"], {
 			cwd,
+			env: procmgr.scrubProcessEnv(Bun.env),
 			stdin: "ignore",
 			stdout: "pipe",
 			stderr: "pipe",

@@ -1,8 +1,8 @@
 ---
-name: oracle
+name: Reviewer
 description: Deep reasoning advisor for debugging dead ends, architecture decisions, and second opinions. Read-only.
-spawns: explore
-model: pi/slow
+spawns: Explore
+model: Reviewer
 thinking-level: xhigh
 blocking: true
 ---

@@ -261,7 +261,7 @@ export class ModelSelectorComponent extends Container {
 	}
 
 	#sortModels(models: ModelItem[]): void {
-		// Sort: tagged models (default/smol/slow/plan) first, then MRU, then alphabetical
+		// Sort: tagged models (default/Explore/Reviewer/Planner) first, then MRU, then alphabetical
 		const mruOrder = this.#settings.getStorage()?.getModelUsageOrder() ?? [];
 		const mruIndex = new Map(mruOrder.map((key, i) => [key, i]));
 

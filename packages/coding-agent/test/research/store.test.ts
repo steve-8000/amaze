@@ -105,10 +105,10 @@ function critique(briefId: string, overrides: Partial<NewCritiqueRecord> = {}): 
 describe("ResearchStore", () => {
 	test("creates, gets, and lists briefs", () => {
 		const store = createStore();
-		const created = store.createBrief(brief({ id: "brief-1", lanes: ["repo", "source", "memory"] }));
+		const created = store.createBrief(brief({ id: "brief-1", lanes: ["repo", "source", "social"] }));
 
 		expect(created.id).toBe("brief-1");
-		expect(created.lanes).toEqual(["repo", "source", "memory"]);
+		expect(created.lanes).toEqual(["repo", "source", "social"]);
 		expect(created.createdAt).toBeNumber();
 		expect(created.updatedAt).toBe(created.createdAt);
 		expect(store.getBrief("brief-1")).toEqual(created);
@@ -276,7 +276,7 @@ describe("ResearchStore", () => {
 					id: "lane-live",
 					missionId: mission.id,
 					lane: "repo",
-					agent: "explore",
+					agent: "Explore",
 					epistemicRole: "repo_truth",
 					status: "pending",
 					evidenceCount: 0,
@@ -328,7 +328,7 @@ describe("ResearchStore", () => {
 					id: "lane-finalize-repo",
 					missionId: mission.id,
 					lane: "repo",
-					agent: "explore",
+					agent: "Explore",
 					epistemicRole: "repo_truth",
 					status: "pending",
 					evidenceCount: 0,
@@ -341,7 +341,7 @@ describe("ResearchStore", () => {
 					id: "lane-finalize-source",
 					missionId: mission.id,
 					lane: "source",
-					agent: "source_scout",
+					agent: "Resercher",
 					epistemicRole: "source_harvest",
 					status: "pending",
 					evidenceCount: 0,
@@ -398,7 +398,7 @@ describe("ResearchStore", () => {
 					id: "lane-synthesis-open",
 					missionId: mission.id,
 					lane: "repo",
-					agent: "explore",
+					agent: "Explore",
 					epistemicRole: "repo_truth",
 					status: "pending",
 					evidenceCount: 0,
@@ -456,7 +456,7 @@ describe("ResearchStore", () => {
 					id: "lane-blocked",
 					missionId: mission.id,
 					lane: "repo",
-					agent: "explore",
+					agent: "Explore",
 					epistemicRole: "repo_truth",
 					status: "pending",
 					evidenceCount: 0,
@@ -729,7 +729,7 @@ describe("ResearchStore", () => {
 		const created = store.createBrief(
 			brief({
 				id: "research-critic",
-				lanes: ["repo", "source", "memory"],
+				lanes: ["repo", "source", "social"],
 				requiredEvidence: [],
 				disallowedEvidence: [],
 				stopCriteria: [],
@@ -748,16 +748,16 @@ describe("ResearchStore", () => {
 		const checks = store.refreshRuntimeCriticChecks(created.id);
 
 		expect(checks.map(check => [check.trigger, check.severity, check.requiredAction, check.lane])).toEqual([
-			["missing-lane-evidence", "blocking", "collect-evidence", "memory"],
+			["missing-lane-evidence", "blocking", "collect-evidence", "social"],
 			["missing-lane-evidence", "blocking", "collect-evidence", "source"],
 			["speculative-evidence", "soft", "collect-evidence", "repo"],
 		]);
 		expect(checks[2]?.evidenceRefs).toEqual([weak.id]);
 		expect(store.listRuntimeCriticChecks(created.id)).toEqual(checks);
 
-		const map = store.getUncertaintyMap(created.id, { requiredLanes: ["repo", "memory"] });
+		const map = store.getUncertaintyMap(created.id, { requiredLanes: ["repo", "social"] });
 
-		expect(map.requiredLanes).toEqual(["repo", "memory"]);
+		expect(map.requiredLanes).toEqual(["repo", "social"]);
 		expect(map.parts).toEqual([
 			expect.objectContaining({
 				lane: "repo",
@@ -767,7 +767,7 @@ describe("ResearchStore", () => {
 				status: "uncertain",
 			}),
 			expect.objectContaining({
-				lane: "memory",
+				lane: "social",
 				evidenceCount: 0,
 				missingEvidence: true,
 				status: "uncertain",

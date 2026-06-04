@@ -1,8 +1,7 @@
 import type { Settings } from "../config/settings";
 import type { LocalLlmRuntimeConfig, LocalLlmUseCase } from "./types";
 
-export const LOCAL_LLM_MODEL_ROLE = "local_scout";
-export const LOCAL_LLM_MODEL_ROLE_ALIAS = `pi/${LOCAL_LLM_MODEL_ROLE}`;
+export const LOCAL_LLM_MODEL_ROLE = "Resercher";
 
 export function getLocalLlmConfig(settings: Settings): LocalLlmRuntimeConfig {
 	return {
@@ -15,7 +14,6 @@ export function getLocalLlmConfig(settings: Settings): LocalLlmRuntimeConfig {
 		maxOutputTokens: settings.get("localLlm.maxOutputTokens"),
 		timeoutMs: settings.get("localLlm.timeoutMs"),
 		useForSourceScout: settings.get("localLlm.useForSourceScout"),
-		useForMemoryScout: settings.get("localLlm.useForMemoryScout"),
 		useForLogSummarizer: settings.get("localLlm.useForLogSummarizer"),
 		useForContextCompressor: settings.get("localLlm.useForContextCompressor"),
 	};
@@ -24,10 +22,8 @@ export function getLocalLlmConfig(settings: Settings): LocalLlmRuntimeConfig {
 export function isLocalLlmUseCaseEnabled(config: LocalLlmRuntimeConfig, useCase: LocalLlmUseCase): boolean {
 	if (!config.enabled) return false;
 	switch (useCase) {
-		case "source_scout":
+		case "Resercher":
 			return config.useForSourceScout;
-		case "memory_scout":
-			return config.useForMemoryScout;
 		case "log_summarizer":
 			return config.useForLogSummarizer;
 		case "context_compressor":
@@ -36,10 +32,9 @@ export function isLocalLlmUseCaseEnabled(config: LocalLlmRuntimeConfig, useCase:
 }
 
 export function getLocalLlmRoleAlias(config: Pick<LocalLlmRuntimeConfig, "modelRole">): string {
-	const role = config.modelRole.trim() || LOCAL_LLM_MODEL_ROLE;
-	return role.startsWith("pi/") ? role : `pi/${role}`;
+	return config.modelRole.trim() || LOCAL_LLM_MODEL_ROLE;
 }
 
-export function isLocalScoutAgent(agentName: string): agentName is "source_scout" | "memory_scout" {
-	return agentName === "source_scout" || agentName === "memory_scout";
+export function isLocalScoutAgent(agentName: string): agentName is "Resercher" {
+	return agentName === "Resercher";
 }

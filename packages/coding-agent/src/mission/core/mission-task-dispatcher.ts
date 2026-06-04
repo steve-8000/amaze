@@ -39,7 +39,7 @@ export class MissionTaskDispatcher {
 					{
 						cwd: process.cwd(),
 						agent: {
-							name: task.assignedAgent ?? "task",
+							name: task.assignedAgent ?? "Builder",
 							description: task.title,
 							systemPrompt: "Execute the assigned mission task.",
 							source: "bundled",

@@ -1,6 +1,6 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { getAgentDir, getProjectDir, isEnoent } from "@amaze/utils";
+import { getAgentDir, getProjectDir, isEnoent, procmgr } from "@amaze/utils";
 import { extractPackageName } from "./parser";
 import type { InstalledPlugin } from "./types";
 
@@ -47,6 +47,7 @@ export async function installPlugin(packageName: string): Promise<InstalledPlugi
 	// Run npm install in plugins directory
 	const proc = Bun.spawn(["bun", "install", packageName], {
 		cwd: PLUGINS_DIR,
+		env: procmgr.scrubProcessEnv(Bun.env),
 		stdin: "ignore",
 		stdout: "pipe",
 		stderr: "pipe",
@@ -89,6 +90,7 @@ export async function uninstallPlugin(name: string): Promise<void> {
 
 	const proc = Bun.spawn(["bun", "uninstall", name], {
 		cwd: PLUGINS_DIR,
+		env: procmgr.scrubProcessEnv(Bun.env),
 		stdin: "ignore",
 		stdout: "pipe",
 		stderr: "pipe",

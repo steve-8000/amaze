@@ -11,7 +11,7 @@ import {
 	type UsageReport,
 } from "@amaze/ai";
 import { Loader, Markdown, padding, Spacer, Text, visibleWidth } from "@amaze/tui";
-import { formatDuration, Snowflake, setProjectDir } from "@amaze/utils";
+import { formatDuration, procmgr, Snowflake, setProjectDir } from "@amaze/utils";
 import { $ } from "bun";
 import { reset as resetCapabilities } from "../../capability";
 import { clearClaudePluginRootsCache } from "../../discovery/helpers";
@@ -27,7 +27,6 @@ import type { InteractiveModeContext } from "../../modes/types";
 import { computeContextBreakdown, renderContextUsage } from "../../modes/utils/context-usage";
 import { buildHotkeysMarkdown } from "../../modes/utils/hotkeys-markdown";
 import { buildToolsMarkdown } from "../../modes/utils/tools-markdown";
-import { renderNexusStats, runNexusDoctorLive, runNexusExplain, runNexusSearch } from "../../nexus/commands";
 import type { AsyncJobSnapshotItem } from "../../session/agent-session";
 import type { AuthStorage } from "../../session/auth-storage";
 import type { NewSessionOptions } from "../../session/session-manager";
@@ -170,7 +169,7 @@ export class CommandController {
 		}
 
 		try {
-			const authResult = await $`gh auth status`.quiet().nothrow();
+			const authResult = await $`gh auth status`.env(procmgr.scrubProcessEnv(Bun.env)).quiet().nothrow();
 			if (authResult.exitCode !== 0) {
 				await cleanupTempFile();
 				this.ctx.showError("GitHub CLI is not logged in. Run 'gh auth login' first.");
@@ -202,7 +201,10 @@ export class CommandController {
 		};
 
 		try {
-			const result = await $`gh gist create --public=false ${tmpFile}`.quiet().nothrow();
+			const result = await $`gh gist create --public=false ${tmpFile}`
+				.env(procmgr.scrubProcessEnv(Bun.env))
+				.quiet()
+				.nothrow();
 			if (loader.signal.aborted) return;
 
 			await restoreEditor();
@@ -563,6 +565,7 @@ export class CommandController {
 	async handleMemoryCommand(text: string): Promise<void> {
 		const argumentText = text.slice(7).trim();
 		const action = argumentText.split(/\s+/, 1)[0]?.toLowerCase() || "view";
+		const restText = argumentText.slice(action.length).trim();
 		const agentDir = this.ctx.settings.getAgentDir();
 		const backend = resolveMemoryBackend(this.ctx.settings);
 
@@ -603,63 +606,65 @@ export class CommandController {
 			return;
 		}
 
-		if (action === "stats") {
-			if (backend.id !== "nexus") return this.ctx.showError("Nexus backend is not active for this session.");
-			showMarkdownPanel(
-				this.ctx,
-				"Nexus Stats",
-				renderNexusStats(agentDir, this.ctx.sessionManager.getCwd(), this.ctx.settings),
-			);
-			return;
-		}
-
 		if (action === "search") {
-			const query = argumentText.slice("search".length).trim();
-			if (!query) return this.ctx.showError("Usage: /memory search <query>");
-			if (backend.id !== "nexus") return this.ctx.showError("Nexus backend is not active for this session.");
-			showMarkdownPanel(
-				this.ctx,
-				"Nexus Memory Search",
-				runNexusSearch(agentDir, this.ctx.sessionManager.getCwd(), this.ctx.settings, query),
+			if (backend.id !== "hermes") {
+				this.ctx.showError("/memory search is only available when memory.backend is hermes.");
+				return;
+			}
+			const query = restText;
+			if (!query) {
+				this.ctx.showError("Usage: /memory search <query>");
+				return;
+			}
+			const { createHermesMemoryConfig, HermesMemoryRuntime } = await import("../../memory-backend/hermes");
+			const rt = new HermesMemoryRuntime(
+				createHermesMemoryConfig({ settings: this.ctx.settings, agentDir, cwd: this.ctx.sessionManager.getCwd() }),
 			);
+			try {
+				await rt.load();
+				const results = rt.search(query, { limit: 10 });
+				const markdown = results.length
+					? results
+							.map(entry => `- [${entry.target}${entry.category ? `/${entry.category}` : ""}] ${entry.content}`)
+							.join("\n")
+					: "No matching Hermes memories found.";
+				showMarkdownPanel(this.ctx, "Memory Search", markdown);
+			} catch (error) {
+				this.ctx.showError(`Memory search failed: ${error instanceof Error ? error.message : String(error)}`);
+			} finally {
+				rt.close();
+			}
 			return;
 		}
 
-		if (action === "explain") {
-			const id = argumentText.slice("explain".length).trim();
-			if (!id) return this.ctx.showError("Usage: /memory explain <id>");
-			if (backend.id !== "nexus") return this.ctx.showError("Nexus backend is not active for this session.");
-			showMarkdownPanel(
-				this.ctx,
-				"Nexus Memory Explanation",
-				runNexusExplain(agentDir, this.ctx.sessionManager.getCwd(), this.ctx.settings, id),
+		if (action === "add") {
+			if (backend.id !== "hermes") {
+				this.ctx.showError("/memory add is only available when memory.backend is hermes.");
+				return;
+			}
+			const content = restText;
+			if (!content) {
+				this.ctx.showError("Usage: /memory add <text>");
+				return;
+			}
+			const { createHermesMemoryConfig, HermesMemoryRuntime } = await import("../../memory-backend/hermes");
+			const rt = new HermesMemoryRuntime(
+				createHermesMemoryConfig({ settings: this.ctx.settings, agentDir, cwd: this.ctx.sessionManager.getCwd() }),
 			);
+			try {
+				await rt.load();
+				const result = await rt.add("memory", content);
+				if (result.success) this.ctx.showStatus(result.message ?? "Memory added.");
+				else this.ctx.showError(result.error ?? "Memory add failed.");
+			} catch (error) {
+				this.ctx.showError(`Memory add failed: ${error instanceof Error ? error.message : String(error)}`);
+			} finally {
+				rt.close();
+			}
 			return;
 		}
 
-		if (action === "doctor") {
-			if (backend.id !== "nexus") return this.ctx.showError("Nexus backend is not active for this session.");
-			showMarkdownPanel(
-				this.ctx,
-				"Nexus Doctor",
-				await runNexusDoctorLive(this.ctx.settings, this.ctx.sessionManager.getCwd()),
-			);
-			return;
-		}
-
-		if (action === "session-search" || action === "sessions") {
-			const query = argumentText.replace(/^(session-search|sessions)\s*/i, "").trim();
-			if (!query) return this.ctx.showError("Usage: /memory session-search <query>");
-			if (backend.id !== "nexus") return this.ctx.showError("Nexus backend is not active for this session.");
-			const { searchNexusSessionAnchors } = await import("../../nexus/session-search");
-			const result = searchNexusSessionAnchors(agentDir, this.ctx.sessionManager.getCwd(), this.ctx.settings, query);
-			showMarkdownPanel(this.ctx, "Nexus Session Search", result.text);
-			return;
-		}
-
-		this.ctx.showError(
-			"Usage: /memory <view|clear|reset|enqueue|rebuild|stats|search|explain|doctor|session-search>",
-		);
+		this.ctx.showError("Usage: /memory <view|clear|reset|enqueue|rebuild|search|add>");
 	}
 
 	async #runNewSessionFlow(options?: NewSessionOptions, label: string = "New session started"): Promise<void> {

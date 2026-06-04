@@ -496,7 +496,6 @@ function createSubagentSettings(baseSettings: Settings): Settings {
 		...snapshot,
 		"async.enabled": false,
 		"bash.autoBackground.enabled": false,
-		"memory.backend": "off",
 		"todo.enabled": false,
 		"todo.eager": false,
 		"tools.discoveryMode": "off",
@@ -512,7 +511,7 @@ export function resolveSubprocessToolNames(options: {
 	const childDepth = (options.taskDepth ?? 0) + 1;
 	const atMaxDepth = maxRecursionDepth >= 0 && childDepth >= maxRecursionDepth;
 
-	// Agents that omit `tools` in their frontmatter (e.g. bundled `task` / `quick_task`)
+	// Agents that omit `tools` in their frontmatter (e.g. bundled `Builder`)
 	// intentionally inherit the host's full tool registry. Returning an empty array here
 	// would force createAgentSession to register zero tools, leaving the subagent unable
 	// to call read/edit/bash/etc. Pass `undefined` through so the SDK uses defaults.

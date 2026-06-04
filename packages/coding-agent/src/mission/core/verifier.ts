@@ -24,6 +24,7 @@
 import { createHash } from "node:crypto";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
+import { procmgr } from "@amaze/utils";
 import { Glob } from "bun";
 import { settings } from "../../config/settings";
 
@@ -295,6 +296,7 @@ async function checkCommandExit(
 	try {
 		const proc = Bun.spawn(argv, {
 			cwd: workdir,
+			env: procmgr.scrubProcessEnv(Bun.env),
 			stdout: "pipe",
 			stderr: "pipe",
 			signal: controller.signal,
@@ -351,6 +353,7 @@ async function checkCommandOutput(
 	try {
 		const proc = Bun.spawn(argv, {
 			cwd: workdir,
+			env: procmgr.scrubProcessEnv(Bun.env),
 			stdout: "pipe",
 			stderr: "pipe",
 			signal: controller.signal,

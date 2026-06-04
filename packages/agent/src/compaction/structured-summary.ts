@@ -114,6 +114,12 @@ export function formatCustomInstructionsBlock(customInstructions: string | undef
 	return `\n\n<custom-instructions>\n${sanitizeTaggedContent(normalized, "custom-instructions")}\n</custom-instructions>`;
 }
 
+export function sanitizePreviousSummaryBlock(previousSummary: string | undefined): string {
+	const extracted = extractSummaryBlock(previousSummary);
+	if (!extracted) return "None.";
+	return sanitizeTaggedContent(extracted, "previous-summary");
+}
+
 export function mergeSplitTurnSummaries(
 	historySummary: string | undefined,
 	turnPrefixSummary: string | undefined,

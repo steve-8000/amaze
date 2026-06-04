@@ -23,14 +23,14 @@ _No files to review._
 
 ### Distribution Guidelines
 
-{{#when agentCount "==" 1}}Use **1 reviewer agent**.{{else}}Spawn **{{agentCount}} reviewer agents** in parallel.{{/when}}
+{{#when agentCount "==" 1}}Use **1 Reviewer agent**.{{else}}Spawn **{{agentCount}} Reviewer agents** in parallel.{{/when}}
 {{#if multiAgent}}
 Group files by locality, e.g.:
 - Same directory/module → same agent
 - Related functionality → same agent
 - Tests with their implementation files → same agent
 
-You MUST use Task tool with `agent: "reviewer"` and `tasks` array.
+You MUST use Task tool with `agent: "Reviewer"` and `tasks` array.
 {{/if}}
 
 ### Reviewer Instructions

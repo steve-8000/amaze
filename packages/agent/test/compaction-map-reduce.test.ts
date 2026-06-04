@@ -81,7 +81,7 @@ afterEach(() => {
 });
 
 describe("map-reduce compaction", () => {
-	it("uses spark-class map calls before reducing with the compaction model", async () => {
+	it("uses each section's resolved model before reducing with the compaction model", async () => {
 		const completeSimpleSpy = vi
 			.spyOn(ai, "completeSimple")
 			.mockResolvedValueOnce(makeAssistantMessage("## 1. User Requests (Verbatim)\n- alpha"))
@@ -94,17 +94,19 @@ describe("map-reduce compaction", () => {
 			.mockResolvedValueOnce(makeAssistantMessage("short summary"));
 
 		const result = await compact(makePreparation(), REDUCE_MODEL, "reduce-key", undefined, undefined, {
-			mapModel: MAP_MODEL,
-			mapApiKey: "map-key",
+			resolveSectionModel: async messages =>
+				messages.some(message => message.role === "user" && String(message.content).includes("beta"))
+					? { model: MAP_MODEL, apiKey: "map-key" }
+					: undefined,
 		});
 
 		expect(result.summary).toContain("- alpha");
 		expect(result.summary).toContain("- beta");
 		expect(completeSimpleSpy).toHaveBeenCalledTimes(4);
-		expect(completeSimpleSpy.mock.calls[0]?.[0]).toBe(MAP_MODEL);
+		expect(completeSimpleSpy.mock.calls[0]?.[0]).toBe(REDUCE_MODEL);
 		expect(completeSimpleSpy.mock.calls[1]?.[0]).toBe(MAP_MODEL);
 		expect(completeSimpleSpy.mock.calls[2]?.[0]).toBe(REDUCE_MODEL);
-		expect(completeSimpleSpy.mock.calls[0]?.[2]).toMatchObject({ apiKey: "map-key" });
-		expect(completeSimpleSpy.mock.calls[2]?.[2]).toMatchObject({ apiKey: "reduce-key" });
+		expect(completeSimpleSpy.mock.calls[0]?.[2]).toMatchObject({ apiKey: "reduce-key" });
+		expect(completeSimpleSpy.mock.calls[1]?.[2]).toMatchObject({ apiKey: "map-key" });
 	});
 });

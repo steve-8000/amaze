@@ -1,3 +1,5 @@
+import { procmgr } from "@amaze/utils";
+
 /** Open a URL or file path in the default browser/application. Best-effort, never throws. */
 export function openPath(urlOrPath: string): void {
 	let cmd: string[];
@@ -13,7 +15,7 @@ export function openPath(urlOrPath: string): void {
 			break;
 	}
 	try {
-		Bun.spawn(cmd, { stdin: "ignore", stdout: "ignore", stderr: "ignore" });
+		Bun.spawn(cmd, { env: procmgr.scrubProcessEnv(Bun.env), stdin: "ignore", stdout: "ignore", stderr: "ignore" });
 	} catch {
 		// Best-effort: browser opening is non-critical
 	}

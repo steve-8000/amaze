@@ -27,13 +27,13 @@ function createSettings(modelRoles: Record<string, string>) {
 }
 
 describe("commit role thinking selection", () => {
-	it("returns explicit thinking for commit and smol roles, including alias overrides", async () => {
+	it("returns explicit thinking for commit and Explore roles, including role overrides", async () => {
 		const defaultModel = getModelOrThrow("claude-sonnet-4-5");
 		const commitModel = getModelOrThrow("claude-opus-4-5");
 		const settings = createSettings({
 			default: `${defaultModel.provider}/${defaultModel.id}:high`,
 			commit: `${commitModel.provider}/${commitModel.id}:low`,
-			smol: "pi/default:minimal",
+			Explore: "default:minimal",
 		});
 		const registry = {
 			getAvailable: () => [defaultModel, commitModel],

@@ -1,5 +1,5 @@
 /**
- * Generate commit messages from diffs using a smol, fast model.
+ * Generate commit messages from diffs using an Explore-style fast model.
  * Follows the same pattern as title-generator.ts.
  */
 import type { ThinkingLevel } from "@amaze/agent-core";
@@ -49,14 +49,14 @@ function getSmolModelCandidates(
 	};
 
 	const matchPreferences = { usageOrder: settings.getStorage()?.getModelUsageOrder() };
-	const configuredSmol = resolveModelRoleValue(settings.getModelRole("smol"), availableModels, {
+	const configuredSmol = resolveModelRoleValue(settings.getModelRole("Explore"), availableModels, {
 		settings,
 		matchPreferences,
 		modelRegistry: registry,
 	});
 	addCandidate(configuredSmol.model, configuredSmol.thinkingLevel);
 
-	for (const pattern of MODEL_PRIO.smol) {
+	for (const pattern of MODEL_PRIO.Explore) {
 		const needle = pattern.toLowerCase();
 		addCandidate(availableModels.find(m => m.id.toLowerCase() === needle));
 		addCandidate(availableModels.find(m => m.id.toLowerCase().includes(needle)));
@@ -81,7 +81,7 @@ export async function generateCommitMessage(
 ): Promise<string | null> {
 	const candidates = getSmolModelCandidates(registry, settings);
 	if (candidates.length === 0) {
-		logger.debug("commit-msg-generator: no smol model found");
+		logger.debug("commit-msg-generator: no Explore model found");
 		return null;
 	}
 

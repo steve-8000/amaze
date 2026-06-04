@@ -1,5 +1,5 @@
 /**
- * Generate session titles using a smol, fast model.
+ * Generate session titles using an Explore-style fast model.
  */
 import * as path from "node:path";
 
@@ -21,7 +21,7 @@ function getTitleModel(registry: ModelRegistry, settings: Settings, currentModel
 	const availableModels = registry.getAvailable();
 	if (availableModels.length === 0) return undefined;
 
-	const titleModel = resolveRoleSelection(["commit", "smol"], settings, availableModels, registry)?.model;
+	const titleModel = resolveRoleSelection(["commit", "Explore"], settings, availableModels, registry)?.model;
 	if (titleModel) return titleModel;
 
 	if (currentModel) return currentModel;
@@ -34,7 +34,7 @@ function getTitleModel(registry: ModelRegistry, settings: Settings, currentModel
  *
  * @param firstMessage The first user message
  * @param registry Model registry
- * @param settings Settings used to resolve the smol role
+ * @param settings Settings used to resolve the Explore role
  * @param sessionId Optional session id for sticky API key selection
  * @param currentModel Current model (used to derive title model)
  * @param metadataResolver Optional resolver evaluated after credential selection
@@ -65,7 +65,7 @@ ${truncatedMessage}
 
 	const apiKey = await registry.getApiKey(model, sessionId);
 	if (!apiKey) {
-		logger.debug("title-generator: no API key for smol model", {
+		logger.debug("title-generator: no API key for Explore model", {
 			provider: model.provider,
 			id: model.id,
 		});

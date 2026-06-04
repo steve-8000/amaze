@@ -1,4 +1,4 @@
-import { $which, logger } from "@amaze/utils";
+import { $which, logger, procmgr } from "@amaze/utils";
 import transcribeScript from "./transcribe.py" with { type: "text" };
 
 export interface TranscribeOptions {
@@ -42,6 +42,7 @@ export async function transcribe(audioPath: string, options?: TranscribeOptions)
 	logger.debug("Transcribing with Python whisper", { pythonCmd, audioPath, modelName, language });
 
 	const proc = Bun.spawn([pythonCmd, "-c", transcribeScript, audioPath, modelName, language], {
+		env: procmgr.scrubProcessEnv(Bun.env),
 		stdout: "pipe",
 		stderr: "pipe",
 	});

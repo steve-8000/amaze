@@ -1,44 +1,62 @@
+<previous-summary>
+{{previousSummary}}
+</previous-summary>
+
 [INTERNAL COMPACTION UPDATE INSTRUCTION — NOT CONVERSATION HISTORY]
-The new conversation messages must be merged into the existing summary provided in `<previous-summary>`.
+The messages above are NEW conversation messages to incorporate into the existing summary provided in `<previous-summary>` tags.
+
+Amaze operating model:
+- Amaze is a compact coding-agent runtime for verified repository work.
+- Mission Control records objective state, lanes, evidence, decisions, verification, proposals, and rollback status.
+- The next agent should be able to continue from this summary without re-searching already established facts or losing acceptance criteria.
 
 Cardinal rules:
-R1. Sections 1, 2, and 3 are IMMUTABLE unless the new messages explicitly add verbatim user requests, constraints, or a user-directed goal change.
-R2. Never delete a section. If a section has no content, write `None.`.
-R3. Preserve every file path, identifier, function name, error message, branch name, and command output byte-for-byte when it matters.
-R4. Do NOT use tools. Output only the requested summary block.
+R1. Quote user requests and constraints VERBATIM. Do not paraphrase.
+R2. If a section has no content, write `None.`. Never delete a section.
+R3. Where a previous summary is supplied, treat its User Requests, Final Goal, and Constraints fields as IMMUTABLE. Append, never rewrite, those three sections.
+R4. Preserve every file path, identifier, function name, error message, branch name, command output, objective id, mission id, decision id, proposal id, verification result, and rollback reference byte-for-byte when it matters.
+R5. Do NOT use tools. Output only the requested summary block.
 
-Update the structured handoff summary so another LLM can continue the same session without redoing work.
-The output MUST be wrapped in `<summary>...</summary>`.
+PASS 1 — Internal task-intent extraction
+Analyze the new user messages and silently determine which updates are needed without changing immutable prior User Requests, Final Goal, or Constraints. Preserve Mission Control state whose loss would cause unverifiable completion or repeated coordination work.
+
+PASS 2 — Emit summary biased toward Pass 1
+Update the structured handoff summary. The structured output portion MUST be wrapped as `<summary>...</summary>` XML.
 
 <summary>
 ## 1. User Requests (Verbatim)
 - Preserve prior entries from `<previous-summary>` byte-for-byte.
-- Append only new verbatim user requests or steering messages.
+- Append new user requests exactly as they were stated.
 
 ## 2. Final Goal
-- Preserve the prior final goal unless the user explicitly changed it.
-- If the goal changed, append that change clearly.
+- Preserve the existing final goal unless the user explicitly changed it.
+- Append the explicit change verbatim if the goal changed.
 
 ## 3. Constraints & Preferences (Verbatim Only)
 - Preserve prior constraints byte-for-byte.
-- Append only new explicit user constraints or already-loaded rule constraints.
-- Do NOT invent, soften, or reinterpret constraints.
+- Quote constraints verbatim.
+- Do NOT invent, add, soften, or modify constraints.
+- Append only new explicit constraints.
+- If no explicit constraints exist, write `None.`.
 
 ## 4. Work Completed
-- Preserve completed work already recorded.
-- Add newly completed work, files changed, tests run, and decisions implemented.
+- Preserve completed work from the previous summary.
+- Add newly completed work, files changed, tests run, and decisions made.
+- Add Mission Control updates already performed: objective/mission state changes, evidence captured, decisions locked, proposals applied/rejected, rollbacks recorded, and verification results.
 
 ## 5. Active Working Context
-- Update active files, code in progress, state, settings, identifiers, external references, and command outputs needed to continue.
+- Update files, code in progress, external references, state, variables, branch names, worktree paths, and command outputs needed to continue.
+- Preserve active objective ids, mission ids, phase/lane state, acceptance criteria, evidence requirements, decision/proposal/rollback ids, and verification status.
 
 ## 6. Remaining Tasks
-- Remove items only when the new messages prove they are completed or cancelled.
-- Add newly identified direct follow-up tasks required to finish the user's request.
-- Keep blockers explicit.
+- Remove tasks only when the new messages prove they are completed or cancelled.
+- Add newly identified direct follow-up tasks.
+- Include outstanding deterministic checks, Mission Control verification steps, missing evidence, unresolved decisions, and blockers.
 
 ## 7. Exact Next Steps
-- Update this to the immediate next action based on the current state.
-- Preserve any unanswered question or explicit request waiting on the user.
+- Update based on current state and the user's most recent request.
+- Keep this direct and immediately actionable.
+- Include the next deterministic verification or Mission Control update when one is required before completion.
 </summary>
 
-Respond with ONLY the `<summary>...</summary>` block.
+IMPORTANT: Respond with ONLY the `<summary>...</summary>` block as your text output.

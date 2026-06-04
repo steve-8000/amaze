@@ -45,7 +45,7 @@ export function shouldUseMapReduce(diff: string, settings?: MapReduceSettings): 
 }
 
 /**
- * Run map-reduce analysis for large diffs using smol + primary models.
+ * Run map-reduce analysis for large diffs using Explore + primary models.
  */
 
 export async function runMapReduceAnalysis(input: MapReduceInput): Promise<ConventionalAnalysis> {

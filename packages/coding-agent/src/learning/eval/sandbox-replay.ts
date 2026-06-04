@@ -1,6 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import { procmgr } from "@amaze/utils";
 import { restoreSnapshot, snapshotFile, writeFileAtomically } from "../apply/snapshots";
 import type { LearningProposal, SandboxReplayReport } from "../types";
 
@@ -74,6 +75,7 @@ async function runCommand(
 
 	const proc = Bun.spawn(command.argv, {
 		cwd: command.cwd ? path.resolve(workspaceRoot, command.cwd) : workspaceRoot,
+		env: procmgr.scrubProcessEnv(Bun.env),
 		stdout: "pipe",
 		stderr: "pipe",
 		signal,

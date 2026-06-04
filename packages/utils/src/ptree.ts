@@ -9,6 +9,7 @@
 
 import { Process } from "@amaze/natives";
 import type { Spawn, Subprocess } from "bun";
+import { scrubProcessEnv } from "./procmgr";
 
 type InMask = "pipe" | "ignore" | Buffer | Uint8Array | null;
 
@@ -328,13 +329,14 @@ type ChildSpawnOptions<In extends InMask = InMask> = Omit<
 
 /** Spawn a child process with piped stdout/stderr. */
 export function spawn<In extends InMask = InMask>(cmd: string[], opts?: ChildSpawnOptions<In>): ChildProcess<In> {
-	const { timeout = -1, signal, stderr, ...rest } = opts ?? {};
+	const { timeout = -1, signal, stderr, env, ...rest } = opts ?? {};
 	const child = Bun.spawn(cmd, {
 		stdin: "ignore",
 		stdout: "pipe",
 		stderr: "pipe",
 		windowsHide: true,
 		...rest,
+		env: scrubProcessEnv(env ?? Bun.env),
 	});
 	const cp = new ChildProcess(child, stderr === "full");
 	if (signal) cp.attachSignal(signal);

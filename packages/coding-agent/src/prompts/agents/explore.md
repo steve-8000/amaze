@@ -1,8 +1,8 @@
 ---
-name: explore
+name: Explore
 description: Fast read-only codebase scout returning compressed context for handoff. Repository facts only; no web access.
 tools: read, search, find
-model: pi/smol
+model: Explore
 thinking-level: med
 output:
   properties:

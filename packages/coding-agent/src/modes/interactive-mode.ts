@@ -109,6 +109,7 @@ import {
 	onThemeChange,
 	theme,
 } from "./theme/theme";
+import { createTuiClientBridge } from "./tui-client-bridge";
 import type { CompactionQueuedMessage, InteractiveModeContext, SubmittedUserInput, TodoItem, TodoPhase } from "./types";
 import { UiHelpers } from "./utils/ui-helpers";
 
@@ -492,6 +493,10 @@ export class InteractiveMode implements InteractiveModeContext {
 		this.updateEditorBorderColor();
 		this.#syncEditorMaxHeight();
 		this.isInitialized = true;
+		// Route interactive tool-approval requests (e.g. infra/deploy bash commands)
+		// through the TUI Yes/No dialog. Without a client bridge these would be blocked
+		// fail-closed in the terminal. ACP mode wires its own bridge and never reaches here.
+		this.session.setClientBridge(createTuiClientBridge(this));
 		this.ui.requestRender(true);
 
 		// Initialize hooks with TUI-based UI context
@@ -983,7 +988,7 @@ export class InteractiveMode implements InteractiveModeContext {
 	}
 
 	async #applyPlanModeModel(): Promise<void> {
-		const resolved = this.session.resolveRoleModelWithThinking("plan");
+		const resolved = this.session.resolveRoleModelWithThinking("Planner");
 		if (!resolved.model) return;
 
 		const currentModel = this.session.model;
@@ -1178,7 +1183,7 @@ export class InteractiveMode implements InteractiveModeContext {
 			// model — leave any unrelated user-queued switch intact.
 			const pending = this.#pendingModelSwitch;
 			if (pending) {
-				const planResolution = this.session.resolveRoleModelWithThinking("plan");
+				const planResolution = this.session.resolveRoleModelWithThinking("Planner");
 				if (planResolution.model && modelsAreEqual(pending.model, planResolution.model)) {
 					this.#pendingModelSwitch = undefined;
 				}

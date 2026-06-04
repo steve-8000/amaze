@@ -13,7 +13,7 @@ import { SKILL_PROMPT_MESSAGE_TYPE, type SkillPromptDetails } from "../../sessio
 import { executeBuiltinSlashCommand } from "../../slash-commands/builtin-registry";
 import { copyToClipboard, readImageFromClipboard } from "../../utils/clipboard";
 import { getEditorCommand, openInEditor } from "../../utils/external-editor";
-import { ensureSupportedImageInput } from "../../utils/image-loading";
+import { ensureSupportedImageInput, loadImageInput } from "../../utils/image-loading";
 import { resizeImage } from "../../utils/image-resize";
 import { generateSessionTitle, setSessionTerminalTitle } from "../../utils/title-generator";
 
@@ -23,6 +23,85 @@ interface Expandable {
 
 function isExpandable(obj: unknown): obj is Expandable {
 	return typeof obj === "object" && obj !== null && "setExpanded" in obj && typeof obj.setExpanded === "function";
+}
+
+type InputImage = InteractiveModeContext["pendingImages"][number];
+
+type PastedImagePathSegment = {
+	start: number;
+	end: number;
+	candidates: string[];
+};
+
+function isPathBoundary(text: string, index: number): boolean {
+	if (index === 0) return true;
+	return /[\s([{<]/.test(text[index - 1]!);
+}
+
+function isPathStart(text: string, index: number): boolean {
+	if (text[index] === "/") return true;
+	return text[index] === "~" && text[index + 1] === "/";
+}
+
+function shellTokenEnd(text: string, start: number): number {
+	let index = start;
+	while (index < text.length) {
+		const char = text[index]!;
+		if (char === "\\") {
+			index += 2;
+			continue;
+		}
+		if (/\s/.test(char)) break;
+		index++;
+	}
+	return index;
+}
+
+function lineEnd(text: string, start: number): number {
+	const newline = text.indexOf("\n", start);
+	return newline === -1 ? text.length : newline;
+}
+
+function trimRightEnd(text: string, start: number, end: number): number {
+	while (end > start && /\s/.test(text[end - 1]!)) end--;
+	return end;
+}
+
+function findPastedImagePathSegments(text: string): PastedImagePathSegment[] {
+	const segments: PastedImagePathSegment[] = [];
+	let index = 0;
+
+	while (index < text.length) {
+		if (!isPathStart(text, index) || !isPathBoundary(text, index)) {
+			index++;
+			continue;
+		}
+
+		const tokenEnd = shellTokenEnd(text, index);
+		const token = text.slice(index, tokenEnd);
+		if (!token || token === "/" || token === "~/") {
+			index++;
+			continue;
+		}
+
+		const candidates: string[] = [];
+		const remainingEnd = trimRightEnd(text, index, lineEnd(text, index));
+		const remaining = text.slice(index, remainingEnd);
+		if (remaining !== token && /\s/.test(remaining)) {
+			candidates.push(remaining);
+		}
+		candidates.push(token);
+
+		const matchEnd = candidates[0] === remaining ? remainingEnd : tokenEnd;
+		segments.push({
+			start: index,
+			end: matchEnd,
+			candidates,
+		});
+		index = matchEnd;
+	}
+
+	return segments;
 }
 
 export class InputController {
@@ -194,6 +273,49 @@ export class InputController {
 		};
 	}
 
+	async #attachPastedImagePaths(
+		text: string,
+		inputImages: InputImage[] | undefined,
+	): Promise<{ text: string; images?: InputImage[] }> {
+		const segments = findPastedImagePathSegments(text);
+		if (segments.length === 0) return { text, images: inputImages };
+
+		let output = "";
+		let cursor = 0;
+		let images = inputImages;
+
+		for (const segment of segments) {
+			let loaded: Awaited<ReturnType<typeof loadImageInput>> = null;
+			for (const candidate of segment.candidates) {
+				try {
+					loaded = await loadImageInput({
+						path: candidate,
+						cwd: this.ctx.sessionManager.getCwd(),
+						autoResize: settings.get("images.autoResize"),
+						clientBridge: this.ctx.session.clientBridge,
+					});
+				} catch {
+					loaded = null;
+				}
+				if (loaded) break;
+			}
+			if (!loaded) continue;
+
+			if (!images) images = [];
+			images.push({ type: "image", data: loaded.data, mimeType: loaded.mimeType });
+			const placeholder = `[Image #${images.length}]`;
+			output += text.slice(cursor, segment.start);
+			if (output.length > 0 && !/\s$/.test(output)) output += " ";
+			output += placeholder;
+			if (segment.end < text.length && !/^\s/.test(text.slice(segment.end, segment.end + 1))) output += " ";
+			cursor = segment.end;
+		}
+
+		if (cursor === 0) return { text, images: inputImages };
+		output += text.slice(cursor);
+		const submittedText = output.replace(/[ \t]+/g, " ").trim();
+		return { text: submittedText || `[Image #${images?.length ?? 1}]`, images };
+	}
 	setupEditorSubmitHandler(): void {
 		this.ctx.editor.onSubmit = async (text: string) => {
 			text = text.trim();
@@ -235,6 +357,10 @@ export class InputController {
 					inputImages = result.images;
 				}
 			}
+
+			const attachedInput = await this.#attachPastedImagePaths(text, inputImages);
+			text = attachedInput.text;
+			inputImages = attachedInput.images;
 
 			if (!text) return;
 

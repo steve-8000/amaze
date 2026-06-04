@@ -43,7 +43,7 @@ function laneRun(missionId: string, overrides: Partial<NewMissionLaneRun> = {}):
 	return {
 		missionId,
 		lane: "repo",
-		agent: "explore",
+		agent: "Explore",
 		epistemicRole: "repo_truth",
 		status: "pending",
 		evidenceCount: 0,
@@ -310,7 +310,7 @@ describe("MissionStore", () => {
 				missionId: createdMission.id,
 				laneRunId: run.id,
 				lane: "repo",
-				agent: "explore",
+				agent: "Explore",
 				epistemicRole: "repo_truth",
 				ts: 100,
 			},

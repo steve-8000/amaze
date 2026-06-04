@@ -1,5 +1,6 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
+import { procmgr } from "@amaze/utils";
 import {
 	type AgiControlState,
 	type AgiGatewayAction,
@@ -382,7 +383,7 @@ export class CliAgiActionDriver implements AgiActionDriver {
 				cwd: session.cwd || process.cwd(),
 				stdout: "pipe",
 				stderr: "pipe",
-				env: process.env,
+				env: procmgr.scrubProcessEnv(process.env),
 			},
 		);
 		const [stdout, stderr, exitCode] = await Promise.all([

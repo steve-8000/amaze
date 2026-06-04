@@ -28,9 +28,9 @@ describe("AgentSession compaction model pinning", () => {
 		tempDir.removeSync();
 	});
 
-	it("prefers GPT-5.4 for compaction even when the live session model differs", async () => {
+	it("uses the live session model for compaction when available", async () => {
 		const currentModel = getBundledModel("github-copilot", "gpt-4o");
-		const pinnedModel = getBundledModel("openai", "gpt-5.4");
+		const pinnedModel = getBundledModel("openai", "gpt-5.4-mini");
 		if (!currentModel || !pinnedModel) {
 			throw new Error("Expected bundled compaction models to exist");
 		}
@@ -83,43 +83,27 @@ describe("AgentSession compaction model pinning", () => {
 		}));
 
 		const result = await session.compact();
-		expect(result.summary).toContain(`${pinnedModel.provider}/${pinnedModel.id}`);
+		expect(result.summary).toContain(`${currentModel.provider}/${currentModel.id}`);
 		expect(compactSpy).toHaveBeenCalledTimes(1);
-		expect(compactSpy.mock.calls[0]?.[1]).toMatchObject({ provider: pinnedModel.provider, id: pinnedModel.id });
+		expect(compactSpy.mock.calls[0]?.[1]).toMatchObject({ provider: currentModel.provider, id: currentModel.id });
 	});
 
-	it("resolves compaction_map role aliases for map-reduce while keeping GPT-5.4 as reduce model", async () => {
+	it("does not force a separate map model by default", async () => {
 		const currentModel = getBundledModel("openai-codex", "gpt-5.5");
-		const reduceModel = getBundledModel("openai-codex", "gpt-5.4");
+		const reduceModel = getBundledModel("openai-codex", "gpt-5.4-mini");
 		if (!currentModel || !reduceModel) throw new Error("Expected bundled compaction models to exist");
-		const mapModel = {
-			...reduceModel,
-			provider: "local-qwopus",
-			id: "qwopus3.5-9b-coder-mtp",
-			name: "Qwopus3.5 9B Coder MTP",
-			contextWindow: 262144,
-			maxTokens: 32768,
-		};
-
 		authStorage = await AuthStorage.create(path.join(tempDir.path(), "auth.db"));
 		authStorage.setRuntimeApiKey(currentModel.provider, "current-key");
 		authStorage.setRuntimeApiKey(reduceModel.provider, "reduce-key");
-		authStorage.setRuntimeApiKey(mapModel.provider, "local-key");
 		modelRegistry = new ModelRegistry(authStorage, path.join(tempDir.path(), "models.yml"));
-		vi.spyOn(modelRegistry, "getAvailable").mockReturnValue([currentModel, reduceModel, mapModel]);
+		vi.spyOn(modelRegistry, "getAvailable").mockReturnValue([currentModel, reduceModel]);
 		vi.spyOn(modelRegistry, "getApiKey").mockImplementation(async model => {
-			if (model.provider === mapModel.provider && model.id === mapModel.id) return "local-key";
 			if (model.provider === reduceModel.provider && model.id === reduceModel.id) return "reduce-key";
 			if (model.provider === currentModel.provider && model.id === currentModel.id) return "current-key";
 			return undefined;
 		});
 
 		const settings = Settings.isolated({
-			modelRoles: {
-				compaction_map: "pi/local_scout",
-				compaction_reduce: "openai-codex/gpt-5.4",
-				local_scout: "local-qwopus/qwopus3.5-9b-coder-mtp",
-			},
 			"compaction.keepRecentTokens": 1,
 			"compaction.mode": "map-reduce",
 			"compaction.remoteEnabled": false,
@@ -159,21 +143,18 @@ describe("AgentSession compaction model pinning", () => {
 		const compactSpy = vi
 			.spyOn(compactionModule, "compact")
 			.mockImplementation(async (preparation, model, _apiKey, _instructions, _signal, options) => ({
-				summary: `reduce=${model.provider}/${model.id}; map=${options?.mapModel?.provider ?? "none"}/${options?.mapModel?.id ?? "none"}`,
+				summary: `reduce=${model.provider}/${model.id}; resolver=${typeof options?.resolveSectionModel}`,
 				shortSummary: "short summary",
 				firstKeptEntryId: preparation.firstKeptEntryId,
 				tokensBefore: 42,
-				details: { mapApiKey: options?.mapApiKey },
+				details: {},
 			}));
 
 		const result = await session.compact();
-		expect(result.summary).toContain(`reduce=${reduceModel.provider}/${reduceModel.id}`);
-		expect(result.summary).toContain(`map=${mapModel.provider}/${mapModel.id}`);
+		expect(result.summary).toContain(`reduce=${currentModel.provider}/${currentModel.id}`);
+		expect(result.summary).toContain("resolver=function");
 		expect(compactSpy).toHaveBeenCalledTimes(1);
-		expect(compactSpy.mock.calls[0]?.[1]).toMatchObject({ provider: reduceModel.provider, id: reduceModel.id });
-		expect(compactSpy.mock.calls[0]?.[5]).toMatchObject({
-			mapModel: { provider: mapModel.provider, id: mapModel.id },
-			mapApiKey: "local-key",
-		});
+		expect(compactSpy.mock.calls[0]?.[1]).toMatchObject({ provider: currentModel.provider, id: currentModel.id });
+		expect(compactSpy.mock.calls[0]?.[5]?.resolveSectionModel).toBeFunction();
 	});
 });

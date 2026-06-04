@@ -26,7 +26,7 @@ describe("task render", () => {
 				{
 					index: 0,
 					id: "0-Explore",
-					agent: "explore",
+					agent: "Explore",
 					agentSource: "bundled",
 					task: "Inspect code",
 					exitCode: 0,
@@ -57,7 +57,7 @@ describe("task render", () => {
 				{
 					index: 0,
 					id: "0-Review",
-					agent: "task",
+					agent: "Builder",
 					agentSource: "bundled",
 					task: "Review output",
 					exitCode: 0,

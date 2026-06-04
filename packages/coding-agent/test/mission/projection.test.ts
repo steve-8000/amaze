@@ -26,7 +26,7 @@ function brief(overrides: Partial<ResearchBrief> = {}): ResearchBrief {
 		id: "brief-1",
 		objectiveId: null,
 		question: "What is true?",
-		lanes: ["repo", "source", "social", "memory"],
+		lanes: ["repo", "source", "social"],
 		requiredEvidence: [],
 		disallowedEvidence: [],
 		riskLevel: "medium",
@@ -76,7 +76,7 @@ function laneRun(overrides: Partial<MissionLaneRun> = {}): MissionLaneRun {
 		id: "run-1",
 		missionId: "mission-1",
 		lane: "repo",
-		agent: "explore",
+		agent: "Explore",
 		epistemicRole: "repo_truth",
 		status: "completed",
 		evidenceCount: 1,
@@ -89,7 +89,7 @@ function laneRun(overrides: Partial<MissionLaneRun> = {}): MissionLaneRun {
 }
 
 describe("projectMissionView", () => {
-	test("zero evidence yields four-lane zero counts", () => {
+	test("zero evidence yields three-lane zero counts", () => {
 		const view = projectMissionView({
 			mission: mission(),
 			brief: brief(),
@@ -103,7 +103,6 @@ describe("projectMissionView", () => {
 			{ lane: "repo", count: 0 },
 			{ lane: "source", count: 0 },
 			{ lane: "social", count: 0 },
-			{ lane: "memory", count: 0 },
 		]);
 	});
 
@@ -116,17 +115,15 @@ describe("projectMissionView", () => {
 				card({ id: "repo-1", lane: "repo" }),
 				card({ id: "repo-2", lane: "repo" }),
 				card({ id: "social-1", lane: "social" }),
-				card({ id: "memory-1", lane: "memory" }),
 			],
 			laneRuns: [],
 		});
 
-		expect(view.evidenceCount).toBe(4);
+		expect(view.evidenceCount).toBe(3);
 		expect(view.evidenceByLane).toEqual([
 			{ lane: "repo", count: 2 },
 			{ lane: "source", count: 0 },
 			{ lane: "social", count: 1 },
-			{ lane: "memory", count: 1 },
 		]);
 	});
 
@@ -160,8 +157,8 @@ describe("projectMissionView", () => {
 				}),
 				laneRun({
 					id: "run-a",
-					lane: "memory",
-					epistemicRole: "memory_prior",
+					lane: "repo",
+					epistemicRole: "repo_truth",
 					startedAt: null,
 					status: "empty",
 					evidenceCount: 0,
@@ -172,10 +169,10 @@ describe("projectMissionView", () => {
 
 		expect(view.laneRuns).toEqual([
 			{
-				lane: "memory",
+				lane: "repo",
 				status: "empty",
-				agent: "explore",
-				epistemicRole: "memory_prior",
+				agent: "Explore",
+				epistemicRole: "repo_truth",
 				evidenceCount: 0,
 				emptyReason: "no prior",
 				taskId: null,
@@ -185,7 +182,7 @@ describe("projectMissionView", () => {
 			{
 				lane: "source",
 				status: "running",
-				agent: "explore",
+				agent: "Explore",
 				epistemicRole: "source_harvest",
 				evidenceCount: 1,
 				emptyReason: null,
@@ -196,7 +193,7 @@ describe("projectMissionView", () => {
 			{
 				lane: "social",
 				status: "completed",
-				agent: "explore",
+				agent: "Explore",
 				epistemicRole: "social_signal",
 				evidenceCount: 1,
 				emptyReason: null,

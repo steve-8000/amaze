@@ -15,6 +15,7 @@
  *     subagents, streaming returns), this module's contract stays stable.
  */
 
+import { procmgr } from "@amaze/utils";
 import {
 	type RevisionRequest,
 	renderRevisionRequest,
@@ -152,6 +153,7 @@ export async function snapshotGitChangedFiles(cwd: string): Promise<string[]> {
 	try {
 		const proc = Bun.spawn(["git", "status", "--porcelain=v1", "-z"], {
 			cwd,
+			env: procmgr.scrubProcessEnv(Bun.env),
 			stdout: "pipe",
 			stderr: "pipe",
 		});

@@ -10,7 +10,7 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { $flag, isBunTestRuntime, logger, Snowflake } from "@amaze/utils";
+import { $flag, isBunTestRuntime, logger, procmgr, Snowflake } from "@amaze/utils";
 import type { Subprocess } from "bun";
 import { $ } from "bun";
 import { Settings } from "../../config/settings";
@@ -121,10 +121,10 @@ export async function checkPythonKernelAvailability(cwd: string): Promise<Python
 		const baseEnv = filterEnv(env);
 		const runtime = resolvePythonRuntime(cwd, baseEnv);
 		const probe = await $`${runtime.pythonPath} -c "import sys;sys.exit(0)"`
+			.env(procmgr.scrubProcessEnv(runtime.env))
 			.quiet()
 			.nothrow()
-			.cwd(cwd)
-			.env(runtime.env);
+			.cwd(cwd);
 		if (probe.exitCode === 0) {
 			return { ok: true, pythonPath: runtime.pythonPath };
 		}
@@ -211,7 +211,7 @@ export class PythonKernel {
 
 		const proc = Bun.spawn([runtime.pythonPath, "-u", scriptPath], {
 			cwd: options.cwd,
-			env: spawnEnv,
+			env: procmgr.scrubProcessEnv(spawnEnv),
 			stdin: "pipe",
 			stdout: "pipe",
 			stderr: "pipe",

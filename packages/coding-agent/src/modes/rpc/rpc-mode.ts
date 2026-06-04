@@ -19,6 +19,7 @@ import type {
 } from "../../extensibility/extensions";
 import { type Theme, theme } from "../../modes/theme/theme";
 import type { AgentSession } from "../../session/agent-session";
+import type { ClientBridge } from "../../session/client-bridge";
 import { initializeExtensions } from "../runtime-init";
 import { isRpcHostToolResult, isRpcHostToolUpdate, RpcHostToolBridge } from "./host-tools";
 import { isRpcHostUriResult, RpcHostUriBridge } from "./host-uris";
@@ -26,6 +27,9 @@ import type {
 	RpcCommand,
 	RpcExtensionUIRequest,
 	RpcExtensionUIResponse,
+	RpcHostFileCancelRequest,
+	RpcHostFileReadRequest,
+	RpcHostFileResult,
 	RpcHostToolCallRequest,
 	RpcHostToolCancelRequest,
 	RpcHostToolDefinition,
@@ -51,6 +55,8 @@ type RpcOutput = (
 		| RpcHostToolCancelRequest
 		| RpcHostUriRequest
 		| RpcHostUriCancelRequest
+		| RpcHostFileReadRequest
+		| RpcHostFileCancelRequest
 		| object,
 ) => void;
 
@@ -76,6 +82,80 @@ function normalizeHostToolDefinitions(tools: RpcHostToolDefinition[]): RpcHostTo
 			hidden: tool.hidden === true,
 		};
 	});
+}
+
+type PendingHostFileRead = {
+	path: string;
+	resolve: (result: { dataBase64: string; mimeType?: string }) => void;
+	reject: (error: Error) => void;
+};
+
+function isRpcHostFileResult(value: unknown): value is RpcHostFileResult {
+	if (!value || typeof value !== "object") return false;
+	const frame = value as { type?: unknown; id?: unknown };
+	return frame.type === "host_file_result" && typeof frame.id === "string";
+}
+
+class RpcHostFileBridge {
+	#pending = new Map<string, PendingHostFileRead>();
+
+	constructor(private output: RpcOutput) {}
+
+	createClientBridge(existing?: ClientBridge): ClientBridge {
+		return {
+			...existing,
+			capabilities: {
+				...existing?.capabilities,
+				readBinaryFile: true,
+			},
+			readBinaryFile: params => this.#readBinaryFile(params),
+		};
+	}
+
+	handleResult(frame: RpcHostFileResult): boolean {
+		const pending = this.#pending.get(frame.id);
+		if (!pending) return false;
+		this.#pending.delete(frame.id);
+		if ("isError" in frame && frame.isError) {
+			pending.reject(new Error(frame.error || `Host file read failed for ${pending.path}`));
+			return true;
+		}
+		if (!("dataBase64" in frame) || typeof frame.dataBase64 !== "string") {
+			pending.reject(new Error(`Host file read for ${pending.path} returned no data`));
+			return true;
+		}
+		pending.resolve({
+			dataBase64: frame.dataBase64,
+			...(typeof frame.mimeType === "string" ? { mimeType: frame.mimeType } : {}),
+		});
+		return true;
+	}
+
+	rejectAllPending(message: string): void {
+		const error = new Error(message);
+		const pending = Array.from(this.#pending.values());
+		this.#pending.clear();
+		for (const entry of pending) {
+			entry.reject(error);
+		}
+	}
+
+	#readBinaryFile(params: { path: string; maxBytes: number }): Promise<{ dataBase64: string; mimeType?: string }> {
+		const id = Snowflake.next() as string;
+		const { promise, resolve, reject } = Promise.withResolvers<{ dataBase64: string; mimeType?: string }>();
+		this.#pending.set(id, {
+			path: params.path,
+			resolve,
+			reject,
+		});
+		this.output({
+			type: "host_file_read",
+			id,
+			path: params.path,
+			maxBytes: params.maxBytes,
+		});
+		return promise;
+	}
 }
 
 function parseValueDialogResponse(
@@ -199,6 +279,8 @@ export async function runRpcMode(
 	const pendingExtensionRequests = new Map<string, PendingExtensionRequest>();
 	const hostToolBridge = new RpcHostToolBridge(output);
 	const hostUriBridge = new RpcHostUriBridge(output);
+	const hostFileBridge = new RpcHostFileBridge(output);
+	session.setClientBridge(hostFileBridge.createClientBridge(session.clientBridge));
 
 	// Shutdown request flag (wrapped in object to allow mutation with const)
 	const shutdownState = { requested: false };
@@ -832,6 +914,11 @@ export async function runRpcMode(
 				continue;
 			}
 
+			if (isRpcHostFileResult(parsed)) {
+				hostFileBridge.handleResult(parsed);
+				continue;
+			}
+
 			// Handle regular commands
 			const command = parsed as RpcCommand;
 			const response = await handleCommand(command);
@@ -847,5 +934,6 @@ export async function runRpcMode(
 	// stdin closed — RPC client is gone, exit cleanly
 	hostToolBridge.rejectAllPending("RPC client disconnected before host tool execution completed");
 	hostUriBridge.clear("RPC client disconnected before host URI request completed");
+	hostFileBridge.rejectAllPending("RPC client disconnected before host file read completed");
 	process.exit(0);
 }

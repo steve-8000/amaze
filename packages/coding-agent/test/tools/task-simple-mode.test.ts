@@ -81,7 +81,7 @@ describe("task.simple", () => {
 
 		const schemaFreeTool = await TaskTool.create(createSession({ "task.simple": "schema-free" }));
 		const schemaFreeResult = await schemaFreeTool.execute("tool-1", {
-			agent: "task",
+			agent: "Builder",
 			schema: '{"properties":{"ok":{"type":"boolean"}}}',
 			tasks: [{ id: "One", description: "label", assignment: "Do the thing." }],
 		} as TaskParams);
@@ -91,7 +91,7 @@ describe("task.simple", () => {
 			id: "tool-1-validated",
 			name: schemaFreeTool.name,
 			arguments: {
-				agent: "task",
+				agent: "Builder",
 				schema: '{"properties":{"ok":{"type":"boolean"}}}',
 				tasks: [{ id: "One", description: "label", assignment: "Do the thing." }],
 			},
@@ -101,7 +101,7 @@ describe("task.simple", () => {
 
 		const independentTool = await TaskTool.create(createSession({ "task.simple": "independent" }));
 		const independentResult = await independentTool.execute("tool-2", {
-			agent: "task",
+			agent: "Builder",
 			context: "Shared background",
 			tasks: [{ id: "Two", description: "label", assignment: "Do the independent thing." }],
 		} as TaskParams);
@@ -111,7 +111,7 @@ describe("task.simple", () => {
 			id: "tool-2-validated",
 			name: independentTool.name,
 			arguments: {
-				agent: "task",
+				agent: "Builder",
 				context: "Shared background",
 				tasks: [{ id: "Two", description: "label", assignment: "Do the independent thing." }],
 			},

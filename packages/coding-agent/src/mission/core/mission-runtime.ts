@@ -1,10 +1,10 @@
 import type { ConfidenceLevel, RiskLevel } from "../../research/types";
+import { buildAcceptancePreflight } from "../continuation/policy";
 import type { MissionEventBus } from "../event-bus";
 import { defaultMissionClassifier, toCoreRiskLevel } from "../policy";
 import { MissionStore } from "../store";
 import type { MissionState as LegacyMissionState, MissionPhaseRecord } from "../types";
 import type { AcceptanceCriterion } from "./acceptance-criteria";
-import { templateFor } from "./lifecycle-template";
 import type {
 	Mission,
 	MissionLifecycleState,
@@ -855,14 +855,11 @@ export class MissionRuntimeImpl implements MissionRuntime {
 	 */
 	async complete(missionId: string, options: MissionCompleteOptions): Promise<Mission> {
 		const mission = this.#require(missionId);
-		const template = templateFor(mission.intent ?? "conversation");
-		const missing: string[] = [];
-		if (template.requireDecisionRecord && !mission.decisionId) missing.push("decisionId");
-		if (template.requireRegressionContract && !mission.regressionContractId) missing.push("regressionContractId");
-		if (template.requireVerification && verificationVerdict(mission.verification) !== "pass") {
-			missing.push("verification.verdict=pass");
-		}
-		if (missing.length) {
+		// Shared acceptance preflight — single source of truth reused by the
+		// continuation runtime (see ./continuation/policy.ts buildAcceptancePreflight).
+		const preflight = buildAcceptancePreflight(mission);
+		if (preflight.missingGates.length) {
+			const missing = preflight.missingGates;
 			throw new MissionAcceptanceFailureError(
 				{
 					status: "fail",
@@ -875,15 +872,14 @@ export class MissionRuntimeImpl implements MissionRuntime {
 				`Mission "${mission.id}" cannot complete: missing ${missing.join(", ")}`,
 			);
 		}
-		const unverifiedPhases = mission.phases?.filter(phase => phase.status !== "verified") ?? [];
-		if (unverifiedPhases.length > 0) {
-			const names = unverifiedPhases.map(phase => phase.name).join(", ");
+		if (preflight.unverifiedPhases.length > 0) {
+			const names = preflight.unverifiedPhases.join(", ");
 			throw new MissionAcceptanceFailureError(
 				{
 					status: "fail",
 					verdict: "fail",
 					summary: `Mission "${mission.id}" cannot complete: phase(s) ${names} not verified.`,
-					failedCount: unverifiedPhases.length,
+					failedCount: preflight.unverifiedPhases.length,
 					uncertainCount: 0,
 				},
 				[],

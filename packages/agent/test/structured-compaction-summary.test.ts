@@ -156,4 +156,39 @@ describe("section-aware compaction summaries", () => {
 		expect(result.summary).toContain("Captured split-turn output");
 		expect(result.summary).not.toContain("No prior history.");
 	});
+
+	it("uses the Senpi immutable update prompt for structured previous summaries", async () => {
+		const completeSimpleSpy = vi
+			.spyOn(ai, "completeSimple")
+			.mockResolvedValue(
+				makeAssistantMessage(
+					'<summary>\n## 1. User Requests (Verbatim)\n- "Ship the change"\n\n## 2. Final Goal\n- Deliver the requested change\n\n## 3. Constraints & Preferences (Verbatim Only)\n- None.\n\n## 4. Work Completed\n- Updated prompts\n\n## 5. Active Working Context\n- packages/agent/src/compaction/prompts/compaction-update-summary.md\n\n## 6. Remaining Tasks\n- Run tests\n\n## 7. Exact Next Steps\n- Run targeted tests\n</summary>',
+				),
+			);
+
+		const previousSummary = `## 1. User Requests (Verbatim)\n- "Ship the change"\n\n## 2. Final Goal\n- Deliver the requested change\n\n## 3. Constraints & Preferences (Verbatim Only)\n- "Keep constraints exact"\n\n## 4. Work Completed\n- Initial summary\n\n## 5. Active Working Context\n- packages/agent/src/compaction/structured-summary.ts\n\n## 6. Remaining Tasks\n- Update prompts\n\n## 7. Exact Next Steps\n- Port Senpi policy`;
+
+		await generateSummary(
+			[makeUserMessage("Also keep the next steps precise")],
+			MODEL,
+			16_384,
+			"test-api-key",
+			undefined,
+			undefined,
+			previousSummary,
+		);
+
+		const call = completeSimpleSpy.mock.calls[0];
+		if (!call) throw new Error("Expected completeSimple call");
+		const promptText = String(
+			(call[1] as { messages: Array<{ content: Array<{ text: string }> }> }).messages[0]?.content[0]?.text,
+		);
+		expect(promptText).toContain("<previous-summary>");
+		expect(promptText).toContain("R3. Where a previous summary is supplied");
+		expect(promptText).toContain("treat its User Requests, Final Goal, and Constraints fields as IMMUTABLE");
+		expect(promptText).toContain("PASS 1 — Internal task-intent extraction");
+		expect(promptText).toContain("PASS 2 — Emit summary biased toward Pass 1");
+		expect(promptText).not.toContain("<legacy-summary>");
+		expect(promptText.match(/^<previous-summary>$/gm)).toHaveLength(1);
+	});
 });

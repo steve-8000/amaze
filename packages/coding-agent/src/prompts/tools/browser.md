@@ -4,7 +4,7 @@ Drives a real Chromium tab with full puppeteer access via JS execution.
 - For static web content (articles, docs, issues/PRs, JSON, PDFs, feeds), prefer the `read` tool with a URL — reader-mode text without spinning up a browser. Use this tool when you need JS execution, authenticated Chrome profile state, extensions, or interactive actions.
 - Three actions only:
   - `open` — acquire (or reuse) a named tab. `name` defaults to `"main"`. Optional `url` navigates after the tab is ready. Optional `viewport` sets dimensions. Optional `dialogs: "accept" | "dismiss"` auto-handles `alert`/`confirm`/`beforeunload` so navigation/clicks don't hang (default: leave dialogs unhandled — page hangs until caller wires `page.on('dialog', …)`).
-  - `close` — release a tab by `name`, or every tab with `all: true`. For spawned-app browsers, set `kill: true` to terminate the process tree (default leaves it running).
+  - `close` — release a tab by `name`, or every tab with `all: true`. For spawned-app browsers, set `kill: true` to terminate the process tree (default leaves it running). Chrome-profile mode closes its agent-owned Chrome process when the final tab closes.
   - `run` — execute JS against an existing tab. `code` is the body of an async function with `page`, `browser`, `tab`, `display`, `assert`, `wait` in scope. The function's return value is JSON-stringified into the tool result; multiple `display(value)` calls accumulate text/images.
 - Tabs survive across `run` calls and across in-process subagents. Open once, reuse many times.
 - Browser kinds, selected by the `app` field on `open`:

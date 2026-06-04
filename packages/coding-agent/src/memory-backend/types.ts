@@ -1,9 +1,8 @@
 /**
  * Memory backend abstraction.
  *
- * Backends are mutually exclusive — `resolveMemoryBackend(settings)` returns
- * exactly one. Implementations MUST be self-contained: they own the per-session
- * state they create in `start()` and tear it down on `clear()`.
+ * Durable memory integrations were removed; the remaining backend is a no-op
+ * adapter kept so session lifecycle call sites do not need special cases.
  */
 
 import type { AgentEvent, AgentMessage } from "@amaze/agent-core";
@@ -11,7 +10,7 @@ import type { ModelRegistry } from "../config/model-registry";
 import type { Settings } from "../config/settings";
 import type { AgentSession } from "../session/agent-session";
 
-export type MemoryBackendId = "off" | "nexus";
+export type MemoryBackendId = "off" | "mem0" | "hermes";
 
 export interface MemoryBackendStartOptions {
 	session: AgentSession;
@@ -66,8 +65,7 @@ export interface MemoryBackend {
 	 * Called from the compaction call site before the LLM summary is requested.
 	 * Returning a string appends one entry to the compaction's `extraContext`
 	 * list (which becomes part of the summarization prompt). Return `undefined`
-	 * to inject nothing — the local backend takes this branch because its
-	 * summary is already part of the system prompt.
+	 * to inject nothing.
 	 */
 	preCompactionContext?(
 		messages: AgentMessage[],

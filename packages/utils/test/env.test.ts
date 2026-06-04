@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { filterProcessEnv, parseEnvFile } from "../src/env";
+import { filterProcessEnv, parseEnvFile, procmgr } from "../src";
 
 const tempDirs: string[] = [];
 
@@ -50,6 +50,41 @@ describe("parseEnvFile", () => {
 	});
 });
 
+describe("scrubProcessEnv", () => {
+	it("returns a clean env copy without mutating process.env", () => {
+		const originalMallocStackLogging = process.env.MallocStackLogging;
+		const originalMallocStackLoggingNoCompact = process.env.MallocStackLoggingNoCompact;
+
+		try {
+			process.env.MallocStackLogging = "0";
+			process.env.MallocStackLoggingNoCompact = "off";
+
+			const result = procmgr.scrubProcessEnv();
+
+			expect(result.MallocStackLogging).toBeUndefined();
+			expect(result.MallocStackLoggingNoCompact).toBeUndefined();
+			expect(process.env.MallocStackLogging).toBe("0");
+			expect(process.env.MallocStackLoggingNoCompact).toBe("off");
+		} finally {
+			if (originalMallocStackLogging === undefined) delete process.env.MallocStackLogging;
+			else process.env.MallocStackLogging = originalMallocStackLogging;
+
+			if (originalMallocStackLoggingNoCompact === undefined) delete process.env.MallocStackLoggingNoCompact;
+			else process.env.MallocStackLoggingNoCompact = originalMallocStackLoggingNoCompact;
+		}
+	});
+
+	it("removes enabled macOS malloc stack logging variables from env copies", () => {
+		expect(
+			procmgr.scrubProcessEnv({
+				MallocStackLogging: "1",
+				MallocStackLoggingNoCompact: "yes",
+				GOOD: "value",
+			}),
+		).toEqual({ GOOD: "value" });
+	});
+});
+
 describe("filterProcessEnv", () => {
 	it("drops entries that cannot be passed to process spawn env", () => {
 		expect(
@@ -63,6 +98,30 @@ describe("filterProcessEnv", () => {
 		).toEqual({
 			GOOD: "value",
 			EMPTY: "",
+		});
+	});
+
+	it("drops disabled macOS malloc stack logging variables", () => {
+		expect(
+			filterProcessEnv({
+				MallocStackLogging: "0",
+				MallocStackLoggingNoCompact: "false",
+				GOOD: "value",
+			}),
+		).toEqual({
+			GOOD: "value",
+		});
+	});
+
+	it("drops enabled macOS malloc stack logging variables because Bun warns on any inherited value", () => {
+		expect(
+			filterProcessEnv({
+				MallocStackLogging: "1",
+				MallocStackLoggingNoCompact: "YES",
+				GOOD: "value",
+			}),
+		).toEqual({
+			GOOD: "value",
 		});
 	});
 

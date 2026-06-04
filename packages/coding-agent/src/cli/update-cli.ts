@@ -7,7 +7,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { pipeline } from "node:stream/promises";
-import { $which, APP_NAME, isEnoent, VERSION } from "@amaze/utils";
+import { $which, APP_NAME, isEnoent, procmgr, VERSION } from "@amaze/utils";
 import { $ } from "bun";
 import chalk from "chalk";
 import { theme } from "../modes/theme/theme";
@@ -38,7 +38,7 @@ export function parseUpdateArgs(args: string[]): { force: boolean; check: boolea
 async function getBunGlobalBinDir(): Promise<string | undefined> {
 	if (!$which("bun")) return undefined;
 	try {
-		const result = await $`bun pm bin -g`.quiet().nothrow();
+		const result = await $`bun pm bin -g`.env(procmgr.scrubProcessEnv(Bun.env)).quiet().nothrow();
 		if (result.exitCode !== 0) return undefined;
 		const output = result.text().trim();
 		return output.length > 0 ? output : undefined;
@@ -203,7 +203,7 @@ async function verifyInstalledVersion(
 	const amazePath = resolveAmazePath();
 	if (!amazePath) return { ok: false };
 	try {
-		const result = await $`${amazePath} --version`.quiet().nothrow();
+		const result = await $`${amazePath} --version`.env(procmgr.scrubProcessEnv(Bun.env)).quiet().nothrow();
 		if (result.exitCode !== 0) return { ok: false, path: amazePath };
 		const output = result.text().trim();
 		// Output format: "<app>/X.Y.Z"
@@ -243,7 +243,7 @@ async function printVerification(expectedVersion: string): Promise<void> {
  */
 async function updateViaBun(expectedVersion: string): Promise<void> {
 	console.log(chalk.dim("Updating via bun..."));
-	const result = await $`bun install -g ${PACKAGE}@${expectedVersion}`.nothrow();
+	const result = await $`bun install -g ${PACKAGE}@${expectedVersion}`.env(procmgr.scrubProcessEnv(Bun.env)).nothrow();
 	if (result.exitCode !== 0) {
 		throw new Error(`bun install failed with exit code ${result.exitCode}`);
 	}

@@ -103,7 +103,6 @@ describe("readArgsTargetInternalUrl", () => {
 		["pr://can1357/amaze/456"],
 		["agent://abc"],
 		["artifact://abc"],
-		["memory://root"],
 		["rule://name"],
 		["mcp://server/resource"],
 		["local://PLAN.md"],

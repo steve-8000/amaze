@@ -91,9 +91,7 @@ const RPC_DEFAULTED_SETTING_PATHS: SettingPath[] = [
 	"task.maxRecursionDepth",
 	"task.disabledAgents",
 	"task.agentModelOverrides",
-	// Memory subsystems are off-by-default for RPC hosts; embedders that want
-	// memory should opt in explicitly through their own settings layer.
-	"memory.backend",
+	// RPC hosts intentionally default selected runtime controls through schema defaults.
 ];
 
 function applyRpcDefaultSettingOverrides(targetSettings: Settings = settings): void {
@@ -732,9 +730,9 @@ export async function runRootCommand(
 	const planModel = parsedArgs.plan ?? $env.AMAZE_PLAN_MODEL;
 	if (smolModel || slowModel || planModel) {
 		settingsInstance.overrideModelRoles({
-			smol: smolModel,
-			slow: slowModel,
-			plan: planModel,
+			Explore: smolModel,
+			Reviewer: slowModel,
+			Planner: planModel,
 		});
 	}
 

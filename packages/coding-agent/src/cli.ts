@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { installH2Fetch } from "@amaze/ai";
-import { APP_NAME, MIN_BUN_VERSION, procmgr, VERSION } from "@amaze/utils";
+import { APP_NAME, MIN_BUN_VERSION, VERSION } from "@amaze/utils";
 
 // Activate HTTP/2 for all `fetch()` calls (provider streams, OAuth, model
 // discovery, web tools). Bun's HTTP/2 client is gated on a startup flag we
@@ -8,11 +8,6 @@ import { APP_NAME, MIN_BUN_VERSION, procmgr, VERSION } from "@amaze/utils";
 // `protocol: "http2"` per request, with transparent HTTP/1.1 fallback on
 // `HTTP2Unsupported`. See @amaze/ai/utils/h2-fetch for details.
 installH2Fetch();
-
-// Strip macOS malloc-stack-logging env vars before any subprocess is spawned.
-// Otherwise every child bun process (subagents, plugin installs, ptree spawns,
-// etc.) prints a `MallocStackLogging: can't turn off …` warning to stderr.
-procmgr.scrubProcessEnv();
 
 /**
  * CLI entry point — registers all commands explicitly and delegates to the
@@ -40,6 +35,7 @@ const commands: CommandEntry[] = [
 	{ name: "config", load: () => import("./commands/config").then(m => m.default) },
 	{ name: "grep", load: () => import("./commands/grep").then(m => m.default) },
 	{ name: "grievances", load: () => import("./commands/grievances").then(m => m.default) },
+	{ name: "gateway", load: () => import("./commands/gateway").then(m => m.default) },
 	{ name: "memory", load: () => import("./commands/memory").then(m => m.default) },
 	{ name: "mission", load: () => import("./commands/mission").then(m => m.default) },
 	{ name: "doctor", load: () => import("./commands/doctor").then(m => m.default) },
@@ -49,6 +45,7 @@ const commands: CommandEntry[] = [
 	{ name: "objective", load: () => import("./commands/objective").then(m => m.default) },
 	{ name: "plugin", load: () => import("./commands/plugin").then(m => m.default) },
 	{ name: "proposals", load: () => import("./commands/proposals").then(m => m.default) },
+	{ name: "skills", load: () => import("./commands/skills").then(m => m.default) },
 	{ name: "rules", load: () => import("./commands/rules").then(m => m.default) },
 	{ name: "setup", load: () => import("./commands/setup").then(m => m.default) },
 	{ name: "shell", load: () => import("./commands/shell").then(m => m.default) },

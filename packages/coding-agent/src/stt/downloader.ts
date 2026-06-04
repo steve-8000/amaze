@@ -1,4 +1,4 @@
-import { $which, logger } from "@amaze/utils";
+import { $which, logger, procmgr } from "@amaze/utils";
 import { $ } from "bun";
 import { resolvePython } from "./transcriber";
 
@@ -24,6 +24,7 @@ async function ensureRecordingTool(options?: EnsureOptions): Promise<void> {
 		// Try to get ffmpeg for better quality, but don't block on failure
 		options?.onProgress?.({ stage: "Trying to install FFmpeg via winget..." });
 		const result = await $`winget install --id Gyan.FFmpeg -e --accept-source-agreements --accept-package-agreements`
+			.env(procmgr.scrubProcessEnv(Bun.env))
 			.quiet()
 			.nothrow();
 		if (result.exitCode === 0) {
@@ -47,6 +48,7 @@ async function ensurePythonWhisper(options?: EnsureOptions): Promise<void> {
 
 	// Check if whisper module is already importable
 	const check = Bun.spawnSync([pythonCmd, "-c", "import whisper"], {
+		env: procmgr.scrubProcessEnv(Bun.env),
 		stdout: "pipe",
 		stderr: "pipe",
 	});
@@ -55,7 +57,10 @@ async function ensurePythonWhisper(options?: EnsureOptions): Promise<void> {
 	options?.onProgress?.({ stage: "Installing openai-whisper (this may take a few minutes)..." });
 	logger.debug("Installing openai-whisper via pip");
 
-	const install = await $`${pythonCmd} -m pip install -q openai-whisper`.quiet().nothrow();
+	const install = await $`${pythonCmd} -m pip install -q openai-whisper`
+		.env(procmgr.scrubProcessEnv(Bun.env))
+		.quiet()
+		.nothrow();
 	if (install.exitCode !== 0) {
 		const stderr = install.stderr.toString().trim();
 		throw new Error(`Failed to install openai-whisper: ${stderr.split("\n").pop()}`);

@@ -79,8 +79,8 @@ export class InspectImageTool implements AgentTool<typeof inspectImageSchema, In
 
 		const activeModelPattern = this.session.getActiveModelString?.() ?? this.session.getModelString?.();
 		const model =
-			resolvePattern("pi/vision") ??
-			resolvePattern("pi/default") ??
+			resolvePattern("Designer") ??
+			resolvePattern("default") ??
 			resolvePattern(activeModelPattern) ??
 			availableModels[0];
 		if (!model) {
@@ -89,7 +89,7 @@ export class InspectImageTool implements AgentTool<typeof inspectImageSchema, In
 
 		if (!model.input.includes("image")) {
 			throw new ToolError(
-				`Resolved model ${model.provider}/${model.id} does not support image input. Configure a vision-capable model for modelRoles.vision.`,
+				`Resolved model ${model.provider}/${model.id} does not support image input. Configure a vision-capable model for modelRoles.Designer.`,
 			);
 		}
 

@@ -34,7 +34,7 @@ describe("readMissionEvents", () => {
 				missionId: "mission-1",
 				laneRunId: "lane-1",
 				lane: "repo",
-				agent: "explore",
+				agent: "Explore",
 				epistemicRole: "repo_truth",
 				ts: 10,
 			},

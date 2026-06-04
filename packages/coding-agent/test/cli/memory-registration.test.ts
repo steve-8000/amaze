@@ -65,12 +65,13 @@ afterEach(async () => {
 });
 
 describe("memory CLI registration", () => {
-	it("advertises migrate-legacy and doctor actions", async () => {
+	it("advertises the maintenance actions", async () => {
 		const { stdout, stderr, exitCode } = await runCliHelp();
 
 		expect(exitCode).toBe(0);
 		expect(stderr).toBe("");
-		expect(stdout).toContain("migrate-legacy");
 		expect(stdout).toContain("doctor");
+		expect(stdout).toContain("sync");
+		expect(stdout).toContain("migrate");
 	});
 });

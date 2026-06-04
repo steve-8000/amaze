@@ -39,6 +39,7 @@ import {
 	formatLegacySummaryBlock,
 	isSectionAwareCompactionSummary,
 	mergeSplitTurnSummaries,
+	sanitizePreviousSummaryBlock,
 } from "./structured-summary";
 import {
 	computeFileLists,
@@ -49,6 +50,13 @@ import {
 	serializeConversation,
 	upsertFileOperations,
 } from "./utils";
+
+const MIN_ADAPTIVE_THRESHOLD_RATIO = 0.4;
+const MAX_ADAPTIVE_THRESHOLD_RATIO = 0.7;
+const HIGH_YIELD_SAVING_RATIO = 0.5;
+const LOW_YIELD_SAVING_RATIO = 0.1;
+const YIELD_ADJUSTMENT_RATIO = 0.05;
+const MIN_EFFECTIVE_KEEP_RECENT_TOKENS = 1024;
 
 const COMPACTION_REASONING_EFFORT = Effort.Low;
 
@@ -152,12 +160,20 @@ export interface CompactionSettings {
 	mode?: "single-pass" | "map-reduce";
 	mapReduceSectionTokenBudget?: number;
 	mapReduceMaxSections?: number;
+	forceCut?: boolean;
 }
+
+export interface CompactionYield {
+	savedTokens: number;
+	tokensBefore: number;
+}
+
+export const DEFAULT_COMPACTION_THRESHOLD_PERCENT = 80;
 
 export const DEFAULT_COMPACTION_SETTINGS: CompactionSettings = {
 	enabled: true,
 	strategy: "context-full",
-	thresholdPercent: -1,
+	thresholdPercent: DEFAULT_COMPACTION_THRESHOLD_PERCENT,
 	thresholdTokens: -1,
 	reserveTokens: 16384,
 	keepRecentTokens: 20000,
@@ -229,7 +245,86 @@ export function effectiveReserveTokens(contextWindow: number, settings: Compacti
 export function shouldCompact(contextTokens: number, contextWindow: number, settings: CompactionSettings): boolean {
 	if (!settings.enabled || settings.strategy === "off" || contextWindow <= 0) return false;
 	const thresholdTokens = resolveThresholdTokens(contextWindow, settings);
-	return contextTokens > thresholdTokens;
+	return contextTokens >= thresholdTokens;
+}
+
+function clampThresholdRatio(ratio: number): number {
+	return Math.min(MAX_ADAPTIVE_THRESHOLD_RATIO, Math.max(MIN_ADAPTIVE_THRESHOLD_RATIO, ratio));
+}
+
+function adjustThresholdRatio(ratio: number, savedTokens: number, tokensBefore: number): number {
+	if (tokensBefore <= 0) {
+		return ratio;
+	}
+
+	const savedRatio = savedTokens / tokensBefore;
+	if (savedRatio > HIGH_YIELD_SAVING_RATIO) {
+		return clampThresholdRatio(ratio - YIELD_ADJUSTMENT_RATIO);
+	}
+	if (savedRatio < LOW_YIELD_SAVING_RATIO) {
+		return clampThresholdRatio(ratio + YIELD_ADJUSTMENT_RATIO);
+	}
+	return ratio;
+}
+
+function adjustEffectiveThresholdRatio(ratio: number, savedTokens: number, tokensBefore: number): number {
+	if (tokensBefore <= 0) {
+		return ratio;
+	}
+
+	const savedRatio = savedTokens / tokensBefore;
+	if (savedRatio > HIGH_YIELD_SAVING_RATIO) {
+		return ratio - YIELD_ADJUSTMENT_RATIO;
+	}
+	if (savedRatio < LOW_YIELD_SAVING_RATIO) {
+		return ratio + YIELD_ADJUSTMENT_RATIO;
+	}
+	return ratio;
+}
+
+export function computeAdaptiveThresholdRatio(contextWindow: number, priorCompactionSavedTokens?: number): number {
+	let ratio: number;
+	if (!(contextWindow > 0)) {
+		ratio = 0.5;
+	} else if (contextWindow <= 16_000) {
+		ratio = 0.45;
+	} else if (contextWindow <= 32_000) {
+		ratio = 0.5;
+	} else if (contextWindow <= 64_000) {
+		ratio = 0.55;
+	} else if (contextWindow <= 128_000) {
+		ratio = 0.6;
+	} else {
+		ratio = 0.65;
+	}
+
+	if (priorCompactionSavedTokens === undefined) {
+		return ratio;
+	}
+
+	return adjustThresholdRatio(ratio, priorCompactionSavedTokens, contextWindow);
+}
+
+export function computeEffectiveThresholdRatio(contextWindow: number, lastYield?: CompactionYield | number): number {
+	if (typeof lastYield === "number") {
+		return Math.max(1, lastYield / Math.max(1, contextWindow));
+	}
+
+	let ratio = computeAdaptiveThresholdRatio(contextWindow);
+	if (lastYield) {
+		ratio = adjustEffectiveThresholdRatio(ratio, lastYield.savedTokens, lastYield.tokensBefore);
+	}
+	return clampThresholdRatio(ratio);
+}
+
+export function computeEffectiveKeepRecentTokens(
+	setting: number,
+	contextWindow: number,
+	thresholdRatio: number,
+	margin = 0.05,
+): number {
+	const capped = Math.floor(contextWindow * (1 - thresholdRatio - margin));
+	return Math.min(setting, Math.max(MIN_EFFECTIVE_KEEP_RECENT_TOKENS, capped));
 }
 
 export function resolveThresholdTokens(contextWindow: number, settings: CompactionSettings): number {
@@ -247,6 +342,27 @@ export function resolveThresholdTokens(contextWindow: number, settings: Compacti
 	}
 	const clampedThresholdPercent = Math.min(99, Math.max(1, thresholdPercent));
 	return Math.floor(contextWindow * (clampedThresholdPercent / 100));
+}
+
+export function shouldStartSpeculativeCompaction(
+	contextTokens: number,
+	contextWindow: number,
+	settings: CompactionSettings,
+	lastYield?: CompactionYield,
+): boolean {
+	if (!settings.enabled || settings.strategy === "off" || contextWindow <= 0) return false;
+	const fraction = 0.75;
+	return contextTokens >= contextWindow * computeEffectiveThresholdRatio(contextWindow, lastYield) * fraction;
+}
+
+export function shouldTriggerAdaptiveCompaction(
+	contextTokens: number,
+	contextWindow: number,
+	settings: CompactionSettings,
+	lastYield?: CompactionYield,
+): boolean {
+	if (!settings.enabled || settings.strategy === "off" || contextWindow <= 0) return false;
+	return contextTokens >= contextWindow * computeEffectiveThresholdRatio(contextWindow, lastYield);
 }
 
 // ============================================================================
@@ -510,6 +626,11 @@ const HANDOFF_DOCUMENT_PROMPT = prompt.render(handoffDocumentPrompt);
 
 export const AUTO_HANDOFF_THRESHOLD_FOCUS = prompt.render(autoHandoffThresholdFocusPrompt);
 
+function buildSummaryPrompt(variant: "default" | "update", previousSummary?: string): string {
+	const template = variant === "update" ? UPDATE_SUMMARIZATION_PROMPT : SUMMARIZATION_PROMPT;
+	return template.replace("{{previousSummary}}", sanitizePreviousSummaryBlock(previousSummary));
+}
+
 function formatAdditionalContext(context: string[] | undefined): string {
 	if (!context || context.length === 0) return "";
 	const lines = context.map(line => `- ${line}`).join("\n");
@@ -535,8 +656,9 @@ export interface SummaryOptions {
 	 * or `compaction_turn_prefix`). `undefined` keeps the call paths zero-cost.
 	 */
 	telemetry?: AgentTelemetry;
-	mapModel?: Model;
-	mapApiKey?: string;
+	resolveSectionModel?: (
+		messages: AgentMessage[],
+	) => { model: Model; apiKey: string } | Promise<{ model: Model; apiKey: string } | undefined> | undefined;
 }
 
 export async function generateSummary(
@@ -554,7 +676,7 @@ export async function generateSummary(
 	const overridePrompt = options?.promptOverride;
 	const hasPromptOverride = typeof overridePrompt === "string";
 	const hasSectionAwarePreviousSummary = !hasPromptOverride && isSectionAwareCompactionSummary(previousSummary);
-	let basePrompt = hasSectionAwarePreviousSummary ? UPDATE_SUMMARIZATION_PROMPT : SUMMARIZATION_PROMPT;
+	let basePrompt = buildSummaryPrompt(hasSectionAwarePreviousSummary ? "update" : "default", previousSummary);
 	if (overridePrompt) {
 		basePrompt = overridePrompt;
 	}
@@ -566,8 +688,8 @@ export async function generateSummary(
 
 	// Build the prompt with conversation wrapped in tags.
 	let promptText = `<conversation>\n${conversationText}\n</conversation>\n\n`;
-	if (previousSummary) {
-		if (hasPromptOverride || hasSectionAwarePreviousSummary) {
+	if (previousSummary && !hasSectionAwarePreviousSummary) {
+		if (hasPromptOverride) {
 			promptText += `<previous-summary>\n${extractSummaryBlock(previousSummary)}\n</previous-summary>\n\n`;
 		} else {
 			promptText += formatLegacySummaryBlock(previousSummary);
@@ -691,15 +813,14 @@ async function generateMapReduceSummary(
 		);
 	}
 
-	const mapModel = options?.mapModel ?? model;
-	const mapApiKey = options?.mapApiKey ?? apiKey;
 	const partials = await Promise.all(
-		chunks.map((chunk, index) =>
-			generateSummary(
+		chunks.map(async (chunk, index) => {
+			const sectionModel = await options?.resolveSectionModel?.(chunk);
+			return generateSummary(
 				chunk,
-				mapModel,
+				sectionModel?.model ?? model,
 				Math.max(1024, Math.floor(reserveTokens / 2)),
-				mapApiKey,
+				sectionModel?.apiKey ?? apiKey,
 				signal,
 				undefined,
 				undefined,
@@ -708,8 +829,8 @@ async function generateMapReduceSummary(
 					promptOverride: renderMapReduceSummaryPrompt(index, chunks.length, customInstructions),
 					remoteEndpoint: undefined,
 				},
-			),
-		),
+			);
+		}),
 	);
 
 	const reduceMessages: AgentMessage[] = [
@@ -881,6 +1002,7 @@ export interface CompactionPreparation {
 	fileOps: FileOperations;
 	/** Compaction settions from settings.jsonl	*/
 	settings: CompactionSettings;
+	forceCut?: boolean;
 }
 
 export function prepareCompaction(
@@ -907,7 +1029,15 @@ export function prepareCompaction(
 		}
 	}
 
-	const cutPoint = findCutPoint(pathEntries, boundaryStart, boundaryEnd, keepRecentTokens);
+	let cutPoint = findCutPoint(pathEntries, boundaryStart, boundaryEnd, keepRecentTokens);
+	if (
+		settings.forceCut &&
+		tokensBefore > keepRecentTokens &&
+		cutPoint.firstKeptEntryIndex === boundaryStart &&
+		boundaryEnd - boundaryStart > 1
+	) {
+		cutPoint = findCutPoint(pathEntries, boundaryStart, boundaryEnd, 1);
+	}
 
 	// Get ID of first kept entry
 	const firstKeptEntry = pathEntries[cutPoint.firstKeptEntryIndex];
@@ -1021,8 +1151,7 @@ export async function compact(
 		metadata: options?.metadata,
 		convertToLlm: options?.convertToLlm,
 		telemetry: options?.telemetry,
-		mapModel: options?.mapModel,
-		mapApiKey: options?.mapApiKey,
+		resolveSectionModel: options?.resolveSectionModel,
 	};
 
 	let preserveData = withOpenAiRemoteCompactionPreserveData(previousPreserveData, undefined);

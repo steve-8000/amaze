@@ -2,6 +2,7 @@ import type { ThinkingLevel } from "@amaze/agent-core";
 import type { Usage } from "@amaze/ai";
 import { $env } from "@amaze/utils";
 import * as z from "zod/v4";
+import type { SubagentContract } from "../subagent/contract";
 import { getTaskSimpleModeCapabilities, type TaskSimpleMode } from "./simple-mode";
 import type { NestedRepoPatch } from "./worktree";
 
@@ -115,22 +116,29 @@ export const subagentContractSchema = z.object({
 	outputContract: z.object({ mustProduce: z.array(z.string()) }).optional(),
 });
 
+const taskContractWireSchema = z
+	.unknown()
+	.optional()
+	.describe("structured SubagentContract object; shape is documented in the task tool description");
+
 const createTaskItemSchema = (_contextEnabled: boolean) =>
 	z.object({
 		id: z.string().max(48).describe("camelcase identifier"),
 		description: z.string().describe("ui label, not seen by subagent"),
 		assignment: z.string().describe(assignmentDescription),
-		// Optional structured SubagentContract. When set, the spawned subagent:
-		//   - receives the contract block in its STABLE_CORE system prompt
-		//   - has its edit/write tools structurally blocked from out-of-scope paths
-		//   - is verified by the parent against contract.successCriteria on completion
-		// Omit for free-form task delegation (legacy behavior preserved).
-		contract: subagentContractSchema.optional().describe("structured contract — scope, criteria, escalation"),
+		// Keep the provider-facing schema compact. The full contract is still
+		// validated in TaskTool.execute before any subagent is spawned.
+		contract: taskContractWireSchema,
 	});
 
 /** Single task item for parallel execution (default shape with context enabled). */
 export const taskItemSchema = createTaskItemSchema(true);
-export type TaskItem = z.infer<typeof taskItemSchema>;
+export interface TaskItem {
+	id: string;
+	description: string;
+	assignment: string;
+	contract?: SubagentContract;
+}
 
 const createTaskSchema = (options: { isolationEnabled: boolean; simpleMode: TaskSimpleMode }) => {
 	const { contextEnabled, customSchemaEnabled } = getTaskSimpleModeCapabilities(options.simpleMode);

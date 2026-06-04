@@ -504,17 +504,15 @@ function writeJson(value: unknown): void {
 }
 
 function agentForLane(lane: ResearchLane): string {
-	if (lane === "repo") return "explore";
-	if (lane === "source") return "source_scout";
-	if (lane === "social") return "x_researcher";
-	return "memory_scout";
+	if (lane === "repo") return "Explore";
+	if (lane === "source") return "Resercher";
+	return "Resercher_X";
 }
 
 function epistemicRoleForLane(lane: ResearchLane): EpistemicRole {
 	if (lane === "repo") return "repo_truth";
 	if (lane === "source") return "source_harvest";
-	if (lane === "social") return "social_signal";
-	return "memory_prior";
+	return "social_signal";
 }
 
 function parseList(value: string | undefined): string[] {

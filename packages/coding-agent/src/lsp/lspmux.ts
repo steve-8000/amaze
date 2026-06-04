@@ -1,6 +1,6 @@
 import * as os from "node:os";
 import * as path from "node:path";
-import { $flag, $which, logger } from "@amaze/utils";
+import { $flag, $which, logger, procmgr } from "@amaze/utils";
 import { TOML } from "bun";
 
 /**
@@ -102,6 +102,7 @@ async function parseConfig(): Promise<LspmuxConfig | null> {
 async function checkServerRunning(binaryPath: string): Promise<boolean> {
 	try {
 		const proc = Bun.spawn([binaryPath, "status"], {
+			env: procmgr.scrubProcessEnv(Bun.env),
 			stdout: "pipe",
 			stderr: "pipe",
 			windowsHide: true,

@@ -307,6 +307,40 @@ export interface RpcHostToolResult {
 }
 
 // ============================================================================
+// Host Binary File Frames (bidirectional)
+// ============================================================================
+
+/** Emitted by the RPC server when it needs the host to read a local binary file. */
+export interface RpcHostFileReadRequest {
+	type: "host_file_read";
+	id: string;
+	path: string;
+	maxBytes: number;
+}
+
+/** Emitted by the RPC server when a pending host file read should be aborted. */
+export interface RpcHostFileCancelRequest {
+	type: "host_file_cancel";
+	id: string;
+	targetId: string;
+}
+
+/** Sent by the host to complete a pending binary file read. */
+export type RpcHostFileResult =
+	| {
+			type: "host_file_result";
+			id: string;
+			dataBase64: string;
+			mimeType?: string;
+	  }
+	| {
+			type: "host_file_result";
+			id: string;
+			isError: true;
+			error: string;
+	  };
+
+// ============================================================================
 // Host URI Frames (bidirectional)
 // ============================================================================
 

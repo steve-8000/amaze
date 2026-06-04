@@ -16,6 +16,8 @@ export interface MissionSessionBindingOptions {
 	dbPath?: string;
 	setActiveMissionId?: (id: string | undefined) => void;
 	getActiveMissionId?: () => string | undefined;
+	/** See {@link MissionControlDeps.autoApproveProposals}. */
+	autoApproveProposals?: () => boolean;
 }
 
 export class MissionSessionBinding {
@@ -39,6 +41,7 @@ export class MissionSessionBinding {
 				this.#setActiveMissionId(id);
 			},
 			getActiveMissionId: () => this.#getActiveMissionId(),
+			...(opts.autoApproveProposals ? { autoApproveProposals: opts.autoApproveProposals } : {}),
 			...(getMissionEventBus() ? { eventBus: getMissionEventBus() } : {}),
 		});
 	}

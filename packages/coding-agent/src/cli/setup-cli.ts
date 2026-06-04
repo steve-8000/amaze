@@ -4,7 +4,7 @@
  * Handles `amaze setup <component>` to install dependencies for optional features.
  */
 import * as path from "node:path";
-import { $which, APP_NAME, getPythonEnvDir } from "@amaze/utils";
+import { $which, APP_NAME, getPythonEnvDir, procmgr } from "@amaze/utils";
 import { $ } from "bun";
 import chalk from "chalk";
 import { theme } from "../modes/theme/theme";
@@ -91,7 +91,10 @@ async function checkPythonSetup(): Promise<PythonCheckResult> {
 	if (!pythonPath) {
 		return result;
 	}
-	const probe = await $`${pythonPath} -c "import sys;sys.exit(0)"`.quiet().nothrow();
+	const probe = await $`${pythonPath} -c "import sys;sys.exit(0)"`
+		.env(procmgr.scrubProcessEnv(Bun.env))
+		.quiet()
+		.nothrow();
 	result.pythonPath = pythonPath;
 	result.available = probe.exitCode === 0;
 	result.usingManagedEnv = pythonPath === managedPath;
@@ -185,7 +188,9 @@ async function handleSttSetup(flags: { json?: boolean; check?: boolean }): Promi
 		console.log(chalk.dim(`\nInstalling openai-whisper...`));
 		const { resolvePython } = await import("../stt/transcriber");
 		const pythonCmd = resolvePython()!;
-		const result = await $`${pythonCmd} -m pip install -q openai-whisper`.nothrow();
+		const result = await $`${pythonCmd} -m pip install -q openai-whisper`
+			.env(procmgr.scrubProcessEnv(Bun.env))
+			.nothrow();
 		if (result.exitCode !== 0) {
 			console.error(chalk.red(`\n${theme.status.error} Failed to install openai-whisper`));
 			console.error(chalk.dim("Try manually: pip install openai-whisper"));

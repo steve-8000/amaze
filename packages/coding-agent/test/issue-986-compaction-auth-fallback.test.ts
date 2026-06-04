@@ -30,7 +30,11 @@ describe("issue #986 compaction auth fallback", () => {
 		tempDir.removeSync();
 	});
 
-	async function createSession(options?: { fallbackModelRole?: string; configureFallbackAuth?: boolean }) {
+	async function createSession(options?: {
+		fallbackModelRole?: string;
+		configureFallbackAuth?: boolean;
+		codexToken?: string;
+	}) {
 		const currentModel = getBundledModel("openai-codex", "gpt-5.4-mini");
 		const fallbackModel = getBundledModel("anthropic", "claude-sonnet-4-5");
 		if (!currentModel || !fallbackModel) {
@@ -52,7 +56,9 @@ describe("issue #986 compaction auth fallback", () => {
 		});
 
 		authStorage = await AuthStorage.create(path.join(tempDir.path(), "testauth.db"));
-		authStorage.setRuntimeApiKey(currentModel.provider, "codex-token");
+		if (options?.codexToken !== undefined) {
+			authStorage.setRuntimeApiKey(currentModel.provider, options.codexToken);
+		}
 		if (options?.configureFallbackAuth !== false) {
 			authStorage.setRuntimeApiKey(fallbackModel.provider, "anthropic-token");
 		}
@@ -81,14 +87,9 @@ describe("issue #986 compaction auth fallback", () => {
 		return { currentModel, fallbackModel };
 	}
 
-	it("falls back to an authenticated role model when the current provider returns auth_unavailable", async () => {
-		const { currentModel, fallbackModel } = await createSession({ fallbackModelRole: "smol" });
+	it("uses an authenticated role model instead of an unauthenticated current provider", async () => {
+		const { fallbackModel } = await createSession({ fallbackModelRole: "smol" });
 		const compactSpy = vi.spyOn(compactionModule, "compact").mockImplementation(async (preparation, model) => {
-			if (model.provider === currentModel.provider && model.id === currentModel.id) {
-				throw new Error(
-					"Turn prefix summarization failed: 503 auth_unavailable: no auth available (providers=codex, model=gpt-5.4-mini)",
-				);
-			}
 			if (model.provider !== fallbackModel.provider || model.id !== fallbackModel.id) {
 				throw new Error(`Unexpected compaction model ${model.provider}/${model.id}`);
 			}
@@ -101,7 +102,6 @@ describe("issue #986 compaction auth fallback", () => {
 			};
 		});
 		vi.spyOn(modelRegistry, "getApiKey").mockImplementation(async model => {
-			if (model.provider === currentModel.provider && model.id === currentModel.id) return "codex-token";
 			if (model.provider === fallbackModel.provider && model.id === fallbackModel.id) return "anthropic-token";
 			return undefined;
 		});
@@ -109,27 +109,114 @@ describe("issue #986 compaction auth fallback", () => {
 		const result = await session.compact();
 
 		expect(result.summary).toBe("fallback summary");
-		expect(compactSpy).toHaveBeenCalledTimes(2);
+		expect(compactSpy).toHaveBeenCalledTimes(1);
 		expect(compactSpy.mock.calls.map(([, model]) => `${model.provider}/${model.id}`)).toEqual([
-			`${currentModel.provider}/${currentModel.id}`,
+			`${fallbackModel.provider}/${fallbackModel.id}`,
+		]);
+	});
+
+	it("skips malformed current-provider credentials when an authenticated role model exists", async () => {
+		const { fallbackModel } = await createSession({
+			fallbackModelRole: "smol",
+			codexToken: "codex-token-without-jwt",
+		});
+		const compactSpy = vi.spyOn(compactionModule, "compact").mockImplementation(async (preparation, model) => {
+			if (model.provider === "openai-codex") {
+				throw new Error("Summarization failed: Failed to extract accountId from token");
+			}
+			if (model.provider !== fallbackModel.provider || model.id !== fallbackModel.id) {
+				throw new Error(`Unexpected compaction model ${model.provider}/${model.id}`);
+			}
+			return {
+				summary: "fallback summary without codex account id",
+				shortSummary: "fallback short summary",
+				firstKeptEntryId: preparation.firstKeptEntryId,
+				tokensBefore: 42,
+				details: { provider: model.provider },
+			};
+		});
+		vi.spyOn(modelRegistry, "getApiKey").mockImplementation(async model => {
+			if (model.provider === "openai-codex") return "codex-token-without-jwt";
+			if (model.provider === fallbackModel.provider && model.id === fallbackModel.id) return "anthropic-token";
+			return undefined;
+		});
+
+		const result = await session.compact();
+
+		expect(result.summary).toBe("fallback summary without codex account id");
+		expect(compactSpy).toHaveBeenCalledTimes(1);
+		expect(compactSpy.mock.calls.map(([, model]) => `${model.provider}/${model.id}`)).toEqual([
+			`${fallbackModel.provider}/${fallbackModel.id}`,
+		]);
+	});
+
+	it("uses the authenticated fallback role when current credentials are unavailable", async () => {
+		const { fallbackModel } = await createSession({ fallbackModelRole: "smol" });
+		const compactSpy = vi.spyOn(compactionModule, "compact").mockImplementation(async (preparation, model) => {
+			if (model.provider !== fallbackModel.provider || model.id !== fallbackModel.id) {
+				throw new Error(`Unexpected compaction model ${model.provider}/${model.id}`);
+			}
+			return {
+				summary: "authenticated fallback summary",
+				shortSummary: "fallback short summary",
+				firstKeptEntryId: preparation.firstKeptEntryId,
+				tokensBefore: 42,
+				details: { provider: model.provider },
+			};
+		});
+		vi.spyOn(modelRegistry, "getApiKey").mockImplementation(async model => {
+			if (model.provider === fallbackModel.provider && model.id === fallbackModel.id) return "anthropic-token";
+			return undefined;
+		});
+
+		const result = await session.compact();
+
+		expect(result.summary).toBe("authenticated fallback summary");
+		expect(compactSpy).toHaveBeenCalledTimes(1);
+		expect(compactSpy.mock.calls.map(([, model]) => `${model.provider}/${model.id}`)).toEqual([
+			`${fallbackModel.provider}/${fallbackModel.id}`,
+		]);
+	});
+
+	it("prefers authenticated fallback roles over the unauthenticated current model", async () => {
+		const { currentModel, fallbackModel } = await createSession({
+			fallbackModelRole: "smol",
+			configureFallbackAuth: true,
+		});
+		const compactSpy = vi.spyOn(compactionModule, "compact").mockImplementation(async (preparation, model) => {
+			if (model.provider === currentModel.provider && model.id === currentModel.id) {
+				throw new Error(`Current model should have been skipped: ${model.provider}/${model.id}`);
+			}
+			if (model.provider !== fallbackModel.provider || model.id !== fallbackModel.id) {
+				throw new Error(`Unexpected compaction model ${model.provider}/${model.id}`);
+			}
+			return {
+				summary: "authenticated fallback summary",
+				shortSummary: "authenticated fallback short summary",
+				firstKeptEntryId: preparation.firstKeptEntryId,
+				tokensBefore: 42,
+				details: { provider: model.provider },
+			};
+		});
+		vi.spyOn(modelRegistry, "getApiKey").mockImplementation(async model => {
+			if (model.provider === currentModel.provider && model.id === currentModel.id) return undefined;
+			if (model.provider === fallbackModel.provider && model.id === fallbackModel.id) return "anthropic-token";
+			return undefined;
+		});
+
+		const result = await session.compact();
+
+		expect(result.summary).toBe("authenticated fallback summary");
+		expect(compactSpy).toHaveBeenCalledTimes(1);
+		expect(compactSpy.mock.calls.map(([, model]) => `${model.provider}/${model.id}`)).toEqual([
 			`${fallbackModel.provider}/${fallbackModel.id}`,
 		]);
 	});
 
 	it("fails fast with a clear provider-specific error when no authenticated fallback exists", async () => {
 		const { currentModel } = await createSession({ configureFallbackAuth: false });
-		vi.spyOn(compactionModule, "compact").mockImplementation(async (_preparation, model) => {
-			if (model.provider === currentModel.provider && model.id === currentModel.id) {
-				throw new Error(
-					"Summarization failed: 503 auth_unavailable: no auth available (providers=codex, model=gpt-5.4-mini)",
-				);
-			}
-			throw new Error(`Unexpected compaction model ${model.provider}/${model.id}`);
-		});
-		vi.spyOn(modelRegistry, "getApiKey").mockImplementation(async model => {
-			if (model.provider === currentModel.provider && model.id === currentModel.id) return "codex-token";
-			return undefined;
-		});
+		const compactSpy = vi.spyOn(compactionModule, "compact");
+		vi.spyOn(modelRegistry, "getApiKey").mockImplementation(async () => undefined);
 
 		const error = await session.compact().catch(err => err);
 		expect(error).toBeInstanceOf(Error);
@@ -137,5 +224,6 @@ describe("issue #986 compaction auth fallback", () => {
 			`Compaction requires usable credentials for ${currentModel.provider}/${currentModel.id}`,
 		);
 		expect((error as Error).message).not.toMatch(/auth_unavailable/i);
+		expect(compactSpy).not.toHaveBeenCalled();
 	});
 });

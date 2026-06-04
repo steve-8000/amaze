@@ -21,11 +21,14 @@ export * from "./extensibility/custom-tools";
 export type * from "./extensibility/extensions";
 // Extension types and utilities
 export * from "./extensibility/extensions";
+export * from "./extensibility/skill-curator";
+export * from "./extensibility/skill-manager";
 // Hook system types (legacy re-export)
 // Skills
 export * from "./extensibility/skills";
 // Slash commands
 export { type FileSlashCommand, loadSlashCommands as discoverSlashCommands } from "./extensibility/slash-commands";
+export * from "./gateway";
 export * from "./hashline";
 export type * from "./lsp";
 // Main entry point

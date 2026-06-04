@@ -2,7 +2,7 @@ import * as childProcess from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { Text } from "@amaze/tui";
-import { formatBytes } from "@amaze/utils";
+import { formatBytes, procmgr } from "@amaze/utils";
 import * as z from "zod/v4";
 import type { ToolDefinition } from "../../extensibility/extensions";
 import type { Theme } from "../../modes/theme/theme";
@@ -278,6 +278,7 @@ async function executeProcess(opts: {
 	const { promise, resolve, reject } = Promise.withResolvers<ProcessExecutionResult>();
 	const child = childProcess.spawn(opts.command[0] ?? "bash", opts.command.slice(1), {
 		cwd: opts.cwd,
+		env: procmgr.scrubProcessEnv(process.env),
 		detached: true,
 		stdio: ["ignore", "pipe", "pipe"],
 	});

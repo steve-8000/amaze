@@ -59,7 +59,22 @@ export function isAuthenticated(apiKey: string | undefined | null): apiKey is st
 	return Boolean(apiKey) && apiKey !== kNoAuth;
 }
 
-export type ModelRole = "default" | "smol" | "slow" | "vision" | "plan" | "commit" | "task" | "local_scout";
+export function hasUsableAuth(apiKey: unknown): apiKey is string {
+	if (apiKey === kNoAuth) return true;
+	if (typeof apiKey !== "string" || apiKey.length === 0) return false;
+	return true;
+}
+
+export type ModelRole =
+	| "default"
+	| "Explore"
+	| "Planner"
+	| "Reviewer"
+	| "Builder"
+	| "Designer"
+	| "Resercher"
+	| "Resercher_X"
+	| "commit";
 
 export interface ModelRoleInfo {
 	tag?: string;
@@ -69,24 +84,25 @@ export interface ModelRoleInfo {
 
 export const MODEL_ROLES: Record<ModelRole, ModelRoleInfo> = {
 	default: { tag: "DEFAULT", name: "Default", color: "success" },
-	smol: { tag: "SMOL", name: "Fast", color: "warning" },
-	slow: { tag: "SLOW", name: "Thinking", color: "accent" },
-	vision: { tag: "VISION", name: "Vision", color: "error" },
-	plan: { tag: "PLAN", name: "Architect", color: "muted" },
+	Explore: { tag: "EXPLORE", name: "Explore", color: "warning" },
+	Planner: { tag: "PLANNER", name: "Planner", color: "muted" },
+	Reviewer: { tag: "REVIEW", name: "Reviewer", color: "accent" },
+	Builder: { tag: "BUILD", name: "Builder", color: "success" },
+	Designer: { tag: "DESIGN", name: "Designer", color: "error" },
+	Resercher: { tag: "RESEARCH", name: "Resercher", color: "muted" },
+	Resercher_X: { tag: "X", name: "Resercher X", color: "muted" },
 	commit: { tag: "COMMIT", name: "Commit", color: "dim" },
-	task: { tag: "TASK", name: "Subtask", color: "muted" },
-	local_scout: { tag: "LOCAL", name: "Local Scout", color: "muted" },
 };
-
 export const MODEL_ROLE_IDS: ModelRole[] = [
 	"default",
-	"smol",
-	"slow",
-	"vision",
-	"plan",
+	"Explore",
+	"Planner",
+	"Reviewer",
+	"Builder",
+	"Designer",
+	"Resercher",
+	"Resercher_X",
 	"commit",
-	"task",
-	"local_scout",
 ];
 
 /** Alias for ModelRoleInfo - used for both built-in and custom roles */

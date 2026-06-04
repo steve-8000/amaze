@@ -1,3 +1,5 @@
+import { procmgr } from "@amaze/utils";
+
 import { detectRecordingTools } from "./recorder";
 import { resolvePython } from "./transcriber";
 
@@ -21,6 +23,7 @@ export async function checkDependencies(): Promise<STTDependencyStatus> {
 	let whisperAvailable = false;
 	if (pythonCmd) {
 		const check = Bun.spawnSync([pythonCmd, "-c", "import whisper"], {
+			env: procmgr.scrubProcessEnv(Bun.env),
 			stdout: "pipe",
 			stderr: "pipe",
 		});

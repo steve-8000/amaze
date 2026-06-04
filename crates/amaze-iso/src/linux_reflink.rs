@@ -211,7 +211,7 @@ mod imp {
 
 		// SAFETY: both file descriptors are valid for the duration of the call.
 		// FICLONE copies metadata into `dst_file` and does not retain either fd.
-		let rc = unsafe { libc::ioctl(dst_file.as_raw_fd(), FICLONE, src_file.as_raw_fd()) };
+		let rc = unsafe { libc::ioctl(dst_file.as_raw_fd(), FICLONE as libc::c_int, src_file.as_raw_fd()) };
 		if rc != 0 {
 			let err = std::io::Error::last_os_error();
 			let _ = fs::remove_file(dst);

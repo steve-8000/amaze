@@ -13,6 +13,9 @@ import type {
 	RpcCommand,
 	RpcExtensionUIRequest,
 	RpcHandoffResult,
+	RpcHostFileCancelRequest,
+	RpcHostFileReadRequest,
+	RpcHostFileResult,
 	RpcHostToolCallRequest,
 	RpcHostToolCancelRequest,
 	RpcHostToolDefinition,
@@ -45,6 +48,12 @@ export interface RpcClientOptions {
 	args?: string[];
 	/** Custom tools owned by the embedding host and exposed over the RPC transport */
 	customTools?: RpcClientCustomTool[];
+	/** Read binary files owned by the embedding host for the RPC session */
+	readBinaryFile?: (params: {
+		path: string;
+		maxBytes: number;
+		signal: AbortSignal;
+	}) => Promise<{ dataBase64: string; mimeType?: string }>;
 }
 
 export type ModelInfo = Pick<Model, "provider" | "id" | "contextWindow" | "reasoning" | "thinking">;
@@ -125,6 +134,21 @@ function isRpcHostToolCancelRequest(value: unknown): value is RpcHostToolCancelR
 	return value.type === "host_tool_cancel" && typeof value.id === "string" && typeof value.targetId === "string";
 }
 
+function isRpcHostFileReadRequest(value: unknown): value is RpcHostFileReadRequest {
+	if (!isRecord(value)) return false;
+	return (
+		value.type === "host_file_read" &&
+		typeof value.id === "string" &&
+		typeof value.path === "string" &&
+		typeof value.maxBytes === "number"
+	);
+}
+
+function isRpcHostFileCancelRequest(value: unknown): value is RpcHostFileCancelRequest {
+	if (!isRecord(value)) return false;
+	return value.type === "host_file_cancel" && typeof value.id === "string" && typeof value.targetId === "string";
+}
+
 function isRpcExtensionUiRequest(value: unknown): value is RpcExtensionUIRequest {
 	if (!isRecord(value)) return false;
 	return value.type === "extension_ui_request" && typeof value.id === "string" && typeof value.method === "string";
@@ -150,6 +174,7 @@ export class RpcClient {
 		new Map();
 	#customTools: RpcClientCustomTool[] = [];
 	#pendingHostToolCalls = new Map<string, { controller: AbortController }>();
+	#pendingHostFileReads = new Map<string, { controller: AbortController }>();
 	#requestId = 0;
 	#extensionUiListeners: Set<(req: RpcExtensionUIRequest) => void> = new Set();
 	#abortController = new AbortController();
@@ -258,6 +283,10 @@ export class RpcClient {
 			pendingCall.controller.abort();
 		}
 		this.#pendingHostToolCalls.clear();
+		for (const pendingRead of this.#pendingHostFileReads.values()) {
+			pendingRead.controller.abort();
+		}
+		this.#pendingHostFileReads.clear();
 	}
 
 	/**
@@ -665,6 +694,11 @@ export class RpcClient {
 			return;
 		}
 
+		if (isRpcHostFileReadRequest(data)) {
+			void this.#handleHostFileRead(data);
+			return;
+		}
+
 		if (isRpcExtensionUiRequest(data)) {
 			for (const listener of this.#extensionUiListeners) {
 				listener(data);
@@ -674,6 +708,11 @@ export class RpcClient {
 
 		if (isRpcHostToolCancelRequest(data)) {
 			this.#pendingHostToolCalls.get(data.targetId)?.controller.abort();
+			return;
+		}
+
+		if (isRpcHostFileCancelRequest(data)) {
+			this.#pendingHostFileReads.get(data.targetId)?.controller.abort();
 			return;
 		}
 
@@ -783,7 +822,43 @@ export class RpcClient {
 		}
 	}
 
-	#writeFrame(frame: RpcCommand | RpcHostToolResult | RpcHostToolUpdate, onError?: (error: Error) => void): void {
+	async #handleHostFileRead(request: RpcHostFileReadRequest): Promise<void> {
+		const controller = new AbortController();
+		this.#pendingHostFileReads.set(request.id, { controller });
+
+		try {
+			if (!this.options.readBinaryFile) {
+				throw new Error("Host binary file reads are not configured");
+			}
+			const result = await this.options.readBinaryFile({
+				path: request.path,
+				maxBytes: request.maxBytes,
+				signal: controller.signal,
+			});
+			if (controller.signal.aborted) return;
+			this.#writeFrame({
+				type: "host_file_result",
+				id: request.id,
+				dataBase64: result.dataBase64,
+				...(typeof result.mimeType === "string" ? { mimeType: result.mimeType } : {}),
+			} satisfies RpcHostFileResult);
+		} catch (error) {
+			if (controller.signal.aborted) return;
+			this.#writeFrame({
+				type: "host_file_result",
+				id: request.id,
+				isError: true,
+				error: error instanceof Error ? error.message : String(error),
+			} satisfies RpcHostFileResult);
+		} finally {
+			this.#pendingHostFileReads.delete(request.id);
+		}
+	}
+
+	#writeFrame(
+		frame: RpcCommand | RpcHostToolResult | RpcHostToolUpdate | RpcHostFileResult,
+		onError?: (error: Error) => void,
+	): void {
 		if (!this.#process?.stdin) {
 			throw new Error("Client not started");
 		}

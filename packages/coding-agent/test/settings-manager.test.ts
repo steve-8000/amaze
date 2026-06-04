@@ -184,41 +184,5 @@ describe("Settings", () => {
 			expect(settings.getEditVariantForModel("claude-opus-4-5")).toBe("hashline");
 			expect(settings.getEditVariantForModel("gpt-5.2")).toBe("apply_patch");
 		});
-
-		it("maps legacy memories.enabled=true onto memory.backend=nexus", async () => {
-			await writeSettings({
-				memories: { enabled: true },
-			});
-
-			const settings = await Settings.init({ cwd: projectDir, agentDir });
-
-			expect(settings.get("memory.backend")).toBe("nexus");
-		});
-
-		it("migrates explicit legacy memory.backend values onto nexus", async () => {
-			await writeSettings({
-				memory: { backend: "rockey" },
-			});
-
-			const settings = await Settings.init({ cwd: projectDir, agentDir });
-
-			expect(settings.get("memory.backend")).toBe("nexus");
-		});
-
-		it("migrates explicit local and hindsight backends onto nexus", async () => {
-			await writeSettings({
-				memory: { backend: "local" },
-			});
-
-			const localSettings = await Settings.init({ cwd: projectDir, agentDir });
-			expect(localSettings.get("memory.backend")).toBe("nexus");
-
-			await writeSettings({
-				memory: { backend: "hindsight" },
-			});
-
-			const hindsightSettings = await Settings.init({ cwd: projectDir, agentDir });
-			expect(hindsightSettings.get("memory.backend")).toBe("nexus");
-		});
 	});
 });

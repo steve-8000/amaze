@@ -34,7 +34,7 @@ describe("doctor model", () => {
 		const models = [model("openai", "gpt-4o"), model("anthropic", "claude")];
 		const settings = Settings.isolated({
 			modelRoles: { default: "openai/gpt-4o" },
-			"task.agentModelOverrides": { task: "anthropic/claude" },
+			"task.agentModelOverrides": { Builder: "anthropic/claude" },
 		});
 		const { report, json } = await captureJson(() =>
 			runDoctorModelCommand({ json: true, settings, availableModels: models, modelRegistry: registry(models) }),
@@ -55,14 +55,14 @@ describe("doctor model", () => {
 		const models = [model("openai", "gpt-4o")];
 		const settings = Settings.isolated({
 			modelRoles: { default: "openai/gpt-4o" },
-			"task.agentModelOverrides": { task: "anthropic/claude" },
+			"task.agentModelOverrides": { Builder: "anthropic/claude" },
 		});
 		const { report, json } = await captureJson(() =>
 			runDoctorModelCommand({ json: true, settings, availableModels: models, modelRegistry: registry(models) }),
 		);
 
 		expect(report.status).toBe("degraded");
-		expect(report.overrides[0]).toMatchObject({ role: "task", resolved: false });
+		expect(report.overrides[0]).toMatchObject({ role: "Builder", resolved: false });
 		expect(json.overrides[0].resolved).toBe(false);
 	});
 

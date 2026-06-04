@@ -38,12 +38,16 @@ import {
 	calculatePromptTokens,
 	collectEntriesForBranchSummary,
 	compact,
+	computeEffectiveKeepRecentTokens,
+	computeEffectiveThresholdRatio,
 	estimateTokens,
 	generateBranchSummary,
 	generateHandoff,
 	prepareCompaction,
 	type SummaryOptions,
 	shouldCompact,
+	shouldStartSpeculativeCompaction,
+	shouldTriggerAdaptiveCompaction,
 } from "@amaze/agent-core/compaction";
 import {
 	type ContinuousDemotionConfig,
@@ -84,14 +88,13 @@ import { getAgentDbPath, isEnoent, isUnexpectedSocketCloseMessage, logger, promp
 import { type AsyncJob, type AsyncJobDeliveryState, AsyncJobManager } from "../async";
 import { reset as resetCapabilities } from "../capability";
 import type { Rule } from "../capability/rule";
-import { MODEL_ROLE_IDS, type ModelRegistry } from "../config/model-registry";
+import { hasUsableAuth, type ModelRegistry } from "../config/model-registry";
 import {
 	extractExplicitThinkingSelector,
 	formatModelSelectorValue,
 	formatModelString,
 	parseModelString,
 	type ResolvedModelRoleValue,
-	resolveModelFromString,
 	resolveModelRoleValue,
 } from "../config/model-resolver";
 import { expandPromptTemplate, type PromptTemplate } from "../config/prompt-templates";
@@ -145,6 +148,7 @@ import {
 	selectDiscoverableMCPToolNamesByServer,
 } from "../mcp/discoverable-tool-metadata";
 import { resolveMemoryBackend } from "../memory-backend";
+import { MISSION_CONTINUATION_MESSAGE_TYPE, MissionContinuationRuntime } from "../mission/continuation";
 import type { Mission } from "../mission/core/mission";
 import type { MissionControlRuntime } from "../mission/core/mission-control-runtime";
 import type { MissionScopeGuard } from "../mission/core/mission-scope";
@@ -168,7 +172,7 @@ import ttsrInterruptTemplate from "../prompts/system/ttsr-interrupt.md" with { t
 import ttsrToolReminderTemplate from "../prompts/system/ttsr-tool-reminder.md" with { type: "text" };
 import { type AgentRegistry, MAIN_AGENT_ID } from "../registry/agent-registry";
 import { deobfuscateSessionContext, type SecretObfuscator } from "../secrets/obfuscator";
-import { redactBashChunk } from "../security";
+import { isInfraDeployCommand, redactBashChunk } from "../security";
 import { invalidateHostMetadata } from "../ssh/connection-manager";
 import { enforceContractFreshness, type SubagentContract } from "../subagent/contract";
 import { resolveThinkingLevelForModel, toReasoningEffort } from "../thinking";
@@ -213,6 +217,7 @@ import type {
 	CompactionEntry,
 	NewSessionOptions,
 	SessionContext,
+	SessionEntry,
 	SessionManager,
 } from "./session-manager";
 import { getLatestCompactionEntry } from "./session-manager";
@@ -690,7 +695,13 @@ function getPermissionIntent(
 ): { toolName: string; title: string; paths?: string[]; cacheKey: string } | undefined {
 	const a = args && typeof args === "object" && !Array.isArray(args) ? (args as Record<string, unknown>) : {};
 	if (toolName === "bash") {
-		const cmd = getStringProperty(a, "command")?.slice(0, 80);
+		const fullCommand = getStringProperty(a, "command");
+		// Infrastructure/deploy commands are gated by the bash tool's own mandatory,
+		// uncacheable approval (see BashTool#requestInfraApproval). Returning undefined
+		// here makes the generic ACP wrapper defer to it so a prior `allow_always` for
+		// bash can never silently authorize a kubectl/terraform mutation.
+		if (fullCommand && isInfraDeployCommand(fullCommand)) return undefined;
+		const cmd = fullCommand?.slice(0, 80);
 		return { toolName, title: cmd || toolName, cacheKey: toolName };
 	}
 	if (toolName === "delete") {
@@ -833,6 +844,9 @@ export class AgentSession {
 	#activeMissionId: string | undefined = undefined;
 	#missionControl: MissionControlRuntime;
 	#missionBinding: MissionSessionBinding;
+	#missionContinuation: MissionContinuationRuntime;
+	/** Set when the in-flight turn was triggered by a mission continuation envelope. */
+	#activeContinuationTurn: { missionId: string; generation: number } | undefined = undefined;
 	#missionStoreInstance: MissionStore | undefined;
 	#selfImproveLoopUnsub: Unsubscribe | undefined;
 	readonly #subagentContract: SubagentContract | undefined;
@@ -864,6 +878,7 @@ export class AgentSession {
 	// Compaction state
 	#compactionAbortController: AbortController | undefined = undefined;
 	#autoCompactionAbortController: AbortController | undefined = undefined;
+	#lastCompactionYield: { savedTokens: number; tokensBefore: number } | undefined = undefined;
 
 	// Branch summarization state
 	#branchSummaryAbortController: AbortController | undefined = undefined;
@@ -1192,6 +1207,7 @@ export class AgentSession {
 				this.#activeMissionId = id;
 			},
 			getActiveMissionId: () => this.#activeMissionId,
+			autoApproveProposals: () => this.settings.get("mission.autoApprove") === true,
 		});
 		this.#missionStoreInstance = this.#missionBinding.store;
 		this.#missionControl = this.#missionBinding.runtime;
@@ -1206,7 +1222,47 @@ export class AgentSession {
 			if (isMissionTerminal(mission)) {
 				if (this.#todoPhases.length > 0) this.setTodoPhases([]);
 				this.#todoReminderCount = 0;
+				// Mark the continuation ledger terminal so no scheduled/running
+				// generation can resume a finished mission.
+				this.#missionContinuation?.observeTerminal(mission);
 			}
+		});
+		this.#missionContinuation = new MissionContinuationRuntime({
+			missionControl: this.#missionControl,
+			store: this.#missionBinding.store,
+			settings: this.settings,
+			host: {
+				hasPendingUserMessage: () => this.queuedMessageCount > 0,
+				allowsAgentInitiatedTurns: () =>
+					!(this.#clientBridge?.deferAgentInitiatedTurns && !this.#allowAcpAgentInitiatedTurns),
+				owner: () => ({
+					sessionId: this.sessionManager.getSessionId(),
+					ownerBranch: this.sessionManager.getBranch().at(-1)?.id ?? null,
+					ownerTreeId: null,
+				}),
+				sendContinuation: message =>
+					this.sendCustomMessage(
+						{
+							customType: MISSION_CONTINUATION_MESSAGE_TYPE,
+							content: message.content,
+							display: false,
+							attribution: "agent",
+							details: message.details,
+						},
+						{ deliverAs: "nextTurn", triggerTurn: true },
+					),
+				sendBudgetSteering: message =>
+					this.sendCustomMessage(
+						{
+							customType: MISSION_CONTINUATION_MESSAGE_TYPE,
+							content: message.content,
+							display: false,
+							attribution: "agent",
+							details: message.details,
+						},
+						{ deliverAs: "nextTurn" },
+					),
+			},
 		});
 		this.#toolGateway = new SessionToolGateway({ missionControl: this.#missionControl });
 
@@ -2624,11 +2680,23 @@ export class AgentSession {
 
 	/** Emit extension events based on session events */
 	async #emitExtensionEvent(event: AgentSessionEvent): Promise<void> {
+		if (event.type === "agent_end") {
+			if (this.#extensionRunner) {
+				await this.#extensionRunner.emit({ type: "agent_end", messages: event.messages });
+			}
+			// Mission Control long-running continuation (Codex thread-goal port): after
+			// the turn settles, evaluate the active mission and schedule the next hidden
+			// continuation turn if it is still incomplete and no user input is pending.
+			// Runs independently of the extension runner so headless/RPC sessions also
+			// continue active missions.
+			const wasContinuationTurn = this.#activeContinuationTurn !== undefined;
+			this.#activeContinuationTurn = undefined;
+			await this.#missionContinuation.afterAgentEnd({ wasContinuationTurn });
+			return;
+		}
 		if (!this.#extensionRunner) return;
 		if (event.type === "agent_start") {
 			await this.#extensionRunner.emit({ type: "agent_start" });
-		} else if (event.type === "agent_end") {
-			await this.#extensionRunner.emit({ type: "agent_end", messages: event.messages });
 		} else if (event.type === "turn_start") {
 			const hookEvent: TurnStartEvent = {
 				type: "turn_start",
@@ -3304,6 +3372,10 @@ export class AgentSession {
 		const bridge = this.#clientBridge;
 		// Match the capability+method gating pattern used by read/write/bash.
 		if (!bridge?.capabilities.requestPermission || !bridge.requestPermission) return tool;
+		// An infra-approval-only bridge (e.g. the TUI bridge) must NOT gate every
+		// mutation tool; its requestPermission exists solely for the bash infra-deploy
+		// gate. Skip generic wrapping so plain terminal sessions prompt only for infra.
+		if (bridge.infraApprovalOnly) return tool;
 		if (!PERMISSION_REQUIRED_TOOLS.has(tool.name)) return tool;
 		return new Proxy(tool, {
 			get: (target, prop) => {
@@ -3843,6 +3915,11 @@ export class AgentSession {
 		return this.#providerSessionId ?? this.sessionManager.getSessionId();
 	}
 
+	/** Current user-turn index for read-only turn-scoped tool decisions. */
+	get turnIndex(): number {
+		return this.#turnIndex;
+	}
+
 	getSecretObfuscator(): SecretObfuscator | undefined {
 		return this.#obfuscator;
 	}
@@ -4199,6 +4276,18 @@ export class AgentSession {
 
 			if (message.role === "user") {
 				await this.#missionControl.ensureActiveMission({ content: expandedText });
+				// A user-authored turn supersedes any in-flight continuation; the
+				// continuation runtime reconciles stale running state on agent_end.
+				this.#activeContinuationTurn = undefined;
+			} else if (
+				message.role === "custom" &&
+				(message as { customType?: string }).customType === MISSION_CONTINUATION_MESSAGE_TYPE
+			) {
+				const details = (message as { details?: { missionId?: string; generation?: number } }).details;
+				if (typeof details?.missionId === "string" && typeof details?.generation === "number") {
+					this.#activeContinuationTurn = { missionId: details.missionId, generation: details.generation };
+					this.#missionContinuation.markRunning(details.missionId, details.generation, this.sessionId);
+				}
 			}
 
 			// Validate model
@@ -5578,7 +5667,7 @@ export class AgentSession {
 
 			const compactionSettings = this.settings.getGroup("compaction");
 			const pathEntries = this.sessionManager.getBranch();
-			const preparation = prepareCompaction(pathEntries, compactionSettings);
+			const preparation = this.#prepareAdaptiveCompaction(pathEntries, compactionSettings);
 			if (!preparation) {
 				// Check why we can't compact
 				const lastEntry = pathEntries[pathEntries.length - 1];
@@ -5707,6 +5796,7 @@ export class AgentSession {
 				details,
 				preserveData,
 			};
+			this.#rememberCompactionYield(compactionResult);
 			options?.onComplete?.(compactionResult);
 			return compactionResult;
 		} catch (error) {
@@ -5754,6 +5844,29 @@ export class AgentSession {
 		this.#compactionAbortController?.abort();
 		this.#autoCompactionAbortController?.abort();
 		this.#handoffAbortController?.abort();
+	}
+
+	#rememberCompactionYield(result: Pick<CompactionResult, "summary" | "tokensBefore">): void {
+		this.#lastCompactionYield = {
+			savedTokens: Math.max(
+				0,
+				result.tokensBefore - estimateTokens({ role: "user", content: result.summary, timestamp: Date.now() }),
+			),
+			tokensBefore: result.tokensBefore,
+		};
+	}
+
+	#prepareAdaptiveCompaction(
+		pathEntries: SessionEntry[],
+		settings: CompactionPreparation["settings"],
+	): CompactionPreparation | undefined {
+		const contextWindow = this.model?.contextWindow ?? 0;
+		const thresholdRatio = computeEffectiveThresholdRatio(contextWindow, this.#lastCompactionYield);
+		return prepareCompaction(pathEntries, {
+			...settings,
+			keepRecentTokens: computeEffectiveKeepRecentTokens(settings.keepRecentTokens, contextWindow, thresholdRatio),
+			forceCut: true,
+		});
 	}
 
 	/** Trigger idle compaction through the auto-compaction flow (with UI events). */
@@ -5975,12 +6088,26 @@ export class AgentSession {
 		if (pruneResult) {
 			contextTokens = Math.max(0, contextTokens - pruneResult.tokensSaved);
 		}
-		if (shouldCompact(contextTokens, contextWindow, compactionSettings)) {
+		if (
+			shouldCompact(contextTokens, contextWindow, compactionSettings) ||
+			shouldTriggerAdaptiveCompaction(contextTokens, contextWindow, compactionSettings, this.#lastCompactionYield)
+		) {
 			// Try promotion first — if a larger model is available, switch instead of compacting
 			const promoted = await this.#tryContextPromotion(assistantMessage);
 			if (!promoted) {
 				await this.#runAutoCompaction("threshold", false);
 			}
+		} else if (
+			shouldStartSpeculativeCompaction(contextTokens, contextWindow, compactionSettings, this.#lastCompactionYield)
+		) {
+			this.#schedulePostPromptTask(
+				async signal => {
+					await Promise.resolve();
+					if (signal.aborted || this.isStreaming || this.isCompacting) return;
+					await this.#runAutoCompaction("threshold", false, true);
+				},
+				{ generation },
+			);
 		}
 	}
 	#assistantEndedWithSuccessfulYield(assistantMessage: AssistantMessage): boolean {
@@ -6524,62 +6651,49 @@ export class AgentSession {
 		});
 	}
 
-	#getCompactionModelCandidates(availableModels: Model[]): Model[] {
+	async #getAuthenticatedCompactionModelCandidates(availableModels: Model[]): Promise<Model[]> {
 		const candidates: Model[] = [];
 		const seen = new Set<string>();
-		const COMPACTION_PINNED_MODEL_ID = "gpt-5.4";
-		const COMPACTION_PINNED_PROVIDER_ORDER = ["openai", "openai-codex", "openrouter", "cloudflare-ai-gateway"];
 
-		const addCandidate = (model: Model | undefined): void => {
+		const addCandidate = async (model: Model | undefined): Promise<void> => {
 			if (!model) return;
 			const key = this.#getModelKey(model);
 			if (seen.has(key)) return;
+			const apiKey = await this.#modelRegistry.getApiKey(model, this.sessionId);
+			if (!hasUsableAuth(apiKey)) return;
 			seen.add(key);
 			candidates.push(model);
 		};
 
-		const configuredReduceModel = this.settings.getModelRole("compaction_reduce");
-		if (configuredReduceModel) {
-			addCandidate(
-				resolveModelFromString(
-					configuredReduceModel,
-					availableModels,
-					{ usageOrder: this.settings.getStorage()?.getModelUsageOrder() },
-					this.#modelRegistry,
-				),
-			);
+		for (const role of [
+			"Explore",
+			"Reviewer",
+			"default",
+			"Builder",
+			"Planner",
+			"commit",
+			"Designer",
+			"Resercher",
+			"Resercher_X",
+		]) {
+			await addCandidate(this.#resolveRoleModelFull(role, availableModels, this.model).model);
 		}
 
-		const currentModel = this.model;
-		const pinnedModels = availableModels
-			.filter(model => model.id === COMPACTION_PINNED_MODEL_ID)
-			.sort((a, b) => {
-				const aRank = COMPACTION_PINNED_PROVIDER_ORDER.indexOf(a.provider);
-				const bRank = COMPACTION_PINNED_PROVIDER_ORDER.indexOf(b.provider);
-				const providerDelta =
-					(aRank === -1 ? Number.MAX_SAFE_INTEGER : aRank) - (bRank === -1 ? Number.MAX_SAFE_INTEGER : bRank);
-				if (providerDelta !== 0) return providerDelta;
-				return b.contextWindow - a.contextWindow;
-			});
-		for (const model of pinnedModels) addCandidate(model);
-
-		for (const role of MODEL_ROLE_IDS) {
-			addCandidate(this.#resolveRoleModelFull(role, availableModels, currentModel).model);
-		}
-
-		const sortedByContext = [...availableModels].sort((a, b) => b.contextWindow - a.contextWindow);
-		for (const model of sortedByContext) {
-			if (!seen.has(this.#getModelKey(model))) {
-				addCandidate(model);
-				break;
-			}
+		for (const model of availableModels) {
+			await addCandidate(model);
 		}
 
 		return candidates;
 	}
+
 	#isCompactionAuthFailure(error: unknown): boolean {
 		if (!(error instanceof Error)) return false;
-		return /auth_unavailable|no auth available/i.test(error.message);
+		return /auth_unavailable|no auth available|Failed to extract accountId from token/i.test(error.message);
+	}
+
+	#isTransientCompactionFailure(error: unknown): boolean {
+		const message = error instanceof Error ? error.message : String(error);
+		return this.#isTransientErrorMessage(message);
 	}
 
 	#buildCompactionAuthError(): Error {
@@ -6595,26 +6709,23 @@ export class AgentSession {
 		);
 	}
 
-	#resolveCompactionMapModel(availableModels: Model[]): Model | undefined {
-		const configured = this.settings.getModelRole("compaction_map") ?? "openai-codex/gpt-5.3-codex-spark";
-		return resolveModelRoleValue(configured, availableModels, {
-			settings: this.settings,
-			matchPreferences: { usageOrder: this.settings.getStorage()?.getModelUsageOrder() },
-			modelRegistry: this.#modelRegistry,
-		}).model;
+	async #resolveSectionCompactionModel(
+		messages: AgentMessage[],
+	): Promise<{ model: Model; apiKey: string } | undefined> {
+		const assistant = messages.findLast((message): message is AssistantMessage => message.role === "assistant");
+		if (!assistant) return undefined;
+		const model = this.#modelRegistry.find(assistant.provider, assistant.model);
+		if (!model) return undefined;
+		const apiKey = this.#modelRegistry.getApiKey(model, this.sessionId);
+		if (!hasUsableAuth(apiKey)) return undefined;
+		return { model, apiKey };
 	}
 
-	async #withCompactionMapModel(
-		options: SummaryOptions | undefined,
-		availableModels: Model[],
-	): Promise<SummaryOptions | undefined> {
-		const compactionSettings = this.settings.getGroup("compaction");
-		if (compactionSettings.mode !== "map-reduce") return options;
-		const mapModel = this.#resolveCompactionMapModel(availableModels);
-		if (!mapModel) return options;
-		const mapApiKey = await this.#modelRegistry.getApiKey(mapModel, this.sessionId);
-		if (!mapApiKey) return options;
-		return { ...options, mapModel, mapApiKey };
+	#compactWithSectionModelOptions(options: SummaryOptions | undefined): SummaryOptions | undefined {
+		return {
+			...options,
+			resolveSectionModel: messages => this.#resolveSectionCompactionModel(messages),
+		};
 	}
 
 	async #compactWithFallbackModel(
@@ -6624,13 +6735,13 @@ export class AgentSession {
 		options?: SummaryOptions,
 	): Promise<CompactionResult> {
 		const availableModels = this.#modelRegistry.getAvailable();
-		const candidates = this.#getCompactionModelCandidates(availableModels);
+		const candidates = await this.#getAuthenticatedCompactionModelCandidates(availableModels);
 		const telemetry = resolveTelemetry(this.agent.telemetry, this.sessionId);
-		const compactionOptions = await this.#withCompactionMapModel(options, availableModels);
+		const compactionOptions = this.#compactWithSectionModelOptions(options);
 
 		for (const candidate of candidates) {
 			const apiKey = await this.#modelRegistry.getApiKey(candidate, this.sessionId);
-			if (!apiKey) continue;
+			if (!hasUsableAuth(apiKey)) continue;
 
 			try {
 				return await compact(preparation, candidate, apiKey, customInstructions, signal, {
@@ -6640,9 +6751,13 @@ export class AgentSession {
 					telemetry,
 				});
 			} catch (error) {
-				if (!this.#isCompactionAuthFailure(error)) {
-					throw error;
+				if (this.#isCompactionAuthFailure(error)) {
+					continue;
 				}
+				if (this.#isTransientCompactionFailure(error)) {
+					continue;
+				}
+				throw error;
 			}
 		}
 
@@ -6812,7 +6927,7 @@ export class AgentSession {
 
 			const pathEntries = this.sessionManager.getBranch();
 
-			const preparation = prepareCompaction(pathEntries, compactionSettings);
+			const preparation = this.#prepareAdaptiveCompaction(pathEntries, compactionSettings);
 			if (!preparation) {
 				await this.#emitSessionEvent({
 					type: "auto_compaction_end",
@@ -6878,16 +6993,16 @@ export class AgentSession {
 				details = compactionPrep.details;
 				preserveData = compactionPrep.preserveData;
 			} else {
-				const candidates = this.#getCompactionModelCandidates(availableModels);
+				const candidates = await this.#getAuthenticatedCompactionModelCandidates(availableModels);
 				const retrySettings = this.settings.getGroup("retry");
 				const telemetry = resolveTelemetry(this.agent.telemetry, this.sessionId);
-				const compactionOptions = await this.#withCompactionMapModel(undefined, availableModels);
+				const compactionOptions = this.#compactWithSectionModelOptions(undefined);
 				let compactResult: CompactionResult | undefined;
 				let lastError: unknown;
 
 				for (const candidate of candidates) {
 					const apiKey = await this.#modelRegistry.getApiKey(candidate, this.sessionId);
-					if (!apiKey) continue;
+					if (!hasUsableAuth(apiKey)) continue;
 
 					let attempt = 0;
 					while (true) {
@@ -7025,6 +7140,7 @@ export class AgentSession {
 				details,
 				preserveData,
 			};
+			this.#rememberCompactionYield(result);
 			await this.#emitSessionEvent({ type: "auto_compaction_end", action, result, aborted: false, willRetry });
 
 			if (!willRetry && reason !== "idle" && compactionSettings.autoContinue !== false) {

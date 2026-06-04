@@ -75,6 +75,9 @@ export interface BrowserToolDetails {
 export function resolveBrowserKind(params: BrowserParams, session: ToolSession): BrowserKind {
 	const app = params.app;
 	if (app?.cdp_url) {
+		if (app.kind === "chrome") {
+			throw new ToolError("app.kind='chrome' cannot be combined with app.cdp_url. Use app.path or omit app.path.");
+		}
 		return { kind: "connected", cdpUrl: app.cdp_url.replace(/\/+$/, "") };
 	}
 	if (app?.path) {

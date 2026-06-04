@@ -7,7 +7,6 @@ import { EditTool } from "../edit";
 import { checkPythonKernelAvailability } from "../eval/py/kernel";
 import type { Skill } from "../extensibility/skills";
 import { LspTool } from "../lsp";
-import { resolveMemoryBackend } from "../memory-backend";
 import type { Mission } from "../mission/core/mission";
 import type { MissionControlRuntime } from "../mission/core/mission-control-runtime";
 import type { MissionScopeGuard } from "../mission/core/mission-scope";
@@ -31,29 +30,25 @@ import { BashTool } from "./bash";
 import { BrowserTool } from "./browser";
 import { CalculatorTool } from "./calculator";
 import { type CheckpointState, CheckpointTool, RewindTool } from "./checkpoint";
-import { CodeCalleesTool } from "./code-callees";
-import { CodeCallersTool } from "./code-callers";
-import { CodeDefTool } from "./code-def";
-import { CodeRefsTool } from "./code-refs";
 import { DebugTool } from "./debug";
 import { EvalTool } from "./eval";
 import { FindTool } from "./find";
 import { GithubTool } from "./gh";
+import { HermesMemorySearchTool, HermesMemoryTool } from "./hermes-memory";
 import { InspectImageTool } from "./inspect-image";
 import { IrcTool } from "./irc";
 import { JobTool } from "./job";
-import { NexusMemoryExplainTool } from "./nexus-memory-explain";
+import { Mem0ConcludeTool, Mem0ProfileTool, Mem0SearchTool } from "./mem0-memory";
 import { wrapToolWithMetaNotice } from "./output-meta";
 import { ReadTool } from "./read";
 import { RecipeTool } from "./recipe";
 import { RenderMermaidTool } from "./render-mermaid";
-import { RepoSearchTool } from "./repo-search";
 import { createReportToolIssueTool, isAutoQaEnabled } from "./report-tool-issue";
 import { ResolveTool } from "./resolve";
 import { reportFindingTool } from "./review";
 import { SearchTool } from "./search";
 import { SearchToolBm25Tool } from "./search-tool-bm25";
-import { SessionSearchTool } from "./session-search";
+import { SkillManageTool } from "./skill-manage";
 import { loadSshTool } from "./ssh";
 import { type TodoPhase, TodoReadTool, TodoWriteTool } from "./todo-write";
 import { WriteTool } from "./write";
@@ -77,27 +72,25 @@ export * from "./bash";
 export * from "./browser";
 export * from "./calculator";
 export * from "./checkpoint";
-export * from "./code-callees";
-export * from "./code-callers";
-export * from "./code-def";
-export * from "./code-refs";
 export * from "./debug";
 export * from "./eval";
 export * from "./find";
 export * from "./gh";
+export * from "./hermes-memory";
 export * from "./image-gen";
 export * from "./inspect-image";
 export * from "./irc";
 export * from "./job";
+export * from "./mem0-memory";
 export * from "./read";
 export * from "./recipe";
 export * from "./render-mermaid";
-export * from "./repo-search";
 export * from "./report-tool-issue";
 export * from "./resolve";
 export * from "./review";
 export * from "./search";
 export * from "./search-tool-bm25";
+export * from "./skill-manage";
 export * from "./ssh";
 export * from "./todo-write";
 export * from "./vim";
@@ -154,6 +147,8 @@ export interface ToolSession {
 	getSessionFile: () => string | null;
 	/** Get eval kernel owner ID for session-scoped retained-kernel cleanup. */
 	getEvalKernelOwnerId?: () => string | null;
+	/** Current user-turn index for turn-scoped tool decisions; null means unavailable. */
+	getTurnIndex?: () => number | null;
 	/** Reject new eval (python or js) work once session disposal has started. */
 	assertEvalExecutionAllowed?: () => void;
 	/** Track tool-owned eval work so session disposal can await/abort it like direct session eval runs. */
@@ -342,16 +337,15 @@ export const BUILTIN_TOOLS: Record<string, ToolFactory> = {
 	todo_read: s => new TodoReadTool(s),
 	web_search: s => new WebSearchTool(s),
 	search_tool_bm25: SearchToolBm25Tool.createIf,
+	memory: HermesMemoryTool.createIf,
+	memory_search: HermesMemorySearchTool.createIf,
+	mem0_profile: Mem0ProfileTool.createIf,
+	mem0_search: Mem0SearchTool.createIf,
+	mem0_conclude: Mem0ConcludeTool.createIf,
 	x_search: s => new XSearchTool(s),
 	x_search_deep: s => new XSearchDeepTool(s),
 	write: s => new WriteTool(s),
-	memory_explain: NexusMemoryExplainTool.createIf,
-	repo_search: RepoSearchTool.createIf,
-	code_callers: CodeCallersTool.createIf,
-	code_callees: CodeCalleesTool.createIf,
-	code_def: CodeDefTool.createIf,
-	code_refs: CodeRefsTool.createIf,
-	session_search: SessionSearchTool.createIf,
+	skill_manage: s => new SkillManageTool(s),
 };
 
 export const HIDDEN_TOOLS: Record<string, ToolFactory> = {
@@ -457,7 +451,6 @@ export async function createTools(session: ToolSession, toolNames?: string[]): P
 	let requestedTools =
 		toolNames && toolNames.length > 0 ? [...new Set(toolNames.map(name => name.toLowerCase()))] : undefined;
 	const backends = resolveEvalBackends(session);
-	const activeMemoryBackendId = resolveMemoryBackend(session.settings).id;
 	const allowPython = backends.python;
 	const allowJs = backends.js;
 	const skipPythonPreflight = session.skipPythonPreflight === true;
@@ -509,11 +502,6 @@ export async function createTools(session: ToolSession, toolNames?: string[]): P
 		) {
 			requestedTools.push("recipe");
 		}
-		if (activeMemoryBackendId === "nexus") {
-			for (const name of ["memory_explain", "repo_search", "code_def", "code_refs"]) {
-				if (!requestedTools.includes(name)) requestedTools.push(name);
-			}
-		}
 	}
 	// Resolve effective tool discovery mode.
 	// tools.discoveryMode takes precedence; mcp.discoveryMode is a back-compat alias for "mcp-only".
@@ -554,9 +542,6 @@ export async function createTools(session: ToolSession, toolNames?: string[]): P
 			return true;
 		}
 		if (name === "recipe") return session.settings.get("recipe.enabled");
-		if (name === "memory_explain" || name === "repo_search" || name === "code_def" || name === "code_refs") {
-			return activeMemoryBackendId === "nexus";
-		}
 		if (name === "task") {
 			const maxDepth = session.settings.get("task.maxRecursionDepth") ?? 2;
 			const currentDepth = session.taskDepth ?? 0;

@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { $which, getRemoteDir, postmortem } from "@amaze/utils";
+import { $which, getRemoteDir, postmortem, procmgr } from "@amaze/utils";
 import { $ } from "bun";
 import {
 	getControlDir,
@@ -65,13 +65,13 @@ function buildSshfsArgs(host: SSHConnectionTarget): string[] {
 async function unmountPath(path: string): Promise<boolean> {
 	const fusermount = $which("fusermount") ?? $which("fusermount3");
 	if (fusermount) {
-		const result = await $`${fusermount} -u ${path}`.quiet().nothrow();
+		const result = await $`${fusermount} -u ${path}`.env(procmgr.scrubProcessEnv(Bun.env)).quiet().nothrow();
 		if (result.exitCode === 0) return true;
 	}
 
 	const umount = $which("umount");
 	if (!umount) return false;
-	const result = await $`${umount} ${path}`.quiet().nothrow();
+	const result = await $`${umount} ${path}`.env(procmgr.scrubProcessEnv(Bun.env)).quiet().nothrow();
 	return result.exitCode === 0;
 }
 
@@ -82,7 +82,7 @@ export function hasSshfs(): boolean {
 export async function isMounted(path: string): Promise<boolean> {
 	const mountpoint = $which("mountpoint");
 	if (!mountpoint) return false;
-	const result = await $`${mountpoint} -q ${path}`.quiet().nothrow();
+	const result = await $`${mountpoint} -q ${path}`.env(procmgr.scrubProcessEnv(Bun.env)).quiet().nothrow();
 	return result.exitCode === 0;
 }
 
@@ -105,7 +105,7 @@ export async function mountRemote(host: SSHConnectionTarget, remotePath = "/"): 
 
 	const target = `${buildSshTarget(host.username, host.host)}:${remotePath}`;
 	const args = buildSshfsArgs(host);
-	const result = await $`sshfs ${args} ${target} ${mountPath}`.nothrow();
+	const result = await $`sshfs ${args} ${target} ${mountPath}`.env(procmgr.scrubProcessEnv(Bun.env)).nothrow();
 
 	if (result.exitCode !== 0) {
 		const detail = result.stderr.toString().trim();

@@ -11,10 +11,18 @@ describe("resolveMemoryBackend", () => {
 		resetSettingsForTest();
 	});
 
-	it("returns the configured canonical backend", () => {
-		const off = Settings.isolated({ "memory.backend": "off" });
-		const nexus = Settings.isolated({ "memory.backend": "nexus" });
-		expect(resolveMemoryBackend(off).id).toBe("off");
-		expect(resolveMemoryBackend(nexus).id).toBe("nexus");
+	it("returns the no-op backend by default", () => {
+		const settings = Settings.isolated({});
+		expect(resolveMemoryBackend(settings).id).toBe("off");
+	});
+
+	it("returns mem0 when configured", () => {
+		const settings = Settings.isolated({ "memory.backend": "mem0" });
+		expect(resolveMemoryBackend(settings).id).toBe("mem0");
+	});
+
+	it("returns hermes when configured", () => {
+		const settings = Settings.isolated({ "memory.backend": "hermes" });
+		expect(resolveMemoryBackend(settings).id).toBe("hermes");
 	});
 });

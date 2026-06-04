@@ -81,9 +81,9 @@ export async function runDoctorCommand(opts: DoctorCommandOptions = {}): Promise
 	return report;
 }
 
-function checkMemory(): MemorySection {
+async function checkMemory(): Promise<MemorySection> {
 	try {
-		const report = getMemoryDoctorReport();
+		const report = await getMemoryDoctorReport();
 		return { status: report.status, text: report.text };
 	} catch (error) {
 		return { status: "failed", error: messageFor(error) };

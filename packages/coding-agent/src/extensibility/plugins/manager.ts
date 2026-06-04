@@ -9,6 +9,7 @@ import {
 	getProjectPluginOverridesPath,
 	isEnoent,
 	logger,
+	procmgr,
 } from "@amaze/utils";
 import { extractPackageName, parsePluginSpec } from "./parser";
 import type {
@@ -158,6 +159,7 @@ export class PluginManager {
 		// Run npm install
 		const proc = Bun.spawn(["bun", "install", spec.packageName], {
 			cwd: getPluginsDir(),
+			env: procmgr.scrubProcessEnv(Bun.env),
 			stdin: "ignore",
 			stdout: "pipe",
 			stderr: "pipe",
@@ -239,6 +241,7 @@ export class PluginManager {
 
 		const proc = Bun.spawn(["bun", "uninstall", name], {
 			cwd: getPluginsDir(),
+			env: procmgr.scrubProcessEnv(Bun.env),
 			stdin: "ignore",
 			stdout: "pipe",
 			stderr: "pipe",
@@ -636,6 +639,7 @@ export class PluginManager {
 		try {
 			const proc = Bun.spawn(["bun", "install"], {
 				cwd: getPluginsDir(),
+				env: procmgr.scrubProcessEnv(Bun.env),
 				stdin: "ignore",
 				stdout: "pipe",
 				stderr: "pipe",

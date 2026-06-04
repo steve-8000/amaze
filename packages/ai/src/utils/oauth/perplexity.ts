@@ -12,7 +12,7 @@
  * Architecture reverse-engineered from Perplexity macOS app (ai.perplexity.mac).
  */
 import * as os from "node:os";
-import { $env } from "@amaze/utils";
+import { $env, procmgr } from "@amaze/utils";
 import { $ } from "bun";
 import type { OAuthController, OAuthCredentials } from "./types";
 
@@ -62,7 +62,10 @@ async function extractFromNativeApp(): Promise<string | null> {
 	if (os.platform() !== "darwin") return null;
 
 	try {
-		const result = await $`defaults read ${NATIVE_APP_BUNDLE} authToken`.quiet().nothrow();
+		const result = await $`defaults read ${NATIVE_APP_BUNDLE} authToken`
+			.env(procmgr.scrubProcessEnv(Bun.env))
+			.quiet()
+			.nothrow();
 		if (result.exitCode !== 0) return null;
 		const token = result.text().trim();
 		if (!token || token === "(null)") return null;

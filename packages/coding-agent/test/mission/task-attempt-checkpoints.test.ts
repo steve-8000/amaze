@@ -25,7 +25,7 @@ describe("MissionStore task attempt checkpoints", () => {
 			id: "checkpoint-1",
 			missionId: createdMission.id,
 			taskId: "task-1",
-			agent: "task",
+			agent: "Builder",
 			role: "implementer",
 			attempt: 2,
 			status: "failed",

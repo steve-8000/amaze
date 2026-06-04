@@ -1,8 +1,8 @@
 ---
-name: visual_qa
+name: Designer
 description: UI and browser validation specialist for sandboxed visual QA, web inspection, and real app interaction
 tools: browser, inspect_image, read
-model: pi/smol
+model: Designer
 thinking-level: med
 output:
   properties:

@@ -1,3 +1,4 @@
+import { DEFAULT_COMPACTION_THRESHOLD_PERCENT } from "@amaze/agent-core/compaction";
 import { THINKING_EFFORTS } from "@amaze/ai";
 import { TASK_SIMPLE_MODES } from "../task/simple-mode";
 import { getThinkingLevelMetadata } from "../thinking";
@@ -24,7 +25,6 @@ export type SettingTab =
 	| "model"
 	| "interaction"
 	| "context"
-	| "memory"
 	| "editing"
 	| "tools"
 	| "tasks"
@@ -39,7 +39,6 @@ export const SETTING_TABS: SettingTab[] = [
 	"model",
 	"interaction",
 	"context",
-	"memory",
 	"editing",
 	"tools",
 	"tasks",
@@ -52,7 +51,6 @@ export const TAB_METADATA: Record<SettingTab, { label: string; icon: `tab.${stri
 	model: { label: "Model", icon: "tab.model" },
 	interaction: { label: "Interaction", icon: "tab.interaction" },
 	context: { label: "Context", icon: "tab.context" },
-	memory: { label: "Memory", icon: "tab.memory" },
 	editing: { label: "Editing", icon: "tab.editing" },
 	tools: { label: "Tools", icon: "tab.tools" },
 	tasks: { label: "Tasks", icon: "tab.tasks" },
@@ -188,7 +186,7 @@ export interface ModelTagsSettings {
 // under `as const` while still letting SettingValue infer the correct element type.
 const EMPTY_STRING_ARRAY: string[] = [];
 const EMPTY_STRING_RECORD: Record<string, string> = {};
-const DEFAULT_CYCLE_ORDER: string[] = ["smol", "default", "slow"];
+const DEFAULT_CYCLE_ORDER: string[] = ["Explore", "Builder", "Reviewer"];
 const DEFAULT_DISABLED_PROVIDERS: string[] = ["gemini", "opencode", "windsurf", "vscode", "github"];
 const EMPTY_MODEL_TAGS_RECORD: ModelTagsSettings = {};
 export const DEFAULT_BASH_INTERCEPTOR_RULES: BashInterceptorRule[] = [
@@ -290,6 +288,103 @@ export const SETTINGS_SCHEMA = {
 		},
 	},
 	shellPath: { type: "string", default: undefined },
+
+	// Durable memory backend.
+	"memory.backend": {
+		type: "enum",
+		values: ["off", "mem0", "hermes"] as const,
+		default: "off",
+		ui: {
+			tab: "providers",
+			label: "Memory Backend",
+			description: "Durable memory provider used for recall, turn sync, and compaction checkpoints",
+			options: [
+				{ value: "off", label: "Off", description: "Disable durable memory" },
+				{ value: "mem0", label: "Mem0", description: "Use a self-hosted Mem0 REST API" },
+				{ value: "hermes", label: "Hermes", description: "Use local Hermes memory" },
+			],
+		},
+	},
+	"memory.mem0.baseUrl": {
+		type: "string",
+		default: undefined,
+		ui: {
+			tab: "providers",
+			label: "Mem0 Base URL",
+			description: "Self-hosted Mem0 API URL, e.g. http://127.0.0.1:8888",
+		},
+	},
+	"memory.mem0.apiKey": {
+		type: "string",
+		default: undefined,
+		ui: {
+			tab: "providers",
+			label: "Mem0 API Key",
+			description: "API key sent to Mem0 as X-API-Key",
+		},
+	},
+	"memory.mem0.userId": {
+		type: "string",
+		default: "amaze-user",
+		ui: {
+			tab: "providers",
+			label: "Mem0 User ID",
+			description: "User scope for Mem0 reads and writes",
+		},
+	},
+	"memory.mem0.agentId": {
+		type: "string",
+		default: "amaze",
+		ui: {
+			tab: "providers",
+			label: "Mem0 Agent ID",
+			description: "Agent attribution for Mem0 writes",
+		},
+	},
+	"memory.mem0.topK": {
+		type: "number",
+		default: 5,
+		ui: {
+			tab: "providers",
+			label: "Mem0 Recall Count",
+			description: "Maximum semantic memory hits injected at turn start",
+		},
+	},
+	"memory.hermes.mode": {
+		type: "enum",
+		values: ["policy-only", "legacy-inject"] as const,
+		default: "policy-only",
+	},
+	"memory.hermes.policyStyle": {
+		type: "enum",
+		values: ["full", "compact", "custom", "none"] as const,
+		default: "full",
+	},
+	"memory.hermes.policyCustomText": {
+		type: "string",
+		default: undefined,
+	},
+	"memory.hermes.memoryCharLimit": {
+		type: "number",
+		default: 12000,
+	},
+	"memory.hermes.userCharLimit": {
+		type: "number",
+		default: 8000,
+	},
+	"memory.hermes.failureInjectionMaxAgeDays": {
+		type: "number",
+		default: 30,
+	},
+	"memory.hermes.failureInjectionMaxEntries": {
+		type: "number",
+		default: 5,
+	},
+	"memory.hermes.overflowStrategy": {
+		type: "enum",
+		values: ["reject", "fifo-evict"] as const,
+		default: "reject",
+	},
 
 	extensions: { type: "array", default: EMPTY_STRING_ARRAY },
 
@@ -1087,6 +1182,20 @@ export const SETTINGS_SCHEMA = {
 			],
 		},
 	},
+	// Mission Control long-running continuation (Codex thread-goal port).
+	"mission.continuation.enabled": {
+		type: "boolean",
+		default: true,
+		ui: {
+			tab: "appearance",
+			label: "Mission Auto-Continuation",
+			description:
+				"When an active mission is not complete and no user input is pending, automatically schedule a hidden continuation turn so the mission keeps progressing across turns. Disabled in one-shot/non-interactive runs.",
+		},
+	},
+	"mission.continuation.maxAutoTurns": { type: "number", default: 50 },
+	"mission.continuation.noProgressLimit": { type: "number", default: 3 },
+	"mission.continuation.minScheduleIntervalMs": { type: "number", default: 0 },
 	"prompt.cache.orchestratorRetention": {
 		type: "enum",
 		values: ["default", "long", "short", "none"] as const,
@@ -1206,13 +1315,13 @@ export const SETTINGS_SCHEMA = {
 
 	"compaction.thresholdPercent": {
 		type: "number",
-		default: -1,
+		default: DEFAULT_COMPACTION_THRESHOLD_PERCENT,
 		ui: {
 			tab: "context",
 			label: "Compaction Threshold",
-			description: "Percent threshold for context maintenance; set to Default to use legacy reserve-based behavior",
+			description: "Percent threshold for context maintenance; set to Legacy reserve to use reserve-based behavior",
 			options: [
-				{ value: "default", label: "Default", description: "Legacy reserve-based threshold" },
+				{ value: "default", label: "Legacy reserve", description: "Use reserve-based threshold" },
 				{ value: "10", label: "10%", description: "Extremely early maintenance" },
 				{ value: "20", label: "20%", description: "Very early maintenance" },
 				{ value: "30", label: "30%", description: "Early maintenance" },
@@ -1268,8 +1377,8 @@ export const SETTINGS_SCHEMA = {
 		},
 	},
 
-	// Local LLM scout prepass. Model selection is role-based so projects can
-	// point local_scout at vLLM, Ollama, LM Studio, llama.cpp, or any compatible
+	// Local LLM Resercher prepass. Model selection is role-based so projects can
+	// point Resercher at vLLM, Ollama, LM Studio, llama.cpp, or any compatible
 	// local endpoint without hardcoding a model id in task routing.
 	"localLlm.enabled": {
 		type: "boolean",
@@ -1281,14 +1390,13 @@ export const SETTINGS_SCHEMA = {
 		},
 	},
 	"localLlm.required": { type: "boolean", default: false },
-	"localLlm.modelRole": { type: "string", default: "local_scout" },
+	"localLlm.modelRole": { type: "string", default: "Resercher" },
 	"localLlm.structuredOutput": { type: "boolean", default: true },
 	"localLlm.disableThinking": { type: "boolean", default: true },
 	"localLlm.maxInputTokens": { type: "number", default: 12000 },
 	"localLlm.maxOutputTokens": { type: "number", default: 1200 },
 	"localLlm.timeoutMs": { type: "number", default: 30000 },
 	"localLlm.useForSourceScout": { type: "boolean", default: true },
-	"localLlm.useForMemoryScout": { type: "boolean", default: true },
 	"localLlm.useForLogSummarizer": { type: "boolean", default: true },
 	"localLlm.useForContextCompressor": { type: "boolean", default: true },
 
@@ -1386,83 +1494,6 @@ export const SETTINGS_SCHEMA = {
 	},
 
 	"branchSummary.reserveTokens": { type: "number", default: 16384 },
-
-	// Memory backend selector — picks the canonical Nexus local memory plane or off.
-	"memory.backend": {
-		type: "enum",
-		values: ["off", "nexus"] as const,
-		default: "off",
-		ui: {
-			tab: "memory",
-			label: "Memory Backend",
-			description: "Off or Nexus canonical local memory.",
-			options: [
-				{ value: "off", label: "Off", description: "No memory subsystem runs" },
-				{
-					value: "nexus",
-					label: "Nexus",
-					description: "Canonical temporal local memory with healing and optional AI enhancement",
-				},
-			],
-		},
-	},
-
-	"nexus.autoRecall": { type: "boolean", default: false },
-	"nexus.autoRecallLimit": { type: "number", default: 5 },
-	"nexus.staticPromptMaxChars": { type: "number", default: 5000 },
-	"nexus.knowledge.enabled": { type: "boolean", default: true },
-	"nexus.knowledge.autoRecall": { type: "boolean", default: false },
-	"nexus.knowledge.autoRecallLimit": { type: "number", default: 5 },
-	"nexus.knowledge.promptMaxChars": { type: "number", default: 5000 },
-	"nexus.knowledge.maxIndexedFiles": { type: "number", default: 2000 },
-	"nexus.knowledge.maxFileBytes": { type: "number", default: 262144 },
-	"nexus.knowledge.maintenanceMinIntervalMs": { type: "number", default: 900000 },
-	"nexus.searchResultMaxEntries": { type: "number", default: 5 },
-	"nexus.searchResultMaxChars": { type: "number", default: 2400 },
-	"nexus.searchEntryMaxChars": { type: "number", default: 480 },
-	"nexus.sessionSearchMaxAnchors": { type: "number", default: 8 },
-	"nexus.sessionSearchMaxPreviewChars": { type: "number", default: 1600 },
-	"nexus.pipeline.enabled": { type: "boolean", default: true },
-	"nexus.healing.enabled": { type: "boolean", default: true },
-	"nexus.healing.autoApplySafeRepairs": { type: "boolean", default: true },
-	"nexus.contradictionThreshold": {
-		type: "number",
-		default: 0.7,
-		description: "Minimum likelihood score (0–1) for marking two memory items as contradicting.",
-	},
-	"nexus.dream.enabled": { type: "boolean", default: false },
-	"nexus.dream.hypothesesOnly": { type: "boolean", default: true },
-	"nexus.onlineConsolidation.enabled": { type: "boolean", default: true },
-	"nexus.onlineConsolidation.minIntervalMs": {
-		type: "number",
-		default: 0,
-		description: "Minimum milliseconds between online consolidations per session. 0 disables debounce.",
-	},
-	"nexus.hypothesisVerification.enabled": { type: "boolean", default: true },
-	"nexus.conceptualSkills.enabled": { type: "boolean", default: true },
-	"nexus.fallback.deterministicConsolidation": { type: "boolean", default: true },
-	"nexus.llm.enabled": { type: "boolean", default: false },
-	"nexus.llm.provider": { type: "string", default: "disabled" },
-	"nexus.llm.baseUrl": { type: "string", default: undefined },
-	"nexus.llm.model": { type: "string", default: undefined },
-	"nexus.embeddings.enabled": { type: "boolean", default: false },
-	"nexus.embeddings.provider": { type: "string", default: "disabled" },
-	"nexus.embeddings.baseUrl": { type: "string", default: undefined },
-	"nexus.embeddings.model": { type: "string", default: undefined },
-	"nexus.embedding.reindexOnDrift": {
-		type: "boolean",
-		default: true,
-		description: "Re-embed entries when the active embedding model changes.",
-	},
-	"nexus.vector.enabled": { type: "boolean", default: false },
-	"nexus.vector.provider": { type: "string", default: "disabled" },
-	"nexus.reranker.enabled": { type: "boolean", default: false },
-	"nexus.reranker.provider": { type: "string", default: "disabled" },
-	"nexus.maxLlmCalls": { type: "number", default: 6 },
-	"nexus.maxEmbedCalls": { type: "number", default: 64 },
-	"nexus.maxRolloutsPerRun": { type: "number", default: 8 },
-	"nexus.llm.extractionTemperature": { type: "number", default: 0 },
-	"nexus.llm.reflectionTemperature": { type: "number", default: 0 },
 
 	// TTSR
 	"ttsr.enabled": {
@@ -1779,6 +1810,20 @@ export const SETTINGS_SCHEMA = {
 			],
 		},
 	},
+	// Infrastructure / deployment commands (kubectl, helm, terraform, cloud CLIs, …)
+	// ALWAYS require explicit user approval before execution — never auto-approved by
+	// mission.autoApprove and never bypassed by a prior `allow_always` decision.
+	"infra.approval.enabled": {
+		type: "boolean",
+		default: true,
+		ui: {
+			tab: "tools",
+			label: "Infra Deploy Approval",
+			description:
+				"Require explicit user approval before every infrastructure/deployment command (kubectl/helm/terraform/cloud CLIs/GitOps). Mandatory and uncacheable — overrides mission.autoApprove and allow_always. When no approval channel is connected (headless/RPC/autonomous), such commands are blocked fail-closed.",
+		},
+	},
+	"infra.approval.allowlist": { type: "array", default: EMPTY_STRING_ARRAY },
 	"bash.safety.allowPatterns": { type: "array", default: EMPTY_STRING_ARRAY },
 	"bash.safety.denyPatterns": { type: "array", default: EMPTY_STRING_ARRAY },
 	"bash.safety.redactOutput": {
@@ -2333,6 +2378,16 @@ export const SETTINGS_SCHEMA = {
 		},
 	},
 
+	"mission.autoApprove": {
+		type: "boolean",
+		default: false,
+		ui: {
+			tab: "tasks",
+			label: "Mission Auto-Approve",
+			description:
+				"Fully autonomous Mission Control: auto-attach an approved proposal to proposal-gated missions (runtime_refactor / architecture_change / release_hardening / external_side_effect) so execution and auto-continuation proceed without manual /mission approve. Off by default — enabling removes the human approval checkpoint before mutations.",
+		},
+	},
 	"autonomy.enabled": {
 		type: "boolean",
 		default: false,
@@ -3020,7 +3075,6 @@ export interface LocalLlmSettings {
 	maxOutputTokens: number;
 	timeoutMs: number;
 	useForSourceScout: boolean;
-	useForMemoryScout: boolean;
 	useForLogSummarizer: boolean;
 	useForContextCompressor: boolean;
 }

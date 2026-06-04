@@ -45,6 +45,12 @@ describe("browser Chrome profile mode", () => {
 		expect(kind).toEqual({ kind: "spawned", path: "/Applications/Cursor.app/Contents/MacOS/Cursor" });
 	});
 
+	it("rejects ambiguous Chrome profile plus existing CDP endpoint configuration", () => {
+		expect(() => {
+			resolveBrowserKind({ action: "open", app: { kind: "chrome", cdp_url: "http://127.0.0.1:9222" } }, session());
+		}).toThrow("app.kind='chrome' cannot be combined with app.cdp_url");
+	});
+
 	it("uses the configured default headless browser when no app is requested", () => {
 		const kind = resolveBrowserKind({ action: "open" }, session());
 

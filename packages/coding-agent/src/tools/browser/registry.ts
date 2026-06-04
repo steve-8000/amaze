@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { getPuppeteerDir, logger } from "@amaze/utils";
+import { getPuppeteerDir, logger, procmgr } from "@amaze/utils";
 import type { Subprocess } from "bun";
 import type { Browser, CDPSession } from "puppeteer-core";
 import { ToolAbortError, ToolError } from "../tool-errors";
@@ -108,10 +108,10 @@ async function launchExtensionChrome(
 	}
 	assertAbsoluteExecutable(exe, "app.path");
 
+	if (kind.extensionPath) assertExtensionDirectory(kind.extensionPath);
+
 	const userDataDir = kind.userDataDir ?? defaultExtensionUserDataDir();
 	await fs.promises.mkdir(userDataDir, { recursive: true });
-
-	if (kind.extensionPath) assertExtensionDirectory(kind.extensionPath);
 
 	const port = await findFreeCdpPort();
 	const cdpUrl = `http://127.0.0.1:${port}`;
@@ -128,6 +128,7 @@ async function launchExtensionChrome(
 		...(opts.appArgs ?? []),
 	];
 	const child = Bun.spawn([exe, ...launchArgs], {
+		env: procmgr.scrubProcessEnv(Bun.env),
 		stdout: "ignore",
 		stderr: "ignore",
 		stdin: "ignore",
@@ -214,6 +215,7 @@ async function openBrowserHandle(kind: BrowserKind, opts: AcquireBrowserOptions)
 		const port = await findFreeCdpPort();
 		const launchArgs = [...(opts.appArgs ?? []), `--remote-debugging-port=${port}`];
 		const child = Bun.spawn([exe, ...launchArgs], {
+			env: procmgr.scrubProcessEnv(Bun.env),
 			stdout: "ignore",
 			stderr: "ignore",
 			stdin: "ignore",
@@ -292,9 +294,12 @@ async function disposeBrowserHandle(handle: BrowserHandle, opts: { kill: boolean
 	if (handle.kind.kind === "chrome-extension") {
 		if (handle.browser.connected) {
 			try {
-				handle.browser.disconnect();
+				await handle.browser.close();
 			} catch (err) {
-				logger.debug("Failed to disconnect from Chrome extension browser", { error: (err as Error).message });
+				logger.debug("Failed to close Chrome extension browser", { error: (err as Error).message });
+				try {
+					handle.browser.disconnect();
+				} catch {}
 			}
 		}
 		if (opts.kill && handle.pid !== undefined) await gracefulKillTreeOnce(handle.pid);

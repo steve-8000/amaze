@@ -494,17 +494,13 @@ export function parseModelPattern(
 	const context = buildPreferenceContext(availableModels, preferences);
 	return parseModelPatternWithContext(pattern, availableModels, context, options);
 }
-
-const PREFIX_MODEL_ROLE = "pi/";
 const DEFAULT_MODEL_ROLE = "default";
 
-function getModelRoleAlias(value: string): ModelRole | undefined {
+function getModelRoleAlias(value: string): string | undefined {
 	const normalized = value.trim();
-	if (!normalized.startsWith(PREFIX_MODEL_ROLE)) return undefined;
-
-	const candidate = normalized.slice(PREFIX_MODEL_ROLE.length);
+	if (normalized === DEFAULT_MODEL_ROLE) return DEFAULT_MODEL_ROLE;
 	for (const role of MODEL_ROLE_IDS) {
-		if (candidate === role) return role;
+		if (normalized === role) return role;
 	}
 	return undefined;
 }
@@ -516,7 +512,7 @@ function normalizeModelPatternList(value: string | string[] | undefined): string
 }
 
 function isSessionInheritedAgentPattern(value: string): boolean {
-	return value === DEFAULT_MODEL_ROLE || value === `${PREFIX_MODEL_ROLE}${DEFAULT_MODEL_ROLE}` || value === "pi/task";
+	return value === DEFAULT_MODEL_ROLE || value === "Builder";
 }
 
 function resolveConfiguredRolePattern(value: string, settings?: Settings): string[] | undefined {
@@ -524,8 +520,7 @@ function resolveConfiguredRolePattern(value: string, settings?: Settings): strin
 	if (!normalized) return undefined;
 
 	const lastColonIndex = normalized.lastIndexOf(":");
-	const thinkingLevel =
-		lastColonIndex > PREFIX_MODEL_ROLE.length ? parseThinkingLevel(normalized.slice(lastColonIndex + 1)) : undefined;
+	const thinkingLevel = lastColonIndex > 0 ? parseThinkingLevel(normalized.slice(lastColonIndex + 1)) : undefined;
 	const aliasCandidate = thinkingLevel ? normalized.slice(0, lastColonIndex) : normalized;
 	const role = getModelRoleAlias(aliasCandidate);
 	if (!role) return [normalized];
@@ -541,15 +536,11 @@ function resolveConfiguredRolePattern(value: string, settings?: Settings): strin
 }
 
 /**
- * Expand a role alias like "pi/smol" to the configured model string.
+ * Expand a model role name like "Builder" to the configured model string.
  */
 export function expandRoleAlias(value: string, settings?: Settings): string {
 	const normalized = value.trim();
-	if (normalized === DEFAULT_MODEL_ROLE) {
-		return settings?.getModelRole("default") ?? value;
-	}
-
-	const resolved = resolveConfiguredRolePattern(value, settings)?.[0];
+	const resolved = resolveConfiguredRolePattern(normalized, settings)?.[0];
 	return resolved ?? value;
 }
 
@@ -580,7 +571,7 @@ export function resolveAgentModelPatterns(options: AgentModelPatternResolutionOp
 	const agentInheritsSessionModel = singleAgentPattern ? isSessionInheritedAgentPattern(singleAgentPattern) : false;
 	if (configuredAgentPatterns.length > 0) {
 		if (!agentInheritsSessionModel) return configuredAgentPatterns;
-		if (singleAgentPattern === "pi/task") return configuredAgentPatterns;
+		if (singleAgentPattern === "Builder") return configuredAgentPatterns;
 	}
 
 	const fallback =
@@ -653,8 +644,7 @@ export function extractExplicitThinkingSelector(
 	while (!visited.has(current)) {
 		visited.add(current);
 		const lastColonIndex = current.lastIndexOf(":");
-		const thinkingSelector =
-			lastColonIndex > PREFIX_MODEL_ROLE.length ? parseThinkingLevel(current.slice(lastColonIndex + 1)) : undefined;
+		const thinkingSelector = lastColonIndex > 0 ? parseThinkingLevel(current.slice(lastColonIndex + 1)) : undefined;
 		if (thinkingSelector) {
 			return thinkingSelector;
 		}
@@ -1322,12 +1312,12 @@ export async function restoreModelFromSession(
 }
 
 /**
- * Find a smol/fast model using the priority chain.
+ * Find an Explore model using the priority chain.
  * Tries exact matches first, then fuzzy matches.
  *
  * @param modelRegistry The model registry to search
  * @param savedModel Optional saved model string from settings (provider/modelId)
- * @returns The best available smol model, or undefined if none found
+ * @returns The best available Explore model, or undefined if none found
  */
 export async function findSmolModel(
 	modelRegistry: ModelLookupRegistry,
@@ -1343,7 +1333,7 @@ export async function findSmolModel(
 	}
 
 	// 2. Try priority chain
-	for (const pattern of MODEL_PRIO.smol) {
+	for (const pattern of MODEL_PRIO.Explore) {
 		// Try exact match with provider prefix
 		const providerMatch = availableModels.find(m => `${m.provider}/${m.id}`.toLowerCase() === pattern);
 		if (providerMatch) return providerMatch;
@@ -1362,12 +1352,12 @@ export async function findSmolModel(
 }
 
 /**
- * Find a slow/comprehensive model using the priority chain.
+ * Find a Reviewer model using the priority chain.
  * Prioritizes reasoning and codex models for thorough analysis.
  *
  * @param modelRegistry The model registry to search
  * @param savedModel Optional saved model string from settings (provider/modelId)
- * @returns The best available slow model, or undefined if none found
+ * @returns The best available Reviewer model, or undefined if none found
  */
 export async function findSlowModel(
 	modelRegistry: ModelLookupRegistry,
@@ -1383,7 +1373,7 @@ export async function findSlowModel(
 	}
 
 	// 2. Try priority chain
-	for (const pattern of MODEL_PRIO.slow) {
+	for (const pattern of MODEL_PRIO.Reviewer) {
 		// Try exact match first
 		const exactMatch = parseModelPattern(pattern, availableModels, undefined, { modelRegistry }).model;
 		if (exactMatch) return exactMatch;

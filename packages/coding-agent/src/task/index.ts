@@ -52,6 +52,7 @@ import {
 	type AgentProgress,
 	getTaskSchema,
 	type SingleResult,
+	subagentContractSchema,
 	type TaskParams,
 	type TaskToolDetails,
 	type TaskToolSchemaInstance,
@@ -432,6 +433,23 @@ function validateTaskModeParams(simpleMode: TaskSimpleMode, params: TaskParams):
 	return "task.simple is set to independent, so the task tool does not accept `context` or `schema`. Put all required background and output expectations inside each task assignment or the selected agent definition.";
 }
 
+function validateAndNormalizeTaskContracts(params: TaskParams): string | undefined {
+	for (let index = 0; index < (params.tasks ?? []).length; index++) {
+		const task = params.tasks[index];
+		if (!task.contract) continue;
+		const parsed = subagentContractSchema.safeParse(task.contract);
+		if (parsed.success) {
+			task.contract = parsed.data;
+			continue;
+		}
+		const issues = parsed.error.issues
+			.map(issue => `  - ${issue.path.length > 0 ? issue.path.join(".") : "contract"}: ${issue.message}`)
+			.join("\n");
+		return `Invalid structured contract for task ${task.id || index}:\n${issues}`;
+	}
+	return undefined;
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Tool Class
 // ═══════════════════════════════════════════════════════════════════════════
@@ -505,7 +523,7 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 	): Promise<AgentToolResult<TaskToolDetails>> {
 		const params = rawParams as TaskParams;
 		const simpleMode = this.#getTaskSimpleMode();
-		const validationError = validateTaskModeParams(simpleMode, params);
+		const validationError = validateTaskModeParams(simpleMode, params) ?? validateAndNormalizeTaskContracts(params);
 		if (validationError) {
 			return createTaskModeError(validationError);
 		}

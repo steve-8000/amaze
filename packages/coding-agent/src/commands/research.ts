@@ -35,7 +35,7 @@ export default class Research extends Command {
 		db: Flags.string({ description: "Path to autonomy SQLite database (default ~/.amaze/autonomy/autonomy.db)" }),
 		objective: Flags.string({ description: "Objective id (filter for list; link for brief)" }),
 		question: Flags.string({ description: "Research question (required for brief)" }),
-		lanes: Flags.string({ description: "Lanes for brief; comma-separated subset of repo,source,social,memory" }),
+		lanes: Flags.string({ description: "Lanes for brief; comma-separated subset of repo,source,social" }),
 		risk: Flags.string({ description: "Risk level for brief: low|medium|high" }),
 		required: Flags.string({ description: "Required evidence keywords (comma-separated)" }),
 		disallowed: Flags.string({ description: "Disallowed evidence keywords (comma-separated)" }),

@@ -144,7 +144,7 @@ describe("mission CLI", () => {
 				missions.createLaneRun({
 					missionId: fixture.mission.id,
 					lane: "repo",
-					agent: "explore",
+					agent: "Explore",
 					epistemicRole: "repo_truth",
 					status: "completed",
 					evidenceCount: 1,

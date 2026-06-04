@@ -1,4 +1,4 @@
-export const RESEARCH_LANES = ["repo", "source", "social", "memory"] as const;
+export const RESEARCH_LANES = ["repo", "source", "social"] as const;
 export type ResearchLane = (typeof RESEARCH_LANES)[number];
 
 export const EVIDENCE_GRADES = ["A", "B", "C", "D", "E"] as const;

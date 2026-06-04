@@ -16,14 +16,7 @@ export const MISSION_STATES = [
 ] as const;
 export type MissionState = (typeof MISSION_STATES)[number];
 
-export const EPISTEMIC_ROLES = [
-	"repo_truth",
-	"source_harvest",
-	"social_signal",
-	"memory_prior",
-	"synthesis",
-	"critic",
-] as const;
+export const EPISTEMIC_ROLES = ["repo_truth", "source_harvest", "social_signal", "synthesis", "critic"] as const;
 export type EpistemicRole = (typeof EPISTEMIC_ROLES)[number];
 
 export const MISSION_LANE_STATUSES = ["pending", "running", "completed", "empty", "failed", "aborted"] as const;

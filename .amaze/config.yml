@@ -1,0 +1,94 @@
+modelRoles:
+  default: openai-codex/gpt-5.5
+  Explore: openai-codex/gpt-5.5
+  Planner: openai-codex/gpt-5.5
+  Reviewer: openai-codex/gpt-5.5
+  Builder: openai-codex/gpt-5.5
+  Designer: openai-codex/gpt-5.5
+  Resercher: local-qwen36/dealignai/Qwen3.6-35B-A3B-MXFP4-CRACK-MTP
+  Resercher_X: xai/grok-4.3
+hideThinkingBlock: true
+localLlm:
+  enabled: true
+  required: false
+  modelRole: Resercher
+  structuredOutput: true
+  disableThinking: true
+  useForSourceScout: true
+  useForLogSummarizer: true
+  useForContextCompressor: false
+prompt:
+  mainContextMode: compact
+  cache:
+    orchestratorRetention: default
+    subagentRetention: short
+    subagentPrefixReuse: true
+compaction:
+  enabled: true
+  mode: map-reduce
+  strategy: context-full
+  thresholdPercent: 70
+  idleEnabled: true
+  remoteEnabled: false
+  mapReduceSectionTokenBudget: 4000
+  mapReduceMaxSections: 12
+  continuousDemotion:
+    enabled: true
+theme:
+  dark: erid
+mission:
+  # Disabled: auto-approve + auto-continuation were firing on an ambiently-promoted,
+  # misclassified mission (a pasted bash error became the objective), causing a
+  # runaway continuation loop. Re-enable only after continuation is restricted to
+  # explicitly-created missions.
+  autoApprove: false
+  continuation:
+    enabled: false
+tools:
+  # bash/eval/recipe are used in almost every task; keep them always-active instead
+  # of hidden behind search_tool_bm25 discovery (which also does not persist built-in
+  # activations across turns, so they kept disappearing).
+  essentialOverride: [read, find, search, edit, write, task, todo_write, todo_read, bash, eval, recipe, mem0_profile, mem0_search, mem0_conclude]
+memory:
+  backend: mem0
+  mem0:
+    baseUrl: http://127.0.0.1:8888
+    userId: amaze-user
+    agentId: amaze
+    topK: 5
+skills:
+  enableCodexUser: false
+  enableClaudeUser: false
+  includeSkills:
+    - clarify
+    - ideate
+    - spec
+    - api
+    - ui
+    - context
+    - source
+    - debug
+    - test
+    - review
+    - simplify
+    - security
+    - perf
+    - docs
+    - browser-control
+    - system-prompts
+    - sui-validater
+    - destructive-mission
+    - design-taste-frontend
+    - fp-validated
+    - design-skill-index
+    - design-brief
+    - frontend-design
+    - shadcn-ui
+    - platform-design
+    - apple-hig
+    - swiftui-design
+    - figma-implement-design
+    - figma-code-connect-components
+    - figma-create-design-system-rules
+    - roy-frontend
+    - fitbody-uiux

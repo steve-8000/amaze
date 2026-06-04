@@ -26,7 +26,7 @@ check: $count > 0
 - A destructive rebrand or quarantine mission is classified high risk and should immediately engage coordination gates.
 
 # How to Improve
-- Run `memory_scout` at session start so prior decisions on this surface are loaded.
+- Review existing project decision records before mutation so prior decisions on this surface are loaded.
 - Declare phases up front via `MissionRuntime.declarePhases` and gate each phase close on `verifyPhase` returning pass.
 - Use IRC (`irc` tool) for any cross-task assumption; broadcast assumptions with `to: "all"` and do not pick unilaterally.
 - Record locked decisions as `MissionWorldModelRecord(source="decision")` so they survive restarts; populate `mission.decisionId` so `LIFECYCLE_TEMPLATES[mission.intent].requireDecisionRecord` is satisfied.

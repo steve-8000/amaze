@@ -1129,6 +1129,7 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 			trackEvalExecution: (execution, abortController) =>
 				session ? session.trackEvalExecution(execution, abortController) : execution,
 			getSessionId: () => sessionManager.getSessionId?.() ?? null,
+			getTurnIndex: () => session?.turnIndex ?? null,
 			getAgentId: () => resolvedAgentId,
 			getSecretObfuscator: () => session?.getSecretObfuscator(),
 			getToolByName: name => session?.getToolByName(name),

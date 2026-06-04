@@ -1,5 +1,5 @@
 /**
- * Internal URL routing system for internal protocols like agent://, memory://,
+ * Internal URL routing system for internal protocols like agent://,
  * skill://, mcp://, and local://.
  *
  * One process-global `InternalUrlRouter` is shared across sessions. Handlers
@@ -14,7 +14,6 @@ export * from "./issue-pr-protocol";
 export * from "./json-query";
 export * from "./local-protocol";
 export * from "./mcp-protocol";
-export * from "./memory-protocol";
 export * from "./parse";
 export * from "./router";
 export * from "./rule-protocol";

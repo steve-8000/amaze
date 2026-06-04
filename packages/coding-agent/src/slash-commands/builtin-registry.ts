@@ -2,7 +2,7 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { getOAuthProviders } from "@amaze/ai/utils/oauth";
-import { Snowflake, setProjectDir } from "@amaze/utils";
+import { procmgr, Snowflake, setProjectDir } from "@amaze/utils";
 import { $ } from "bun";
 import type { SettingPath, SettingValue } from "../config/settings";
 import { settings } from "../config/settings";
@@ -21,9 +21,9 @@ import {
 } from "../extensibility/plugins/marketplace";
 import { resolveMemoryBackend } from "../memory-backend";
 import type { InteractiveModeContext } from "../modes/types";
-import { renderNexusStats, runNexusDoctorLive, runNexusExplain, runNexusSearch } from "../nexus/commands";
 import { getChangelogPath, parseChangelog } from "../utils/changelog";
 import { buildContextReportText } from "./helpers/context-report";
+import { handleDesignExtractCommand } from "./helpers/design-extract-command";
 import { formatDuration } from "./helpers/format";
 import { createMarketplaceManager } from "./helpers/marketplace-manager";
 import { handleMcpAcp } from "./helpers/mcp";
@@ -383,7 +383,10 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 				} catch (err) {
 					return usage(`Failed to export session: ${errorMessage(err)}`, runtime);
 				}
-				const result = await $`gh gist create --public=false ${tmpFile}`.quiet().nothrow();
+				const result = await $`gh gist create --public=false ${tmpFile}`
+					.env(procmgr.scrubProcessEnv(Bun.env))
+					.quiet()
+					.nothrow();
 				if (result.exitCode !== 0) {
 					return usage(
 						`Failed to create gist: ${result.stderr.toString("utf-8").trim() || "unknown error"}`,
@@ -973,15 +976,14 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 			{ name: "view", description: "Show current memory injection payload" },
 			{ name: "clear", description: "Clear persisted memory data and artifacts" },
 			{ name: "reset", description: "Alias for clear" },
-			{ name: "stats", description: "Show Nexus memory statistics" },
-			{ name: "search", description: "Search Nexus memory", usage: "<query>" },
-			{ name: "doctor", description: "Run Nexus memory doctor" },
+			{ name: "enqueue", description: "Force memory consolidation now" },
+			{ name: "search", description: "Search Hermes memory" },
+			{ name: "add", description: "Add a Hermes memory" },
 		],
 		allowArgs: true,
 		handle: async (command, runtime) => {
 			const parts = command.args.trim().split(/\s+/).filter(Boolean);
 			const verb = (parts[0] ?? "").toLowerCase() || "view";
-			const rest = command.args.trim().slice(verb.length).trim();
 			const backend = resolveMemoryBackend(runtime.settings);
 			switch (verb) {
 				case "view": {
@@ -1006,34 +1008,63 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 					await runtime.output("Memory consolidation enqueued.");
 					return commandConsumed();
 				}
-				case "stats": {
-					if (backend.id !== "nexus") return usage("Nexus backend is not active for this session.", runtime);
-					await runtime.output(renderNexusStats(runtime.settings.getAgentDir(), runtime.cwd, runtime.settings));
-					return commandConsumed();
-				}
 				case "search": {
-					if (!rest) return usage("Usage: /memory search <query>", runtime);
-					if (backend.id !== "nexus") return usage("Nexus backend is not active for this session.", runtime);
-					await runtime.output(
-						runNexusSearch(runtime.settings.getAgentDir(), runtime.cwd, runtime.settings, rest),
+					if (backend.id !== "hermes")
+						return usage("/memory search is only available when memory.backend is hermes.", runtime);
+					const query = parts.slice(1).join(" ").trim();
+					if (!query) return usage("Usage: /memory search <query>", runtime);
+					const { createHermesMemoryConfig, HermesMemoryRuntime } = await import("../memory-backend/hermes");
+					const rt = new HermesMemoryRuntime(
+						createHermesMemoryConfig({
+							settings: runtime.settings,
+							agentDir: runtime.settings.getAgentDir(),
+							cwd: runtime.cwd,
+						}),
 					);
+					try {
+						await rt.load();
+						const results = rt.search(query, { limit: 10 });
+						await runtime.output(
+							results.length
+								? results
+										.map(
+											entry =>
+												`- [${entry.target}${entry.category ? `/${entry.category}` : ""}] ${entry.content}`,
+										)
+										.join("\n")
+								: "No matching Hermes memories found.",
+						);
+					} finally {
+						rt.close();
+					}
 					return commandConsumed();
 				}
-				case "explain": {
-					if (!rest) return usage("Usage: /memory explain <id>", runtime);
-					if (backend.id !== "nexus") return usage("Nexus backend is not active for this session.", runtime);
-					await runtime.output(
-						runNexusExplain(runtime.settings.getAgentDir(), runtime.cwd, runtime.settings, rest),
+				case "add": {
+					if (backend.id !== "hermes")
+						return usage("/memory add is only available when memory.backend is hermes.", runtime);
+					const content = parts.slice(1).join(" ").trim();
+					if (!content) return usage("Usage: /memory add <text>", runtime);
+					const { createHermesMemoryConfig, HermesMemoryRuntime } = await import("../memory-backend/hermes");
+					const rt = new HermesMemoryRuntime(
+						createHermesMemoryConfig({
+							settings: runtime.settings,
+							agentDir: runtime.settings.getAgentDir(),
+							cwd: runtime.cwd,
+						}),
 					);
-					return commandConsumed();
-				}
-				case "doctor": {
-					if (backend.id !== "nexus") return usage("Nexus backend is not active for this session.", runtime);
-					await runtime.output(await runNexusDoctorLive(runtime.settings, runtime.cwd));
+					try {
+						await rt.load();
+						const result = await rt.add("memory", content);
+						await runtime.output(
+							result.success ? (result.message ?? "Memory added.") : (result.error ?? "Memory add failed."),
+						);
+					} finally {
+						rt.close();
+					}
 					return commandConsumed();
 				}
 				default:
-					return usage("Usage: /memory <view|clear|reset|enqueue|rebuild|stats|search|explain|doctor>", runtime);
+					return usage("Usage: /memory <view|clear|reset|enqueue|rebuild|search|add>", runtime);
 			}
 		},
 		handleTui: async (command, runtime) => {
@@ -1688,6 +1719,13 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 			// If a prompt was provided, pass it through as input
 			if (prompt) return { prompt };
 		},
+	},
+	{
+		name: "design-extract",
+		description: "Extract a site's design using the local design pipeline",
+		inlineHint: "<url> [--out dir] [--open]",
+		allowArgs: true,
+		handle: (command, runtime) => handleDesignExtractCommand(command.args, runtime),
 	},
 	{
 		name: "quit",

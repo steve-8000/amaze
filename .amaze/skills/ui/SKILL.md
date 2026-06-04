@@ -1,6 +1,11 @@
 ---
 name: ui
 description: Builds production-quality UIs. Use when building or modifying user-facing interfaces. Use when creating components, implementing layouts, managing state, or when the output needs to look and feel production-quality rather than AI-generated.
+labels:
+  - design.workflow.component-code
+  - design.workflow.accessibility
+  - design.workflow.component-catalog
+
 ---
 
 # Frontend UI Engineering

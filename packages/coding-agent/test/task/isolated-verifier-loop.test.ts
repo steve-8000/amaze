@@ -12,7 +12,7 @@ const runSubprocessMock = mock(
 		return {
 			index: options.index,
 			id: options.id,
-			agent: "task",
+			agent: "Builder",
 			agentSource: "test",
 			task: options.assignment,
 			assignment: options.assignment,

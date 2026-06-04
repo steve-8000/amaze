@@ -421,7 +421,7 @@ export class SelectorController {
 							this.ctx.showStatus(`Default model: ${selector ?? model.id}`);
 							// Don't call done() - selector stays open for role assignment
 						} else {
-							// Other roles (smol, slow): just update settings, not current model
+							// Other roles (Explore, Reviewer): just update settings, not current model
 							this.ctx.settings.setModelRole(
 								role,
 								formatModelSelectorValue(selector ?? `${model.provider}/${model.id}`, thinkingLevel),

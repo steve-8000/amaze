@@ -1,7 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { $which, logger, Snowflake } from "@amaze/utils";
+import { $which, logger, procmgr, Snowflake } from "@amaze/utils";
 import { $ } from "bun";
 
 export interface RecordingHandle {
@@ -25,7 +25,10 @@ export function detectRecordingTools(): string[] {
 // ── ffmpeg dshow device detection ──────────────────────────────────
 
 async function detectWindowsAudioDevice(): Promise<string> {
-	const result = await $`ffmpeg -f dshow -list_devices true -i dummy`.quiet().nothrow();
+	const result = await $`ffmpeg -f dshow -list_devices true -i dummy`
+		.env(procmgr.scrubProcessEnv(Bun.env))
+		.quiet()
+		.nothrow();
 	const output = result.stderr.toString();
 	const audioDevices: string[] = [];
 	const re = /"([^"]+)"\s*\(audio\)/gi;
@@ -46,6 +49,7 @@ async function startSoxRecording(outputPath: string): Promise<RecordingHandle> {
 	const inputArgs = isWindows ? ["-t", "waveaudio", "0"] : ["-d"];
 
 	const proc = Bun.spawn(["sox", ...inputArgs, "-r", "16000", "-c", "1", "-b", "16", "-t", "wav", outputPath], {
+		env: procmgr.scrubProcessEnv(Bun.env),
 		stdout: "pipe",
 		stderr: "ignore",
 	});
@@ -112,6 +116,7 @@ async function startFFmpegRecording(outputPath: string): Promise<RecordingHandle
 	}
 
 	const proc = Bun.spawn(args, {
+		env: procmgr.scrubProcessEnv(Bun.env),
 		stdin: "pipe",
 		stdout: "pipe",
 		stderr: "ignore",
@@ -135,6 +140,7 @@ async function startFFmpegRecording(outputPath: string): Promise<RecordingHandle
 
 async function startArecordRecording(outputPath: string): Promise<RecordingHandle> {
 	const proc = Bun.spawn(["arecord", "-f", "S16_LE", "-r", "16000", "-c", "1", outputPath], {
+		env: procmgr.scrubProcessEnv(Bun.env),
 		stdout: "pipe",
 		stderr: "ignore",
 	});
@@ -218,6 +224,7 @@ async function startPowerShellRecording(outputPath: string): Promise<RecordingHa
 	await Bun.write(scriptPath, PS_RECORD_SCRIPT);
 
 	const proc = Bun.spawn(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", scriptPath, outputPath], {
+		env: procmgr.scrubProcessEnv(Bun.env),
 		stdin: "pipe",
 		stdout: "pipe",
 		stderr: "ignore",

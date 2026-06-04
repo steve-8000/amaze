@@ -14,7 +14,7 @@ describe("MissionTaskDispatcher", () => {
 					result: {
 						index: 0,
 						id: "r1",
-						agent: "task",
+						agent: "Builder",
 						agentSource: "bundled",
 						task: task.title,
 						exitCode: 0,

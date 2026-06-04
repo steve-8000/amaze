@@ -248,7 +248,7 @@ describe("AgentSession python cleanup", () => {
 				cwd,
 				agentDir: tempDir,
 				sessionManager: SessionManager.inMemory(cwd),
-				settings: Settings.isolated({ "python.kernelMode": "session", "memory.backend": "local" }),
+				settings: Settings.isolated({ "python.kernelMode": "session" }),
 				model: getModel(),
 				disableExtensionDiscovery: true,
 				skills: [],

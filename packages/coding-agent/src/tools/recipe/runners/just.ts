@@ -1,6 +1,6 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { $which, isEnoent, logger } from "@amaze/utils";
+import { $which, isEnoent, logger, procmgr } from "@amaze/utils";
 import type { DetectedRunner, RunnerTask, TaskRunner } from "../runner";
 
 interface JustDumpRecipeRaw {
@@ -32,6 +32,7 @@ async function dumpJustTasks(cwd: string): Promise<RunnerTask[] | null> {
 	try {
 		const proc = Bun.spawn(["just", "--dump", "--dump-format=json"], {
 			cwd,
+			env: procmgr.scrubProcessEnv(Bun.env),
 			stdin: "ignore",
 			stdout: "pipe",
 			stderr: "pipe",

@@ -1,8 +1,8 @@
 ---
-name: x_researcher
+name: Resercher_X
 description: xAI Grok researcher for X/Twitter social-signal collection. Returns SocialSignalCards (signalType, postRefs, disagreement, verbatimAvailable). NEVER a truth source — only a signal source.
 tools: x_search, x_search_deep
-model: xai/grok-4.3
+model: Resercher_X
 thinking-level: med
 output:
   properties:

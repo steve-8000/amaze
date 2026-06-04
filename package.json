@@ -88,6 +88,8 @@
 		"stats": "bun --cwd=packages/coding-agent src/cli.ts stats",
 		"build": "bun run --workspaces --if-present build",
 		"build:native": "bun --cwd=packages/natives run build",
+		"amaze:build-local": "bun --cwd=packages/coding-agent run build && bun --cwd=packages/amaze run build",
+		"amaze:upgrade-local": "bun scripts/upgrade-local-amaze.ts",
 		"test": "bun run --parallel test:ts test:rs",
 		"test:ts": "bun run --workspaces --if-present test",
 		"test:ts:failed": "bun run --workspaces --if-present test -- --only-failures",

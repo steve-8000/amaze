@@ -1,5 +1,5 @@
 import { INTENT_FIELD } from "@amaze/agent-core";
-import { calculatePromptTokens } from "@amaze/agent-core/compaction/compaction";
+import { calculateContextTokens } from "@amaze/agent-core/compaction/compaction";
 import type { AssistantMessage, ImageContent } from "@amaze/ai";
 import { type Component, Loader, TERMINAL, Text } from "@amaze/tui";
 import { settings } from "../../config/settings";
@@ -756,7 +756,7 @@ export class EventController {
 			.slice()
 			.reverse()
 			.find((m): m is AssistantMessage => m.role === "assistant" && m.stopReason !== "aborted");
-		return lastAssistant?.usage ? calculatePromptTokens(lastAssistant.usage) : 0;
+		return lastAssistant?.usage ? calculateContextTokens(lastAssistant.usage) : 0;
 	}
 
 	sendCompletionNotification(): void {

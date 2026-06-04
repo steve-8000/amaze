@@ -2,6 +2,7 @@
  * SwiftLint CLI-based linter client.
  * Parses SwiftLint's JSON reporter output into LSP Diagnostic format.
  */
+import { procmgr } from "@amaze/utils";
 import type { Diagnostic, DiagnosticSeverity, LinterClient, ServerConfig } from "../../lsp/types";
 
 /** Shape of a single violation from `swiftlint lint --reporter json`. */
@@ -36,6 +37,7 @@ async function runSwiftLint(
 	try {
 		const proc = Bun.spawn([command, ...args], {
 			cwd,
+			env: procmgr.scrubProcessEnv(Bun.env),
 			stdout: "pipe",
 			stderr: "pipe",
 			windowsHide: true,

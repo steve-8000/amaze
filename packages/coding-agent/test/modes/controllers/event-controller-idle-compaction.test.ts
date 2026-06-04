@@ -4,21 +4,23 @@ import { resetSettingsForTest, Settings } from "@amaze/coding-agent/config/setti
 import { EventController } from "@amaze/coding-agent/modes/controllers/event-controller";
 import type { InteractiveModeContext } from "@amaze/coding-agent/modes/types";
 
-function createAssistantMessage(): AssistantMessage {
+function createAssistantMessage(usage: Partial<AssistantMessage["usage"]> = {}): AssistantMessage {
+	const completeUsage = {
+		input: 200,
+		output: 10,
+		cacheRead: 0,
+		cacheWrite: 0,
+		totalTokens: 210,
+		cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+		...usage,
+	};
 	return {
 		role: "assistant",
 		content: [{ type: "text", text: "done" }],
 		api: "anthropic-messages",
 		provider: "anthropic",
 		model: "claude-sonnet-4-5",
-		usage: {
-			input: 200,
-			output: 10,
-			cacheRead: 0,
-			cacheWrite: 0,
-			totalTokens: 210,
-			cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
-		},
+		usage: completeUsage,
 		stopReason: "stop",
 		timestamp: Date.now(),
 	};
@@ -75,5 +77,39 @@ describe("EventController idle compaction teardown", () => {
 		vi.advanceTimersByTime(60_000);
 
 		expect(runIdleCompaction).not.toHaveBeenCalled();
+	});
+
+	it("schedules idle compaction from total context tokens, not prompt-only tokens", async () => {
+		const runIdleCompaction = vi.fn();
+		const assistant = createAssistantMessage({ input: 80, output: 30, totalTokens: 110 });
+		const context = {
+			isInitialized: true,
+			isBackgrounded: false,
+			loadingAnimation: undefined,
+			streamingComponent: undefined,
+			streamingMessage: undefined,
+			pendingTools: new Map<string, unknown>(),
+			flushPendingModelSwitch: async () => {},
+			ui: { requestRender: vi.fn() },
+			chatContainer: { removeChild: vi.fn() },
+			statusContainer: { clear: vi.fn() },
+			statusLine: { invalidate: vi.fn() },
+			updateEditorTopBorder: vi.fn(),
+			editor: { getText: () => "" },
+			sessionManager: { getSessionName: () => undefined },
+			session: {
+				isCompacting: false,
+				isStreaming: false,
+				runIdleCompaction,
+				agent: { state: { messages: [assistant] } },
+			},
+		} as unknown as InteractiveModeContext;
+
+		const controller = new EventController(context);
+		await controller.handleEvent({ type: "agent_end", messages: [assistant] });
+		vi.advanceTimersByTime(60_000);
+
+		expect(runIdleCompaction).toHaveBeenCalledTimes(1);
+		controller.dispose();
 	});
 });

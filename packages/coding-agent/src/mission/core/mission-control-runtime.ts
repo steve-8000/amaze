@@ -19,6 +19,13 @@ export interface MissionControlDeps {
 	newId?: () => string;
 	/** Session event bus so mission lifecycle transitions are observable (board/replay/web). */
 	eventBus?: MissionEventBus;
+	/**
+	 * When this returns true, proposal-gated missions auto-attach an approved
+	 * proposal at creation/promotion so fully-autonomous Mission Control can
+	 * execute and auto-continue without a manual `/mission approve`. Defaults to
+	 * disabled (human approval checkpoint preserved).
+	 */
+	autoApproveProposals?: () => boolean;
 }
 
 export interface EnsureMissionInput {
@@ -81,6 +88,13 @@ export class MissionControlRuntime {
 	#driveInitialLifecycle(missionId: string, intent: MissionIntent): void {
 		try {
 			const requiresProposal = templateFor(intent).requireProposalBeforeMutation;
+			if (requiresProposal && this.#deps.autoApproveProposals?.()) {
+				// Fully-autonomous Mission Control: satisfy the proposal gate up front so
+				// mutations and auto-continuation proceed without a manual `/mission approve`.
+				// attachProposal advances the mission into `executing`.
+				this.#runtime.attachProposal(missionId, { approvedBy: "auto", summary: "Auto-approved (autonomous mode)" });
+				return;
+			}
 			this.#runtime.markLifecycle(missionId, requiresProposal ? "planning" : "executing");
 		} catch {
 			// Lifecycle bookkeeping must never break the user turn.

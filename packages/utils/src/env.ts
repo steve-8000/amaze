@@ -30,11 +30,18 @@ export function isSafeEnvValue(value: string): boolean {
 	return !value.includes("\0");
 }
 
+const MACOS_MALLOC_STACK_LOGGING_KEYS = new Set(["MallocStackLogging", "MallocStackLoggingNoCompact"]);
+
+export function isMacOSMallocStackLoggingEnv(key: string): boolean {
+	return MACOS_MALLOC_STACK_LOGGING_KEYS.has(key);
+}
+
 export function filterProcessEnv(env: Record<string, string | undefined>): Record<string, string> {
 	const result: Record<string, string> = {};
 	for (const key in env) {
 		const value = env[key];
-		if (!isSafeEnvName(key) || value === undefined || !isSafeEnvValue(value)) continue;
+		if (!isSafeEnvName(key) || value === undefined || !isSafeEnvValue(value) || isMacOSMallocStackLoggingEnv(key))
+			continue;
 		result[key] = value;
 	}
 	return result;
@@ -86,7 +93,7 @@ const projectEnv = parseEnvFile(path.join(process.cwd(), ".env"));
 
 for (const key of Object.keys(Bun.env)) {
 	const value = Bun.env[key];
-	if (!isSafeEnvName(key) || value === undefined || !isSafeEnvValue(value)) {
+	if (!isSafeEnvName(key) || value === undefined || !isSafeEnvValue(value) || isMacOSMallocStackLoggingEnv(key)) {
 		delete Bun.env[key];
 	}
 }

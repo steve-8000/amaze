@@ -1,8 +1,8 @@
 ---
-name: source_scout
+name: Resercher
 description: Low-reasoning web source harvester. Collects official docs, changelogs, papers, repos, issue threads. Returns SourceCards (sourceType, url, excerpt, claimCandidates). NEVER judges truth.
 tools: web_search, read
-model: pi/local_scout
+model: Resercher
 thinking-level: low
 output:
   properties:
