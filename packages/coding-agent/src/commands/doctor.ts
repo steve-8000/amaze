@@ -7,7 +7,7 @@
  *   amaze doctor security       — bash policy, settings, MCP/secret scan
  *   amaze doctor model          — modelRoles + agent overrides resolvability
  *   amaze doctor context        — compaction / prompt-cache / local-llm coherence
- *   amaze doctor local-llm      — local scout health
+ *   amaze doctor local-llm      — local LLM health
  *   amaze doctor config         — project config-loader sanity (.yml vs legacy .json)
  *
  * Each subcommand sets a non-zero exit code when its status is not `ok`,

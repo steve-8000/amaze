@@ -1,6 +1,6 @@
 ---
 name: Explore
-description: Fast read-only codebase scout returning compressed context for handoff. Repository facts only; no web access.
+description: Fast read-only repository explorer returning compressed context for handoff. Repository facts only; no web access.
 tools: read, search, find
 model: Explore
 thinking-level: med

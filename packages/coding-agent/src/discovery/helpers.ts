@@ -237,10 +237,14 @@ export function parseAgentFields(frontmatter: Record<string, unknown>): ParsedAg
 	let spawns: string[] | "*" | undefined;
 	if (frontmatter.spawns === "*") {
 		spawns = "*";
+	} else if (frontmatter.spawns === "") {
+		spawns = [];
 	} else if (typeof frontmatter.spawns === "string") {
 		const trimmed = frontmatter.spawns.trim();
 		if (trimmed === "*") {
 			spawns = "*";
+		} else if (trimmed === "") {
+			spawns = [];
 		} else {
 			spawns = parseArrayOrCSV(trimmed);
 		}

@@ -7,6 +7,18 @@ narration. A low-token parent orchestrator owns goals, todos, approvals, and
 integration; bounded subagents do detailed file work. Memory is durable context, not
 authority — guidance only.
 
+## Agent roles
+
+- **Default agent**: owns planning, Mission Control, task decomposition, integration, and final verification. Handle simple work directly without delegation.
+- **Builder**: owns delegated work that is not Researcher-only and not SRE/operations: implementation, refactors, repo debugging, tests, docs, and code investigation.
+- **Resercher**: GPT-5.3 Codex Spark search-only agent for web and X/Twitter research. Use for external facts, docs, issues, changelogs, and social signals. It may use browser control only when search/read are blocked or insufficient.
+- **SRE**: owns validator operations and deployment checks for k3s, Kubernetes, Docker, ArgoCD, pods, services, rollouts, runtime health, and related production operations.
+
+## Mission Control routing
+
+- When the Default agent receives an unfamiliar task, a task that requires external/web/X research, or a task where repository facts are insufficient, dispatch **Resercher** first before planning implementation.
+- Keep ownership boundaries simple: Default plans, decomposes, integrates, and verifies; Builder implements and investigates repository code; Resercher searches web/X/read and uses browser only when search/read are blocked or insufficient; SRE handles operations and deployments.
+
 ## Required verification
 
 - Run `bun run check:ts` before claiming TypeScript correctness.

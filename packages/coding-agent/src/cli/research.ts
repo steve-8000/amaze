@@ -504,9 +504,8 @@ function writeJson(value: unknown): void {
 }
 
 function agentForLane(lane: ResearchLane): string {
-	if (lane === "repo") return "Explore";
-	if (lane === "source") return "Resercher";
-	return "Resercher_X";
+	if (lane === "social") return "Resercher_X";
+	return "Resercher";
 }
 
 function epistemicRoleForLane(lane: ResearchLane): EpistemicRole {

@@ -496,12 +496,15 @@ export function parseModelPattern(
 }
 const DEFAULT_MODEL_ROLE = "default";
 
-function getModelRoleAlias(value: string): string | undefined {
+function getModelRoleAlias(value: string, settings?: Settings): string | undefined {
 	const normalized = value.trim();
-	if (normalized === DEFAULT_MODEL_ROLE) return DEFAULT_MODEL_ROLE;
+	const roleCandidate = normalized.startsWith("pi/") ? normalized.slice("pi/".length) : normalized;
+	if (!roleCandidate) return undefined;
+	if (roleCandidate === DEFAULT_MODEL_ROLE) return DEFAULT_MODEL_ROLE;
 	for (const role of MODEL_ROLE_IDS) {
-		if (normalized === role) return role;
+		if (roleCandidate === role) return role;
 	}
+	if (settings?.getModelRole(roleCandidate)?.trim()) return roleCandidate;
 	return undefined;
 }
 
@@ -522,8 +525,8 @@ function resolveConfiguredRolePattern(value: string, settings?: Settings): strin
 	const lastColonIndex = normalized.lastIndexOf(":");
 	const thinkingLevel = lastColonIndex > 0 ? parseThinkingLevel(normalized.slice(lastColonIndex + 1)) : undefined;
 	const aliasCandidate = thinkingLevel ? normalized.slice(0, lastColonIndex) : normalized;
-	const role = getModelRoleAlias(aliasCandidate);
-	if (!role) return [normalized];
+	const role = getModelRoleAlias(aliasCandidate, settings);
+	if (!role) return aliasCandidate.startsWith("pi/") ? undefined : [normalized];
 
 	const configured = settings?.getModelRole(role)?.trim();
 	const roleDefaults = normalizeModelPatternList(MODEL_PRIO[role as keyof typeof MODEL_PRIO]);

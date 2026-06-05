@@ -13,7 +13,6 @@ export function getLocalLlmConfig(settings: Settings): LocalLlmRuntimeConfig {
 		maxInputTokens: settings.get("localLlm.maxInputTokens"),
 		maxOutputTokens: settings.get("localLlm.maxOutputTokens"),
 		timeoutMs: settings.get("localLlm.timeoutMs"),
-		useForSourceScout: settings.get("localLlm.useForSourceScout"),
 		useForLogSummarizer: settings.get("localLlm.useForLogSummarizer"),
 		useForContextCompressor: settings.get("localLlm.useForContextCompressor"),
 	};
@@ -22,8 +21,6 @@ export function getLocalLlmConfig(settings: Settings): LocalLlmRuntimeConfig {
 export function isLocalLlmUseCaseEnabled(config: LocalLlmRuntimeConfig, useCase: LocalLlmUseCase): boolean {
 	if (!config.enabled) return false;
 	switch (useCase) {
-		case "Resercher":
-			return config.useForSourceScout;
 		case "log_summarizer":
 			return config.useForLogSummarizer;
 		case "context_compressor":
@@ -33,8 +30,4 @@ export function isLocalLlmUseCaseEnabled(config: LocalLlmRuntimeConfig, useCase:
 
 export function getLocalLlmRoleAlias(config: Pick<LocalLlmRuntimeConfig, "modelRole">): string {
 	return config.modelRole.trim() || LOCAL_LLM_MODEL_ROLE;
-}
-
-export function isLocalScoutAgent(agentName: string): agentName is "Resercher" {
-	return agentName === "Resercher";
 }

@@ -6,22 +6,15 @@
 import { Effort } from "@amaze/ai";
 import { parseFrontmatter, prompt } from "@amaze/utils";
 import { parseAgentFields } from "../discovery/helpers";
-import exploreMd from "../prompts/agents/explore.md" with { type: "text" };
-// Embed agent markdown files at build time
 import agentFrontmatterTemplate from "../prompts/agents/frontmatter.md" with { type: "text" };
-import planMd from "../prompts/agents/plan.md" with { type: "text" };
-import reviewerMd from "../prompts/agents/reviewer.md" with { type: "text" };
-import sourceScoutMd from "../prompts/agents/source-scout.md" with { type: "text" };
 import taskMd from "../prompts/agents/task.md" with { type: "text" };
-import visualQaMd from "../prompts/agents/visual-qa.md" with { type: "text" };
-import xResearcherMd from "../prompts/agents/x-researcher.md" with { type: "text" };
 
 import type { AgentDefinition, AgentSource } from "./types";
 
 interface AgentFrontmatter {
 	name: string;
 	description: string;
-	tools?: string[];
+	tools?: string | string[];
 	spawns?: string;
 	model?: string | string[];
 	thinkingLevel?: string;
@@ -41,20 +34,38 @@ function buildAgentContent(def: EmbeddedAgentDef): string {
 }
 
 const EMBEDDED_AGENT_DEFS: EmbeddedAgentDef[] = [
-	{ fileName: "explore.md", template: exploreMd },
-	{ fileName: "plan.md", template: planMd },
-	{ fileName: "reviewer.md", template: reviewerMd },
-	{ fileName: "x-researcher.md", template: xResearcherMd },
-	{ fileName: "visual-qa.md", template: visualQaMd },
-	{ fileName: "source-scout.md", template: sourceScoutMd },
 	{
 		fileName: "builder.md",
 		frontmatter: {
 			name: "Builder",
 			description:
-				"General-purpose implementation agent with full capabilities for delegated multi-step repository work",
+				"Handles all delegated work that is not research-only and not SRE/operations: implementation, refactors, debugging, tests, docs, and repo investigation.",
 			spawns: "*",
 			model: "Builder",
+			thinkingLevel: Effort.Medium,
+		},
+		template: taskMd,
+	},
+	{
+		fileName: "researcher.md",
+		frontmatter: {
+			name: "Resercher",
+			description:
+				"GPT-5.3 Codex Spark search-only researcher for web and X/Twitter. Use for external facts, docs, issues, changelogs, and social signals; browser only when search/read are blocked.",
+			tools: "web_search, x_search, x_search_deep, read, browser",
+			model: "Resercher",
+			thinkingLevel: Effort.Low,
+		},
+		template: taskMd,
+	},
+	{
+		fileName: "sre.md",
+		frontmatter: {
+			name: "SRE",
+			description:
+				"Validator operations and deployment-check specialist for k3s, Kubernetes, Docker, ArgoCD, pods, services, rollout health, and production/runtime operations.",
+			spawns: "",
+			model: "SRE",
 			thinkingLevel: Effort.Medium,
 		},
 		template: taskMd,

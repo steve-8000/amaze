@@ -1,5 +1,5 @@
 /**
- * `amaze doctor local-llm` — local scout role health.
+ * `amaze doctor local-llm` — local LLM health.
  *
  * Reuses the local-llm health resolver and adapts its availability report to the
  * doctor subcommand's status model.

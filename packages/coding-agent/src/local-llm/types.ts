@@ -1,6 +1,6 @@
 import type { Usage } from "@amaze/ai";
 
-export type LocalLlmUseCase = "Resercher" | "log_summarizer" | "context_compressor";
+export type LocalLlmUseCase = "log_summarizer" | "context_compressor";
 export type LocalEvidenceConfidence = "low" | "medium" | "high";
 
 export interface LocalLlmRuntimeConfig {
@@ -12,7 +12,6 @@ export interface LocalLlmRuntimeConfig {
 	maxInputTokens: number;
 	maxOutputTokens: number;
 	timeoutMs: number;
-	useForSourceScout: boolean;
 	useForLogSummarizer: boolean;
 	useForContextCompressor: boolean;
 }

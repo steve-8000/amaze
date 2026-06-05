@@ -1377,16 +1377,17 @@ export const SETTINGS_SCHEMA = {
 		},
 	},
 
-	// Local LLM Resercher prepass. Model selection is role-based so projects can
-	// point Resercher at vLLM, Ollama, LM Studio, llama.cpp, or any compatible
-	// local endpoint without hardcoding a model id in task routing.
+	// Local LLM prepass. Model selection is role-based so projects can point
+	// summarization and compression prepasses at vLLM, Ollama, LM Studio,
+	// llama.cpp, or any compatible local endpoint without hardcoding a model id.
 	"localLlm.enabled": {
 		type: "boolean",
 		default: false,
 		ui: {
 			tab: "context",
 			label: "Local LLM Prepass",
-			description: "Use a configurable local model role for scout/compression prepasses before remote reasoning.",
+			description:
+				"Use a configurable local model role for summarization/compression prepasses before remote reasoning.",
 		},
 	},
 	"localLlm.required": { type: "boolean", default: false },
@@ -1396,7 +1397,6 @@ export const SETTINGS_SCHEMA = {
 	"localLlm.maxInputTokens": { type: "number", default: 12000 },
 	"localLlm.maxOutputTokens": { type: "number", default: 1200 },
 	"localLlm.timeoutMs": { type: "number", default: 30000 },
-	"localLlm.useForSourceScout": { type: "boolean", default: true },
 	"localLlm.useForLogSummarizer": { type: "boolean", default: true },
 	"localLlm.useForContextCompressor": { type: "boolean", default: true },
 
@@ -3074,7 +3074,6 @@ export interface LocalLlmSettings {
 	maxInputTokens: number;
 	maxOutputTokens: number;
 	timeoutMs: number;
-	useForSourceScout: boolean;
 	useForLogSummarizer: boolean;
 	useForContextCompressor: boolean;
 }

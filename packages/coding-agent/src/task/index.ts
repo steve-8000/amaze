@@ -21,7 +21,6 @@ import { $env, logger, prompt, Snowflake } from "@amaze/utils";
 import type { ToolSession } from "..";
 import { AsyncJobManager } from "../async";
 import { resolveAgentModelPatterns } from "../config/model-resolver";
-import { getLocalLlmConfig, getLocalLlmRoleAlias, isLocalLlmUseCaseEnabled, isLocalScoutAgent } from "../local-llm";
 import { MCPManager } from "../mcp/manager";
 import { MissionStore, resolveMission } from "../mission/store";
 import type { MissionTaskAttemptCheckpoint } from "../mission/types";
@@ -872,13 +871,7 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 
 		// Apply per-agent model override from settings (highest priority)
 		const agentModelOverrides = this.session.settings.get("task.agentModelOverrides");
-		const configuredModelOverride = agentModelOverrides[agentName];
-		const localLlmConfig = getLocalLlmConfig(this.session.settings);
-		const localScoutOverride =
-			isLocalScoutAgent(agentName) && isLocalLlmUseCaseEnabled(localLlmConfig, agentName)
-				? getLocalLlmRoleAlias(localLlmConfig)
-				: undefined;
-		const settingsModelOverride = configuredModelOverride ?? localScoutOverride;
+		const settingsModelOverride = agentModelOverrides[agentName];
 		const parentActiveModelPattern = this.session.getActiveModelString?.();
 		const modelOverride = resolveAgentModelPatterns({
 			settingsOverride: settingsModelOverride,

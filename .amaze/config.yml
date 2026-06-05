@@ -5,8 +5,9 @@ modelRoles:
   Reviewer: openai-codex/gpt-5.5
   Builder: openai-codex/gpt-5.5
   Designer: openai-codex/gpt-5.5
-  Resercher: local-qwen36/dealignai/Qwen3.6-35B-A3B-MXFP4-CRACK-MTP
-  Resercher_X: xai/grok-4.3
+  Resercher: openai-codex/gpt-5.3-codex-spark
+  Resercher_X: openai-codex/gpt-5.3-codex-spark
+  SRE: openai-codex/gpt-5.5
 hideThinkingBlock: true
 localLlm:
   enabled: true
@@ -14,7 +15,6 @@ localLlm:
   modelRole: Resercher
   structuredOutput: true
   disableThinking: true
-  useForSourceScout: true
   useForLogSummarizer: true
   useForContextCompressor: false
 prompt:
@@ -44,6 +44,8 @@ mission:
   autoApprove: false
   continuation:
     enabled: false
+task:
+  disabledAgents: []
 tools:
   # bash/eval/recipe are used in almost every task; keep them always-active instead
   # of hidden behind search_tool_bm25 discovery (which also does not persist built-in

@@ -237,7 +237,7 @@ async function handleJsonRpc(request: JsonRpcRequest): Promise<void> {
 				writeResult(request.id, {
 					protocolVersion: "2025-03-26",
 					capabilities: { tools: {} },
-					serverInfo: { name: "amaze-browser-bridge", version: "2.1.0" },
+					serverInfo: { name: "amaze-browser-bridge", version: "2.2.0" },
 				});
 				return;
 			case "tools/list":
