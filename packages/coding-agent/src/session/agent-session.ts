@@ -1208,6 +1208,7 @@ export class AgentSession {
 			},
 			getActiveMissionId: () => this.#activeMissionId,
 			autoApproveProposals: () => this.settings.get("mission.autoApprove") === true,
+			autonomyProfile: () => this.settings.get("mission.autonomyProfile"),
 		});
 		this.#missionStoreInstance = this.#missionBinding.store;
 		this.#missionControl = this.#missionBinding.runtime;

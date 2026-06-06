@@ -9,8 +9,11 @@
  */
 
 import { templateFor } from "../core/lifecycle-template";
-import type { Mission, MissionLifecycleState, MissionVerification } from "../core/mission";
+import type { Mission, MissionLifecycleState, MissionReview, MissionVerification } from "../core/mission";
 import type { ContinuationStatus, MissionContinuationRecord } from "./types";
+
+export const MISSION_AUTONOMY_PROFILES = ["manual", "balanced", "autonomous", "strict"] as const;
+export type MissionAutonomyProfile = (typeof MISSION_AUTONOMY_PROFILES)[number];
 
 /** Mission lifecycle states that are terminal and never auto-resume. */
 export const TERMINAL_LIFECYCLES: ReadonlySet<MissionLifecycleState> = new Set([
@@ -29,6 +32,36 @@ export function verificationVerdict(
 	if (verification.status === "pass" || verification.status === "force") return "pass";
 	if (verification.status === "fail") return "fail";
 	return "pending";
+}
+
+/** Normalize a source-review record to its effective verdict. */
+export function reviewVerdict(review: MissionReview | undefined): MissionReview["verdict"] | undefined {
+	if (!review) return undefined;
+	return review.verdict;
+}
+
+function nonMarkdownSourceCount(files: string[] | undefined): number {
+	return files?.filter(path => !/\.md$/i.test(path.trim())).length ?? 0;
+}
+
+const REVIEW_REQUIRED_INTENTS = new Set<Mission["intent"]>([
+	"architecture_change",
+	"runtime_refactor",
+	"release_hardening",
+]);
+
+export interface MissionAcceptancePolicy {
+	autonomyProfile?: MissionAutonomyProfile;
+	requireReview?: boolean;
+}
+
+function shouldRequireReview(mission: Mission, policy: MissionAcceptancePolicy): boolean {
+	if (policy.requireReview !== undefined) return policy.requireReview;
+	const profile = policy.autonomyProfile ?? "balanced";
+	if (profile === "strict") {
+		return templateFor(mission.intent ?? "conversation").requireReview === true;
+	}
+	return mission.riskLevel === "high" || REVIEW_REQUIRED_INTENTS.has(mission.intent);
 }
 
 /**
@@ -53,7 +86,10 @@ export interface MissionAcceptancePreflight {
  * continuation runtime (design doc completion semantics: only one acceptance
  * policy).
  */
-export function buildAcceptancePreflight(mission: Mission): MissionAcceptancePreflight {
+export function buildAcceptancePreflight(
+	mission: Mission,
+	policy: MissionAcceptancePolicy = {},
+): MissionAcceptancePreflight {
 	const template = templateFor(mission.intent ?? "conversation");
 	const missingGates: string[] = [];
 	if (template.requireDecisionRecord && !mission.decisionId) missingGates.push("decisionId");
@@ -63,6 +99,12 @@ export function buildAcceptancePreflight(mission: Mission): MissionAcceptancePre
 	const verdict = verificationVerdict(mission.verification);
 	if (template.requireVerification && verdict !== "pass") {
 		missingGates.push("verification.verdict=pass");
+	}
+	if (
+		shouldRequireReview(mission, policy) &&
+		(reviewVerdict(mission.review) !== "pass" || nonMarkdownSourceCount(mission.review?.sourceFiles) === 0)
+	) {
+		missingGates.push("review.verdict=pass");
 	}
 	const unverifiedPhases = (mission.phases ?? []).filter(p => p.status !== "verified").map(p => p.name);
 	const force = mission.verification?.status === "force";
@@ -96,6 +138,8 @@ export interface ContinuationDecisionInput {
 	maxAutoTurns: number;
 	/** Consecutive no-progress generations before pausing. <= 0 disables. */
 	noProgressLimit: number;
+	/** Active autonomy profile for risk-adaptive acceptance gates. Defaults to balanced. */
+	autonomyProfile?: MissionAutonomyProfile;
 }
 
 /**
@@ -106,7 +150,8 @@ export interface ContinuationDecisionInput {
  * perform IO (ledger CAS, sendMessage) based on the returned action.
  */
 export function classifyContinuation(input: ContinuationDecisionInput): ContinuationAction {
-	const { mission, record, hasPendingUserMessage, needsProposal, maxAutoTurns, noProgressLimit } = input;
+	const { mission, record, hasPendingUserMessage, needsProposal, maxAutoTurns, noProgressLimit, autonomyProfile } =
+		input;
 
 	if (!mission) return { kind: "none", reason: "no_active_mission" };
 
@@ -114,6 +159,10 @@ export function classifyContinuation(input: ContinuationDecisionInput): Continua
 		const status: ContinuationStatus = mission.lifecycle === "completed" ? "completed" : "blocked";
 		return { kind: "observe-terminal", status, reason: `mission_${mission.lifecycle}` };
 	}
+
+	// Ambient auto-promoted missions are not eligible for hidden continuation.
+	// Explicit mission commands/create flows use interactive/autonomous modes.
+	if (mission.mode === "auto") return { kind: "none", reason: "auto_mission_not_continuable" };
 
 	// Sticky non-schedulable ledger statuses survive until user/policy changes them.
 	if (record?.status === "paused") return { kind: "hold", status: "paused", reason: "continuation_paused" };
@@ -141,7 +190,7 @@ export function classifyContinuation(input: ContinuationDecisionInput): Continua
 		return { kind: "hold", status: "paused", reason: "no_progress_limit" };
 	}
 
-	const preflight = buildAcceptancePreflight(mission);
+	const preflight = buildAcceptancePreflight(mission, { autonomyProfile });
 	if (preflight.passes) {
 		// Acceptance is satisfied but no terminal outcome exists yet. Per the design
 		// doc, the runtime must NOT fabricate an outcome — it schedules a turn whose
@@ -169,6 +218,9 @@ export function progressFingerprint(mission: Mission): string {
 		`proposal=${mission.proposalId ?? ""}`,
 		`verifyVerdict=${verificationVerdict(mission.verification) ?? ""}`,
 		`verifySummary=${mission.verification?.summary ?? ""}`,
+		`reviewVerdict=${reviewVerdict(mission.review) ?? ""}`,
+		`reviewSummary=${mission.review?.summary ?? ""}`,
+		`reviewSourceFiles=${mission.review?.sourceFiles.join(",") ?? ""}`,
 		`outcome=${mission.outcome?.summary ?? ""}`,
 		`phases=${(mission.phases ?? []).map(p => `${p.id}:${p.status}`).join(",")}`,
 		`tasks=${mission.tasks.map(t => `${t.id}:${t.status}`).join(",")}`,

@@ -1,6 +1,6 @@
 import type { RiskLevel } from "../../research/types";
 import type { MissionIntent } from "../policy/intent";
-import type { Mission, MissionLifecycleState, MissionPlan, MissionVerification } from "./mission";
+import type { Mission, MissionLifecycleState, MissionPlan, MissionReview, MissionVerification } from "./mission";
 import type { MissionInput } from "./mission-input";
 import type { MissionOutcome } from "./mission-outcome";
 import type { MissionPhase, MissionPhaseInput } from "./mission-phase";
@@ -133,6 +133,9 @@ export interface MissionRuntime {
 
 	/** Record an ambient verification verdict against a mission without changing lifecycle. */
 	recordVerification(missionId: string, verification: MissionVerification): Mission;
+
+	/** Record a whole-source review verdict against a mission without changing lifecycle. */
+	recordReview(missionId: string, review: MissionReview): Mission;
 	/** Block the mission pending external input. */
 	block(missionId: string, options: MissionBlockOptions): Promise<Mission>;
 

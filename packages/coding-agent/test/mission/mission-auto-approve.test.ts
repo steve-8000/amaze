@@ -7,7 +7,10 @@ import type { ToolDescriptor, ToolExecutionContext } from "../../src/tools/regis
 const stores: MissionStore[] = [];
 const writeDescriptor = { name: "write" } as ToolDescriptor;
 
-function createRuntime(autoApprove: boolean) {
+function createRuntime(
+	autoApprove: boolean,
+	autonomyProfile: "manual" | "balanced" | "autonomous" | "strict" = "balanced",
+) {
 	const store = new MissionStore(":memory:");
 	stores.push(store);
 	let activeMissionId: string | undefined;
@@ -18,6 +21,7 @@ function createRuntime(autoApprove: boolean) {
 		},
 		getActiveMissionId: () => activeMissionId,
 		autoApproveProposals: () => autoApprove,
+		autonomyProfile: () => autonomyProfile,
 	});
 	return { runtime, store };
 }
@@ -46,8 +50,8 @@ describe("Mission Control auto-approve", () => {
 		expect(decision.code).toBe("PROPOSAL_REQUIRED");
 	});
 
-	test("on: a runtime_refactor mission auto-attaches a proposal, clears the gate, and enters executing", async () => {
-		const { runtime } = createRuntime(true);
+	test("autonomous profile: a runtime_refactor mission auto-attaches a proposal, clears the gate, and enters executing", async () => {
+		const { runtime } = createRuntime(true, "autonomous");
 		const mission = await runtime.createMission({
 			title: "Refactor runtime",
 			objective: "Refactor the runtime",
@@ -66,6 +70,24 @@ describe("Mission Control auto-approve", () => {
 		expect(decision.allowed).toBe(true);
 
 		// Sanity: the mission id is stable and active.
+		expect(runtime.getActiveMission()?.id).toBe(mission.id);
+	});
+
+	test("autonomous profile: an ambient-promoted proposal-gated mission is not auto-approved", async () => {
+		const { runtime } = createRuntime(true, "autonomous");
+		const mission = await runtime.promoteFromAmbient({
+			triggeringTool: "write",
+			objective: "Refactor the runtime through a mutation tool",
+		});
+
+		expect(runtime.activeMissionNeedsProposal()).toBe(true);
+		expect(runtime.getActiveMission()?.proposalId).toBeUndefined();
+		expect(runtime.getActiveMission()?.lifecycle).toBe("planning");
+
+		const gate = new MissionPolicyGate({ missionControl: runtime });
+		const decision = gate.check(writeDescriptor, subagentCtx, "HIGH");
+		expect(decision.allowed).toBe(false);
+		expect(decision.code).toBe("PROPOSAL_REQUIRED");
 		expect(runtime.getActiveMission()?.id).toBe(mission.id);
 	});
 

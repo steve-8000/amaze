@@ -33,6 +33,7 @@ import {
 	type MissionLaneStatus,
 	type MissionPhaseRecord,
 	type MissionPhaseVerificationRecord,
+	type MissionReviewRecord,
 	type MissionRollbackRecord,
 	type MissionState,
 	type MissionTaskAttemptCheckpoint,
@@ -46,6 +47,7 @@ import {
 	type NewMissionLaneRun,
 	type NewMissionPhaseRecord,
 	type NewMissionPhaseVerificationRecord,
+	type NewMissionReviewRecord,
 	type NewMissionRollbackRecord,
 	type NewMissionTaskAttemptCheckpoint,
 	type NewMissionVerificationRecord,
@@ -187,6 +189,22 @@ const MIGRATIONS: StoreMigration[] = [
 				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
 			);
 			CREATE INDEX IF NOT EXISTS mission_verifications_mission_idx ON mission_verifications(mission_id);
+
+			CREATE TABLE IF NOT EXISTS mission_reviews (
+				id TEXT PRIMARY KEY,
+				mission_id TEXT NOT NULL,
+				status TEXT NOT NULL,
+				verdict TEXT NOT NULL,
+				failed_count INTEGER NOT NULL,
+				uncertain_count INTEGER NOT NULL,
+				summary TEXT NOT NULL,
+				source_files_json TEXT NOT NULL CHECK (json_valid(source_files_json)),
+				excluded_markdown_files_json TEXT NOT NULL CHECK (json_valid(excluded_markdown_files_json)),
+				created_at INTEGER NOT NULL,
+				reviewed_at INTEGER NOT NULL,
+				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
+			);
+			CREATE INDEX IF NOT EXISTS mission_reviews_mission_idx ON mission_reviews(mission_id);
 
 			CREATE TABLE IF NOT EXISTS mission_task_attempt_checkpoints (
 				id TEXT PRIMARY KEY,
@@ -398,6 +416,29 @@ const MIGRATIONS: StoreMigration[] = [
 			`);
 		},
 	},
+	{
+		version: 4,
+		description: "add mission review verdicts",
+		up: db => {
+			db.exec(`
+			CREATE TABLE IF NOT EXISTS mission_reviews (
+				id TEXT PRIMARY KEY,
+				mission_id TEXT NOT NULL,
+				status TEXT NOT NULL,
+				verdict TEXT NOT NULL,
+				failed_count INTEGER NOT NULL,
+				uncertain_count INTEGER NOT NULL,
+				summary TEXT NOT NULL,
+				source_files_json TEXT NOT NULL CHECK (json_valid(source_files_json)),
+				excluded_markdown_files_json TEXT NOT NULL CHECK (json_valid(excluded_markdown_files_json)),
+				created_at INTEGER NOT NULL,
+				reviewed_at INTEGER NOT NULL,
+				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
+			);
+			CREATE INDEX IF NOT EXISTS mission_reviews_mission_idx ON mission_reviews(mission_id);
+			`);
+		},
+	},
 ];
 
 function ensureColumn(db: Database, table: string, column: string, definition: string): void {
@@ -498,6 +539,20 @@ type MissionVerificationRow = {
 	uncertain_count: number;
 	summary: string;
 	created_at: number;
+};
+
+type MissionReviewRow = {
+	id: string;
+	mission_id: string;
+	status: MissionReviewRecord["status"];
+	verdict: MissionReviewRecord["verdict"];
+	failed_count: number;
+	uncertain_count: number;
+	summary: string;
+	source_files_json: string;
+	excluded_markdown_files_json: string;
+	created_at: number;
+	reviewed_at: number;
 };
 
 type MissionRollbackRow = {
@@ -1178,6 +1233,50 @@ export class MissionStore {
 			.query("SELECT * FROM mission_verifications WHERE mission_id = ? ORDER BY created_at DESC, id DESC LIMIT 1")
 			.get(missionId) as MissionVerificationRow | null;
 		return row ? rowToVerification(row) : undefined;
+	}
+
+	recordReview(input: NewMissionReviewRecord): MissionReviewRecord {
+		if (!this.getMission(input.missionId)) throw new Error(`Mission not found: ${input.missionId}`);
+		const now = input.createdAt ?? Date.now();
+		const record: MissionReviewRecord = {
+			...input,
+			id: input.id ?? generateId("review", now),
+			sourceFiles: [...input.sourceFiles],
+			excludedMarkdownFiles: [...input.excludedMarkdownFiles],
+			createdAt: now,
+		};
+		this.#tx(() => {
+			this.#db
+				.query(
+					`INSERT INTO mission_reviews
+					(id, mission_id, status, verdict, failed_count, uncertain_count, summary,
+					 source_files_json, excluded_markdown_files_json, created_at, reviewed_at)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				)
+				.run(
+					record.id,
+					record.missionId,
+					record.status,
+					record.verdict,
+					record.failedCount,
+					record.uncertainCount,
+					record.summary,
+					JSON.stringify(record.sourceFiles),
+					JSON.stringify(record.excludedMarkdownFiles),
+					record.createdAt,
+					record.reviewedAt,
+				);
+			this.#bumpRevision(input.missionId);
+		});
+
+		return record;
+	}
+
+	getLatestReview(missionId: string): MissionReviewRecord | undefined {
+		const row = this.#db
+			.query("SELECT * FROM mission_reviews WHERE mission_id = ? ORDER BY created_at DESC, id DESC LIMIT 1")
+			.get(missionId) as MissionReviewRow | null;
+		return row ? rowToReview(row) : undefined;
 	}
 
 	recordTaskAttemptCheckpoint(input: NewMissionTaskAttemptCheckpoint): MissionTaskAttemptCheckpoint {
@@ -2223,6 +2322,22 @@ function rowToVerification(row: MissionVerificationRow): MissionVerificationReco
 		uncertainCount: row.uncertain_count,
 		summary: row.summary,
 		createdAt: row.created_at,
+	};
+}
+
+function rowToReview(row: MissionReviewRow): MissionReviewRecord {
+	return {
+		id: row.id,
+		missionId: row.mission_id,
+		status: row.status,
+		verdict: row.verdict,
+		failedCount: row.failed_count,
+		uncertainCount: row.uncertain_count,
+		summary: row.summary,
+		sourceFiles: parseStringArray(row.source_files_json, "source_files_json"),
+		excludedMarkdownFiles: parseStringArray(row.excluded_markdown_files_json, "excluded_markdown_files_json"),
+		createdAt: row.created_at,
+		reviewedAt: row.reviewed_at,
 	};
 }
 

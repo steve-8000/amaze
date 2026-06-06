@@ -1,5 +1,5 @@
 import type { ConfidenceLevel, RiskLevel } from "../../research/types";
-import { buildAcceptancePreflight } from "../continuation/policy";
+import { buildAcceptancePreflight, type MissionAutonomyProfile } from "../continuation/policy";
 import type { MissionEventBus } from "../event-bus";
 import { defaultMissionClassifier, toCoreRiskLevel } from "../policy";
 import { MissionStore } from "../store";
@@ -10,6 +10,7 @@ import type {
 	MissionLifecycleState,
 	MissionPlan,
 	MissionPlanStep,
+	MissionReview,
 	MissionTask,
 	MissionVerification,
 } from "./mission";
@@ -192,12 +193,30 @@ function verificationVerdict(
 	return "pending";
 }
 
+function isMarkdownPath(path: string): boolean {
+	return /\.md$/i.test(path.trim());
+}
+
+function normalizeReview(review: MissionReview): MissionReview {
+	const sourceFiles = review.sourceFiles.filter(path => !isMarkdownPath(path));
+	const excludedMarkdownFiles = [...review.excludedMarkdownFiles, ...review.sourceFiles.filter(isMarkdownPath)];
+	if (review.verdict === "pass" && sourceFiles.length === 0) {
+		throw new Error("Pass mission review requires at least one non-Markdown source file.");
+	}
+	return {
+		...review,
+		sourceFiles,
+		excludedMarkdownFiles,
+	};
+}
+
 export type MissionRuntimeImplOptions = {
 	store?: MissionStore;
 	dbPath?: string;
 	eventBus?: MissionEventBus;
 	now?: () => number;
 	dispatcher?: MissionTaskDispatcher;
+	autonomyProfile?: MissionAutonomyProfile;
 };
 
 /**
@@ -219,6 +238,7 @@ export class MissionRuntimeImpl implements MissionRuntime {
 	readonly #runtimeEvents: MissionRuntimeEvent[] = [];
 	readonly #subscribers = new Set<(event: MissionRuntimeEvent) => void>();
 	readonly #dispatcher: MissionTaskDispatcher | undefined;
+	readonly #autonomyProfile: MissionAutonomyProfile;
 
 	constructor(options: MissionRuntimeImplOptions = {}) {
 		if (options.store) {
@@ -231,6 +251,7 @@ export class MissionRuntimeImpl implements MissionRuntime {
 		this.#bus = options.eventBus;
 		this.#now = options.now ?? (() => Date.now());
 		this.#dispatcher = options.dispatcher;
+		this.#autonomyProfile = options.autonomyProfile ?? "balanced";
 	}
 
 	close(): void {
@@ -322,6 +343,20 @@ export class MissionRuntimeImpl implements MissionRuntime {
 					summary: latestVerification.summary,
 					failedCount: latestVerification.failedCount,
 					uncertainCount: latestVerification.uncertainCount,
+				};
+			}
+			const latestReview = this.#store.getLatestReview(record.id);
+			if (latestReview) {
+				mission.review = {
+					status: latestReview.status,
+					verdict: latestReview.verdict,
+					summary: latestReview.summary,
+					failedCount: latestReview.failedCount,
+					uncertainCount: latestReview.uncertainCount,
+					sourceFiles: latestReview.sourceFiles,
+					excludedMarkdownFiles: latestReview.excludedMarkdownFiles,
+					createdAt: latestReview.createdAt,
+					reviewedAt: latestReview.reviewedAt,
 				};
 			}
 		} catch {
@@ -658,6 +693,36 @@ export class MissionRuntimeImpl implements MissionRuntime {
 		return mission;
 	}
 
+	/**
+	 * Record a whole-source review verdict without changing lifecycle. Markdown
+	 * paths are excluded from authority and cannot satisfy a passing review.
+	 */
+	recordReview(missionId: string, review: MissionReview): Mission {
+		const mission = this.#require(missionId);
+		const normalized = normalizeReview(review);
+		mission.review = normalized;
+		this.#markMutated(mission);
+		const record = this.#store.recordReview({
+			missionId: mission.id,
+			status: normalized.status,
+			verdict: normalized.verdict,
+			failedCount: normalized.failedCount,
+			uncertainCount: normalized.uncertainCount,
+			summary: normalized.summary,
+			sourceFiles: normalized.sourceFiles,
+			excludedMarkdownFiles: normalized.excludedMarkdownFiles,
+			createdAt: normalized.createdAt,
+			reviewedAt: normalized.reviewedAt,
+		});
+		mission.review = {
+			...normalized,
+			createdAt: record.createdAt,
+			reviewedAt: record.reviewedAt,
+		};
+		this.#notifyUpdated(mission);
+		return mission;
+	}
+
 	async declarePhases(missionId: string, phases: MissionPhaseInput[]): Promise<MissionPhase[]> {
 		const mission = this.#require(missionId);
 		const ordinals = new Set<number>();
@@ -855,9 +920,25 @@ export class MissionRuntimeImpl implements MissionRuntime {
 	 */
 	async complete(missionId: string, options: MissionCompleteOptions): Promise<Mission> {
 		const mission = this.#require(missionId);
+		const latestReview = this.#store.getLatestReview(mission.id);
+		if (latestReview) {
+			mission.review = {
+				status: latestReview.status,
+				verdict: latestReview.verdict,
+				summary: latestReview.summary,
+				failedCount: latestReview.failedCount,
+				uncertainCount: latestReview.uncertainCount,
+				sourceFiles: latestReview.sourceFiles,
+				excludedMarkdownFiles: latestReview.excludedMarkdownFiles,
+				createdAt: latestReview.createdAt,
+				reviewedAt: latestReview.reviewedAt,
+			};
+		} else {
+			mission.review = undefined;
+		}
 		// Shared acceptance preflight — single source of truth reused by the
 		// continuation runtime (see ./continuation/policy.ts buildAcceptancePreflight).
-		const preflight = buildAcceptancePreflight(mission);
+		const preflight = buildAcceptancePreflight(mission, { autonomyProfile: this.#autonomyProfile });
 		if (preflight.missingGates.length) {
 			const missing = preflight.missingGates;
 			throw new MissionAcceptanceFailureError(

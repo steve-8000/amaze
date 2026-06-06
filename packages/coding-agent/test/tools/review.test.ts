@@ -1,6 +1,43 @@
 import { describe, expect, it } from "bun:test";
 import { subprocessToolRegistry } from "../../src/task/subprocess-tool-registry";
-import { parseReportFindingDetails } from "../../src/tools/review";
+import {
+	isBlockingReviewFinding,
+	isBlockingSourceReviewFinding,
+	isMarkdownPath,
+	isSourceReviewFinding,
+	parseReportFindingDetails,
+} from "../../src/tools/review";
+
+describe("review finding filters", () => {
+	it("treats Markdown paths as review-only metadata regardless of extension case", () => {
+		expect(isMarkdownPath("README.md")).toBe(true);
+		expect(isMarkdownPath("docs/CHANGELOG.MD")).toBe(true);
+		expect(isMarkdownPath("notes/review.Md")).toBe(true);
+		expect(isMarkdownPath("src/review.ts")).toBe(false);
+		expect(isMarkdownPath("docs/README.md.bak")).toBe(false);
+	});
+
+	it("counts only non-Markdown file findings as source review findings", () => {
+		expect(isSourceReviewFinding({ file_path: "src/tools/review.ts" })).toBe(true);
+		expect(isSourceReviewFinding({ file_path: "packages/coding-agent/README.md" })).toBe(false);
+		expect(isSourceReviewFinding({ file_path: "docs/REVIEW.MD" })).toBe(false);
+	});
+
+	it("blocks only P0 and P1 review findings", () => {
+		expect(isBlockingReviewFinding({ priority: "P0" })).toBe(true);
+		expect(isBlockingReviewFinding({ priority: "P1" })).toBe(true);
+		expect(isBlockingReviewFinding({ priority: "P2" })).toBe(false);
+		expect(isBlockingReviewFinding({ priority: "P3" })).toBe(false);
+	});
+
+	it("blocks only P0 and P1 findings on non-Markdown files", () => {
+		expect(isBlockingSourceReviewFinding({ file_path: "src/tools/review.ts", priority: "P0" })).toBe(true);
+		expect(isBlockingSourceReviewFinding({ file_path: "src/tools/review.ts", priority: "P1" })).toBe(true);
+		expect(isBlockingSourceReviewFinding({ file_path: "src/tools/review.ts", priority: "P2" })).toBe(false);
+		expect(isBlockingSourceReviewFinding({ file_path: "README.md", priority: "P0" })).toBe(false);
+		expect(isBlockingSourceReviewFinding({ file_path: "docs/REVIEW.MD", priority: "P1" })).toBe(false);
+	});
+});
 
 describe("report_finding subprocess extraction", () => {
 	it("returns undefined for malformed finding details", () => {

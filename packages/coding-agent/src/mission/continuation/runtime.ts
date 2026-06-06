@@ -73,6 +73,10 @@ export class MissionContinuationRuntime {
 		return this.#settings.get("mission.continuation.noProgressLimit") ?? 0;
 	}
 
+	#autonomyProfile() {
+		return this.#settings.get("mission.autonomyProfile");
+	}
+
 	/**
 	 * Restore continuation state on session start/resume. Reconciles any stale
 	 * `running`/`scheduled` generation left by a crash or shutdown back to `idle`
@@ -141,6 +145,7 @@ export class MissionContinuationRuntime {
 			needsProposal: this.#missionControl.activeMissionNeedsProposal(),
 			maxAutoTurns: this.#maxAutoTurns(),
 			noProgressLimit: this.#noProgressLimit(),
+			autonomyProfile: this.#autonomyProfile(),
 		});
 
 		await this.#applyAction(mission, action);
@@ -199,7 +204,11 @@ export class MissionContinuationRuntime {
 
 		try {
 			await this.#host.sendContinuation({
-				content: buildMissionContinuationPrompt({ mission, generation: scheduled.generation }),
+				content: buildMissionContinuationPrompt({
+					mission,
+					generation: scheduled.generation,
+					autonomyProfile: this.#autonomyProfile(),
+				}),
 				details: { missionId: mission.id, generation: scheduled.generation },
 			});
 		} catch (err) {

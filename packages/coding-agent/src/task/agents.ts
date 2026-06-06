@@ -7,6 +7,7 @@ import { Effort } from "@amaze/ai";
 import { parseFrontmatter, prompt } from "@amaze/utils";
 import { parseAgentFields } from "../discovery/helpers";
 import agentFrontmatterTemplate from "../prompts/agents/frontmatter.md" with { type: "text" };
+import reviewerMd from "../prompts/agents/reviewer.md" with { type: "text" };
 import taskMd from "../prompts/agents/task.md" with { type: "text" };
 
 import type { AgentDefinition, AgentSource } from "./types";
@@ -69,6 +70,10 @@ const EMBEDDED_AGENT_DEFS: EmbeddedAgentDef[] = [
 			thinkingLevel: Effort.Medium,
 		},
 		template: taskMd,
+	},
+	{
+		fileName: "reviewer.md",
+		template: reviewerMd,
 	},
 ];
 

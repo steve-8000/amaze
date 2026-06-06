@@ -13,7 +13,7 @@ function mission(overrides: Partial<Mission> = {}): Mission {
 		id: "m1",
 		title: "t",
 		objective: "Ship feature X end to end",
-		mode: "auto",
+		mode: "interactive",
 		lifecycle: "executing",
 		riskLevel: "medium",
 		intent: "code_change",
@@ -73,7 +73,12 @@ describe("buildAcceptancePreflight", () => {
 	test("runtime_refactor missing decision + regression + verification surfaces all gates", () => {
 		const pf = buildAcceptancePreflight(mission({ intent: "runtime_refactor" as MissionIntent }));
 		expect(pf.passes).toBe(false);
-		expect(pf.missingGates).toEqual(["decisionId", "regressionContractId", "verification.verdict=pass"]);
+		expect(pf.missingGates).toEqual([
+			"decisionId",
+			"regressionContractId",
+			"verification.verdict=pass",
+			"review.verdict=pass",
+		]);
 	});
 
 	test("unverified phases block completion", () => {
@@ -115,6 +120,11 @@ describe("classifyContinuation", () => {
 	test("pending user message → hold (user intent priority)", () => {
 		const action = classifyContinuation({ ...baseInput, mission: mission(), hasPendingUserMessage: true });
 		expect(action).toEqual({ kind: "hold", status: "idle", reason: "user_message_pending" });
+	});
+
+	test("auto mode mission is not eligible for hidden continuation", () => {
+		const action = classifyContinuation({ ...baseInput, mission: mission({ mode: "auto" }) });
+		expect(action).toEqual({ kind: "none", reason: "auto_mission_not_continuable" });
 	});
 
 	test("paused ledger → hold paused", () => {

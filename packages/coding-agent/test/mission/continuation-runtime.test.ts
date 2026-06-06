@@ -12,7 +12,14 @@ interface SentContinuation {
 	details: { missionId: string; generation: number };
 }
 
-function harness(opts: { allowsAgentInitiatedTurns?: boolean; settings?: Settings; autoApprove?: boolean } = {}) {
+function harness(
+	opts: {
+		allowsAgentInitiatedTurns?: boolean;
+		settings?: Settings;
+		autoApprove?: boolean;
+		autonomyProfile?: "manual" | "balanced" | "autonomous" | "strict";
+	} = {},
+) {
 	const store = new MissionStore(":memory:");
 	stores.push(store);
 	let activeMissionId: string | undefined;
@@ -23,6 +30,7 @@ function harness(opts: { allowsAgentInitiatedTurns?: boolean; settings?: Setting
 		},
 		getActiveMissionId: () => activeMissionId,
 		autoApproveProposals: () => opts.autoApprove ?? false,
+		autonomyProfile: () => opts.autonomyProfile ?? "balanced",
 	});
 	let pending = false;
 	const sent: SentContinuation[] = [];
@@ -138,6 +146,7 @@ describe("MissionContinuationRuntime", () => {
 		h.store.ensureContinuation(mission.id, { sessionId: "s1" });
 		h.missionControl.recordActiveVerification({ status: "pass", verdict: "pass", summary: "verified" });
 		const completed = await h.missionControl.completeActiveMission({ status: "success", summary: "done" });
+		expect(completed?.review).toBeUndefined();
 		// Session wires observeTerminal into the mission-updated terminal hook.
 		h.runtime.observeTerminal(completed!);
 
@@ -193,8 +202,8 @@ describe("MissionContinuationRuntime", () => {
 		expect(MISSION_CONTINUATION_MESSAGE_TYPE).toBe("mission-continuation");
 	});
 
-	test("auto-approve: a proposal-gated runtime_refactor mission schedules a continuation turn", async () => {
-		const h = harness({ autoApprove: true });
+	test("auto-approve: an explicitly created proposal-gated runtime_refactor mission schedules a continuation turn", async () => {
+		const h = harness({ autoApprove: true, autonomyProfile: "autonomous" });
 		await h.missionControl.createMission({
 			title: "Refactor runtime",
 			objective: "Refactor the runtime end to end",
@@ -202,12 +211,25 @@ describe("MissionContinuationRuntime", () => {
 			riskLevel: "high",
 			intent: "runtime_refactor",
 		});
-		// Auto-approve cleared the proposal gate at creation.
+		// Explicit mission creation can clear the proposal gate in autonomous mode.
 		expect(h.missionControl.activeMissionNeedsProposal()).toBe(false);
 
 		await h.runtime.afterAgentEnd();
-		// Fully autonomous: the mission auto-continues without a manual approval.
 		expect(h.sent).toHaveLength(1);
 		expect(h.sent[0]?.content).toContain("Refactor the runtime end to end");
+	});
+
+	test("auto-approve: an ambient-promoted proposal-gated runtime_refactor mission does not schedule", async () => {
+		const h = harness({ autoApprove: true });
+		await h.missionControl.promoteFromAmbient({
+			triggeringTool: "write",
+			objective: "Refactor the runtime end to end",
+		});
+		// Ambient promotion must preserve the proposal gate even when auto-approve is enabled.
+		expect(h.missionControl.activeMissionNeedsProposal()).toBe(true);
+
+		await h.runtime.afterAgentEnd();
+		expect(h.sent).toHaveLength(0);
+		expect(h.store.getContinuation(h.missionControl.getActiveMission()!.id)?.status).toBe("idle");
 	});
 });

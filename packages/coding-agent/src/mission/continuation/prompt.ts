@@ -7,12 +7,13 @@ import { prompt } from "@amaze/utils";
 import type { Mission } from "../core/mission";
 import budgetLimitTemplate from "./budget-limit.md" with { type: "text" };
 import continuationTemplate from "./continuation.md" with { type: "text" };
-import { buildAcceptancePreflight } from "./policy";
+import { buildAcceptancePreflight, type MissionAutonomyProfile } from "./policy";
 
 /** Inputs for the continuation prompt (objective is mission-provided data). */
 export interface MissionContinuationPromptInput {
 	mission: Mission;
 	generation: number;
+	autonomyProfile?: MissionAutonomyProfile;
 }
 
 function remainingTokens(mission: Mission): number {
@@ -28,7 +29,7 @@ function remainingTokens(mission: Mission): number {
  */
 export function buildMissionContinuationPrompt(input: MissionContinuationPromptInput): string {
 	const { mission, generation } = input;
-	const preflight = buildAcceptancePreflight(mission);
+	const preflight = buildAcceptancePreflight(mission, { autonomyProfile: input.autonomyProfile });
 	return prompt.render(continuationTemplate, {
 		missionId: mission.id,
 		objective: mission.objective,

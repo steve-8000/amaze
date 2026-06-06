@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import type { AcceptanceCriterion } from "../../src/mission/core/acceptance-criteria";
-import type { Mission } from "../../src/mission/core/mission";
+import type { Mission, MissionReview } from "../../src/mission/core/mission";
 import type { MissionInput } from "../../src/mission/core/mission-input";
 import type { MissionOutcome } from "../../src/mission/core/mission-outcome";
 import {
@@ -55,6 +55,20 @@ function baseInput(overrides: Partial<MissionInput> = {}): MissionInput {
 
 function outcome(): MissionOutcome {
 	return { status: "success", summary: "done", recordedAt: Date.now() };
+}
+
+function passingReview(sourceFiles: string[] = ["src/feature.ts"]): MissionReview {
+	return {
+		status: "pass",
+		verdict: "pass",
+		summary: "review passed",
+		failedCount: 0,
+		uncertainCount: 0,
+		sourceFiles,
+		excludedMarkdownFiles: [],
+		createdAt: Date.now(),
+		reviewedAt: Date.now(),
+	};
 }
 
 afterEach(() => {
@@ -119,6 +133,7 @@ describe("MissionRuntime lifecycle", () => {
 
 		const verify = await runtime.verify(mission.id);
 		expect(verify.verification.status).toBe("pass");
+		runtime.recordReview(mission.id, passingReview(["src/mission-runtime.ts"]));
 
 		const completed = await runtime.complete(mission.id, { outcome: outcome() });
 		expect(completed.lifecycle).toBe("completed");

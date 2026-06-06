@@ -2328,6 +2328,28 @@ export const SETTINGS_SCHEMA = {
 		},
 	},
 
+	"mission.autonomyProfile": {
+		type: "enum",
+		values: ["manual", "balanced", "autonomous", "strict"] as const,
+		default: "balanced",
+		ui: {
+			tab: "tasks",
+			label: "Mission Autonomy Profile",
+			description:
+				"Risk-adaptive Mission Control autonomy. Balanced keeps verification and pre-commit review hard while limiting mission-completion review to high-risk/destructive missions; strict keeps the legacy full mission-review gate.",
+			options: [
+				{ value: "manual", label: "Manual", description: "Manual approvals with risk-adaptive completion gates" },
+				{ value: "balanced", label: "Balanced", description: "Default risk-adaptive autonomy" },
+				{
+					value: "autonomous",
+					label: "Autonomous",
+					description:
+						"Allows explicit proposal-gated missions to auto-approve when mission auto-approve is enabled",
+				},
+				{ value: "strict", label: "Strict", description: "Preserve full high-safety mission gates" },
+			],
+		},
+	},
 	"mission.autoApprove": {
 		type: "boolean",
 		default: false,

@@ -7,6 +7,7 @@ export interface MissionLifecycleTemplate {
 	requireRegressionContract: boolean;
 	requireProposalBeforeMutation: boolean;
 	requireVerification: boolean;
+	requireReview?: boolean;
 }
 
 export const LIFECYCLE_TEMPLATES: Record<MissionIntent, MissionLifecycleTemplate> = {
@@ -17,6 +18,7 @@ export const LIFECYCLE_TEMPLATES: Record<MissionIntent, MissionLifecycleTemplate
 		requireRegressionContract: false,
 		requireProposalBeforeMutation: false,
 		requireVerification: false,
+		requireReview: false,
 	},
 	question_answering: {
 		intent: "question_answering",
@@ -25,6 +27,7 @@ export const LIFECYCLE_TEMPLATES: Record<MissionIntent, MissionLifecycleTemplate
 		requireRegressionContract: false,
 		requireProposalBeforeMutation: false,
 		requireVerification: false,
+		requireReview: false,
 	},
 	repo_exploration: {
 		intent: "repo_exploration",
@@ -33,6 +36,7 @@ export const LIFECYCLE_TEMPLATES: Record<MissionIntent, MissionLifecycleTemplate
 		requireRegressionContract: false,
 		requireProposalBeforeMutation: false,
 		requireVerification: false,
+		requireReview: false,
 	},
 	code_change: {
 		intent: "code_change",
@@ -41,6 +45,7 @@ export const LIFECYCLE_TEMPLATES: Record<MissionIntent, MissionLifecycleTemplate
 		requireRegressionContract: false,
 		requireProposalBeforeMutation: false,
 		requireVerification: true,
+		requireReview: true,
 	},
 	architecture_change: {
 		intent: "architecture_change",
@@ -49,6 +54,7 @@ export const LIFECYCLE_TEMPLATES: Record<MissionIntent, MissionLifecycleTemplate
 		requireRegressionContract: true,
 		requireProposalBeforeMutation: true,
 		requireVerification: true,
+		requireReview: true,
 	},
 	runtime_refactor: {
 		intent: "runtime_refactor",
@@ -57,6 +63,7 @@ export const LIFECYCLE_TEMPLATES: Record<MissionIntent, MissionLifecycleTemplate
 		requireRegressionContract: true,
 		requireProposalBeforeMutation: true,
 		requireVerification: true,
+		requireReview: true,
 	},
 	release_hardening: {
 		intent: "release_hardening",
@@ -65,6 +72,7 @@ export const LIFECYCLE_TEMPLATES: Record<MissionIntent, MissionLifecycleTemplate
 		requireRegressionContract: true,
 		requireProposalBeforeMutation: true,
 		requireVerification: true,
+		requireReview: true,
 	},
 	external_side_effect: {
 		intent: "external_side_effect",
@@ -73,6 +81,7 @@ export const LIFECYCLE_TEMPLATES: Record<MissionIntent, MissionLifecycleTemplate
 		requireRegressionContract: false,
 		requireProposalBeforeMutation: true,
 		requireVerification: true,
+		requireReview: false,
 	},
 };
 

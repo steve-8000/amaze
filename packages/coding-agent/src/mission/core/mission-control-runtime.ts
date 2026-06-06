@@ -1,3 +1,4 @@
+import type { MissionAutonomyProfile } from "../continuation/policy";
 import type { MissionEventBus } from "../event-bus";
 import { inferIntent, MISSION_INTENT_REQUIRES_MISSION, type MissionIntent } from "../policy";
 import type { MissionStore } from "../store";
@@ -20,12 +21,13 @@ export interface MissionControlDeps {
 	/** Session event bus so mission lifecycle transitions are observable (board/replay/web). */
 	eventBus?: MissionEventBus;
 	/**
-	 * When this returns true, proposal-gated missions auto-attach an approved
-	 * proposal at creation/promotion so fully-autonomous Mission Control can
-	 * execute and auto-continue without a manual `/mission approve`. Defaults to
-	 * disabled (human approval checkpoint preserved).
+	 * When this returns true, explicitly-created proposal-gated missions
+	 * auto-attach an approved proposal so fully-autonomous Mission Control can
+	 * execute and auto-continue without a manual `/mission approve`. Ambient-promoted
+	 * missions never auto-approve. Defaults to disabled (human approval checkpoint preserved).
 	 */
 	autoApproveProposals?: () => boolean;
+	autonomyProfile?: () => MissionAutonomyProfile;
 }
 
 export interface EnsureMissionInput {
@@ -49,6 +51,7 @@ export class MissionControlRuntime {
 			store: deps.store,
 			now: deps.now,
 			...(deps.eventBus ? { eventBus: deps.eventBus } : {}),
+			autonomyProfile: deps.autonomyProfile?.() ?? "balanced",
 		});
 	}
 
@@ -75,7 +78,7 @@ export class MissionControlRuntime {
 			intent,
 		});
 		this.#deps.setActiveMissionId(mission.id);
-		this.#driveInitialLifecycle(mission.id, intent);
+		this.#driveInitialLifecycle(mission.id, intent, { explicitlyCreated: true });
 		return { missionId: mission.id, intent, created: true };
 	}
 
@@ -85,13 +88,18 @@ export class MissionControlRuntime {
 	 * mutations blocked until a proposal is attached); everything else enters `executing` so its
 	 * state is not misreported as pre-execution while the agent works. Best-effort: never throws.
 	 */
-	#driveInitialLifecycle(missionId: string, intent: MissionIntent): void {
+	#driveInitialLifecycle(missionId: string, intent: MissionIntent, origin: { explicitlyCreated: boolean }): void {
 		try {
 			const requiresProposal = templateFor(intent).requireProposalBeforeMutation;
-			if (requiresProposal && this.#deps.autoApproveProposals?.()) {
-				// Fully-autonomous Mission Control: satisfy the proposal gate up front so
-				// mutations and auto-continuation proceed without a manual `/mission approve`.
-				// attachProposal advances the mission into `executing`.
+			if (
+				origin.explicitlyCreated &&
+				requiresProposal &&
+				this.#deps.autoApproveProposals?.() &&
+				this.#deps.autonomyProfile?.() === "autonomous"
+			) {
+				// Fully-autonomous Mission Control: satisfy the proposal gate up front for
+				// explicitly-created missions so mutations and auto-continuation proceed
+				// without a manual `/mission approve`. Ambient promotions keep the gate.
 				this.#runtime.attachProposal(missionId, { approvedBy: "auto", summary: "Auto-approved (autonomous mode)" });
 				return;
 			}
@@ -117,7 +125,7 @@ export class MissionControlRuntime {
 			intent,
 		});
 		this.#deps.setActiveMissionId(mission.id);
-		this.#driveInitialLifecycle(mission.id, intent);
+		this.#driveInitialLifecycle(mission.id, intent, { explicitlyCreated: false });
 		return mission;
 	}
 
@@ -238,7 +246,7 @@ export class MissionControlRuntime {
 	async createMission(input: MissionInput): Promise<Mission> {
 		const mission = await this.#runtime.create(input);
 		this.#deps.setActiveMissionId(mission.id);
-		this.#driveInitialLifecycle(mission.id, mission.intent ?? "code_change");
+		this.#driveInitialLifecycle(mission.id, mission.intent ?? "code_change", { explicitlyCreated: true });
 		return mission;
 	}
 

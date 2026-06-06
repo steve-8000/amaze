@@ -1,3 +1,4 @@
+import type { MissionAutonomyProfile } from "../mission/continuation/policy";
 import { MissionControlRuntime } from "../mission/core/mission-control-runtime";
 import { getMissionEventBus } from "../mission/runtime";
 import { DEFAULT_DB_PATH as DEFAULT_MISSION_DB_PATH, MissionStore } from "../mission/store";
@@ -18,6 +19,7 @@ export interface MissionSessionBindingOptions {
 	getActiveMissionId?: () => string | undefined;
 	/** See {@link MissionControlDeps.autoApproveProposals}. */
 	autoApproveProposals?: () => boolean;
+	autonomyProfile?: () => MissionAutonomyProfile;
 }
 
 export class MissionSessionBinding {
@@ -42,6 +44,7 @@ export class MissionSessionBinding {
 			},
 			getActiveMissionId: () => this.#getActiveMissionId(),
 			...(opts.autoApproveProposals ? { autoApproveProposals: opts.autoApproveProposals } : {}),
+			...(opts.autonomyProfile ? { autonomyProfile: opts.autonomyProfile } : {}),
 			...(getMissionEventBus() ? { eventBus: getMissionEventBus() } : {}),
 		});
 	}

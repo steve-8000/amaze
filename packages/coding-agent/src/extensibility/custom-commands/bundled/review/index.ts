@@ -52,6 +52,9 @@ const EXCLUDED_PATTERNS: { pattern: RegExp; reason: string }[] = [
 	{ pattern: /composer\.lock$/, reason: "lock file" },
 	{ pattern: /flake\.lock$/, reason: "lock file" },
 
+	// Documentation
+	{ pattern: /\.md$/i, reason: "Markdown documentation" },
+
 	// Generated/build artifacts
 	{ pattern: /\.min\.(js|css)$/, reason: "minified" },
 	{ pattern: /\.generated\./, reason: "generated" },
@@ -77,7 +80,7 @@ const EXCLUDED_PATTERNS: { pattern: RegExp; reason: string }[] = [
  * Check if a file path should be excluded from review.
  * Returns the exclusion reason if excluded, undefined otherwise.
  */
-function getExclusionReason(path: string): string | undefined {
+export function getExclusionReason(path: string): string | undefined {
 	for (const { pattern, reason } of EXCLUDED_PATTERNS) {
 		if (pattern.test(path)) return reason;
 	}
@@ -88,7 +91,7 @@ function getExclusionReason(path: string): string | undefined {
  * Parse unified diff output into per-file stats.
  * Splits on file boundaries, counts +/- lines, and filters excluded files.
  */
-function parseDiff(diffOutput: string): DiffStats {
+export function parseDiff(diffOutput: string): DiffStats {
 	const files: FileDiff[] = [];
 	const excluded: DiffStats["excluded"] = [];
 	let totalAdded = 0;

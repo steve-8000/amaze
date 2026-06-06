@@ -107,6 +107,22 @@ export interface MissionVerification {
 }
 
 /**
+ * Whole-source review verdict attached to a mission. Markdown files are tracked
+ * only as exclusions and never satisfy source-review coverage.
+ */
+export interface MissionReview {
+	status: "pass" | "fail" | "uncertain";
+	verdict: "pass" | "fail" | "pending";
+	summary: string;
+	failedCount: number;
+	uncertainCount: number;
+	sourceFiles: string[];
+	excludedMarkdownFiles: string[];
+	createdAt: number;
+	reviewedAt: number;
+}
+
+/**
  * Rollback record attached to a mission.
  */
 export interface MissionRollback {
@@ -147,6 +163,7 @@ export interface Mission {
 	regressionContractId?: string;
 	proposalId?: string;
 	verification?: MissionVerification;
+	review?: MissionReview;
 	rollback?: MissionRollback;
 	outcome?: MissionOutcome;
 	createdAt: number;

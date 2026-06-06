@@ -36,6 +36,22 @@ export function getPriorityInfo(priority: FindingPriority): FindingPriorityInfo 
 	return PRIORITY_INFO[priority] ?? { ord: 3, symbol: "status.info", color: "muted" };
 }
 
+export function isMarkdownPath(filePath: string): boolean {
+	return path.extname(filePath).toLowerCase() === ".md";
+}
+
+export function isSourceReviewFinding(finding: Pick<ReportFindingDetails, "file_path">): boolean {
+	return !isMarkdownPath(finding.file_path);
+}
+
+export function isBlockingReviewFinding(finding: Pick<ReportFindingDetails, "priority">): boolean {
+	return finding.priority === "P0" || finding.priority === "P1";
+}
+
+export function isBlockingSourceReviewFinding(finding: Pick<ReportFindingDetails, "file_path" | "priority">): boolean {
+	return isSourceReviewFinding(finding) && isBlockingReviewFinding(finding);
+}
+
 function getPriorityDisplay(
 	priority: FindingPriority,
 	theme: Theme,

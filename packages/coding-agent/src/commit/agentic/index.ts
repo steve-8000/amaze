@@ -10,6 +10,10 @@ import type { CommitCommandArgs, ConventionalAnalysis } from "../../commit/types
 import { ModelRegistry } from "../../config/model-registry";
 import { Settings } from "../../config/settings";
 import { discoverAuthStorage, discoverContextFiles } from "../../sdk";
+import { getBundledAgent } from "../../task/agents";
+import { runSubprocess } from "../../task/executor";
+import type { ReviewSummary, SingleResult } from "../../task/types";
+import { isMarkdownPath, type ReportFindingDetails as ReviewFinding } from "../../tools/review";
 import * as git from "../../utils/git";
 import { type ExistingChangelogEntries, runCommitAgentSession } from "./agent";
 import { generateFallbackProposal } from "./fallback";
@@ -22,6 +26,9 @@ interface CommitExecutionContext {
 	cwd: string;
 	dryRun: boolean;
 	push: boolean;
+	settings: Settings;
+	modelRegistry: ModelRegistry;
+	authStorage: Awaited<ReturnType<typeof discoverAuthStorage>>;
 }
 
 export async function runAgenticCommit(args: CommitCommandArgs): Promise<void> {
@@ -88,10 +95,18 @@ export async function runAgenticCommit(args: CommitCommandArgs): Promise<void> {
 		process.stdout.write("  └─ (none found)\n");
 	}
 	const forceFallback = $env.AMAZE_COMMIT_TEST_FALLBACK?.toLowerCase() === "true";
+	const commitCtx: CommitExecutionContext = {
+		cwd,
+		dryRun: args.dryRun,
+		push: args.push,
+		settings,
+		modelRegistry,
+		authStorage,
+	};
 	if (forceFallback) {
 		process.stdout.write("● Forcing fallback commit generation...\n");
 		const fallbackProposal = generateFallbackProposal(numstat);
-		await runSingleCommit(fallbackProposal, { cwd, dryRun: args.dryRun, push: args.push });
+		await runSingleCommit(fallbackProposal, commitCtx);
 		return;
 	}
 
@@ -108,7 +123,7 @@ export async function runAgenticCommit(args: CommitCommandArgs): Promise<void> {
 			summary: trivialChange.summary,
 			warnings: [],
 		};
-		await runSingleCommit(trivialProposal, { cwd, dryRun: args.dryRun, push: args.push });
+		await runSingleCommit(trivialProposal, commitCtx);
 		return;
 	}
 
@@ -184,15 +199,13 @@ export async function runAgenticCommit(args: CommitCommandArgs): Promise<void> {
 	}
 
 	if (commitState.proposal) {
-		await runSingleCommit(commitState.proposal, { cwd, dryRun: args.dryRun, push: args.push });
+		await runSingleCommit(commitState.proposal, commitCtx);
 		return;
 	}
 
 	if (commitState.splitProposal) {
 		await runSplitCommit(commitState.splitProposal, {
-			cwd,
-			dryRun: args.dryRun,
-			push: args.push,
+			...commitCtx,
 			additionalFiles: updatedChangelogFiles,
 		});
 		return;
@@ -211,11 +224,132 @@ async function runSingleCommit(proposal: CommitProposal, ctx: CommitExecutionCon
 		process.stdout.write(`${commitMessage}\n`);
 		return;
 	}
+	await enforcePreCommitReview(ctx);
 	await git.commit(ctx.cwd, commitMessage);
 	process.stdout.write("Commit created.\n");
 	if (ctx.push) {
 		await git.push(ctx.cwd);
 		process.stdout.write("Pushed to remote.\n");
+	}
+}
+
+export async function getReviewableStagedFiles(cwd: string): Promise<string[]> {
+	const stagedFiles = await git.diff.changedFiles(cwd, { cached: true });
+	return stagedFiles.filter(file => !isMarkdownPath(file));
+}
+
+function getLastReviewSummary(result: SingleResult): ReviewSummary | undefined {
+	const yieldItems = result.extractedToolData?.yield as Array<{ data?: unknown }> | undefined;
+	const data = yieldItems?.at(-1)?.data;
+	if (!data || typeof data !== "object") return undefined;
+	const record = data as Partial<ReviewSummary>;
+	if (record.overall_correctness !== "correct" && record.overall_correctness !== "incorrect") return undefined;
+	if (typeof record.explanation !== "string") return undefined;
+	if (typeof record.confidence !== "number" || !Number.isFinite(record.confidence)) return undefined;
+	return {
+		overall_correctness: record.overall_correctness,
+		explanation: record.explanation,
+		confidence: record.confidence,
+	};
+}
+
+export function getBlockingReviewFindings(result: SingleResult): ReviewFinding[] {
+	const findings = (result.extractedToolData?.report_finding as ReviewFinding[] | undefined) ?? [];
+	return findings.filter(
+		finding => (finding.priority === "P0" || finding.priority === "P1") && !isMarkdownPath(finding.file_path),
+	);
+}
+
+export function isPreCommitReviewResultPassing(result: SingleResult): boolean {
+	const summary = getLastReviewSummary(result);
+	return summary?.overall_correctness === "correct" && getBlockingReviewFindings(result).length === 0;
+}
+
+function formatReviewFailure(summary: ReviewSummary | undefined, blockers: ReviewFinding[]): string {
+	const lines = ["Pre-commit Reviewer gate failed."];
+	if (!summary) {
+		lines.push("Reviewer did not provide a valid final verdict.");
+	} else if (summary.overall_correctness !== "correct") {
+		lines.push(`Reviewer verdict: ${summary.overall_correctness}. ${summary.explanation}`);
+	}
+	if (blockers.length > 0) {
+		lines.push("Blocking non-Markdown findings:");
+		for (const finding of blockers) {
+			lines.push(`- ${finding.priority} ${finding.file_path}:${finding.line_start} ${finding.title}`);
+		}
+	}
+	return `${lines.join("\n")}\n`;
+}
+
+function buildPreCommitReviewAssignment(reviewableFiles: string[]): string {
+	return [
+		"# Target",
+		"Review the currently staged non-Markdown source changes before commit.",
+		"",
+		"# Required procedure",
+		"1. Run `git diff --cached` to inspect exactly the staged patch that will be committed.",
+		"2. Treat these staged non-Markdown files as the reviewable source set:",
+		...reviewableFiles.map(file => `   - ${file}`),
+		"3. For each reviewable source file, read whole-file/source context and trace whole-source impact, including callsites, dispatch/consumer paths, and cross-module contracts affected by the staged patch.",
+		"4. You are read-only. Do not edit files, stage files, unstage files, commit, run formatters, or run tests/builds.",
+		"5. Markdown/docs files are explicitly excluded from review authority. They may be mentioned if useful, but they cannot satisfy this gate, cannot count as source coverage, and Markdown-only findings must not affect the gate verdict.",
+		"",
+		"# Blocking rules",
+		"- Report findings only with `report_finding`.",
+		"- P0/P1 findings on non-Markdown files are blockers.",
+		"- P0/P1 findings on Markdown/docs files are non-authoritative for this gate.",
+		"- Final `yield` must set `overall_correctness` to `correct` only when there are no blocking non-Markdown findings and the staged non-Markdown patch is correct.",
+	].join("\n");
+}
+
+async function enforcePreCommitReview(ctx: CommitExecutionContext): Promise<void> {
+	const reviewableFiles = await getReviewableStagedFiles(ctx.cwd);
+	if (reviewableFiles.length === 0) return;
+
+	const stagedTreeBefore = await git.writeTree(ctx.cwd);
+	const reviewer = getBundledAgent("Reviewer");
+	const assignment = buildPreCommitReviewAssignment(reviewableFiles);
+	if (!reviewer) {
+		throw new Error("Bundled Reviewer agent is unavailable");
+	}
+
+	process.stdout.write("● Running pre-commit Reviewer gate...\n");
+	const result = await runSubprocess({
+		cwd: ctx.cwd,
+		agent: reviewer,
+		task: assignment,
+		assignment,
+		description: "Pre-commit staged source review",
+		index: 0,
+		id: "precommit-reviewer",
+		modelOverride: reviewer.model,
+		thinkingLevel: reviewer.thinkingLevel,
+		outputSchema: reviewer.output,
+		authStorage: ctx.authStorage,
+		modelRegistry: ctx.modelRegistry,
+		settings: ctx.settings,
+		enableLsp: true,
+	});
+	const stagedTreeAfter = await git.writeTree(ctx.cwd);
+	if (stagedTreeAfter !== stagedTreeBefore) {
+		throw new Error("Pre-commit Reviewer modified the staged tree; commit blocked");
+	}
+	if (result.exitCode !== 0) {
+		throw new Error(`Pre-commit Reviewer failed: ${result.stderr || result.error || "unknown error"}`);
+	}
+
+	const summary = getLastReviewSummary(result);
+	const blockers = getBlockingReviewFindings(result);
+	if (!isPreCommitReviewResultPassing(result)) {
+		process.stderr.write(formatReviewFailure(summary, blockers));
+		throw new Error("Pre-commit Reviewer gate failed");
+	}
+}
+
+async function restoreStagedDiff(cwd: string, stagedDiff: string): Promise<void> {
+	await git.stage.reset(cwd);
+	if (stagedDiff.trim()) {
+		await git.patch.applyText(cwd, stagedDiff, { cached: true });
 	}
 }
 
@@ -266,7 +400,20 @@ async function runSplitCommit(
 		throw new Error(order.error);
 	}
 
-	const stagedDiff = await git.diff(ctx.cwd, { cached: true });
+	const stagedDiff = await git.diff(ctx.cwd, { binary: true, cached: true });
+	try {
+		await git.stage.reset(ctx.cwd);
+		for (const commitIndex of order) {
+			const commit = plan.commits[commitIndex];
+			await git.stage.hunks(ctx.cwd, commit.changes, { rawDiff: stagedDiff, diffCached: true });
+			await enforcePreCommitReview(ctx);
+			await git.stage.reset(ctx.cwd);
+		}
+	} catch (error) {
+		await restoreStagedDiff(ctx.cwd, stagedDiff);
+		throw error;
+	}
+
 	await git.stage.reset(ctx.cwd);
 	for (const commitIndex of order) {
 		const commit = plan.commits[commitIndex];
@@ -278,6 +425,7 @@ async function runSplitCommit(
 			issueRefs: commit.issueRefs,
 		};
 		const message = formatCommitMessage(analysis, commit.summary);
+		await enforcePreCommitReview(ctx);
 		await git.commit(ctx.cwd, message);
 		await git.stage.reset(ctx.cwd);
 	}

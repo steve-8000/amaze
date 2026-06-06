@@ -202,6 +202,25 @@ export type NewMissionVerificationRecord = Omit<MissionVerificationRecord, "id" 
 	createdAt?: number;
 };
 
+export interface MissionReviewRecord {
+	id: string;
+	missionId: string;
+	status: "pass" | "fail" | "uncertain";
+	verdict: "pass" | "fail" | "pending";
+	failedCount: number;
+	uncertainCount: number;
+	summary: string;
+	sourceFiles: string[];
+	excludedMarkdownFiles: string[];
+	createdAt: number;
+	reviewedAt: number;
+}
+
+export type NewMissionReviewRecord = Omit<MissionReviewRecord, "id" | "createdAt"> & {
+	id?: string;
+	createdAt?: number;
+};
+
 export interface MissionRollbackRecord {
 	id: string;
 	missionId: string;
