@@ -1,6 +1,6 @@
 """Manually enqueue an issue as if a webhook arrived.
 
-Shared by the `rocky triage` CLI and the dashboard's POST /api/trigger.
+Shared by the `rocky triage` CLI and the JSON POST /api/trigger endpoint.
 """
 
 from __future__ import annotations

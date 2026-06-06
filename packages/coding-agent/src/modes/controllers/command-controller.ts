@@ -17,7 +17,6 @@ import { reset as resetCapabilities } from "../../capability";
 import { clearClaudePluginRootsCache } from "../../discovery/helpers";
 import { loadCustomShare } from "../../export/custom-share";
 import type { CompactOptions } from "../../extensibility/extensions/types";
-import { resolveMemoryBackend } from "../../memory-backend";
 import { BashExecutionComponent } from "../../modes/components/bash-execution";
 import { BorderedLoader } from "../../modes/components/bordered-loader";
 import { DynamicBorder } from "../../modes/components/dynamic-border";
@@ -563,108 +562,12 @@ export class CommandController {
 	}
 
 	async handleMemoryCommand(text: string): Promise<void> {
-		const argumentText = text.slice(7).trim();
-		const action = argumentText.split(/\s+/, 1)[0]?.toLowerCase() || "view";
-		const restText = argumentText.slice(action.length).trim();
-		const agentDir = this.ctx.settings.getAgentDir();
-		const backend = resolveMemoryBackend(this.ctx.settings);
-
-		if (action === "view") {
-			const payload = await backend.buildDeveloperInstructions(agentDir, this.ctx.settings, this.ctx.session);
-			if (!payload) {
-				this.ctx.showWarning("Memory payload is empty (memory backend off, disabled, or no memory available).");
-				return;
-			}
-			this.ctx.chatContainer.addChild(new Spacer(1));
-			this.ctx.chatContainer.addChild(new DynamicBorder());
-			this.ctx.chatContainer.addChild(new Text(theme.bold(theme.fg("accent", "Memory Injection Payload")), 1, 0));
-			this.ctx.chatContainer.addChild(new Spacer(1));
-			this.ctx.chatContainer.addChild(new Markdown(payload, 1, 1, getMarkdownTheme()));
-			this.ctx.chatContainer.addChild(new DynamicBorder());
-			this.ctx.ui.requestRender();
+		const action = text.slice(7).trim().split(/\s+/, 1)[0]?.toLowerCase() || "help";
+		if (action && action !== "help" && action !== "view") {
+			this.ctx.showError("Legacy /memory operations have been removed. Use GBrain Agency Brain via MCP.");
 			return;
 		}
-
-		if (action === "reset" || action === "clear") {
-			try {
-				await backend.clear(agentDir, this.ctx.sessionManager.getCwd(), this.ctx.session);
-				await this.ctx.session.refreshBaseSystemPrompt();
-				this.ctx.showStatus("Memory data cleared and system prompt refreshed.");
-			} catch (error) {
-				this.ctx.showError(`Memory clear failed: ${error instanceof Error ? error.message : String(error)}`);
-			}
-			return;
-		}
-
-		if (action === "enqueue" || action === "rebuild") {
-			try {
-				await backend.enqueue(agentDir, this.ctx.sessionManager.getCwd(), this.ctx.session);
-				this.ctx.showStatus("Memory consolidation enqueued.");
-			} catch (error) {
-				this.ctx.showError(`Memory enqueue failed: ${error instanceof Error ? error.message : String(error)}`);
-			}
-			return;
-		}
-
-		if (action === "search") {
-			if (backend.id !== "hermes") {
-				this.ctx.showError("/memory search is only available when memory.backend is hermes.");
-				return;
-			}
-			const query = restText;
-			if (!query) {
-				this.ctx.showError("Usage: /memory search <query>");
-				return;
-			}
-			const { createHermesMemoryConfig, HermesMemoryRuntime } = await import("../../memory-backend/hermes");
-			const rt = new HermesMemoryRuntime(
-				createHermesMemoryConfig({ settings: this.ctx.settings, agentDir, cwd: this.ctx.sessionManager.getCwd() }),
-			);
-			try {
-				await rt.load();
-				const results = rt.search(query, { limit: 10 });
-				const markdown = results.length
-					? results
-							.map(entry => `- [${entry.target}${entry.category ? `/${entry.category}` : ""}] ${entry.content}`)
-							.join("\n")
-					: "No matching Hermes memories found.";
-				showMarkdownPanel(this.ctx, "Memory Search", markdown);
-			} catch (error) {
-				this.ctx.showError(`Memory search failed: ${error instanceof Error ? error.message : String(error)}`);
-			} finally {
-				rt.close();
-			}
-			return;
-		}
-
-		if (action === "add") {
-			if (backend.id !== "hermes") {
-				this.ctx.showError("/memory add is only available when memory.backend is hermes.");
-				return;
-			}
-			const content = restText;
-			if (!content) {
-				this.ctx.showError("Usage: /memory add <text>");
-				return;
-			}
-			const { createHermesMemoryConfig, HermesMemoryRuntime } = await import("../../memory-backend/hermes");
-			const rt = new HermesMemoryRuntime(
-				createHermesMemoryConfig({ settings: this.ctx.settings, agentDir, cwd: this.ctx.sessionManager.getCwd() }),
-			);
-			try {
-				await rt.load();
-				const result = await rt.add("memory", content);
-				if (result.success) this.ctx.showStatus(result.message ?? "Memory added.");
-				else this.ctx.showError(result.error ?? "Memory add failed.");
-			} catch (error) {
-				this.ctx.showError(`Memory add failed: ${error instanceof Error ? error.message : String(error)}`);
-			} finally {
-				rt.close();
-			}
-			return;
-		}
-
-		this.ctx.showError("Usage: /memory <view|clear|reset|enqueue|rebuild|search|add>");
+		this.ctx.showStatus("Legacy local memory has been removed. Use GBrain Agency Brain via MCP.");
 	}
 
 	async #runNewSessionFlow(options?: NewSessionOptions, label: string = "New session started"): Promise<void> {

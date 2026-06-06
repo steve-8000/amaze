@@ -264,8 +264,8 @@ class GitHubClient:
         """List recent issues for `repo`, newest-updated first. Excludes pull requests.
 
         `state` is one of `open`, `closed`, `all`. `limit` is capped at 100 by the
-        GitHub `per_page`; we don't paginate here — the dashboard browse view shows
-        a recent slice, not every issue ever.
+        GitHub `per_page`; we don't paginate here — operational browse callers
+        consume a recent slice, not every issue ever.
         """
         if state not in ("open", "closed", "all"):
             raise ValueError(f"invalid state: {state!r}")

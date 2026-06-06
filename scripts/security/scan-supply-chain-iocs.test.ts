@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { scanForFindings } from "./scan-supply-chain-iocs";
+import { collectTargetFiles, scanForFindings } from "./scan-supply-chain-iocs";
 
 function rulesFor(input: string, fileName: string): string[] {
 	return scanForFindings(input, fileName).map((finding) => finding.rule);
@@ -72,5 +72,25 @@ describe("scan-supply-chain-iocs", () => {
 
 		expect(findings).toHaveLength(2);
 		expect(findings.every((finding) => finding.severity === "low")).toBe(true);
+	});
+
+	test("accepts CI workflow and install/release script files as scanner inputs", () => {
+		const inputs = [
+			['token: "hardcoded-secret-value"', ".github/workflows/ci.yml"],
+			["OPENAI=sk-abcdefghijklmnopqrstuvwxyz", "scripts/install.sh"],
+			["const token = 'sk-abcdefghijklmnopqrstuvwxyz';", "scripts/release.ts"],
+		] as const;
+
+		for (const [input, fileName] of inputs) {
+			expect(rulesFor(input, fileName)).toContain(fileName.endsWith(".yml") ? "IOC-SECRET-002" : "IOC-SECRET-001");
+		}
+	});
+
+	test("collects CI workflows and install/release scripts for CLI scans", async () => {
+		const files = await collectTargetFiles(".");
+
+		expect(files).toContain(".github/workflows/ci.yml");
+		expect(files).toContain("scripts/install.sh");
+		expect(files).toContain("scripts/release.ts");
 	});
 });

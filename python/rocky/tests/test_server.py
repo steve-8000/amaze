@@ -1,4 +1,4 @@
-"""End-to-end coverage for the FastAPI surface (dashboard + JSON APIs)."""
+"""End-to-end coverage for the FastAPI JSON APIs."""
 
 from __future__ import annotations
 
@@ -12,13 +12,19 @@ import pytest
 from fastapi.testclient import TestClient
 
 from rocky.config import Settings, reset_settings_cache
-from rocky.dashboard import tail_jsonl
+from rocky.log_tail import tail_jsonl
 from rocky.db import Database, close_database, get_database, issue_key
 from rocky.github_client import GitHubClient
 from rocky.manual_triage import InvalidIssueRef, ManualTriageTimeout, await_terminal_state, parse_issue_ref
 from rocky.sandbox import LocalGitTransport
 from rocky.server import create_app
 
+class _UnreadyPool:
+    is_ready = False
+
+
+class _ReadyPool:
+    is_ready = True
 
 def _seed_db(settings: Settings) -> None:
     db = get_database(settings.sqlite_path)
@@ -59,26 +65,29 @@ def _seed_db(settings: Settings) -> None:
     db.set_issue_classification(issue_key("octo/widget", 3), "bug")
 
 
-def test_index_serves_dashboard_html(settings: Settings) -> None:
+def test_index_serves_json_descriptor(settings: Settings) -> None:
     app = create_app(settings)
     with TestClient(app) as client:
         resp = client.get("/")
     assert resp.status_code == 200
-    assert resp.headers["content-type"].startswith("text/html")
-    # Stable anchors only. The Vite bundle hashes its asset filenames on every
-    # build, but the structural skeleton (title, mount node, config script)
-    # has to stay intact for the SPA to bootstrap.
-    assert "<title>rocky</title>" in resp.text
-    assert 'id="app"' in resp.text
-    assert 'id="rocky-config"' in resp.text
-    # The sentinel must have been substituted — neither the literal sentinel
-    # nor an empty script body is acceptable.
-    assert "__ROCKY_CONFIG__" not in resp.text
-    assert '"replayEnabled":' in resp.text
+    assert resp.headers["content-type"].startswith("application/json")
+    body = resp.json()
+    assert body == {
+        "service": "rocky",
+        "version": "0.1.0",
+        "endpoints": {
+            "health": "/healthz",
+            "readiness": "/readyz",
+            "events": "/events",
+            "issues": "/issues",
+            "status": "/api/status",
+            "logs": "/api/logs",
+            "webhook": "/webhook/github",
+        },
+    }
 
 
-def test_index_substitutes_replay_token(env, monkeypatch: pytest.MonkeyPatch) -> None:
-    """When a replay token is set, the config blob exposes it to the SPA."""
+def test_index_does_not_expose_replay_token(env, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("ROCKY_REPLAY_TOKEN", "secret-token-7")
     reset_settings_cache()
     cfg = Settings()  # type: ignore[call-arg]
@@ -88,11 +97,40 @@ def test_index_substitutes_replay_token(env, monkeypatch: pytest.MonkeyPatch) ->
         with TestClient(app) as client:
             resp = client.get("/")
         assert resp.status_code == 200
-        assert '"replayEnabled":true' in resp.text
-        assert '"replayToken":"secret-token-7"' in resp.text
+        assert "secret-token-7" not in resp.text
     finally:
         close_database()
 
+
+
+def test_readyz_succeeds_when_worker_and_db_are_available(settings: Settings) -> None:
+    app = create_app(settings)
+    with TestClient(app) as client:
+        resp = client.get("/readyz")
+    close_database()
+    assert resp.status_code == 200
+    assert resp.json() == {"status": "ready"}
+
+
+def test_readyz_fails_when_worker_is_unavailable(settings: Settings) -> None:
+    app = create_app(settings)
+    with TestClient(app) as client:
+        client.app.state.bag["pool"] = _UnreadyPool()
+        resp = client.get("/readyz")
+    close_database()
+    assert resp.status_code == 503
+    assert resp.json()["detail"] == "worker unavailable"
+
+
+def test_readyz_fails_when_database_is_unavailable(settings: Settings) -> None:
+    app = create_app(settings)
+    with TestClient(app) as client:
+        client.app.state.bag["pool"] = _ReadyPool()
+        client.app.state.bag["db"].close()
+        resp = client.get("/readyz")
+    close_database()
+    assert resp.status_code == 503
+    assert resp.json()["detail"] == "database unavailable"
 
 def test_api_status_reports_runtime_counts_and_inflight(settings: Settings) -> None:
     app = create_app(settings)
@@ -1000,7 +1038,7 @@ def test_webhook_rate_limit_per_user_is_independent(rate_limited_settings: Setti
 
 
 def test_webhook_rate_limited_event_records_reason(rate_limited_settings: Settings) -> None:
-    """Throttled events must surface a useful reason on the dashboard feed."""
+    """Throttled events must surface a useful reason in the operational feed."""
     app = create_app(rate_limited_settings)
     with TestClient(app) as client:
         for i in range(3):
@@ -1381,8 +1419,8 @@ def test_browse_marks_processed_issues_present_in_db(env, monkeypatch: pytest.Mo
 
 def test_browse_processed_flag_is_recomputed_on_cache_hit(env, monkeypatch: pytest.MonkeyPatch) -> None:
     """Even when the GitHub cache is reused, `processed` reflects the current DB
-    so a triage that lands between two dashboard polls hides the entry on the
-    next refresh without forcing a GitHub round-trip."""
+    so a triage that lands between two API polls hides the entry on the next
+    request without forcing a GitHub round-trip."""
     token = _enable_replay(monkeypatch)
     cfg = Settings()  # type: ignore[call-arg]
     cfg.ensure_paths()
@@ -1404,7 +1442,7 @@ def test_browse_processed_flag_is_recomputed_on_cache_hit(env, monkeypatch: pyte
         assert first.status_code == 200
         assert first.json()["issues"][0]["processed"] is False
 
-        # Simulate a triage landing between two dashboard polls.
+        # Simulate a triage landing between two API polls.
         get_database(cfg.sqlite_path).upsert_issue(
             key=issue_key("octo/widget", 9),
             repo="octo/widget",

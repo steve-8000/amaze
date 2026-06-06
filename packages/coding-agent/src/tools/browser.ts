@@ -5,7 +5,15 @@ import browserDescription from "../prompts/tools/browser.md" with { type: "text"
 import type { ToolSession } from "../sdk";
 import { acquireBrowser, type BrowserHandle, type BrowserKind, type BrowserKindTag } from "./browser/registry";
 import type { Observation, ScreenshotResult } from "./browser/tab-protocol";
-import { acquireTab, dropHeadlessTabs, getTab, releaseAllTabs, releaseTab, runInTab } from "./browser/tab-supervisor";
+import {
+	acquireTab,
+	dropHeadlessTabs,
+	getTab,
+	releaseAllTabs,
+	releaseTab,
+	releaseTabsForOwner,
+	runInTab,
+} from "./browser/tab-supervisor";
 import type { OutputMeta } from "./output-meta";
 import { resolveToCwd } from "./path-utils";
 import { ToolAbortError, ToolError, throwIfAborted } from "./tool-errors";
@@ -14,6 +22,7 @@ import { clampTimeout } from "./tool-timeouts";
 
 export { extractReadableFromHtml, type ReadableFormat, type ReadableResult } from "./browser/readable";
 export type { Observation, ObservationEntry } from "./browser/tab-protocol";
+export { releaseTabsForOwner };
 
 const DEFAULT_TAB_NAME = "main";
 
@@ -209,6 +218,7 @@ export class BrowserTool implements AgentTool<typeof browserSchema, BrowserToolD
 				target: params.app?.target,
 				timeoutMs,
 				dialogs: params.dialogs,
+				ownerId: resolveBrowserOwnerId(this.session),
 				signal,
 			}),
 		);
@@ -283,6 +293,10 @@ export class BrowserTool implements AgentTool<typeof browserSchema, BrowserToolD
 		details.result = textOnly;
 		return toolResult(details).content(content).done();
 	}
+}
+
+function resolveBrowserOwnerId(session: ToolSession): string | undefined {
+	return session.getAgentId?.() ?? session.getSessionId?.() ?? undefined;
 }
 
 function describeBrowser(handle: BrowserHandle): string {

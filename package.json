@@ -11,8 +11,7 @@
 	"homepage": "https://github.com/can1357/amaze#readme",
 	"workspaces": {
 		"packages": [
-			"packages/*",
-			"python/rocky/web"
+			"packages/*"
 		],
 		"catalog": {
 			"@agentclientprotocol/sdk": "0.21.0",
@@ -145,8 +144,6 @@
 		"rocky:logs": "docker compose --project-directory python/rocky logs -f rocky",
 		"rocky:dev": "bun run rocky:build && bun run rocky:up && bun run rocky:logs",
 		"rocky:reset": "docker compose --project-directory python/rocky down -v && (docker image rm \"${AMAZE_IMAGE:-amaze/amaze:dev}\" || true)",
-		"rocky:web:dev": "bun --cwd=python/rocky/web run dev",
-		"rocky:web:build": "bun --cwd=python/rocky/web run build",
 		"lint:py": "ruff check python && ruff format --check python",
 		"fix:py": "ruff check --fix python && ruff format python",
 		"prepublishOnly": "bun run check",

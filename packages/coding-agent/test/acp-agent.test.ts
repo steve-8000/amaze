@@ -1131,7 +1131,7 @@ describe("ACP agent", () => {
 		await Bun.sleep(0);
 	});
 
-	it("rejects overlapping prompts while AgentSession is still streaming", async () => {
+	it("queues overlapping prompts while AgentSession is still streaming", async () => {
 		const harness = await createHarness();
 		const created = await harness.agent.newSession({ cwd: harness.cwdA, mcpServers: [] });
 		const session = harness.findSession(created.sessionId)!;
@@ -1145,17 +1145,24 @@ describe("ACP agent", () => {
 		await Bun.sleep(0);
 
 		try {
-			await expect(
-				harness.agent.prompt({
-					sessionId: created.sessionId,
-					messageId: "00000000-0000-4000-8000-000000000036",
-					prompt: [{ type: "text", text: "overlap" }],
-				} as PromptRequest),
-			).rejects.toThrow("ACP prompt already in progress for this session");
+			const secondPrompt = harness.agent.prompt({
+				sessionId: created.sessionId,
+				messageId: "00000000-0000-4000-8000-000000000036",
+				prompt: [{ type: "text", text: "overlap" }],
+			} as PromptRequest);
+			await Bun.sleep(0);
 			expect(session.promptCalls).toEqual(["long running"]);
-		} finally {
+
 			finishPrompt();
 			await firstPrompt;
+			await Bun.sleep(0);
+			expect(session.promptCalls).toEqual(["long running", "overlap"]);
+			finishPrompt();
+			await secondPrompt;
+			expect(session.promptCalls).toEqual(["long running", "overlap"]);
+		} finally {
+			finishPrompt();
+			await firstPrompt.catch(() => undefined);
 			harness.abortController.abort();
 			await Bun.sleep(0);
 		}

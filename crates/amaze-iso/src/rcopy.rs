@@ -201,10 +201,9 @@ fn seed_dirty_state(lower: &Path, merged: &Path) -> IsoResult<()> {
 		if path_bytes.is_empty() {
 			continue;
 		}
-		let rel = std::str::from_utf8(path_bytes)
-			.map_err(|err| IsoError::other(format!("untracked path is not valid UTF-8: {err}")))?;
-		let src = lower.join(rel);
-		let dst = merged.join(rel);
+		let rel = git_z_path(path_bytes)?;
+		let src = lower.join(&rel);
+		let dst = merged.join(&rel);
 		if let Some(parent) = dst.parent() {
 			std::fs::create_dir_all(parent)
 				.map_err(|err| IsoError::other(format!("create {}: {err}", parent.display())))?;
@@ -213,6 +212,24 @@ fn seed_dirty_state(lower: &Path, merged: &Path) -> IsoResult<()> {
 	}
 
 	Ok(())
+}
+
+#[cfg(unix)]
+#[allow(
+	clippy::unnecessary_wraps,
+	reason = "The cross-platform helper preserves a fallible signature for non-Unix UTF-8 validation."
+)]
+fn git_z_path(bytes: &[u8]) -> IsoResult<PathBuf> {
+	use std::os::unix::ffi::OsStrExt;
+
+	Ok(PathBuf::from(std::ffi::OsStr::from_bytes(bytes)))
+}
+
+#[cfg(not(unix))]
+fn git_z_path(bytes: &[u8]) -> IsoResult<PathBuf> {
+	let text = std::str::from_utf8(bytes)
+		.map_err(|err| IsoError::other(format!("untracked path is not valid UTF-8: {err}")))?;
+	Ok(PathBuf::from(text))
 }
 
 fn git_capture(cwd: &Path, args: &[&str]) -> IsoResult<Vec<u8>> {
@@ -460,4 +477,17 @@ fn filetime_set(path: &Path, mtime: std::time::SystemTime) -> std::io::Result<()
 #[cfg(not(any(unix, windows)))]
 fn filetime_set(_path: &Path, _mtime: std::time::SystemTime) -> std::io::Result<()> {
 	Ok(())
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+	use super::*;
+	use std::os::unix::ffi::OsStrExt;
+
+	#[test]
+	fn unix_git_z_path_preserves_non_utf8_bytes() {
+		let path = git_z_path(b"bad-\xff-name").expect("unix path bytes should be accepted");
+
+		assert_eq!(path.as_os_str().as_bytes(), b"bad-\xff-name");
+	}
 }

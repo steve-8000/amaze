@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 
 import * as fs from "node:fs/promises";
+import { createHash } from "node:crypto";
 import * as path from "node:path";
 
 interface BinaryTarget {
@@ -116,6 +117,18 @@ async function embedNative(target: BinaryTarget): Promise<void> {
 	});
 }
 
+async function writeChecksum(target: BinaryTarget): Promise<void> {
+	const checksumPath = `${target.outfile}.sha256`;
+	if (isDryRun) {
+		console.log(`DRY RUN sha256 ${target.outfile} > ${checksumPath}`);
+		return;
+	}
+
+	const bytes = await fs.readFile(path.join(repoRoot, target.outfile));
+	const checksum = createHash("sha256").update(bytes).digest("hex");
+	await fs.writeFile(path.join(repoRoot, checksumPath), `${checksum}  ${path.basename(target.outfile)}\n`);
+}
+
 async function buildBinary(target: BinaryTarget): Promise<void> {
 	console.log(`Building ${target.outfile}...`);
 	await embedNative(target);
@@ -202,6 +215,7 @@ async function main(): Promise<void> {
 	try {
 		for (const target of selectedTargets) {
 			await buildBinary(target);
+			await writeChecksum(target);
 		}
 	} finally {
 		await resetArtifacts();

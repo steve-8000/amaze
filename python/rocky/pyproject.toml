@@ -35,9 +35,6 @@ rocky = "rocky.cli:main"
 package-dir = { "rocky" = "src" }
 packages = ["rocky", "rocky.proxy"]
 
-[tool.setuptools.package-data]
-rocky = ["prompts/*", "py.typed", "static/*", "static/assets/*"]
-
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"

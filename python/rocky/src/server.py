@@ -11,13 +11,12 @@ from dataclasses import dataclass
 from typing import Any
 
 from fastapi import Body, FastAPI, Header, HTTPException, Request, status
-from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse
 
 from rocky import github_events
 from rocky.autoclose import AutocloseScheduler
 from rocky.config import Settings, get_settings
-from rocky.dashboard import render_index, static_dir, tail_jsonl
+from rocky.log_tail import tail_jsonl
 from rocky.db import (
     INACTIVE_EVENT_STATES,
     Database,
@@ -53,12 +52,12 @@ class _IssueBrowseCacheEntry:
 
 
 class _IssueBrowseCache:
-    """In-process cache for the dashboard's GitHub issue browser.
+    """In-process cache for the operational GitHub issue browser.
 
-    The browse panel is a convenience picker. It should not hit GitHub's
-    `/issues` endpoint on every browser reload because that endpoint returns PRs
-    mixed into the issue list. Webhooks keep warmed entries fresh; the dashboard
-    Refresh button can still force a live pull when an operator wants one.
+    This should not hit GitHub's `/issues` endpoint on every request because
+    that endpoint returns PRs mixed into the issue list. Webhooks keep warmed
+    entries fresh; `refresh=true` can still force a live pull when an operator
+    wants one.
     """
 
     def __init__(self) -> None:
@@ -236,7 +235,7 @@ def _build_orchestrator(cfg: Settings) -> tuple[GitHubBackend, ProxyGitTransport
 
 
 def _build_state(settings: Settings) -> dict[str, Any]:
-    db = get_database(settings.sqlite_path)
+    db = get_database(settings.sqlite_path, synchronous=settings.sqlite_synchronous)
     github, git_transport = _build_orchestrator(settings)
     natives_cache: NativesCache | None = None
     if settings.natives_cache_enabled:
@@ -295,9 +294,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/readyz")
     async def readyz(request: Request) -> dict[str, str]:
-        pool = request.app.state.bag.get("pool")
-        if pool is None:
+        bag = request.app.state.bag
+        pool = bag.get("pool")
+        db = bag.get("db")
+        if pool is None or db is None:
             raise HTTPException(503, "not initialized")
+        if not pool.is_ready:
+            raise HTTPException(503, "worker unavailable")
+        try:
+            await asyncio.to_thread(db.ping)
+        except Exception as exc:
+            raise HTTPException(503, "database unavailable") from exc
         return {"status": "ready"}
 
     @app.post("/webhook/github")
@@ -494,11 +501,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         refresh: bool = False,
         x_rocky_token: str | None = Header(None, alias="X-Rocky-Replay-Token"),
     ) -> dict[str, Any]:
-        """Browse issues across `ROCKY_REPO_ALLOWLIST` for the trigger picker.
+        """Browse issues across `ROCKY_REPO_ALLOWLIST` for manual triage.
 
         Token-gated identically to `/api/trigger`: this can expose titles from
-        private repos. Normal dashboard loads use the server cache; only cache
-        misses and explicit refreshes hit GitHub.
+        private repos. Normal requests use the server cache; only cache misses
+        and explicit refreshes hit GitHub.
         """
         bag = request.app.state.bag
         cfg: Settings = bag["settings"]
@@ -514,7 +521,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return {"issues": [], "errors": [], "repos": [], "cache": {"hit": False, "fetched_at": time.time()}}
 
         async def _fetch() -> tuple[list[IssueSummary], list[dict[str, str]]]:
-            # Fan out across allowlisted repos; per-repo failures don't take down the panel.
+            # Fan out across allowlisted repos; per-repo failures don't take down the response.
             async def _one(repo: str) -> tuple[str, list[IssueSummary], str | None]:
                 try:
                     items = await github.list_issues(repo, state=state, limit=capped)
@@ -540,7 +547,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             fetch=_fetch,
         )
         # `processed` is not cached: a freshly-triaged issue must immediately
-        # disappear from the "fresh issues" filter on the next dashboard refresh.
+        # disappear from filtered operational views without forcing a GitHub round-trip.
         db: Database = bag["db"]
         processed = frozenset(db.processed_issue_keys(make_issue_key(s.repo, s.number) for s in entry.issues))
         return _issue_browse_payload(entry=entry, cache_hit=cache_hit, processed_keys=processed)
@@ -700,11 +707,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             ]
         }
 
-    @app.get("/", response_class=HTMLResponse)
-    async def index(request: Request) -> HTMLResponse:
-        cfg: Settings = request.app.state.bag["settings"]
-        token = cfg.replay_token.get_secret_value() if cfg.replay_token else None
-        return HTMLResponse(render_index(token))
+    @app.get("/")
+    async def index() -> dict[str, Any]:
+        return {
+            "service": "rocky",
+            "version": app.version,
+            "endpoints": {
+                "health": "/healthz",
+                "readiness": "/readyz",
+                "events": "/events",
+                "issues": "/issues",
+                "status": "/api/status",
+                "logs": "/api/logs",
+                "webhook": "/webhook/github",
+            },
+        }
 
     @app.get("/api/status")
     async def api_status(request: Request) -> dict[str, Any]:
@@ -779,10 +796,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         entries = tail_jsonl(cfg.log_dir / "rocky.log.jsonl", limit=capped)
         return {"entries": entries, "count": len(entries), "limit": capped}
 
-    # Mount the built dashboard bundle. The `index.html` itself is served by
-    # the `@app.get("/")` handler above so the per-instance replay-token can
-    # be substituted; `/static/*` carries the hashed JS/CSS produced by Vite.
-    app.mount("/static", StaticFiles(directory=static_dir()), name="static")
 
     return app
 

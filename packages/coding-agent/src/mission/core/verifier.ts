@@ -301,9 +301,11 @@ async function checkCommandExit(
 			stderr: "pipe",
 			signal: controller.signal,
 		});
-		const exitCode = await proc.exited;
-		const stdout = await new Response(proc.stdout).text();
-		const stderr = await new Response(proc.stderr).text();
+		const [exitCode, stdout, stderr] = await Promise.all([
+			proc.exited,
+			new Response(proc.stdout).text(),
+			new Response(proc.stderr).text(),
+		]);
 		const matched = exitCode === expected;
 		return {
 			id: criterion.id,
@@ -358,9 +360,11 @@ async function checkCommandOutput(
 			stderr: "pipe",
 			signal: controller.signal,
 		});
-		const exitCode = await proc.exited;
-		const stdout = await new Response(proc.stdout).text();
-		const stderr = await new Response(proc.stderr).text();
+		const [exitCode, stdout, stderr] = await Promise.all([
+			proc.exited,
+			new Response(proc.stdout).text(),
+			new Response(proc.stderr).text(),
+		]);
 
 		// Validate each constraint in declaration order so the first failure gets surfaced
 		// with the most specific reason. Exit code is checked first because it's the broadest

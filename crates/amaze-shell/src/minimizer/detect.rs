@@ -362,10 +362,9 @@ fn tokenize(command: &str) -> Vec<String> {
 			(None, '\'' | '"') => quote = Some(ch),
 			(Some(q), c) if c == q => quote = None,
 			(None, '\\') => {
-				if chars
-					.peek()
-					.is_some_and(|next| next.is_whitespace() || matches!(next, '\'' | '"' | '\\' | ';' | '|' | '&'))
-				{
+				if chars.peek().is_some_and(|next| {
+					next.is_whitespace() || matches!(next, '\'' | '"' | '\\' | ';' | '|' | '&')
+				}) {
 					current.push(chars.next().expect("peeked character exists"));
 				} else {
 					current.push('\\');

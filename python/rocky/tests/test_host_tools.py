@@ -475,7 +475,7 @@ def test_abort_task_signals_controller_and_abandons_without_comment(db: Database
     issue = db.get_issue(bindings.issue_key)
     assert issue and issue.state == "abandoned"
     # Audit row records the call. Use raw SQL because `Database` exposes a
-    # writer but no reader for `tool_calls` — the dashboard reads via SQL too.
+    # writer but no reader for `tool_calls` — operational endpoints read via SQL too.
     with db._lock:  # noqa: SLF001 - test-only inspection
         row = db._conn.execute(  # noqa: SLF001
             "SELECT tool, args_json FROM tool_calls WHERE issue_key=? AND tool=?",

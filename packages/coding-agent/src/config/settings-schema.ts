@@ -289,101 +289,51 @@ export const SETTINGS_SCHEMA = {
 	},
 	shellPath: { type: "string", default: undefined },
 
-	// Durable memory backend.
-	"memory.backend": {
-		type: "enum",
-		values: ["off", "mem0", "hermes"] as const,
-		default: "off",
+	// GBrain-backed durable memory and agency context.
+	"agencyBrain.enabled": {
+		type: "boolean",
+		default: true,
 		ui: {
 			tab: "providers",
-			label: "Memory Backend",
-			description: "Durable memory provider used for recall, turn sync, and compaction checkpoints",
-			options: [
-				{ value: "off", label: "Off", description: "Disable durable memory" },
-				{ value: "mem0", label: "Mem0", description: "Use a self-hosted Mem0 REST API" },
-				{ value: "hermes", label: "Hermes", description: "Use local Hermes memory" },
-			],
+			label: "Agency Brain",
+			description: "Enable GBrain-backed durable memory, agency org registry, and scoped context tools",
 		},
 	},
-	"memory.mem0.baseUrl": {
+	"agencyBrain.mcpServer": {
+		type: "string",
+		default: "gbrain",
+		ui: {
+			tab: "providers",
+			label: "Agency Brain MCP Server",
+			description: "MCP server name to use for gBrain tools",
+		},
+	},
+	"agencyBrain.agencySourceId": {
+		type: "string",
+		default: "__all__",
+		ui: {
+			tab: "providers",
+			label: "Agency Brain Source",
+			description: "Source id for agency-level brain context",
+		},
+	},
+	"agencyBrain.defaultClientSourceId": {
 		type: "string",
 		default: undefined,
 		ui: {
 			tab: "providers",
-			label: "Mem0 Base URL",
-			description: "Self-hosted Mem0 API URL, e.g. http://127.0.0.1:8888",
+			label: "Default Client Pod Source",
+			description: "Optional default client pod source",
 		},
 	},
-	"memory.mem0.apiKey": {
+	"agencyBrain.registrySlug": {
 		type: "string",
-		default: undefined,
+		default: "org/agent-registry",
 		ui: {
 			tab: "providers",
-			label: "Mem0 API Key",
-			description: "API key sent to Mem0 as X-API-Key",
+			label: "Agency Brain Registry Slug",
+			description: "Page slug for the org chart/agent registry",
 		},
-	},
-	"memory.mem0.userId": {
-		type: "string",
-		default: "amaze-user",
-		ui: {
-			tab: "providers",
-			label: "Mem0 User ID",
-			description: "User scope for Mem0 reads and writes",
-		},
-	},
-	"memory.mem0.agentId": {
-		type: "string",
-		default: "amaze",
-		ui: {
-			tab: "providers",
-			label: "Mem0 Agent ID",
-			description: "Agent attribution for Mem0 writes",
-		},
-	},
-	"memory.mem0.topK": {
-		type: "number",
-		default: 5,
-		ui: {
-			tab: "providers",
-			label: "Mem0 Recall Count",
-			description: "Maximum semantic memory hits injected at turn start",
-		},
-	},
-	"memory.hermes.mode": {
-		type: "enum",
-		values: ["policy-only", "legacy-inject"] as const,
-		default: "policy-only",
-	},
-	"memory.hermes.policyStyle": {
-		type: "enum",
-		values: ["full", "compact", "custom", "none"] as const,
-		default: "full",
-	},
-	"memory.hermes.policyCustomText": {
-		type: "string",
-		default: undefined,
-	},
-	"memory.hermes.memoryCharLimit": {
-		type: "number",
-		default: 12000,
-	},
-	"memory.hermes.userCharLimit": {
-		type: "number",
-		default: 8000,
-	},
-	"memory.hermes.failureInjectionMaxAgeDays": {
-		type: "number",
-		default: 30,
-	},
-	"memory.hermes.failureInjectionMaxEntries": {
-		type: "number",
-		default: 5,
-	},
-	"memory.hermes.overflowStrategy": {
-		type: "enum",
-		values: ["reject", "fifo-evict"] as const,
-		default: "reject",
 	},
 
 	extensions: { type: "array", default: EMPTY_STRING_ARRAY },
@@ -3110,6 +3060,14 @@ export interface SttSettings {
 	modelPath: string | undefined;
 }
 
+export interface AgencyBrainSettings {
+	enabled: boolean;
+	mcpServer: string | undefined;
+	agencySourceId: string | undefined;
+	defaultClientSourceId: string | undefined;
+	registrySlug: string | undefined;
+}
+
 export interface BashInterceptorRule {
 	pattern: string;
 	flags?: string;
@@ -3137,6 +3095,7 @@ export interface GroupTypeMap {
 	commit: CommitSettings;
 	ttsr: TtsrSettings;
 	localLlm: LocalLlmSettings;
+	agencyBrain: AgencyBrainSettings;
 	exa: ExaSettings;
 	statusLine: StatusLineSettings;
 	thinkingBudgets: ThinkingBudgetsSettings;

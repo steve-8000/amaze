@@ -75,6 +75,11 @@ class WorkerPool:
         # silently masked and requeued as if nothing went wrong.
         self._shutdown_cancelled: set[str] = set()
 
+    @property
+    def is_ready(self) -> bool:
+        """True while background dispatcher tasks are alive and not shutting down."""
+        return not self._shutting_down and bool(self._workers) and all(not task.done() for task in self._workers)
+
     def wake(self) -> None:
         """Signal that new work is available."""
         self._wakeup.set()

@@ -55,6 +55,7 @@ export interface TabSession {
 	pending: Map<string, PendingRun>;
 	dialogPolicy?: DialogPolicy;
 	kindTag: BrowserKindTag;
+	ownerId?: string;
 }
 
 export interface AcquireTabOptions {
@@ -65,6 +66,7 @@ export interface AcquireTabOptions {
 	signal?: AbortSignal;
 	timeoutMs: number;
 	dialogs?: DialogPolicy;
+	ownerId?: string;
 }
 
 export interface AcquireTabResult {
@@ -89,7 +91,6 @@ const GRACE_MS = 750;
 export function getTab(name: string): TabSession | undefined {
 	return tabs.get(name);
 }
-
 export async function acquireTab(
 	name: string,
 	browser: BrowserHandle,
@@ -161,6 +162,7 @@ export async function acquireTab(
 		pending: new Map(),
 		dialogPolicy: opts.dialogs,
 		kindTag: browser.kind.kind,
+		ownerId: opts.ownerId,
 	};
 	worker.onMessage(msg => handleTabMessage(tab, msg));
 	tabs.set(name, tab);
@@ -243,6 +245,15 @@ export async function releaseTab(name: string, opts: ReleaseTabOptions = {}): Pr
 	await releaseBrowser(tab.browser, { kill: opts.kill ?? false });
 	tabs.delete(name);
 	return true;
+}
+
+export async function releaseTabsForOwner(ownerId: string, opts: ReleaseTabOptions = {}): Promise<number> {
+	const names = [...tabs.values()].filter(tab => tab.ownerId === ownerId).map(tab => tab.name);
+	let count = 0;
+	for (const name of names) {
+		if (await releaseTab(name, opts)) count++;
+	}
+	return count;
 }
 
 export async function releaseAllTabs(opts: ReleaseTabOptions = {}): Promise<number> {

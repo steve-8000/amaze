@@ -23,6 +23,7 @@ import type { DiscoverableTool, DiscoverableToolSearchIndex } from "../tool-disc
 import type { EventBus } from "../utils/event-bus";
 import { WebSearchTool } from "../web/search";
 import type { WorkspaceTree } from "../workspace-tree";
+import { AgencyBrainQueryTool, AgencyBrainRegistryTool } from "./agency-brain";
 import { AskTool } from "./ask";
 import { AstEditTool } from "./ast-edit";
 import { AstGrepTool } from "./ast-grep";
@@ -34,11 +35,9 @@ import { DebugTool } from "./debug";
 import { EvalTool } from "./eval";
 import { FindTool } from "./find";
 import { GithubTool } from "./gh";
-import { HermesMemorySearchTool, HermesMemoryTool } from "./hermes-memory";
 import { InspectImageTool } from "./inspect-image";
 import { IrcTool } from "./irc";
 import { JobTool } from "./job";
-import { Mem0ConcludeTool, Mem0ProfileTool, Mem0SearchTool } from "./mem0-memory";
 import { wrapToolWithMetaNotice } from "./output-meta";
 import { ReadTool } from "./read";
 import { RecipeTool } from "./recipe";
@@ -65,6 +64,7 @@ export * from "../mission/core";
 export * from "../session/streaming-output";
 export * from "../task";
 export * from "../web/search";
+export * from "./agency-brain";
 export * from "./ask";
 export * from "./ast-edit";
 export * from "./ast-grep";
@@ -76,12 +76,10 @@ export * from "./debug";
 export * from "./eval";
 export * from "./find";
 export * from "./gh";
-export * from "./hermes-memory";
 export * from "./image-gen";
 export * from "./inspect-image";
 export * from "./irc";
 export * from "./job";
-export * from "./mem0-memory";
 export * from "./read";
 export * from "./recipe";
 export * from "./render-mermaid";
@@ -310,6 +308,8 @@ export function computeEssentialBuiltinNames(settings: Settings): string[] {
  * `BUILTIN_TOOLS[name](session)` to construct a tool directly.
  */
 export const BUILTIN_TOOLS: Record<string, ToolFactory> = {
+	agency_brain_registry: AgencyBrainRegistryTool.createIf,
+	agency_brain_query: AgencyBrainQueryTool.createIf,
 	read: s => new ReadTool(s),
 	bash: s => new BashTool(s),
 	edit: s => new EditTool(s),
@@ -337,11 +337,6 @@ export const BUILTIN_TOOLS: Record<string, ToolFactory> = {
 	todo_read: s => new TodoReadTool(s),
 	web_search: s => new WebSearchTool(s),
 	search_tool_bm25: SearchToolBm25Tool.createIf,
-	memory: HermesMemoryTool.createIf,
-	memory_search: HermesMemorySearchTool.createIf,
-	mem0_profile: Mem0ProfileTool.createIf,
-	mem0_search: Mem0SearchTool.createIf,
-	mem0_conclude: Mem0ConcludeTool.createIf,
 	x_search: s => new XSearchTool(s),
 	x_search_deep: s => new XSearchDeepTool(s),
 	write: s => new WriteTool(s),
@@ -530,6 +525,9 @@ export async function createTools(session: ToolSession, toolNames?: string[]): P
 		if (name === "inspect_image") return session.settings.get("inspect_image.enabled");
 		if (name === "web_search") return session.settings.get("web_search.enabled");
 		// search_tool_bm25 is allowed when either legacy mcp.discoveryMode or new tools.discoveryMode is active.
+		if (name === "agency_brain_registry" || name === "agency_brain_query") {
+			return session.settings.get("agencyBrain.enabled") === true;
+		}
 		if (name === "search_tool_bm25") return discoveryActive;
 		if (name === "calc") return session.settings.get("calc.enabled");
 		if (name === "browser") return session.settings.get("browser.enabled");

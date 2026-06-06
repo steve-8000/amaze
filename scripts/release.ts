@@ -169,8 +169,14 @@ async function cmdWatch(): Promise<void> {
 	process.exit(success ? 0 : 1);
 }
 
+function normalizeStableVersion(v: string): string {
+	const match = v.match(/^v?(\d+)\.(\d+)\.(\d+)$/);
+	if (!match) throw new Error(`Invalid stable release version: ${v}`);
+	return `${match[1]}.${match[2]}.${match[3]}`;
+}
+
 function parseVersion(v: string): [number, number, number] {
-	const match = v.replace(/^v/, "").match(/^(\d+)\.(\d+)\.(\d+)/);
+	const match = normalizeStableVersion(v).match(/^(\d+)\.(\d+)\.(\d+)$/);
 	if (!match) throw new Error(`Invalid version: ${v}`);
 	return [parseInt(match[1]), parseInt(match[2]), parseInt(match[3])];
 }
@@ -185,7 +191,7 @@ function compareVersions(a: string, b: string): number {
 
 async function cmdRelease(version: string): Promise<void> {
 	console.log("\n=== Release Script ===\n");
-
+	version = normalizeStableVersion(version);
 	// 1. Pre-flight checks
 	console.log("Pre-flight checks...");
 
@@ -320,10 +326,10 @@ async function cmdRelease(version: string): Promise<void> {
 	await git(["tag", `v${version}`]);
 	console.log();
 
-	// 8. Push
-	console.log("Pushing to remote...");
-	await git(["push", "origin", "main"]);
-	await git(["push", "origin", `v${version}`]);
+	// 8. Push branch and tag together so a network/auth failure cannot leave a
+	// remote branch commit without the release tag that triggers CI publication.
+	console.log("Pushing branch and tag to remote...");
+	await git(["push", "origin", `HEAD:main`, `refs/tags/v${version}:refs/tags/v${version}`]);
 	console.log();
 
 	// 9. Watch CI
@@ -335,8 +341,8 @@ async function cmdRelease(version: string): Promise<void> {
 	} else {
 		console.log("\nTo retry after fixing (repeat until CI passes):");
 		console.log("  git commit -m \"fix: <brief description>\"");
-		console.log("  git push origin main");
-		console.log(`  git tag -f v${version} && git push origin v${version} --force`);
+		console.log("  git tag -f v${version}");
+		console.log(`  git push origin HEAD:main refs/tags/v${version}:refs/tags/v${version}`);
 		console.log("  bun scripts/release.ts watch");
 		process.exit(1);
 	}
@@ -357,7 +363,7 @@ if (!arg) {
 
 if (arg === "watch") {
 	await cmdWatch();
-} else if (/^\d+\.\d+\.\d+/.test(arg)) {
+} else if (/^v?\d+\.\d+\.\d+$/.test(arg)) {
 	await cmdRelease(arg);
 } else {
 	console.error(`Unknown command or invalid version: ${arg}`);

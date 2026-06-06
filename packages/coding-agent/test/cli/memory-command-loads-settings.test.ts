@@ -67,13 +67,12 @@ afterEach(async () => {
 describe("memory command settings loading", () => {
 	it("loads persisted config before running memory doctor", async () => {
 		const { stdout, stderr, exitCode } = await runMemoryDoctorWithConfig(
-			`memory:\n  backend: mem0\n  mem0:\n    baseUrl: http://127.0.0.1:9\n`,
+			`agencyBrain:\n  enabled: true\n  mcpServer: gbrain\n`,
 		);
 
 		expect(exitCode).toBe(0);
 		expect(stderr).toBe("");
-		expect(stdout).toContain("Memory backend: mem0");
-		expect(stdout).toContain("Base URL: http://127.0.0.1:9");
-		expect(stdout).not.toContain("Memory backend: off");
+		expect(stdout).toContain("Memory backend: removed");
+		expect(stdout).toContain("GBrain Agency Brain via MCP");
 	});
 });

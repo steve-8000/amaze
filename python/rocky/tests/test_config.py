@@ -132,3 +132,23 @@ def test_task_timeout_hard_grace_env_parses(monkeypatch: pytest.MonkeyPatch, env
     reset_settings_cache()
     cfg = Settings()  # type: ignore[call-arg]
     assert cfg.task_timeout_hard_grace_seconds == 12.5
+
+def test_sqlite_synchronous_defaults_to_full(env: dict[str, str]) -> None:
+    cfg = Settings()  # type: ignore[call-arg]
+    assert cfg.sqlite_synchronous == "FULL"
+
+
+def test_sqlite_synchronous_env_is_normalized(monkeypatch: pytest.MonkeyPatch, env: dict[str, str]) -> None:
+    monkeypatch.setenv("ROCKY_SQLITE_SYNCHRONOUS", "normal")
+    reset_settings_cache()
+    cfg = Settings()  # type: ignore[call-arg]
+    assert cfg.sqlite_synchronous == "NORMAL"
+
+
+def test_shutdown_windows_must_fit_stop_grace_period(monkeypatch: pytest.MonkeyPatch, env: dict[str, str]) -> None:
+    monkeypatch.setenv("ROCKY_SHUTDOWN_DRAIN_TIMEOUT_SECONDS", "25")
+    monkeypatch.setenv("ROCKY_SHUTDOWN_KILL_TIMEOUT_SECONDS", "6")
+    monkeypatch.setenv("ROCKY_COMPOSE_STOP_GRACE_PERIOD_SECONDS", "30")
+    reset_settings_cache()
+    with pytest.raises(ValidationError, match="must be <= ROCKY_COMPOSE_STOP_GRACE_PERIOD_SECONDS"):
+        Settings()  # type: ignore[call-arg]

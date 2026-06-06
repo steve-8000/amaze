@@ -13,7 +13,7 @@ The current system is built around a scout-and-orchestrate architecture: tools a
 - `packages/tui` — terminal UI primitives used by interactive mode.
 - `packages/agent`, `packages/utils`, `packages/stats`, `packages/natives` — shared runtime, CLI, telemetry, and native helper packages.
 - `packages/swarm-extension` and `packages/typescript-edit-benchmark` — extension and benchmark/support packages.
-- `python/rocky` and `python/rocky/web` — Rocky Python service and web workspace.
+- `python/rocky` — Rocky Python service.
 - `.amaze/` — checked-in project settings, skills, commands, and rules used by this repository profile.
 - `docs/` — current operator documentation plus historical implementation records. Start with [`docs/README.md`](docs/README.md).
 
@@ -21,7 +21,7 @@ The current system is built around a scout-and-orchestrate architecture: tools a
 
 ### Compact orchestrator and bounded subagents
 
-The main agent is optimized to be a low-token orchestrator. It keeps the objective, acceptance criteria, todos, approvals, and integration state in view, then delegates detailed work to subagents such as `Explore`, `Planner`, `Reviewer`, `Builder`, `Designer`, `Resercher`, and `Resercher_X`.
+The main agent is optimized to be a low-token orchestrator. It keeps the objective, acceptance criteria, todos, approvals, and integration state in view, then actively delegates non-trivial repository work to the minimal project-approved subagent roster: `Builder`, `Resercher`, and `SRE`. Direct inline work is reserved for answers/explanations and small single-file edits.
 
 Non-trivial subagent work is passed through a structured contract: scope, success criteria, escalation behavior, and output requirements. Scope is enforced at mutation tools, so prompt text is not the only boundary. Contract verification distinguishes hard failures from uncertainty: `onUncertainty: "ask-parent"` lets the parent continue with the subagent output, while blocking contracts still stop on uncertainty.
 
@@ -55,6 +55,8 @@ Settings proposals carry patches and rollback values; skill and rule proposals a
 
 Routing is local configuration, not hard-coded documentation. Project defaults live in `.amaze/config.yml`; package-level provider code lives under `packages/ai`; subagent model/thinking overrides are exercised by the task agent tests. The checked-in profile currently uses a compact main context, prompt-cache prefix reuse, project-local skills/rules, and an optional local Resercher role.
 Amaze supports a provider-agnostic local LLM scout role for cheap prepasses before expensive remote reasoning. Projects configure this through `modelRoles.Resercher` and `localLlm.*` settings; task routing resolves the role alias instead of depending on a concrete local model name. Bundled `Resercher` prompts use the `Resercher` role with structured outputs when local scouting is enabled, while explicit per-agent overrides and normal fallback routing remain available.
+
+Durable user, project, and prior-decision context is backed by GBrain/Agency Brain via `agencyBrain.*` settings in `.amaze/config.yml`. Legacy local, Mem0, and Hermes memory backends are not supported runtime memory paths.
 
 The local Resercher helpers live under `packages/coding-agent/src/local-llm/` and cover config resolution, conservative evidence-bundle types/validation, stable prompt construction for prefix-cache reuse, local role/config health checks, and cache/token accounting helpers. See `docs/models.md` for configuration examples.
 

@@ -1,12 +1,7 @@
 modelRoles:
   default: openai-codex/gpt-5.5
-  Explore: openai-codex/gpt-5.5
-  Planner: openai-codex/gpt-5.5
-  Reviewer: openai-codex/gpt-5.5
   Builder: openai-codex/gpt-5.5
-  Designer: openai-codex/gpt-5.5
   Resercher: openai-codex/gpt-5.3-codex-spark
-  Resercher_X: openai-codex/gpt-5.3-codex-spark
   SRE: openai-codex/gpt-5.5
 hideThinkingBlock: true
 localLlm:
@@ -50,14 +45,11 @@ tools:
   # bash/eval/recipe are used in almost every task; keep them always-active instead
   # of hidden behind search_tool_bm25 discovery (which also does not persist built-in
   # activations across turns, so they kept disappearing).
-  essentialOverride: [read, find, search, edit, write, task, todo_write, todo_read, bash, eval, recipe, mem0_profile, mem0_search, mem0_conclude]
-memory:
-  backend: mem0
-  mem0:
-    baseUrl: http://127.0.0.1:8888
-    userId: amaze-user
-    agentId: amaze
-    topK: 5
+  essentialOverride: [read, find, search, edit, write, task, todo_write, todo_read, bash, eval, recipe]
+agencyBrain:
+  enabled: true
+  mcpServer: gbrain
+  agencySourceId: "__all__"
 skills:
   enableCodexUser: false
   enableClaudeUser: false
@@ -82,17 +74,4 @@ skills:
     - system-prompts
     - sui-validater
     - destructive-mission
-    - design-taste-frontend
     - fp-validated
-    - design-skill-index
-    - design-brief
-    - frontend-design
-    - shadcn-ui
-    - platform-design
-    - apple-hig
-    - swiftui-design
-    - figma-implement-design
-    - figma-code-connect-components
-    - figma-create-design-system-rules
-    - roy-frontend
-    - fitbody-uiux

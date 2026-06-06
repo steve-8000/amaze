@@ -211,19 +211,41 @@ async function fileExists(filePath: string): Promise<boolean> {
 	}
 }
 
-async function collectTargetFiles(root: string): Promise<string[]> {
+export async function collectTargetFiles(root: string): Promise<string[]> {
 	const files = new Set<string>();
-	for (const target of ["package.json", "bun.lock", "Cargo.lock", "python/rocky/pyproject.toml", ".mcp.json", ".amaze/settings.json"]) {
+	const directTargets = [
+		"package.json",
+		"bun.lock",
+		"Cargo.lock",
+		"python/rocky/pyproject.toml",
+		".mcp.json",
+		".amaze/settings.json",
+		"scripts/install.sh",
+		"scripts/release.ts",
+		"scripts/ci-release-build-binaries.ts",
+		"scripts/ci-release-publish.ts",
+	];
+	for (const target of directTargets) {
 		if (await fileExists(path.join(root, target))) files.add(target);
 	}
-	const packageGlob = new Bun.Glob("packages/*/package.json");
-	for await (const match of packageGlob.scan({ cwd: root, onlyFiles: true })) {
-		if (await fileExists(path.join(root, match))) files.add(match);
+
+	for (const pattern of ["packages/*/package.json", ".github/workflows/*.yaml", ".github/workflows/*.yml"]) {
+		const glob = new Bun.Glob(pattern);
+		for await (const match of glob.scan({ cwd: root, onlyFiles: true })) {
+			if (await fileExists(path.join(root, match))) files.add(match);
+		}
+	}
+	for (const pattern of ["*.yaml", "*.yml"]) {
+		const glob = new Bun.Glob(pattern);
+		for await (const match of glob.scan({ cwd: path.join(root, ".github", "workflows"), onlyFiles: true })) {
+			const target = path.join(".github", "workflows", match);
+			if (await fileExists(path.join(root, target))) files.add(target);
+		}
 	}
 	return [...files].sort();
 }
 
-function parseArgs(args: string[]): { json: boolean; root: string } {
+export function parseArgs(args: string[]): { json: boolean; root: string } {
 	let json = false;
 	let root = ".";
 	for (let index = 0; index < args.length; index += 1) {

@@ -4,20 +4,29 @@
 
 Amaze is a compact coding-agent runtime. Optimize for **verified work**, not verbose
 narration. A low-token parent orchestrator owns goals, todos, approvals, and
-integration; bounded subagents do detailed file work. Memory is durable context, not
+integration; bounded subagents do detailed file work. GBrain/Agency Brain is the
+supported durable memory path for user, project, and prior-decision context, not
 authority — guidance only.
 
 ## Agent roles
 
-- **Default agent**: owns planning, Mission Control, task decomposition, integration, and final verification. Handle simple work directly without delegation.
-- **Builder**: owns delegated work that is not Researcher-only and not SRE/operations: implementation, refactors, repo debugging, tests, docs, and code investigation.
-- **Resercher**: GPT-5.3 Codex Spark search-only agent for web and X/Twitter research. Use for external facts, docs, issues, changelogs, and social signals. It may use browser control only when search/read are blocked or insufficient.
+- **Default agent**: owns planning, Mission Control, task decomposition, integration, and final verification. Handle only direct answers and small single-file edits inline.
+- **Builder**: owns delegated repository work: implementation, refactors, repo debugging, tests, docs, and code investigation.
+- **Resercher**: GPT-5.3 Codex Spark search-only agent for external/web/X facts, docs, issues, changelogs, social signals, or when repository facts are insufficient. It may use browser control only when search/read are blocked or insufficient.
 - **SRE**: owns validator operations and deployment checks for k3s, Kubernetes, Docker, ArgoCD, pods, services, rollouts, runtime health, and related production operations.
 
 ## Mission Control routing
 
+- Default MUST delegate actively using the minimal roster. For non-trivial repository work, spawn **Builder** before implementation unless the entire change is a small single-file edit under ~30 lines or a direct answer/explanation. For independent areas, spawn multiple Builder tasks in parallel.
 - When the Default agent receives an unfamiliar task, a task that requires external/web/X research, or a task where repository facts are insufficient, dispatch **Resercher** first before planning implementation.
+- Use **SRE** for runtime/ops/deployment validation instead of doing those checks inline.
 - Keep ownership boundaries simple: Default plans, decomposes, integrates, and verifies; Builder implements and investigates repository code; Resercher searches web/X/read and uses browser only when search/read are blocked or insufficient; SRE handles operations and deployments.
+
+## Durable memory
+
+- Default/parent agents MUST actively use GBrain/Agency Brain for durable user, project, and prior-decision context before planning or integrating non-trivial work.
+- Legacy local, Mem0, and Hermes memory backends MUST NOT be used for runtime memory or configuration.
+
 
 ## Required verification
 
@@ -38,7 +47,6 @@ authority — guidance only.
 | TS tests (failed-only fast loop) | `bun run test:ts:failed` |
 | TS tests (full) | `bun run test:ts` |
 | Full tests | `bun run test` |
-| Memory doctor | `bun run dev -- memory doctor` |
 
 > Full regression in CI uses `bun run ci:test:full`.
 

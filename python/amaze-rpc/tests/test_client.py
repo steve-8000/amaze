@@ -666,6 +666,38 @@ class RpcClientTests(unittest.TestCase):
             self.assertEqual(len(end_events), 1)
             self.assertEqual(end_events[0].result["content"][0]["text"], "host:hello")
 
+    def test_stop_snapshots_pending_host_maps_before_cancelling(self) -> None:
+        client = self.make_client()
+        pending = type("Pending", (), {"cancel_event": threading.Event()})()
+        mutation_started = threading.Event()
+        mutate_now = threading.Event()
+
+        class MutatingValues(dict):
+            def values(self):
+                base_values = super().values()
+
+                def mutate() -> None:
+                    mutate_now.wait(timeout=1.0)
+                    with client._state_lock:
+                        self["second"] = pending
+                    mutation_started.set()
+
+                threading.Thread(target=mutate, daemon=True).start()
+                for value in base_values:
+                    mutate_now.set()
+                    time.sleep(0.01)
+                    yield value
+
+        client._pending_host_tool_calls = MutatingValues({"first": pending})
+        client._pending_host_uri_requests = MutatingValues({"first": pending})
+        with client._state_lock:
+            host_tool_calls = tuple(client._pending_host_tool_calls.values())
+            host_uri_requests = tuple(client._pending_host_uri_requests.values())
+
+        self.assertTrue(mutation_started.wait(timeout=1.0))
+        self.assertEqual(host_tool_calls, (pending,))
+        self.assertEqual(host_uri_requests, (pending,))
+
     def test_extension_ui_round_trip(self) -> None:
         with self.make_client() as client:
             client.prompt("needs ui")

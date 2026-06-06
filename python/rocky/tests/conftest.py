@@ -3,43 +3,10 @@
 from __future__ import annotations
 
 from pathlib import Path
-
 import pytest
 
 from rocky.config import Settings, reset_settings_cache
-from rocky.dashboard import reset_index_cache, static_dir
 from rocky.db import Database, close_database
-
-# Minimum HTML the dashboard handler needs to render: `<title>` plus a script
-# block carrying the `__ROCKY_CONFIG__` sentinel. The real Vite-built bundle
-# adds JS/CSS asset links; tests only care about the rendering contract.
-_PLACEHOLDER_INDEX_HTML = (
-    "<!doctype html>\n"
-    '<html lang="en">\n'
-    '  <head><meta charset="utf-8"><title>rocky</title></head>\n'
-    "  <body>\n"
-    '    <div id="app"></div>\n'
-    '    <script id="rocky-config" type="application/json">__ROCKY_CONFIG__</script>\n'
-    "  </body>\n"
-    "</html>\n"
-)
-
-
-@pytest.fixture(autouse=True, scope="session")
-def _ensure_dashboard_bundle() -> None:
-    """Guarantee a renderable dashboard bundle for the whole session.
-
-    The real bundle is produced by `bun run web:build`; CI and fresh clones
-    might not have run it yet. We only synthesise an `index.html` when one
-    isn't already present, so a developer's locally-built bundle isn't
-    clobbered by the test run.
-    """
-    directory = static_dir()
-    index = directory / "index.html"
-    if not index.exists():
-        index.write_text(_PLACEHOLDER_INDEX_HTML, encoding="utf-8")
-    reset_index_cache()
-
 
 @pytest.fixture(autouse=True)
 def _open_tmp_path_for_slot_traversal(tmp_path: Path) -> None:

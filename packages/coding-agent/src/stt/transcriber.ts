@@ -63,14 +63,15 @@ export async function transcribe(audioPath: string, options?: TranscribeOptions)
 		proc.kill();
 	}, TRANSCRIBE_TIMEOUT_MS);
 
-	const exitCode = await proc.exited;
+	const [exitCode, stdout, stderr] = await Promise.all([
+		proc.exited,
+		new Response(proc.stdout).text(),
+		new Response(proc.stderr).text(),
+	]);
 	clearTimeout(killTimer);
 	options?.signal?.removeEventListener("abort", onAbort);
 
 	options?.signal?.throwIfAborted();
-
-	const stdout = await new Response(proc.stdout).text();
-	const stderr = await new Response(proc.stderr).text();
 
 	if (timedOut) {
 		throw new Error(`Transcription timed out after ${Math.round(TRANSCRIBE_TIMEOUT_MS / 1000)}s`);

@@ -14,6 +14,7 @@ REPO="can1357/amaze"
 PACKAGE="@amaze/coding-agent"
 INSTALL_DIR="${AMAZE_INSTALL_DIR:-$HOME/.local/bin}"
 MIN_BUN_VERSION="1.3.14"
+CHECKSUM_SUFFIX=".sha256"
 
 # Parse arguments
 MODE=""
@@ -184,6 +185,33 @@ install_via_bun() {
 }
 
 # Install binary from GitHub releases
+verify_sha256() {
+    file="$1"
+    checksum_file="$2"
+
+    expected="$(awk '{print $1; exit}' "$checksum_file")"
+    if [ -z "$expected" ]; then
+        echo "Checksum file is empty: $checksum_file"
+        exit 1
+    fi
+
+    if command -v sha256sum >/dev/null 2>&1; then
+        actual="$(sha256sum "$file" | awk '{print $1}')"
+    elif command -v shasum >/dev/null 2>&1; then
+        actual="$(shasum -a 256 "$file" | awk '{print $1}')"
+    else
+        echo "sha256sum or shasum is required to verify release binaries"
+        exit 1
+    fi
+
+    if [ "$actual" != "$expected" ]; then
+        echo "Checksum verification failed for ${BINARY}"
+        echo "Expected: $expected"
+        echo "Actual:   $actual"
+        exit 1
+    fi
+}
+
 install_binary() {
     # Detect platform
     OS="$(uname -s)"
@@ -225,11 +253,19 @@ install_binary() {
     echo "Using version: $LATEST"
 
     mkdir -p "$INSTALL_DIR"
-    # Download binary
+    TMP_DIR="$(mktemp -d "${INSTALL_DIR}/.amaze-install.XXXXXX")"
+    OLD_TRAP="$(trap)"
+    trap 'rm -rf "$TMP_DIR"; eval "$OLD_TRAP"' EXIT
+
+    # Download binary and checksum
     BINARY_URL="https://github.com/${REPO}/releases/download/${LATEST}/${BINARY}"
+    CHECKSUM_URL="${BINARY_URL}${CHECKSUM_SUFFIX}"
     echo "Downloading ${BINARY}..."
-    curl -fsSL "$BINARY_URL" -o "${INSTALL_DIR}/amaze"
-    chmod +x "${INSTALL_DIR}/amaze"
+    curl -fsSL "$BINARY_URL" -o "${TMP_DIR}/amaze"
+    curl -fsSL "$CHECKSUM_URL" -o "${TMP_DIR}/amaze.sha256"
+    verify_sha256 "${TMP_DIR}/amaze" "${TMP_DIR}/amaze.sha256"
+    chmod +x "${TMP_DIR}/amaze"
+    mv -f "${TMP_DIR}/amaze" "${INSTALL_DIR}/amaze"
     echo ""
     echo "✓ Installed amaze to ${INSTALL_DIR}/amaze"
 

@@ -27,7 +27,6 @@ IssueState = Literal[
 
 SCHEMA = """
 PRAGMA journal_mode = WAL;
-PRAGMA synchronous = NORMAL;
 PRAGMA foreign_keys = ON;
 
 CREATE TABLE IF NOT EXISTS events (
@@ -192,13 +191,20 @@ def issue_key(repo: str, number: int) -> str:
 class Database:
     """Thread-safe sqlite wrapper. One connection per thread via locks."""
 
-    def __init__(self, path: Path) -> None:
+    _VALID_SYNCHRONOUS = frozenset({"OFF", "NORMAL", "FULL", "EXTRA"})
+
+    def __init__(self, path: Path, *, synchronous: str = "FULL") -> None:
         self.path = path
         path.parent.mkdir(parents=True, exist_ok=True)
         self._lock = threading.RLock()
         self._conn = sqlite3.connect(str(path), check_same_thread=False, isolation_level=None)
         self._conn.row_factory = sqlite3.Row
+        normalized_synchronous = synchronous.strip().upper()
+        if normalized_synchronous not in self._VALID_SYNCHRONOUS:
+            raise ValueError(f"invalid sqlite synchronous mode: {synchronous!r}")
+        self._synchronous = normalized_synchronous
         with self._lock:
+            self._conn.execute(f"PRAGMA synchronous = {normalized_synchronous}")
             self._conn.executescript(SCHEMA)
             self._migrate()
 
@@ -214,6 +220,11 @@ class Database:
     def close(self) -> None:
         with self._lock:
             self._conn.close()
+
+    def ping(self) -> None:
+        """Verify the sqlite connection can execute a trivial read."""
+        with self._lock:
+            self._conn.execute("SELECT 1").fetchone()
 
     @contextmanager
     def _txn(self) -> Iterator[sqlite3.Connection]:
@@ -240,7 +251,7 @@ class Database:
     ) -> bool:
         """Insert a webhook event. Returns False if duplicate (by delivery id).
 
-        `last_error` is the reason text surfaced on the dashboard for non-queued
+        `last_error` is the reason text surfaced by operational APIs for non-queued
         states (skipped, failed). Ignored when state == 'queued'.
         """
         now = _utcnow()
@@ -306,7 +317,7 @@ class Database:
     def set_event_model(self, delivery_id: str, model: str) -> None:
         """Persist the model the worker actually picked for this event.
 
-        Called once per run, right after `pick_model()`, so the dashboard and
+        Called once per run, right after `pick_model()`, so operational APIs and
         post-mortems can attribute behavior to the exact model used.
         """
         with self._lock:
@@ -400,7 +411,7 @@ class Database:
 
         By default this ignores `skipped` rows. Those are usually webhook noise
         (`issues.labeled ignored`, bot/self comments) and must not hide the last
-        real processing run when the dashboard retries a failed issue.
+        real processing run when an operator retries a failed issue.
         """
         state_filter = "" if include_skipped else "AND state <> 'skipped'"
         with self._lock:
@@ -465,7 +476,7 @@ class Database:
     def latest_issue_event_state_counts(self) -> dict[str, int]:
         """Count each issue by its newest non-skipped event state.
 
-        This is the dashboard's "current issue event" view: a later successful
+        This is the operational "current issue event" view: a later successful
         run clears an older failure for that issue, and ignored webhook noise
         does not make a failed issue look skipped.
         """
@@ -498,7 +509,7 @@ class Database:
         - `last_tool` / `last_tool_ts`: the most recent host-tool call audited
           on the same `issue_key` since `started_at`. Scoping by start time
           prevents stale entries from a prior run on the same issue leaking
-          into the dashboard before this run has emitted any tool calls.
+          into operational views before this run has emitted any tool calls.
         """
         with self._lock:
             rows = self._conn.execute(
@@ -992,13 +1003,17 @@ _DB_SINGLETON: Database | None = None
 _DB_LOCK = threading.Lock()
 
 
-def get_database(path: Path) -> Database:
+def get_database(path: Path, *, synchronous: str = "FULL") -> Database:
     global _DB_SINGLETON
     with _DB_LOCK:
-        if _DB_SINGLETON is None or _DB_SINGLETON.path != path:
+        if (
+            _DB_SINGLETON is None
+            or _DB_SINGLETON.path != path
+            or _DB_SINGLETON._synchronous != synchronous.strip().upper()  # noqa: SLF001
+        ):
             if _DB_SINGLETON is not None:
                 _DB_SINGLETON.close()
-            _DB_SINGLETON = Database(path)
+            _DB_SINGLETON = Database(path, synchronous=synchronous)
         return _DB_SINGLETON
 
 

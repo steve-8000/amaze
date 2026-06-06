@@ -114,22 +114,14 @@ async fn git_diff(merged: &Path) -> IsoResult<Diff> {
 	untracked_paths.sort_unstable();
 
 	for path_bytes in untracked_paths {
-		let path_str = std::str::from_utf8(path_bytes)
-			.map_err(|err| IsoError::other(format!("untracked path is not valid UTF-8: {err}")))?;
-		let one = git_run_allow_exit1(
-			merged,
-			&[
-				"-c",
-				"core.quotepath=off",
-				"diff",
-				"--no-color",
-				"--no-index",
-				git_null_path(),
-				path_str,
-			],
-		)
-		.await?;
-		files.extend(parse_git_diff(&one));
+		let rel_path = git_z_path(path_bytes)?;
+		let one = git_run_allow_exit1_path(merged, &rel_path).await?;
+		let parsed = parse_git_diff(&one);
+		if parsed.is_empty() {
+			files.push(FileChange { path: rel_path, op: ChangeKind::Added, diff: None });
+		} else {
+			files.extend(parsed);
+		}
 	}
 
 	files.sort_by(|a, b| a.path.cmp(&b.path));
@@ -144,6 +136,24 @@ const fn git_null_path() -> &'static str {
 #[cfg(not(windows))]
 const fn git_null_path() -> &'static str {
 	"/dev/null"
+}
+
+#[cfg(unix)]
+#[allow(
+	clippy::unnecessary_wraps,
+	reason = "The cross-platform helper preserves a fallible signature for non-Unix UTF-8 validation."
+)]
+fn git_z_path(bytes: &[u8]) -> IsoResult<PathBuf> {
+	use std::os::unix::ffi::OsStrExt;
+
+	Ok(PathBuf::from(std::ffi::OsStr::from_bytes(bytes)))
+}
+
+#[cfg(not(unix))]
+fn git_z_path(bytes: &[u8]) -> IsoResult<PathBuf> {
+	let text = std::str::from_utf8(bytes)
+		.map_err(|err| IsoError::other(format!("untracked path is not valid UTF-8: {err}")))?;
+	Ok(PathBuf::from(text))
 }
 
 async fn git_run(cwd: &Path, args: &[&str]) -> IsoResult<Vec<u8>> {
@@ -164,15 +174,16 @@ async fn git_run(cwd: &Path, args: &[&str]) -> IsoResult<Vec<u8>> {
 
 /// `git diff --no-index` returns exit code 1 when files differ — that's
 /// not an error for us, treat it as success with the produced patch.
-async fn git_run_allow_exit1(cwd: &Path, args: &[&str]) -> IsoResult<Vec<u8>> {
-	let output = git_spawn(cwd, args).await?;
+async fn git_run_allow_exit1_path(cwd: &Path, path: &Path) -> IsoResult<Vec<u8>> {
+	let output = git_spawn_path(cwd, path).await?;
 	if output.status.success() || output.status.code() == Some(1) {
 		return Ok(output.stdout);
 	}
 	let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
 	Err(IsoError::other(format!(
-		"git {} (exit {}): {stderr}",
-		args.join(" "),
+		"git diff --no-index {} {} (exit {}): {stderr}",
+		git_null_path(),
+		path.display(),
 		output
 			.status
 			.code()
@@ -184,6 +195,21 @@ async fn git_spawn(cwd: &Path, args: &[&str]) -> IsoResult<std::process::Output>
 	let mut cmd = Command::new("git");
 	cmd.arg("-C").arg(cwd).args(args);
 	cmd.stdin(std::process::Stdio::null());
+	spawn_git(cmd).await
+}
+
+async fn git_spawn_path(cwd: &Path, path: &Path) -> IsoResult<std::process::Output> {
+	let mut cmd = Command::new("git");
+	cmd.arg("-C")
+		.arg(cwd)
+		.args(["-c", "core.quotepath=off", "diff", "--no-color", "--no-index"])
+		.arg(git_null_path())
+		.arg(path);
+	cmd.stdin(std::process::Stdio::null());
+	spawn_git(cmd).await
+}
+
+async fn spawn_git(mut cmd: Command) -> IsoResult<std::process::Output> {
 	cmd.output().await.map_err(|err| {
 		if err.kind() == std::io::ErrorKind::NotFound {
 			IsoError::unavailable("`git` not on PATH; cannot capture diff for git-tracked tree")
@@ -332,8 +358,9 @@ fn walk(root: &Path, dir: &Path, out: &mut BTreeMap<PathBuf, Metadata>) -> IsoRe
 			.file_type()
 			.map_err(|err| IsoError::other(format!("file_type {}: {err}", path.display())))?;
 		if file_type.is_symlink() {
-			let meta = std::fs::symlink_metadata(&path)
-				.map_err(|err| IsoError::other(format!("symlink_metadata {}: {err}", path.display())))?;
+			let meta = std::fs::symlink_metadata(&path).map_err(|err| {
+				IsoError::other(format!("symlink_metadata {}: {err}", path.display()))
+			})?;
 			let rel = path.strip_prefix(root).unwrap_or(&path).to_path_buf();
 			out.insert(rel, meta);
 			continue;
@@ -483,5 +510,14 @@ mod tests {
 				.file_type()
 				.is_symlink()
 		);
+	}
+
+	#[test]
+	fn unix_git_z_path_preserves_non_utf8_bytes() {
+		use std::os::unix::ffi::OsStrExt;
+
+		let path = git_z_path(b"bad-\xff-name").expect("unix path bytes should be accepted");
+
+		assert_eq!(path.as_os_str().as_bytes(), b"bad-\xff-name");
 	}
 }

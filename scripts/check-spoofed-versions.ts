@@ -17,7 +17,7 @@ import * as path from "node:path";
 
 const PROVIDER_FILE = path.join(
 	import.meta.dir,
-	"../packages/ai/src/providers/google-gemini-cli.ts",
+	"../packages/ai/src/providers/google-gemini-headers.ts",
 );
 
 interface VersionCheck {

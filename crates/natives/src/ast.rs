@@ -629,8 +629,8 @@ pub fn ast_grep(options: AstFindOptions<'_>) -> task::Promise<AstFindResult> {
 					let range = matched.range();
 					let start = matched.start_pos();
 					let end = matched.end_pos();
-					let meta_variables = include_meta
-						.then(|| HashMap::<String, String>::from(matched.get_env().clone()));
+					let meta_variables =
+						include_meta.then(|| HashMap::<String, String>::from(matched.get_env().clone()));
 					all_matches.push(AstFindMatch {
 						path: candidate.display_path.clone(),
 						text: matched.text().into_owned(),

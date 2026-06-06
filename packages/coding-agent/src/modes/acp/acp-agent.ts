@@ -580,10 +580,6 @@ export class AcpAgent implements Agent {
 
 	async prompt(params: PromptRequest): Promise<PromptResponse> {
 		const record = this.#getSessionRecord(params.sessionId);
-		const activeTurn = record.promptTurn;
-		if (activeTurn && !activeTurn.settled && record.session.isStreaming) {
-			throw new Error("ACP prompt already in progress for this session");
-		}
 		return await this.#queuePrompt(record, async () => {
 			const previousTurn = record.promptTurn;
 			if (previousTurn) {

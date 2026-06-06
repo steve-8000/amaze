@@ -454,10 +454,13 @@ class RpcClient:
         if process is None:
             return
 
-        self._stopping = True
-        for pending_call in self._pending_host_tool_calls.values():
+        with self._state_lock:
+            self._stopping = True
+            pending_host_tool_calls = tuple(self._pending_host_tool_calls.values())
+            pending_host_uri_requests = tuple(self._pending_host_uri_requests.values())
+        for pending_call in pending_host_tool_calls:
             pending_call.cancel_event.set()
-        for pending_uri in self._pending_host_uri_requests.values():
+        for pending_uri in pending_host_uri_requests:
             pending_uri.cancel_event.set()
 
         try:
@@ -494,8 +497,9 @@ class RpcClient:
             # closes the gap. It is idempotent: a second call (e.g. from the
             # reader's exception path) returns early.
             self._mark_closed(RpcProcessExitError("RPC process stopped"))
-            self._pending_host_tool_calls.clear()
-            self._pending_host_uri_requests.clear()
+            with self._state_lock:
+                self._pending_host_tool_calls.clear()
+                self._pending_host_uri_requests.clear()
             self._process = None
             if self._stdout_thread is not None:
                 self._stdout_thread.join(timeout=1.0)
@@ -1058,7 +1062,8 @@ class RpcClient:
             return
 
         pending_call = _PendingHostToolCall(cancel_event=threading.Event())
-        self._pending_host_tool_calls[request_id] = pending_call
+        with self._state_lock:
+            self._pending_host_tool_calls[request_id] = pending_call
 
         def run_tool() -> None:
             try:
@@ -1092,7 +1097,8 @@ class RpcClient:
                     }
                 )
             finally:
-                self._pending_host_tool_calls.pop(request_id, None)
+                with self._state_lock:
+                    self._pending_host_tool_calls.pop(request_id, None)
 
         threading.Thread(target=run_tool, name=f"amaze-rpc-host-tool:{tool_name}", daemon=True).start()
 
@@ -1100,7 +1106,8 @@ class RpcClient:
         target_id = payload.get("targetId")
         if not isinstance(target_id, str):
             return
-        pending_call = self._pending_host_tool_calls.get(target_id)
+        with self._state_lock:
+            pending_call = self._pending_host_tool_calls.get(target_id)
         if pending_call is not None:
             pending_call.cancel_event.set()
 
@@ -1144,7 +1151,8 @@ class RpcClient:
             return
 
         pending = _PendingHostUriRequest(cancel_event=threading.Event())
-        self._pending_host_uri_requests[request_id] = pending
+        with self._state_lock:
+            self._pending_host_uri_requests[request_id] = pending
 
         def run() -> None:
             try:
@@ -1174,7 +1182,8 @@ class RpcClient:
                     return
                 self._send_host_uri_error(request_id, str(exc))
             finally:
-                self._pending_host_uri_requests.pop(request_id, None)
+                with self._state_lock:
+                    self._pending_host_uri_requests.pop(request_id, None)
 
         threading.Thread(target=run, name=f"amaze-rpc-host-uri:{scheme}:{operation}", daemon=True).start()
 
@@ -1182,7 +1191,8 @@ class RpcClient:
         target_id = payload.get("targetId")
         if not isinstance(target_id, str):
             return
-        pending = self._pending_host_uri_requests.get(target_id)
+        with self._state_lock:
+            pending = self._pending_host_uri_requests.get(target_id)
         if pending is not None:
             pending.cancel_event.set()
 

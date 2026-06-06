@@ -147,7 +147,6 @@ import {
 	isMCPToolName,
 	selectDiscoverableMCPToolNamesByServer,
 } from "../mcp/discoverable-tool-metadata";
-import { resolveMemoryBackend } from "../memory-backend";
 import { MISSION_CONTINUATION_MESSAGE_TYPE, MissionContinuationRuntime } from "../mission/continuation";
 import type { Mission } from "../mission/core/mission";
 import type { MissionControlRuntime } from "../mission/core/mission-control-runtime";
@@ -183,6 +182,7 @@ import {
 	type DiscoverableToolSearchIndex,
 } from "../tool-discovery/tool-index";
 import { assertEditableFile } from "../tools/auto-generated-guard";
+import { releaseTabsForOwner } from "../tools/browser";
 import type { CheckpointState } from "../tools/checkpoint";
 import { SessionToolGateway } from "../tools/gateway/session-gateway";
 import { outputMeta } from "../tools/output-meta";
@@ -966,9 +966,9 @@ export class AgentSession {
 	#baseSystemPrompt: string[];
 	/**
 	 * Cache breakpoint hint for {@link #baseSystemPrompt} (caller-array-relative index of the
-	 * STABLE_CORE block). Tracked alongside every #baseSystemPrompt assignment so the per-turn
-	 * recall-augmented prompt can re-thread it; without it the provider falls back to last-block
-	 * caching and the volatile recall tail busts the cached prefix every turn (see AGENTS.md:39).
+	 * STABLE_CORE block). Tracked alongside every #baseSystemPrompt assignment so prompt refreshes
+	 * keep cache_control on STABLE_CORE instead of falling back to the provider's default last-block
+	 * placement.
 	 */
 	#baseSystemPromptCacheBreakpointIndex: number | undefined;
 	/**
@@ -1599,14 +1599,6 @@ export class AgentSession {
 		// TTSR: Increment message count on turn end (for repeat-after-gap tracking)
 		if (event.type === "turn_end" && this.#ttsrManager) {
 			this.#ttsrManager.incrementMessageCount();
-		}
-		if (event.type === "turn_end") {
-			const backend = resolveMemoryBackend(this.settings);
-			if (backend.onTurnEnd) {
-				void Promise.resolve(backend.onTurnEnd(this, event)).catch(error => {
-					logger.debug("Memory backend onTurnEnd failed", { backend: backend.id, error: String(error) });
-				});
-			}
 		}
 		// Finalize the tool-choice queue's in-flight yield after tools have executed.
 		// This must happen at turn_end (not message_end) because onInvoked handlers
@@ -2900,6 +2892,15 @@ export class AgentSession {
 			);
 		}
 		await disposeKernelSessionsByOwner(this.#evalKernelOwnerId);
+		const browserOwnerId = this.#agentId ?? this.sessionManager.getSessionId();
+		try {
+			await releaseTabsForOwner(browserOwnerId, { kill: true });
+		} catch (error) {
+			logger.warn("Failed to release browser tabs during dispose", {
+				ownerId: browserOwnerId,
+				error: String(error),
+			});
+		}
 		this.#releasePowerAssertion();
 		this.#missionStoreInstance?.close();
 		this.#missionStoreInstance = undefined;
@@ -3614,23 +3615,6 @@ export class AgentSession {
 		this.#lastAppliedToolSignature = this.#computeAppliedToolSignature(activeToolNames, activeTools);
 	}
 
-	async #buildSystemPromptForAgentStart(promptText: string): Promise<string[]> {
-		const backend = resolveMemoryBackend(this.settings);
-		if (!backend.beforeAgentStartPrompt) return this.#baseSystemPrompt;
-
-		try {
-			const injected = await backend.beforeAgentStartPrompt(this, promptText);
-			if (!injected) return this.#baseSystemPrompt;
-			return [...this.#baseSystemPrompt, injected];
-		} catch (err) {
-			logger.debug("Memory backend beforeAgentStartPrompt failed", {
-				backend: backend.id,
-				error: String(err),
-			});
-			return this.#baseSystemPrompt;
-		}
-	}
-
 	/**
 	 * Compose a stable signature for the inputs that `rebuildSystemPrompt` reads.
 	 * Two calls producing identical signatures are guaranteed to produce identical
@@ -3658,13 +3642,13 @@ export class AgentSession {
 	 * the next time `#applyActiveToolsByName` runs. Do not refactor `describeTool` to
 	 * cache per-tool strings without preserving this property.
 	 *
-	 * Inputs NOT covered: tool input schemas; memory instructions read from disk;
-	 * and SDK-init-time closure constants in `sdk.ts` (`repeatToolDescriptions`,
-	 * `intentField`, `mcpDiscoveryEnabled`, `secretsEnabled`, prompt-cache
-	 * project-context policy). The closure-captured ones cannot
-	 * change at runtime regardless of skip behavior.
-	 * For everything else, callers must explicitly call `refreshBaseSystemPrompt()`
-	 * after side-effecting changes; see e.g. the memory hooks and
+	 * Inputs NOT covered: tool input schemas; and SDK-init-time closure
+	 * constants in `sdk.ts` (`repeatToolDescriptions`, `intentField`,
+	 * `mcpDiscoveryEnabled`, `secretsEnabled`, prompt-cache project-context
+	 * policy). The closure-captured ones cannot change at runtime regardless
+	 * of skip behavior.
+	 * For everything else, callers must explicitly call
+	 * `refreshBaseSystemPrompt()` after side-effecting changes; see e.g.
 	 * `#syncEditToolModeAfterModelChange`.
 	 *
 	 * The current calendar date IS covered (appended as a segment) because
@@ -4352,14 +4336,12 @@ export class AgentSession {
 				messages.push(...fileMentionMessages);
 			}
 
-			const beforeAgentStartSystemPrompt = await this.#buildSystemPromptForAgentStart(expandedText);
-
 			// Emit before_agent_start extension event
 			if (this.#extensionRunner) {
 				const result = await this.#extensionRunner.emitBeforeAgentStart(
 					expandedText,
 					options?.images,
-					beforeAgentStartSystemPrompt,
+					this.#baseSystemPrompt,
 				);
 				if (result?.messages) {
 					const promptAttribution: "user" | "agent" | undefined =
@@ -4380,14 +4362,10 @@ export class AgentSession {
 				if (result?.systemPrompt !== undefined) {
 					this.agent.setSystemPrompt(result.systemPrompt);
 				} else {
-					// Re-thread the STABLE_CORE breakpoint. beforeAgentStartSystemPrompt only ever
-					// *appends* a volatile recall tail to #baseSystemPrompt, so the base index stays
-					// valid; passing it keeps cache_control on STABLE_CORE instead of letting the
-					// provider cache the volatile last block (recall) and bust the prefix each turn.
-					this.agent.setSystemPrompt(beforeAgentStartSystemPrompt, this.#baseSystemPromptCacheBreakpointIndex);
+					this.agent.setSystemPrompt(this.#baseSystemPrompt, this.#baseSystemPromptCacheBreakpointIndex);
 				}
 			} else {
-				this.agent.setSystemPrompt(beforeAgentStartSystemPrompt, this.#baseSystemPromptCacheBreakpointIndex);
+				this.agent.setSystemPrompt(this.#baseSystemPrompt, this.#baseSystemPromptCacheBreakpointIndex);
 			}
 
 			// Bail out if a newer abort/prompt cycle has started since we began setup
@@ -5812,32 +5790,6 @@ export class AgentSession {
 	}
 
 	/**
-	 * Ask the active memory backend for an extra-context block to splice into
-	 * the compaction summary prompt. Both the manual and auto compaction paths
-	 * funnel through this helper so the behaviour stays identical.
-	 *
-	 * Failures are swallowed: a memory backend going sideways MUST NOT block
-	 * compaction (which is itself the recovery path for context overflow).
-	 */
-	async #collectMemoryBackendContext(preparation: {
-		messagesToSummarize: AgentMessage[];
-		turnPrefixMessages: AgentMessage[];
-	}): Promise<string | undefined> {
-		const backend = resolveMemoryBackend(this.settings);
-		if (!backend.preCompactionContext) return undefined;
-		const messages = preparation.messagesToSummarize.concat(preparation.turnPrefixMessages);
-		try {
-			return await backend.preCompactionContext(messages, this.settings, this);
-		} catch (err) {
-			logger.debug("Memory backend preCompactionContext failed", {
-				backend: backend.id,
-				error: String(err),
-			});
-			return undefined;
-		}
-	}
-
-	/**
 	 * Cancel in-progress context maintenance (manual compaction, auto-compaction, or auto-handoff).
 	 */
 	abortCompaction(): void {
@@ -6799,11 +6751,6 @@ export class AgentSession {
 			hookContext = result?.context;
 			hookPrompt = result?.prompt;
 			preserveData = result?.preserveData;
-		}
-
-		const memoryBackendContext = await this.#collectMemoryBackendContext(preparation);
-		if (memoryBackendContext) {
-			hookContext = hookContext ? [...hookContext, memoryBackendContext] : [memoryBackendContext];
 		}
 
 		if (hookCompaction) {

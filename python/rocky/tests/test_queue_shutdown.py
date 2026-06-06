@@ -58,6 +58,20 @@ def _row(delivery: str = "d1") -> EventRow:
     )
 
 
+def test_pool_is_not_ready_until_started(settings: Settings, db: Database) -> None:
+    pool = _make_pool(settings, db)
+    assert not pool.is_ready
+
+
+@pytest.mark.asyncio
+async def test_pool_is_not_ready_after_worker_crash(settings: Settings, db: Database) -> None:
+    pool = _make_pool(settings, db)
+    task: asyncio.Task[None] = asyncio.create_task(asyncio.sleep(0))
+    pool._workers.append(task)  # noqa: SLF001
+    await task
+    assert not pool.is_ready
+
+
 @pytest.mark.asyncio
 async def test_non_root_fallback_semaphore_caps_dispatch_concurrency(
     settings: Settings, db: Database, monkeypatch: pytest.MonkeyPatch

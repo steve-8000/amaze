@@ -21,13 +21,15 @@ import { $ } from "bun";
 
 interface PublishPackage {
 	dir: string;
-	kind: "typescript" | "native";
+	kind: "typescript" | "native" | "raw";
 	/** Extra build steps before manifest rewrite (e.g. esbuild bundles). */
 	preBuild?: readonly (readonly string[])[];
 	/** Extra entries to splice into `files`. */
 	extraFiles?: readonly string[];
 	/** Extra tsgo invocations beyond `tsconfig.publish.json`. */
 	extraTypeConfigs?: readonly string[];
+	/** Optional package-local publish build script. */
+	buildScript?: string;
 }
 
 type JsonValue = string | number | boolean | null | JsonObject | JsonValue[];
@@ -55,6 +57,9 @@ const packages: PublishPackage[] = [
 	},
 	{ dir: "packages/agent", kind: "typescript" },
 	{ dir: "packages/coding-agent", kind: "typescript" },
+	{ dir: "packages/browser-control-extension", kind: "raw" },
+	{ dir: "packages/swarm-extension", kind: "raw" },
+	{ dir: "packages/amaze", kind: "raw", buildScript: "build" },
 ];
 
 function rewriteSrcPath(value: string): string {
@@ -106,7 +111,10 @@ async function rewriteManifest(pkgDir: string, extraFiles: readonly string[]): P
 
 async function preparePackage(pkg: PublishPackage): Promise<PackageManifest> {
 	const pkgDir = path.join(repoRoot, pkg.dir);
-	if (pkg.kind === "native") {
+	if (pkg.buildScript) {
+		await $`bun run ${pkg.buildScript}`.cwd(pkgDir);
+	}
+	if (pkg.kind === "native" || pkg.kind === "raw") {
 		return (await Bun.file(path.join(pkgDir, "package.json")).json()) as PackageManifest;
 	}
 	for (const argv of pkg.preBuild ?? []) {

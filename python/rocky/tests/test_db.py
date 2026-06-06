@@ -6,6 +6,24 @@ from pathlib import Path
 
 from rocky.db import Database, iso_seconds_ago, issue_key
 
+def test_database_defaults_sqlite_synchronous_to_full(tmp_path: Path) -> None:
+    database = Database(tmp_path / "durable.sqlite")
+    try:
+        row = database._conn.execute("PRAGMA synchronous").fetchone()  # noqa: SLF001
+        assert row[0] == 2
+    finally:
+        database.close()
+
+
+def test_database_accepts_configured_sqlite_synchronous(tmp_path: Path) -> None:
+    database = Database(tmp_path / "fast.sqlite", synchronous="NORMAL")
+    try:
+        row = database._conn.execute("PRAGMA synchronous").fetchone()  # noqa: SLF001
+        assert row[0] == 1
+    finally:
+        database.close()
+
+
 
 def test_record_event_dedupes_by_delivery(db: Database) -> None:
     payload = {"action": "opened", "issue": {"number": 1}}
@@ -282,7 +300,7 @@ def test_migration_adds_classification_to_existing_db(tmp_path: Path) -> None:
 
 
 def test_set_event_model_persists_on_running_event(db: Database) -> None:
-    """`set_event_model` writes the picked model so the dashboard can attribute behavior."""
+    """`set_event_model` writes the picked model so operational views can attribute behavior."""
     db.record_event(
         delivery_id="d-model",
         event_type="issues",

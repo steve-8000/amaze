@@ -69,38 +69,15 @@ describe("createTools", () => {
 		expect(names).not.toContain("vim");
 	});
 
-	it("registers exactly one active memory tool family for mem0 or Hermes", async () => {
-		const mem0Tools = await createTools(
-			createTestSession({
-				settings: createSettingsWithOverrides({ "memory.backend": "mem0" }),
-			}),
-		);
-		const mem0Names = mem0Tools.map(t => t.name);
-		expect(mem0Names).toContain("mem0_profile");
-		expect(mem0Names).toContain("mem0_search");
-		expect(mem0Names).toContain("mem0_conclude");
-		expect(mem0Names).not.toContain("memory");
-		expect(mem0Names).not.toContain("memory_search");
+	it("does not register legacy memory tool families", async () => {
+		const tools = await createTools(createTestSession());
+		const names = tools.map(t => t.name);
 
-		const hermesTools = await createTools(
-			createTestSession({
-				settings: createSettingsWithOverrides({ "memory.backend": "hermes" }),
-			}),
-		);
-		const hermesNames = hermesTools.map(t => t.name);
-		expect(hermesNames).toContain("memory");
-		expect(hermesNames).toContain("memory_search");
-		expect(hermesNames).not.toContain("mem0_profile");
-		expect(hermesNames).not.toContain("mem0_search");
-		expect(hermesNames).not.toContain("mem0_conclude");
-
-		const offTools = await createTools(createTestSession());
-		const offNames = offTools.map(t => t.name);
-		expect(offNames).not.toContain("memory");
-		expect(offNames).not.toContain("memory_search");
-		expect(offNames).not.toContain("mem0_profile");
-		expect(offNames).not.toContain("mem0_search");
-		expect(offNames).not.toContain("mem0_conclude");
+		expect(names).not.toContain("memory");
+		expect(names).not.toContain("memory_search");
+		expect(names).not.toContain("mem0_profile");
+		expect(names).not.toContain("mem0_search");
+		expect(names).not.toContain("mem0_conclude");
 	});
 
 	it("keeps edit visible when vim edit mode is active", async () => {

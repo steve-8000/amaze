@@ -29,6 +29,9 @@ services:
     stop_grace_period: 30s
     restart: unless-stopped
     environment:
+      # Keep this equal to stop_grace_period so Settings can fail fast if
+      # drain+kill windows would outlive Docker's SIGKILL deadline.
+      ROCKY_COMPOSE_STOP_GRACE_PERIOD_SECONDS: 30
       # --- gh-proxy channel ---
       # The orchestrator NEVER holds GITHUB_TOKEN; it talks to the sibling
       # gh-proxy container over the internal-only network.
@@ -54,6 +57,9 @@ services:
       ROCKY_TASK_TIMEOUT_SECONDS: ${ROCKY_TASK_TIMEOUT_SECONDS:-2400}
       ROCKY_TASK_TIMEOUT_HARD_GRACE_SECONDS: ${ROCKY_TASK_TIMEOUT_HARD_GRACE_SECONDS:-60}
       ROCKY_REQUEST_TIMEOUT_SECONDS: ${ROCKY_REQUEST_TIMEOUT_SECONDS:-120}
+      ROCKY_SHUTDOWN_DRAIN_TIMEOUT_SECONDS: ${ROCKY_SHUTDOWN_DRAIN_TIMEOUT_SECONDS:-25}
+      ROCKY_SHUTDOWN_KILL_TIMEOUT_SECONDS: ${ROCKY_SHUTDOWN_KILL_TIMEOUT_SECONDS:-5}
+      ROCKY_SQLITE_SYNCHRONOUS: ${ROCKY_SQLITE_SYNCHRONOUS:-FULL}
       ROCKY_RATE_LIMIT_WINDOW_SECONDS: ${ROCKY_RATE_LIMIT_WINDOW_SECONDS:-3600}
       ROCKY_RATE_LIMIT_DEFAULT: ${ROCKY_RATE_LIMIT_DEFAULT:-3}
       ROCKY_RATE_LIMIT_CONTRIBUTOR: ${ROCKY_RATE_LIMIT_CONTRIBUTOR:-10}
@@ -73,7 +79,7 @@ services:
       AMAZE_ROOT: /work/amaze
     depends_on:
       gh-proxy:
-        condition: service_started
+        condition: service_healthy
     # Resolve `llm-gateway.internal` (used in /srv/agent-home/.amaze/agent/models.yml) to the
     # Docker host. The actual gateway listens on 127.0.0.1:4000 on the host;
     # `host-gateway` is Docker's alias for the host bridge IP.
@@ -110,6 +116,12 @@ services:
     container_name: gh-proxy
     restart: unless-stopped
     command: ["python", "-m", "rocky.proxy", "serve"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8081/healthz', timeout=2).read()"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
     environment:
       # PAT: lives ONLY here. The orchestrator's compose block refuses to
       # let this var into its container.

@@ -47,13 +47,7 @@ bun run rocky:rebuild            # docker compose build --no-cache
 bun run rocky:reset              # `down -v` + drop the pi image
 ```
 
-Frontend (Vite + SolidJS, in `web/` — still a bun workspace):
-
-```
-bun run rocky:web:dev            # vite dev server with proxy to :8080
-bun run rocky:web:build          # produce src/static/ bundle
-bun --cwd=python/rocky/web run typecheck   # tsc --noEmit
-```
+Operational HTTP endpoints are JSON-only; there is no bundled dashboard or `web/` workspace.
 
 In-container CLI (`rocky` console script → `rocky.cli:main`): no root aliases — invoke directly:
 
@@ -84,7 +78,7 @@ Lint + format: TypeScript via Biome (config in `biome.json`), Python via Ruff (c
 
 ## Important Files
 
-- `src/server.py` — FastAPI app, `/webhook/github`, `/healthz`, `/readyz`, `/events`, `/issues`, manual triage/replay endpoints, dashboard at `/`.
+- `src/server.py` — FastAPI app, `/webhook/github`, `/healthz`, `/readyz`, `/events`, `/issues`, and manual triage/replay endpoints.
 - `src/queue.py` — `WorkerPool` dispatcher and `_inflight` serialization.
 - `src/tasks.py` — the five task entry points the dispatcher calls.
 - `src/worker.py` — synchronous amaze RPC driver, prompt assembly via `persona`.
@@ -95,9 +89,9 @@ Lint + format: TypeScript via Biome (config in `biome.json`), Python via Ruff (c
 - `src/db.py` — sqlite schema and DAOs (`record_event`, `claim_next_event`, `upsert_issue`, `log_tool_call`).
 - `src/config.py` — `Settings` model and `get_settings()`.
 - `src/cli.py` — Click CLI (`serve`, `triage`, `replay`, `status`, `cleanup`).
-- `src/dashboard.py` — single-page HTML dashboard served from `/`.
+- `src/log_tail.py` — JSONL tail helper for the `/api/logs` operational endpoint.
 - `pyproject.toml` — packaging + pytest config (`asyncio_mode = "auto"`, `testpaths = ["tests"]`).
-- `/Dockerfile.rocky` (amaze root) — rocky's image. `FROM ${AMAZE_BASE}` (default `amaze/amaze:dev`), adds the SolidJS dashboard bundle, the rocky Python package, and the `rocky-entrypoint` shim. Tini entrypoint, exposes `8080`, `VOLUME /data`. The toolchain (python + bun + rustup + natives + amaze_rpc + `amaze` shim) comes from `amaze-base` — no duplication in this file.
+- `/Dockerfile.rocky` (amaze root) — rocky's image. `FROM ${AMAZE_BASE}` (default `amaze/amaze:dev`), adds the rocky Python package and the `rocky-entrypoint` shim. Tini entrypoint, exposes `8080`, `VOLUME /data`. The toolchain (python + bun + rustup + natives + amaze_rpc + `amaze` shim) comes from `amaze-base` — no duplication in this file.
 - `docker-compose.yml` — `build.args.AMAZE_BASE`, mounts `$AMAZE_ROOT:/work/amaze:ro`, `./data:/data`, `~/.amaze/agent/models.container.yml:ro` (mapped to `models.yml` inside the container — kept separate from the host's `~/.amaze/agent/models.yml` so the host amaze doesn't pick up gateway routing intended only for the container), `extra_hosts: llm-gateway.internal:host-gateway`.
 - `entrypoint.sh` — validates `AMAZE_ROOT`, creates `/data/{workspaces,logs}` + build caches.
 - `.env.example` — authoritative list of required runtime env vars.

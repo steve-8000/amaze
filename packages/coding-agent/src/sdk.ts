@@ -87,7 +87,6 @@ import {
 	formatDiscoverableMCPToolServerSummary,
 	selectDiscoverableMCPToolNamesByServer,
 } from "./mcp/discoverable-tool-metadata";
-import { resolveMemoryBackend } from "./memory-backend";
 import { buildActiveMissionPacket } from "./mission/context-packet";
 import { MissionReadModel } from "./mission/read-model";
 import { resolvePromptCachePolicy } from "./prompt-cache-policy";
@@ -1559,18 +1558,10 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 			const promptTools = buildSystemPromptToolMetadata(tools, {
 				search_tool_bm25: { description: renderSearchToolBm25Description(discoverableToolsForDesc) },
 			});
-			const memoryInstructions = await resolveMemoryBackend(settings).buildDeveloperInstructions(
-				agentDir,
-				settings,
-				session,
-			);
-
-			// Build combined append prompt: memory instructions + MCP server instructions
 			const serverInstructions = mcpManager?.getServerInstructions();
-			let appendPrompt: string | undefined = memoryInstructions ?? undefined;
+			let appendPrompt: string | undefined;
 			if (serverInstructions && serverInstructions.size > 0) {
 				const parts: string[] = [];
-				if (appendPrompt) parts.push(appendPrompt);
 				parts.push(
 					"## MCP Server Instructions\n\nThe following instructions are provided by connected MCP servers. They are server-controlled and may not be verified.",
 				);
@@ -2033,24 +2024,6 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 					}
 				})();
 			}
-		}
-
-		const memoryBackend = resolveMemoryBackend(settings);
-		await logger.time("startMemoryStartupTask", () =>
-			Promise.resolve(
-				memoryBackend.start({
-					session,
-					settings,
-					modelRegistry,
-					agentDir,
-					taskDepth,
-				}),
-			),
-		);
-		if (memoryBackend.id !== "off") {
-			await session.refreshBaseSystemPrompt().catch(error => {
-				logger.debug("Memory startup prompt refresh failed", { backend: memoryBackend.id, error: String(error) });
-			});
 		}
 
 		// Wire MCP manager callbacks to session for reactive tool updates.

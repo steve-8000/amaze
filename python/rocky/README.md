@@ -173,8 +173,8 @@ The integration test spawns a real `amaze --mode rpc` against an
 - **Logs.** Structured JSON on stdout, rotated to
   `/data/logs/rocky.log.jsonl`.
 - **Inspection** (localhost only): `GET /events?limit=N`,
-  `GET /issues?limit=N`, `GET /healthz`, `GET /readyz`, and the
-  dashboard at `/`.
+  `GET /issues?limit=N`, `GET /healthz`, `GET /readyz`, `GET /api/status`,
+  and `GET /api/logs?limit=N`.
 
 ## Troubleshooting
 
@@ -193,7 +193,7 @@ The integration test spawns a real `amaze --mode rpc` against an
 
 ```
 src/
-  server.py          FastAPI app, /webhook/github, /events, /issues, /replay, dashboard at /
+  server.py          FastAPI app, /webhook/github, /events, /issues, /replay, JSON APIs
   github_events.py   verify_signature + route()
   queue.py           WorkerPool, dispatch loop, per-issue _inflight serialization
   tasks.py           triage_issue, handle_comment, handle_pr_conversation, handle_review, cleanup_workspace
@@ -207,9 +207,9 @@ src/
   db.py              sqlite schema + DAOs
   config.py          pydantic Settings; mode-exclusive PAT vs gh-proxy validation
   cli.py             serve / triage / replay / status / cleanup
+  log_tail.py        JSONL tail helper for /api/logs
   prompts/           system_append.md + per-task kickoff templates
 tests/               pytest unit suite + one ROCKY_INTEGRATION=1 smoke test
-web/                 vite + solid dashboard, built into src/static/
 ```
 
 ## License

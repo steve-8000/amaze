@@ -19,7 +19,6 @@ import {
 	getPluginsCacheDir,
 	MarketplaceManager,
 } from "../extensibility/plugins/marketplace";
-import { resolveMemoryBackend } from "../memory-backend";
 import type { InteractiveModeContext } from "../modes/types";
 import { getChangelogPath, parseChangelog } from "../utils/changelog";
 import { buildContextReportText } from "./helpers/context-report";
@@ -969,103 +968,18 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "memory",
-		description: "Inspect and operate memory maintenance",
-		acpDescription: "Manage memory",
-		acpInputHint: "<subcommand>",
-		subcommands: [
-			{ name: "view", description: "Show current memory injection payload" },
-			{ name: "clear", description: "Clear persisted memory data and artifacts" },
-			{ name: "reset", description: "Alias for clear" },
-			{ name: "enqueue", description: "Force memory consolidation now" },
-			{ name: "search", description: "Search Hermes memory" },
-			{ name: "add", description: "Add a Hermes memory" },
-		],
+		description: "Show supported memory direction",
+		acpDescription: "Show supported memory direction",
+		acpInputHint: "",
+		subcommands: [{ name: "help", description: "Show supported memory direction" }],
 		allowArgs: true,
 		handle: async (command, runtime) => {
-			const parts = command.args.trim().split(/\s+/).filter(Boolean);
-			const verb = (parts[0] ?? "").toLowerCase() || "view";
-			const backend = resolveMemoryBackend(runtime.settings);
-			switch (verb) {
-				case "view": {
-					const payload = await backend.buildDeveloperInstructions(
-						runtime.settings.getAgentDir(),
-						runtime.settings,
-						runtime.session,
-					);
-					await runtime.output(payload || "Memory payload is empty.");
-					return commandConsumed();
-				}
-				case "clear":
-				case "reset": {
-					await backend.clear(runtime.settings.getAgentDir(), runtime.cwd, runtime.session);
-					await runtime.session.refreshBaseSystemPrompt();
-					await runtime.output("Memory cleared.");
-					return commandConsumed();
-				}
-				case "enqueue":
-				case "rebuild": {
-					await backend.enqueue(runtime.settings.getAgentDir(), runtime.cwd, runtime.session);
-					await runtime.output("Memory consolidation enqueued.");
-					return commandConsumed();
-				}
-				case "search": {
-					if (backend.id !== "hermes")
-						return usage("/memory search is only available when memory.backend is hermes.", runtime);
-					const query = parts.slice(1).join(" ").trim();
-					if (!query) return usage("Usage: /memory search <query>", runtime);
-					const { createHermesMemoryConfig, HermesMemoryRuntime } = await import("../memory-backend/hermes");
-					const rt = new HermesMemoryRuntime(
-						createHermesMemoryConfig({
-							settings: runtime.settings,
-							agentDir: runtime.settings.getAgentDir(),
-							cwd: runtime.cwd,
-						}),
-					);
-					try {
-						await rt.load();
-						const results = rt.search(query, { limit: 10 });
-						await runtime.output(
-							results.length
-								? results
-										.map(
-											entry =>
-												`- [${entry.target}${entry.category ? `/${entry.category}` : ""}] ${entry.content}`,
-										)
-										.join("\n")
-								: "No matching Hermes memories found.",
-						);
-					} finally {
-						rt.close();
-					}
-					return commandConsumed();
-				}
-				case "add": {
-					if (backend.id !== "hermes")
-						return usage("/memory add is only available when memory.backend is hermes.", runtime);
-					const content = parts.slice(1).join(" ").trim();
-					if (!content) return usage("Usage: /memory add <text>", runtime);
-					const { createHermesMemoryConfig, HermesMemoryRuntime } = await import("../memory-backend/hermes");
-					const rt = new HermesMemoryRuntime(
-						createHermesMemoryConfig({
-							settings: runtime.settings,
-							agentDir: runtime.settings.getAgentDir(),
-							cwd: runtime.cwd,
-						}),
-					);
-					try {
-						await rt.load();
-						const result = await rt.add("memory", content);
-						await runtime.output(
-							result.success ? (result.message ?? "Memory added.") : (result.error ?? "Memory add failed."),
-						);
-					} finally {
-						rt.close();
-					}
-					return commandConsumed();
-				}
-				default:
-					return usage("Usage: /memory <view|clear|reset|enqueue|rebuild|search|add>", runtime);
+			const verb = command.args.trim().split(/\s+/, 1)[0]?.toLowerCase() || "help";
+			if (verb && verb !== "help" && verb !== "view") {
+				return usage("Legacy /memory operations have been removed. Use GBrain Agency Brain via MCP.", runtime);
 			}
+			await runtime.output("Legacy local memory has been removed. Use GBrain Agency Brain via MCP.");
+			return commandConsumed();
 		},
 		handleTui: async (command, runtime) => {
 			runtime.ctx.editor.setText("");

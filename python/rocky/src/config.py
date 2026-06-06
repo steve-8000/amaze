@@ -11,6 +11,7 @@ from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 ThinkingLevel = Literal["off", "low", "medium", "high", "xhigh"]
+SQLiteSynchronous = Literal["OFF", "NORMAL", "FULL", "EXTRA"]
 
 
 def _csv_string(v: object) -> str:
@@ -113,6 +114,11 @@ class Settings(BaseSettings):
     # next start. Sum of both MUST stay below the compose `stop_grace_period`.
     shutdown_drain_timeout_seconds: float = Field(25.0, alias="ROCKY_SHUTDOWN_DRAIN_TIMEOUT_SECONDS")
     shutdown_kill_timeout_seconds: float = Field(5.0, alias="ROCKY_SHUTDOWN_KILL_TIMEOUT_SECONDS")
+    compose_stop_grace_period_seconds: float = Field(30.0, alias="ROCKY_COMPOSE_STOP_GRACE_PERIOD_SECONDS")
+    # Queue durability. FULL is slower than NORMAL but avoids acknowledging a
+    # webhook before the queue row is durable on host power loss.
+    sqlite_synchronous: SQLiteSynchronous = Field("FULL", alias="ROCKY_SQLITE_SYNCHRONOUS")
+
 
     # Paths
     workspace_root: Path = Field(Path("./data/workspaces"), alias="ROCKY_WORKSPACE_ROOT")
@@ -202,6 +208,13 @@ class Settings(BaseSettings):
     def _blank_proxy_key_disables(cls, value: object) -> object:
         return None if _is_blank_secret(value) else value
 
+    @field_validator("sqlite_synchronous", mode="before")
+    @classmethod
+    def _normalize_sqlite_synchronous(cls, value: object) -> object:
+        if isinstance(value, str):
+            return value.strip().upper()
+        return value
+
     @model_validator(mode="after")
     def _validate_proxy_or_pat(self) -> Settings:
         """Enforce mutual exclusion between PAT and proxy mode.
@@ -228,6 +241,18 @@ class Settings(BaseSettings):
             raise ValueError(
                 "no GitHub access configured: set GITHUB_TOKEN, or set "
                 "ROCKY_GH_PROXY_URL + ROCKY_GH_PROXY_HMAC_KEY to use gh-proxy."
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _validate_shutdown_windows(self) -> Settings:
+        total = self.shutdown_drain_timeout_seconds + self.shutdown_kill_timeout_seconds
+        if self.shutdown_drain_timeout_seconds < 0 or self.shutdown_kill_timeout_seconds < 0:
+            raise ValueError("shutdown drain and kill timeouts must be non-negative")
+        if total > self.compose_stop_grace_period_seconds:
+            raise ValueError(
+                "ROCKY_SHUTDOWN_DRAIN_TIMEOUT_SECONDS + ROCKY_SHUTDOWN_KILL_TIMEOUT_SECONDS "
+                "must be <= ROCKY_COMPOSE_STOP_GRACE_PERIOD_SECONDS."
             )
         return self
 
