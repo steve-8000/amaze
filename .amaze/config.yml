@@ -77,6 +77,8 @@ skills:
     - perf
     - docs
     - browser-control
+    - build-ios-apps:*
+    - baguette-ios-runtime
     - system-prompts
     - sui-validater
     - destructive-mission
