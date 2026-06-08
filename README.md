@@ -17,6 +17,64 @@ The current system is built around a scout-and-orchestrate architecture: tools a
 - `.amaze/` — checked-in project settings, skills, commands, and rules used by this repository profile.
 - `docs/` — current operator documentation plus historical implementation records. Start with [`docs/README.md`](docs/README.md).
 
+## Installation
+
+Amaze is distributed as source in this monorepo; install it by building locally. The same steps work on macOS and Linux (and Windows via WSL).
+
+### Prerequisites
+
+- **[Bun](https://bun.sh) 1.3.14+** — primary runtime and package manager (pinned via `packageManager` in `package.json`).
+- **Rust (nightly)** — required to build the native addon in `packages/natives`. The toolchain is pinned by `rust-toolchain.toml` and installed automatically by `rustup` on first build.
+- **Git** — to clone the repository.
+- **Node.js 20+** — optional, only for the global tarball install path below.
+
+### Install from source (recommended)
+
+```sh
+git clone https://github.com/steve-8000/amaze.git
+cd amaze
+bun run install:dev   # installs dependencies and links the `amaze` CLI onto your PATH
+bun run build:native  # builds the native addon used at runtime
+amaze --version
+```
+
+`bun run install:dev` runs `bun install` and links the CLI, so you do not need a separate install step.
+
+### Run without linking
+
+To run straight from source without putting `amaze` on your PATH:
+
+```sh
+bun run build:native
+bun run dev -- --help
+```
+
+### Build a standalone binary
+
+```sh
+bun run build:native
+bun --cwd=packages/coding-agent run build   # outputs packages/coding-agent/dist/amaze
+cp packages/coding-agent/dist/amaze ~/.local/bin/amaze   # ensure ~/.local/bin is on your PATH
+amaze --version
+```
+
+### Global install via packaged tarball
+
+Builds the CLI and installs it globally with npm (requires Node.js/npm):
+
+```sh
+bun run amaze:upgrade-local
+```
+
+### First run and authentication
+
+Launch the CLI, then authenticate a model provider:
+
+- Run `amaze` and use the `/login` slash command to sign in to a provider over OAuth, **or**
+- Export a provider API key before launching (for example `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`).
+
+The default model role is `openai-codex/gpt-5.5`. Model routing and provider defaults live in [`.amaze/config.yml`](.amaze/config.yml).
+
 ## Core architecture
 
 ### Compact orchestrator and bounded subagents
