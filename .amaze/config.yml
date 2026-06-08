@@ -68,7 +68,14 @@ skills:
     - security
     - perf
     - docs
+    - quickstart
+    - threat-model
+    - vuln-scan
+    - triage
+    - patch
+    - customize
     - browser-control
+    - skillui
     - build-ios-apps:*
     - baguette-ios-runtime
     - system-prompts
