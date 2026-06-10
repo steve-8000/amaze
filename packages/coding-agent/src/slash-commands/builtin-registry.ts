@@ -11,7 +11,7 @@ import {
 	resolveActiveProjectRegistryPath,
 	resolveOrDefaultProjectRegistryPath,
 } from "../discovery/helpers.js";
-import { PluginManager } from "../extensibility/plugins";
+import { PluginManager } from "../extensibility/plugins/manager";
 import {
 	getInstalledPluginsRegistryPath,
 	getMarketplacesCacheDir,

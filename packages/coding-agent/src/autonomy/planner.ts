@@ -17,10 +17,10 @@ interface MetricRemediation {
  */
 const BUILTIN_REMEDIATIONS: Record<string, MetricRemediation> = {
 	"goal.forceCompleteRate": {
-		patch: { "goal.uncertainPolicy": "block-manual" },
+		patch: { "mission.autonomyProfile": "strict" },
 		reason:
-			"Tighten uncertain-policy so uncertain criteria surface before completion instead of being force-completed.",
-		rollback: { "goal.uncertainPolicy": "allow" },
+			"Tighten mission acceptance gates so uncertain criteria surface before completion instead of being force-completed.",
+		rollback: { "mission.autonomyProfile": "balanced" },
 	},
 	"verifier.bypassRate": {
 		patch: { "task.yield.allowSchemaBypass": false },

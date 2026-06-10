@@ -10,6 +10,7 @@ describe("mission lifecycle templates", () => {
 			requireRegressionContract: false,
 			requireProposalBeforeMutation: false,
 			requireVerification: false,
+			requireReview: false,
 		},
 		question_answering: {
 			allowDirectTaskCompletion: true,
@@ -17,6 +18,7 @@ describe("mission lifecycle templates", () => {
 			requireRegressionContract: false,
 			requireProposalBeforeMutation: false,
 			requireVerification: false,
+			requireReview: false,
 		},
 		repo_exploration: {
 			allowDirectTaskCompletion: true,
@@ -24,6 +26,7 @@ describe("mission lifecycle templates", () => {
 			requireRegressionContract: false,
 			requireProposalBeforeMutation: false,
 			requireVerification: false,
+			requireReview: false,
 		},
 		code_change: {
 			allowDirectTaskCompletion: true,
@@ -31,6 +34,7 @@ describe("mission lifecycle templates", () => {
 			requireRegressionContract: false,
 			requireProposalBeforeMutation: false,
 			requireVerification: true,
+			requireReview: true,
 		},
 		architecture_change: {
 			allowDirectTaskCompletion: false,
@@ -38,6 +42,7 @@ describe("mission lifecycle templates", () => {
 			requireRegressionContract: true,
 			requireProposalBeforeMutation: true,
 			requireVerification: true,
+			requireReview: true,
 		},
 		runtime_refactor: {
 			allowDirectTaskCompletion: false,
@@ -45,6 +50,7 @@ describe("mission lifecycle templates", () => {
 			requireRegressionContract: true,
 			requireProposalBeforeMutation: true,
 			requireVerification: true,
+			requireReview: true,
 		},
 		release_hardening: {
 			allowDirectTaskCompletion: false,
@@ -52,6 +58,7 @@ describe("mission lifecycle templates", () => {
 			requireRegressionContract: true,
 			requireProposalBeforeMutation: true,
 			requireVerification: true,
+			requireReview: true,
 		},
 		external_side_effect: {
 			allowDirectTaskCompletion: false,
@@ -59,6 +66,7 @@ describe("mission lifecycle templates", () => {
 			requireRegressionContract: false,
 			requireProposalBeforeMutation: true,
 			requireVerification: true,
+			requireReview: false,
 		},
 	};
 

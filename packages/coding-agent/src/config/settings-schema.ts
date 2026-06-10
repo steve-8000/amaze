@@ -1760,20 +1760,6 @@ export const SETTINGS_SCHEMA = {
 			],
 		},
 	},
-	// Infrastructure / deployment commands (kubectl, helm, terraform, cloud CLIs, …)
-	// ALWAYS require explicit user approval before execution — never auto-approved by
-	// mission.autoApprove and never bypassed by a prior `allow_always` decision.
-	"infra.approval.enabled": {
-		type: "boolean",
-		default: true,
-		ui: {
-			tab: "tools",
-			label: "Infra Deploy Approval",
-			description:
-				"Require explicit user approval before every infrastructure/deployment command (kubectl/helm/terraform/cloud CLIs/GitOps). Mandatory and uncacheable — overrides mission.autoApprove and allow_always. When no approval channel is connected (headless/RPC/autonomous), such commands are blocked fail-closed.",
-		},
-	},
-	"infra.approval.allowlist": { type: "array", default: EMPTY_STRING_ARRAY },
 	"bash.safety.allowPatterns": { type: "array", default: EMPTY_STRING_ARRAY },
 	"bash.safety.denyPatterns": { type: "array", default: EMPTY_STRING_ARRAY },
 	"bash.safety.redactOutput": {

@@ -1,15 +1,11 @@
-import { afterEach, beforeEach, describe, expect, it, mock, vi } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { resetSettingsForTest, Settings } from "../src/config/settings";
-
-mock.module("../src/slash-commands/builtin-registry.ts", () => ({
-	executeBuiltinSlashCommand: async () => false,
-}));
-const { InputController } = await import("../src/modes/controllers/input-controller");
-
+import { InputController } from "../src/modes/controllers/input-controller";
 import type { InteractiveModeContext, SubmittedUserInput } from "../src/modes/types";
+import * as builtinRegistry from "../src/slash-commands/builtin-registry";
 
 type FakeEditor = {
 	onSubmit?: (text: string) => Promise<void>;
@@ -116,10 +112,12 @@ describe("InputController pasted image path submission", () => {
 	beforeEach(async () => {
 		testDir = fs.mkdtempSync(path.join(os.tmpdir(), "amaze-pasted-image-path-"));
 		resetSettingsForTest();
+		vi.spyOn(builtinRegistry, "executeBuiltinSlashCommand").mockImplementation(async () => false);
 		await Settings.init({ inMemory: true, cwd: testDir, overrides: { "images.autoResize": false } });
 	});
 
 	afterEach(() => {
+		vi.restoreAllMocks();
 		resetSettingsForTest();
 	});
 

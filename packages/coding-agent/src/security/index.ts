@@ -8,4 +8,3 @@
 export * from "./bash-output-redactor";
 export * from "./bash-safety-config";
 export * from "./bash-safety-policy";
-export * from "./infra-command-classifier";

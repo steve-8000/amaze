@@ -76,13 +76,7 @@ export interface ClientBridge {
 	readonly capabilities: ClientBridgeCapabilities;
 	/** ACP v1 clients cannot show server-initiated turns as busy after prompt response. */
 	readonly deferAgentInitiatedTurns?: boolean;
-	/**
-	 * When true, `requestPermission` is used ONLY for tool-specific mandatory gates
-	 * (e.g. the bash infrastructure-deploy approval) and MUST NOT trigger the generic
-	 * per-tool ACP permission wrapper (bash/edit/delete/move). The TUI bridge sets this
-	 * so plain terminal sessions prompt only for infra commands, not every mutation.
-	 */
-	readonly infraApprovalOnly?: boolean;
+
 	readTextFile?(params: { path: string; line?: number; limit?: number }): Promise<string>;
 	writeTextFile?(params: { path: string; content: string }): Promise<void>;
 	createTerminal?(params: ClientBridgeCreateTerminalParams): Promise<ClientBridgeTerminalHandle>;

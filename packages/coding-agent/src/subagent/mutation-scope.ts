@@ -57,11 +57,21 @@ async function realpathIfPossible(absolutePath: string): Promise<string> {
 		return absolutePath;
 	}
 }
+async function realpathWithExistingAncestor(absolutePath: string): Promise<string> {
+	try {
+		return await fs.realpath(absolutePath);
+	} catch {
+		const parent = path.dirname(absolutePath);
+		if (parent === absolutePath) return absolutePath;
+		const realParent = await realpathWithExistingAncestor(parent);
+		return path.join(realParent, path.basename(absolutePath));
+	}
+}
 
 export async function resolveMutationTarget(cwd: string, rawPath: string): Promise<MutationTarget> {
 	const scheme = extractScheme(rawPath);
 	const realCwd = await realpathIfPossible(cwd);
-	const absolutePath = await realpathIfPossible(path.resolve(realCwd, rawPath));
+	const absolutePath = await realpathWithExistingAncestor(path.resolve(realCwd, rawPath));
 	const relativeToCwd = path.relative(realCwd, absolutePath).replace(/\\/g, "/");
 
 	return {

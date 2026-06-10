@@ -54,7 +54,7 @@ describe("research run CLI helper", () => {
 				{
 					id: output.laneRunIds[0],
 					lane: "repo",
-					agent: "Explore",
+					agent: "Resercher",
 					epistemicRole: "repo_truth",
 					status: "pending",
 					evidenceCount: 0,

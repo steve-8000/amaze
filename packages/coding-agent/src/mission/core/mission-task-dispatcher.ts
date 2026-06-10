@@ -1,4 +1,3 @@
-import { MissionTaskRunner } from "../../task/mission-task-runner";
 import type { Mission } from "./mission";
 import type { MissionTask } from "./mission-task";
 
@@ -14,10 +13,31 @@ export interface MissionTaskDispatchResult {
 	blocked: boolean;
 }
 
-type MissionTaskRunnerFactory = (task: MissionTask) => MissionTaskRunner;
+interface MissionTaskRunnerLike {
+	run(
+		options: {
+			cwd: string;
+			agent: { name: string; description: string; systemPrompt: string; source: "bundled" };
+			task: string;
+			description: string;
+			index: number;
+			id: string;
+			persistArtifacts: true;
+		},
+		task: MissionTask,
+	): Promise<{ evidenceRefs: string[]; task: MissionTask; result: { error?: string } }>;
+}
 
-function defaultRunnerFactory(task: MissionTask): MissionTaskRunner {
-	return new MissionTaskRunner({ missionId: task.missionId ?? "", taskId: task.id });
+type MissionTaskRunnerFactory = (task: MissionTask) => MissionTaskRunnerLike;
+
+function defaultRunnerFactory(task: MissionTask): MissionTaskRunnerLike {
+	return {
+		async run() {
+			throw new Error(
+				`Mission task ${task.id} requires an injected dispatcher runner; no default subagent runner is available in this runtime path.`,
+			);
+		},
+	};
 }
 
 export class MissionTaskDispatcher {

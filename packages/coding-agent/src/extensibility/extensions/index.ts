@@ -2,7 +2,7 @@
  * Extension system for lifecycle events and custom tools.
  */
 
-export type { SlashCommandInfo, SlashCommandLocation, SlashCommandSource } from "../slash-commands";
+export type { SlashCommandInfo, SlashCommandLocation, SlashCommandSource } from "../../slash-commands/types";
 export {
 	discoverAndLoadExtensions,
 	ExtensionRuntimeNotInitializedError,

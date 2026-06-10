@@ -15,9 +15,9 @@
  * themselves. Each frontend (interactive-mode, ACP) prepends its own builtins.
  */
 import type { SkillsSettings } from "../../config/settings";
+import type { SlashCommandInfo, SlashCommandLocation } from "../../slash-commands/types";
 import type { CustomCommandSource, LoadedCustomCommand } from "../custom-commands";
 import { getSkillSlashCommandName, type Skill } from "../skills";
-import type { SlashCommandInfo, SlashCommandLocation } from "../slash-commands";
 import type { ExtensionRunner } from "./runner";
 
 interface CommandsCapableSession {

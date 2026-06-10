@@ -161,7 +161,9 @@ describe("legacy migration", () => {
 			);
 			expect((db.query("SELECT id FROM learning_proposals").get() as { id: string }).id).toBe(legacyProposal.id);
 			expect(
-				db.query("SELECT kind FROM learning_proposal_events ORDER BY ts ASC, kind ASC").all() as Array<{
+				// rowid tiebreaker: created/approved can share the same millisecond ts; insertion
+				// order (legacy migration order) is the contract, not alphabetical kind order.
+				db.query("SELECT kind FROM learning_proposal_events ORDER BY ts ASC, rowid ASC").all() as Array<{
 					kind: string;
 				}>,
 			).toEqual([{ kind: "created" }, { kind: "approved" }]);
@@ -225,7 +227,9 @@ describe("legacy migration", () => {
 			);
 			expect((db.query("SELECT id FROM learning_proposals").get() as { id: string }).id).toBe(legacyProposal.id);
 			expect(
-				db.query("SELECT kind FROM learning_proposal_events ORDER BY ts ASC, kind ASC").all() as Array<{
+				// rowid tiebreaker: created/approved can share the same millisecond ts; insertion
+				// order (legacy migration order) is the contract, not alphabetical kind order.
+				db.query("SELECT kind FROM learning_proposal_events ORDER BY ts ASC, rowid ASC").all() as Array<{
 					kind: string;
 				}>,
 			).toEqual([{ kind: "created" }, { kind: "approved" }]);

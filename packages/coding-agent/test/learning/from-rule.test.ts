@@ -24,9 +24,9 @@ describe("ruleFindingToProposal", () => {
 		expect(proposal).toMatchObject({
 			type: "settings",
 			gate: "human-required",
-			patch: { "goal.uncertainPolicy": "block-manual" },
+			patch: { "mission.autonomyProfile": "strict" },
 			reason: "too many forced completions",
-			rollback: { "goal.uncertainPolicy": "allow" },
+			rollback: { "mission.autonomyProfile": "balanced" },
 			evidence: {
 				sessionIds: ["session-1"],
 				eventRefs: [],

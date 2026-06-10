@@ -21,6 +21,18 @@ export interface BuiltinSlashCommand {
 	inlineHint?: string;
 }
 
+export type SlashCommandSource = "extension" | "prompt" | "skill";
+
+export type SlashCommandLocation = "user" | "project" | "path";
+
+export interface SlashCommandInfo {
+	name: string;
+	description?: string;
+	source: SlashCommandSource;
+	location?: SlashCommandLocation;
+	path?: string;
+}
+
 /** Parsed slash-command text after stripping the leading "/". */
 export interface ParsedSlashCommand {
 	name: string;

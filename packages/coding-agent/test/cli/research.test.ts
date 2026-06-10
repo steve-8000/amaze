@@ -35,7 +35,7 @@ describe("research CLI helpers", () => {
 		}).then(stdout => {
 			const brief = JSON.parse(stdout);
 			expect(brief.id.startsWith("research-")).toBe(true);
-			expect(brief.lanes).toEqual(["repo", "source", "social", "memory"]);
+			expect(brief.lanes).toEqual(["repo", "source", "social"]);
 			expect(brief.riskLevel).toBe("medium");
 		});
 	});

@@ -3,6 +3,8 @@ import { Settings } from "../../src/config/settings";
 import type { Mission } from "../../src/mission/core/mission";
 import type { MissionControlRuntime } from "../../src/mission/core/mission-control-runtime";
 import { TaskTool } from "../../src/task";
+import * as discoveryModule from "../../src/task/discovery";
+import * as executorModule from "../../src/task/executor";
 import type { AgentDefinition } from "../../src/task/types";
 import type { ToolSession } from "../../src/tools";
 
@@ -36,12 +38,15 @@ const activeMission: Mission = {
 
 const runSubprocessMock = mock(
 	async (options: { contract?: { missionId?: string; taskId?: string; parentMissionRev?: number } }) => ({
+		index: 0,
 		id: "agent-result",
 		agent: "Builder",
 		agentSource: "project" as const,
 		status: "completed" as const,
+		task: "mission-task",
 		output: "ok",
 		truncated: false,
+		stderr: "",
 		durationMs: 1,
 		tokens: 0,
 		cost: 0,
@@ -59,21 +64,21 @@ const runSubprocessMock = mock(
 	}),
 );
 
-vi.mock("../../src/task/discovery", () => ({
-	discoverAgents: async () => ({ agents: [workerAgent], projectAgentsDir: null }),
-	getAgent: (agents: AgentDefinition[], name: string) => agents.find(agent => agent.name === name),
-}));
-
-vi.mock("../../src/task/executor", () => ({
-	runSubprocess: runSubprocessMock,
-}));
-
 describe("TaskTool mission contract stamping", () => {
 	afterEach(() => {
 		runSubprocessMock.mockClear();
+		vi.restoreAllMocks();
 	});
 
 	it("records mission-bound contract revision and usage under the active mission", async () => {
+		vi.spyOn(discoveryModule, "discoverAgents").mockResolvedValue({
+			agents: [workerAgent],
+			projectAgentsDir: null,
+		});
+		vi.spyOn(discoveryModule, "getAgent").mockImplementation((agents, name) =>
+			agents.find(agent => agent.name === name),
+		);
+		vi.spyOn(executorModule, "runSubprocess").mockImplementation(runSubprocessMock);
 		const recordTaskUsage = mock(() => {});
 		const session = {
 			cwd: process.cwd(),

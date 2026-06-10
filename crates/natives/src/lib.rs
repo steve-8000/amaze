@@ -67,5 +67,5 @@ use napi_derive::napi;
 /// MUST stay in sync with `VERSION_SENTINEL_EXPORT` in
 /// `packages/natives/native/index.js` (which derives the name from
 /// `package.json#version`).
-#[napi(js_name = "__amazeNativesV2_2_0")]
+#[napi(js_name = "__amazeNativesV2_3_0")]
 pub const fn amaze_natives_version_sentinel() {}

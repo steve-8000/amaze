@@ -27,9 +27,9 @@ export function ruleFindingToProposal(
 			...base,
 			type: "settings",
 			gate: "human-required",
-			patch: { "goal.uncertainPolicy": "block-manual" },
+			patch: { "mission.autonomyProfile": "strict" },
 			reason: finding.message,
-			rollback: { "goal.uncertainPolicy": "allow" },
+			rollback: { "mission.autonomyProfile": "balanced" },
 		};
 	}
 

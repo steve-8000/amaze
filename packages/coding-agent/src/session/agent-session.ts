@@ -83,6 +83,7 @@ import {
 	resolveServiceTier,
 	streamSimple,
 } from "@amaze/ai";
+import { getCodexAccountId } from "@amaze/ai/providers/openai-codex/constants";
 import { MacOSPowerAssertion } from "@amaze/natives";
 import { getAgentDbPath, isEnoent, isUnexpectedSocketCloseMessage, logger, prompt, Snowflake } from "@amaze/utils";
 import { type AsyncJob, type AsyncJobDeliveryState, AsyncJobManager } from "../async";
@@ -171,7 +172,7 @@ import ttsrInterruptTemplate from "../prompts/system/ttsr-interrupt.md" with { t
 import ttsrToolReminderTemplate from "../prompts/system/ttsr-tool-reminder.md" with { type: "text" };
 import { type AgentRegistry, MAIN_AGENT_ID } from "../registry/agent-registry";
 import { deobfuscateSessionContext, type SecretObfuscator } from "../secrets/obfuscator";
-import { isInfraDeployCommand, redactBashChunk } from "../security";
+import { redactBashChunk } from "../security";
 import { invalidateHostMetadata } from "../ssh/connection-manager";
 import { enforceContractFreshness, type SubagentContract } from "../subagent/contract";
 import { resolveThinkingLevelForModel, toReasoningEffort } from "../thinking";
@@ -696,11 +697,9 @@ function getPermissionIntent(
 	const a = args && typeof args === "object" && !Array.isArray(args) ? (args as Record<string, unknown>) : {};
 	if (toolName === "bash") {
 		const fullCommand = getStringProperty(a, "command");
-		// Infrastructure/deploy commands are gated by the bash tool's own mandatory,
-		// uncacheable approval (see BashTool#requestInfraApproval). Returning undefined
-		// here makes the generic ACP wrapper defer to it so a prior `allow_always` for
-		// bash can never silently authorize a kubectl/terraform mutation.
-		if (fullCommand && isInfraDeployCommand(fullCommand)) return undefined;
+		// Bash permission uses the generic ACP/user-approval wrapper. Do not special-case
+		// infrastructure commands here; the bash tool no longer carries a separate
+		// code-enforced infra gate.
 		const cmd = fullCommand?.slice(0, 80);
 		return { toolName, title: cmd || toolName, cacheKey: toolName };
 	}
@@ -3374,10 +3373,6 @@ export class AgentSession {
 		const bridge = this.#clientBridge;
 		// Match the capability+method gating pattern used by read/write/bash.
 		if (!bridge?.capabilities.requestPermission || !bridge.requestPermission) return tool;
-		// An infra-approval-only bridge (e.g. the TUI bridge) must NOT gate every
-		// mutation tool; its requestPermission exists solely for the bash infra-deploy
-		// gate. Skip generic wrapping so plain terminal sessions prompt only for infra.
-		if (bridge.infraApprovalOnly) return tool;
 		if (!PERMISSION_REQUIRED_TOOLS.has(tool.name)) return tool;
 		return new Proxy(tool, {
 			get: (target, prop) => {
@@ -6605,43 +6600,64 @@ export class AgentSession {
 	}
 
 	async #getAuthenticatedCompactionModelCandidates(availableModels: Model[]): Promise<Model[]> {
-		const candidates: Model[] = [];
-		const seen = new Set<string>();
+		// Two-pass selection: prefer candidates whose credentials are fully usable for
+		// compaction (strict — e.g. codex tokens must carry an account id). Only when no
+		// strict candidate exists, fall back to any model with non-empty auth and let the
+		// per-attempt auth-failure handling skip genuinely broken credentials. This keeps
+		// malformed-codex setups from shadowing an authenticated fallback (issue #986)
+		// without hard-failing sessions where the flawed provider is the only one.
+		const collect = async (strict: boolean): Promise<Model[]> => {
+			const candidates: Model[] = [];
+			const seen = new Set<string>();
 
-		const addCandidate = async (model: Model | undefined): Promise<void> => {
-			if (!model) return;
-			const key = this.#getModelKey(model);
-			if (seen.has(key)) return;
-			const apiKey = await this.#modelRegistry.getApiKey(model, this.sessionId);
-			if (!hasUsableAuth(apiKey)) return;
-			seen.add(key);
-			candidates.push(model);
+			const addCandidate = async (model: Model | undefined): Promise<void> => {
+				if (!model) return;
+				const key = this.#getModelKey(model);
+				if (seen.has(key)) return;
+				const apiKey = await this.#modelRegistry.getApiKey(model, this.sessionId);
+				const usable = strict ? this.#hasUsableCompactionAuth(model, apiKey) : hasUsableAuth(apiKey);
+				if (!usable) return;
+				seen.add(key);
+				candidates.push(model);
+			};
+
+			for (const role of [
+				"Explore",
+				"Reviewer",
+				"default",
+				"Builder",
+				"Planner",
+				"commit",
+				"Designer",
+				"Resercher",
+				"Resercher_X",
+			]) {
+				await addCandidate(this.#resolveRoleModelFull(role, availableModels, this.model).model);
+			}
+
+			for (const model of availableModels) {
+				await addCandidate(model);
+			}
+
+			return candidates;
 		};
 
-		for (const role of [
-			"Explore",
-			"Reviewer",
-			"default",
-			"Builder",
-			"Planner",
-			"commit",
-			"Designer",
-			"Resercher",
-			"Resercher_X",
-		]) {
-			await addCandidate(this.#resolveRoleModelFull(role, availableModels, this.model).model);
-		}
-
-		for (const model of availableModels) {
-			await addCandidate(model);
-		}
-
-		return candidates;
+		const strictCandidates = await collect(true);
+		if (strictCandidates.length > 0) return strictCandidates;
+		return collect(false);
 	}
 
 	#isCompactionAuthFailure(error: unknown): boolean {
 		if (!(error instanceof Error)) return false;
 		return /auth_unavailable|no auth available|Failed to extract accountId from token/i.test(error.message);
+	}
+
+	#hasUsableCompactionAuth(model: Model, apiKey: unknown): apiKey is string {
+		if (!hasUsableAuth(apiKey)) return false;
+		if (model.api === "openai-codex-responses") {
+			return typeof apiKey === "string" && getCodexAccountId(apiKey) !== undefined;
+		}
+		return true;
 	}
 
 	#isTransientCompactionFailure(error: unknown): boolean {
@@ -6670,7 +6686,7 @@ export class AgentSession {
 		const model = this.#modelRegistry.find(assistant.provider, assistant.model);
 		if (!model) return undefined;
 		const apiKey = this.#modelRegistry.getApiKey(model, this.sessionId);
-		if (!hasUsableAuth(apiKey)) return undefined;
+		if (!this.#hasUsableCompactionAuth(model, apiKey)) return undefined;
 		return { model, apiKey };
 	}
 
@@ -6693,6 +6709,8 @@ export class AgentSession {
 		const compactionOptions = this.#compactWithSectionModelOptions(options);
 
 		for (const candidate of candidates) {
+			// Candidate selection already applied the strict/lenient auth policy; here only
+			// guard against credentials disappearing between selection and use.
 			const apiKey = await this.#modelRegistry.getApiKey(candidate, this.sessionId);
 			if (!hasUsableAuth(apiKey)) continue;
 
@@ -6949,6 +6967,8 @@ export class AgentSession {
 				let lastError: unknown;
 
 				for (const candidate of candidates) {
+					// Selection already applied the strict/lenient auth policy; only guard
+					// against credentials disappearing between selection and use.
 					const apiKey = await this.#modelRegistry.getApiKey(candidate, this.sessionId);
 					if (!hasUsableAuth(apiKey)) continue;
 

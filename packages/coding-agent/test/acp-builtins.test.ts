@@ -485,21 +485,21 @@ describe("wave 3 commands", () => {
 	});
 
 	// /memory
-	it("/memory unknown: returns usage message", async () => {
+	it("/memory unknown: points to GBrain Agency Brain", async () => {
 		const { output, runtime } = createRuntime();
 		const result = await executeAcpBuiltinSlashCommand("/memory unknownverb", runtime);
 		expect(result).toEqual({ consumed: true });
-		expect(output[0]).toContain("Usage: /memory");
+		expect(output[0]).toContain("GBrain Agency Brain");
 	});
 
-	it("/memory view: outputs memory payload (or empty message)", async () => {
+	it("/memory view: points to GBrain Agency Brain", async () => {
 		const { output, runtime } = createRuntime();
 		const result = await executeAcpBuiltinSlashCommand("/memory view", runtime);
 		expect(result).toEqual({ consumed: true });
 		expect(output.length).toBeGreaterThan(0);
 	});
 
-	it("/memory (no args): defaults to view", async () => {
+	it("/memory (no args): points to GBrain Agency Brain", async () => {
 		const { output, runtime } = createRuntime();
 		const result = await executeAcpBuiltinSlashCommand("/memory", runtime);
 		expect(result).toEqual({ consumed: true });

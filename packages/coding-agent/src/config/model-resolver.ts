@@ -760,24 +760,32 @@ export async function resolveModelOverrideWithAuthFallback(
 	authFallbackUsed: boolean;
 }> {
 	const primary = resolveModelOverride(modelPatterns, modelRegistry, settings);
-	if (!primary.model || !parentActiveModelPattern) {
+	if (!parentActiveModelPattern) {
 		return { ...primary, authFallbackUsed: false };
 	}
 
-	const primaryKey = await modelRegistry.getApiKey(primary.model);
-	if (primaryKey === kNoAuth || isAuthenticated(primaryKey)) {
-		return { ...primary, authFallbackUsed: false };
+	// `primary.model` is undefined when the requested provider has no working
+	// credentials at all — `getAvailable()` filters those models out before
+	// resolution even sees them. That is exactly the case to fall back on (e.g.
+	// a Claude-only user whose `modelRoles.task` points at `openai-codex/...`),
+	// so an unresolved primary must still attempt the parent fallback rather
+	// than short-circuit (see #985, #1008).
+	if (primary.model) {
+		const primaryKey = await modelRegistry.getApiKey(primary.model);
+		if (primaryKey === kNoAuth || isAuthenticated(primaryKey)) {
+			return { ...primary, authFallbackUsed: false };
+		}
 	}
 
 	const fallback = resolveModelOverride([parentActiveModelPattern], modelRegistry, settings);
 	if (!fallback.model) {
 		return { ...primary, authFallbackUsed: false };
 	}
-	if (modelsAreEqual(fallback.model, primary.model)) {
+	if (primary.model && modelsAreEqual(fallback.model, primary.model)) {
 		return { ...primary, authFallbackUsed: false };
 	}
 	const fallbackKey = await modelRegistry.getApiKey(fallback.model);
-	if (!isAuthenticated(fallbackKey)) {
+	if (fallbackKey !== kNoAuth && !isAuthenticated(fallbackKey)) {
 		return { ...primary, authFallbackUsed: false };
 	}
 

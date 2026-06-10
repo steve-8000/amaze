@@ -175,4 +175,39 @@ describe("issue #985: subagent dispatch auth fallback", () => {
 		expect(result.model?.provider).toBe("opencode-zen");
 		expect(result.model?.id).toBe("qwen3.6-plus-free");
 	});
+
+	test("falls back to parent model when subagent role provider is entirely unavailable", async () => {
+		// Reporter case: parent runs on Claude (only `anthropic` authed) and
+		// `modelRoles.task` points at `openai-codex/gpt-5.5`. The codex model is
+		// filtered out of `getAvailable()` because it has no credentials, so the
+		// primary resolution yields no model at all. The dispatch must still fall
+		// back to the parent's working model instead of spawning with no model.
+		const claudeParentModel: Model<Api> = {
+			id: "claude-opus-4-8",
+			name: "Claude Opus",
+			api: "anthropic-messages",
+			provider: "anthropic",
+			baseUrl: "https://api.anthropic.com",
+			reasoning: true,
+			input: ["text"],
+			cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+			contextWindow: 200000,
+			maxTokens: 64000,
+		};
+		// getAvailable() omits the codex model entirely (no creds → filtered out).
+		const registry = createMockRegistry({
+			models: [claudeParentModel],
+			authedProviders: new Set(["anthropic"]),
+		});
+
+		const result = await resolveModelOverrideWithAuthFallback(
+			["openai-codex/gpt-5.5"],
+			"anthropic/claude-opus-4-8",
+			registry,
+		);
+
+		expect(result.authFallbackUsed).toBe(true);
+		expect(result.model?.provider).toBe("anthropic");
+		expect(result.model?.id).toBe("claude-opus-4-8");
+	});
 });

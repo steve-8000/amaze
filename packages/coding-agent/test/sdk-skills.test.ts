@@ -6,6 +6,7 @@ import { Settings } from "@amaze/coding-agent/config/settings";
 import type { Skill } from "@amaze/coding-agent/sdk";
 import { createAgentSession } from "@amaze/coding-agent/sdk";
 import { SessionManager } from "@amaze/coding-agent/session/session-manager";
+import type { WorkspaceTree } from "@amaze/coding-agent/workspace-tree";
 import { cleanupTempHome } from "./helpers/temp-home-cleanup";
 
 function createIsolatedSkillsSettings(customDirectories: string[] = []): Settings {
@@ -17,6 +18,23 @@ function createIsolatedSkillsSettings(customDirectories: string[] = []): Setting
 		"skills.customDirectories": customDirectories,
 	});
 }
+
+const emptyWorkspaceTree = (cwd: string): WorkspaceTree => ({
+	rootPath: cwd,
+	rendered: ".",
+	truncated: false,
+	totalLines: 1,
+	agentsMdFiles: [],
+});
+
+const baseSessionOptions = (cwd: string) => ({
+	contextFiles: [],
+	promptTemplates: [],
+	slashCommands: [],
+	workspaceTree: emptyWorkspaceTree(cwd),
+	enableMCP: false,
+	enableLsp: false,
+});
 
 describe("createAgentSession skills option", () => {
 	let tempDir: string;
@@ -72,6 +90,7 @@ Loaded via symbolic link.
 			cwd: tempDir,
 			agentDir: tempDir,
 			sessionManager: SessionManager.inMemory(),
+			...baseSessionOptions(tempDir),
 			settings: createIsolatedSkillsSettings([path.dirname(skillsDir)]),
 		});
 
@@ -85,6 +104,7 @@ Loaded via symbolic link.
 			cwd: tempDir,
 			agentDir: tempDir,
 			sessionManager: SessionManager.inMemory(),
+			...baseSessionOptions(tempDir),
 			settings: createIsolatedSkillsSettings([path.dirname(skillsDir)]),
 		});
 
@@ -105,6 +125,7 @@ Loaded via symbolic link.
 			cwd: tempDir,
 			agentDir: tempDir,
 			sessionManager: SessionManager.inMemory(),
+			...baseSessionOptions(tempDir),
 			settings: createIsolatedSkillsSettings(),
 		});
 
@@ -116,6 +137,7 @@ Loaded via symbolic link.
 			agentDir: tempDir,
 			sessionManager: SessionManager.inMemory(),
 			skills: [], // Explicitly empty - like --no-skills
+			...baseSessionOptions(tempDir),
 			settings: createIsolatedSkillsSettings(),
 		});
 
@@ -139,6 +161,7 @@ Loaded via symbolic link.
 			agentDir: tempDir,
 			sessionManager: SessionManager.inMemory(),
 			skills: [customSkill],
+			...baseSessionOptions(tempDir),
 			settings: createIsolatedSkillsSettings(),
 		});
 

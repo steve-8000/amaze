@@ -65,13 +65,13 @@ afterEach(async () => {
 });
 
 describe("memory CLI registration", () => {
-	it("advertises the maintenance actions", async () => {
+	it("advertises the surviving memory action", async () => {
 		const { stdout, stderr, exitCode } = await runCliHelp();
 
 		expect(exitCode).toBe(0);
 		expect(stderr).toBe("");
 		expect(stdout).toContain("doctor");
-		expect(stdout).toContain("sync");
-		expect(stdout).toContain("migrate");
+		expect(stdout).not.toContain("sync");
+		expect(stdout).not.toContain("migrate");
 	});
 });

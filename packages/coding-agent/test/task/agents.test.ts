@@ -10,8 +10,8 @@ describe("bundled agents", () => {
 		const agents = loadBundledAgents();
 		const names = agents.map(agent => agent.name);
 
-		expect(agents).toHaveLength(3);
-		expect(names).toEqual(["Builder", "Resercher", "SRE"]);
+		expect(agents).toHaveLength(4);
+		expect(names).toEqual(["Builder", "Resercher", "SRE", "Reviewer"]);
 	});
 
 	it("registers Builder as the default delegated implementation agent", () => {

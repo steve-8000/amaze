@@ -62,14 +62,14 @@ describe("ModelSelector role badge thinking display", () => {
 		if (!model) throw new Error("Expected bundled model anthropic/claude-sonnet-4-5");
 
 		const settings = Settings.isolated({
-			cycleOrder: ["smol", "custom-fast", "default"],
+			cycleOrder: ["Explore", "custom-fast", "default"],
 			modelRoles: {
 				default: `${model.provider}/${model.id}`,
 				"custom-fast": `${model.provider}/${model.id}:low`,
-				smol: `${model.provider}/${model.id}`,
+				Explore: `${model.provider}/${model.id}`,
 			},
 			modelTags: {
-				smol: { name: "Quick", color: "error" },
+				Explore: { name: "Quick", color: "error" },
 			},
 		});
 
@@ -79,12 +79,12 @@ describe("ModelSelector role badge thinking display", () => {
 
 		const rendered = normalizeRenderedText(selector.render(220).join("\n"));
 		expect(rendered).toContain("custom-fast (low)");
-		expect(rendered).toContain("SMOL (inherit)");
+		expect(rendered).toContain("EXPLORE (inherit)");
 
 		selector.handleInput("\n");
 		installTestTheme();
 		const menuRendered = normalizeRenderedText(selector.render(220).join("\n"));
 		expect(menuRendered).toContain("Set as custom-fast");
-		expect(menuRendered).toContain("Set as SMOL (Quick)");
+		expect(menuRendered).toContain("Set as EXPLORE (Quick)");
 	});
 });

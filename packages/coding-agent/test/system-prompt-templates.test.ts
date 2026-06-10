@@ -252,9 +252,8 @@ describe("system Handlebars prompt templates", () => {
 			expect(systemPrompt[1]).toContain("Today is ");
 			expect(systemPrompt[1]).toContain(`current working directory is '${dir}'.`);
 			expect(systemPrompt[1].indexOf("</workspace-tree>")).toBeLessThan(systemPrompt[1].indexOf("Today is "));
-			// Goal block: emits stable "no goal" sentinel even when no goal is active so the
-			// prompt structure is identical between no-goal and has-goal turns (cache stability).
-			expect(systemPrompt[1]).toContain(`<goal status="none"/>`);
+			// Goal block: no inactive goal sentinel is rendered; active mission state owns this slot.
+			expect(systemPrompt[1]).not.toContain("<goal");
 			// Cache hint: STABLE_CORE (index 0) is the cacheable prefix; DYNAMIC_TAIL stays fresh.
 			expect(systemPromptCacheBreakpointIndex).toBe(0);
 		});

@@ -12,19 +12,8 @@ import {
 import { EMBEDDED_COMMAND_TEMPLATES } from "../task/commands";
 import { parseCommandArgs, substituteArgs } from "../utils/command-args";
 
-export type SlashCommandSource = "extension" | "prompt" | "skill";
-
-export type SlashCommandLocation = "user" | "project" | "path";
-
-export interface SlashCommandInfo {
-	name: string;
-	description?: string;
-	source: SlashCommandSource;
-	location?: SlashCommandLocation;
-	path?: string;
-}
-
 export type { BuiltinSlashCommand, SubcommandDef } from "../slash-commands/builtin-registry";
+export type { SlashCommandInfo, SlashCommandLocation, SlashCommandSource } from "../slash-commands/types";
 
 /**
  * Build getArgumentCompletions from declarative subcommand definitions.

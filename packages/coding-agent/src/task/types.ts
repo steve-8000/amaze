@@ -116,8 +116,18 @@ export const subagentContractSchema = z.object({
 	outputContract: z.object({ mustProduce: z.array(z.string()) }).optional(),
 });
 
-const taskContractWireSchema = z
-	.unknown()
+const jsonValueWireSchema = z.unknown().meta({
+	anyOf: [
+		{ type: "object" },
+		{ type: "array" },
+		{ type: "string" },
+		{ type: "number" },
+		{ type: "boolean" },
+		{ type: "null" },
+	],
+});
+
+const taskContractWireSchema = jsonValueWireSchema
 	.optional()
 	.describe("structured SubagentContract object; shape is documented in the task tool description");
 

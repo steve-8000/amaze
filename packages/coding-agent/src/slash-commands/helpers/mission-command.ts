@@ -6,7 +6,16 @@ import {
 	runMissionStreamCommand,
 	runMissionVerifyCommand,
 } from "../../cli/mission";
-import type { MissionControlRuntime } from "../../mission/core/mission-control-runtime";
+
+interface MissionControlSlashRuntime {
+	createMission(input: {
+		title: string;
+		objective: string;
+		mode: "interactive";
+	}): Promise<{ id: string; lifecycle: string }>;
+	cancelActiveMission(reason?: string): Promise<{ id: string } | undefined>;
+	completeActiveMission(input: { status: "success"; summary: string }): Promise<{ id: string } | undefined>;
+}
 
 /**
  * Canonical `/mission` subcommands.
@@ -137,7 +146,7 @@ export async function runMissionSlashCommand(args: string): Promise<MissionComma
 export async function handleMissionWriteVerb(
 	verb: string,
 	args: string,
-	missionControl: MissionControlRuntime | undefined,
+	missionControl: MissionControlSlashRuntime | undefined,
 ): Promise<string | undefined> {
 	if (verb !== "create" && verb !== "complete" && verb !== "cancel") return undefined;
 	if (!missionControl) {

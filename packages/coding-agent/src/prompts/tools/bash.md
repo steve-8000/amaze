@@ -6,6 +6,7 @@ Executes bash command in shell session for terminal operations like git, bun, ca
 - Quote variable expansions like `"$NAME"` to preserve exact content
 - PTY mode is opt-in: set `pty: true` only when the command needs a real terminal (e.g. `sudo`, `ssh` requiring user input); default is `false`
 - Use `;` only when later commands should run regardless of earlier failures
+- Ask the user for explicit approval in chat before running infrastructure/deployment commands (kubectl, helm, terraform, cloud CLIs, GitOps, or similar); after approval, run them normally with this tool.
 - Internal URIs (`skill://`, `agent://`, etc.) are auto-resolved to filesystem paths
 {{#if asyncEnabled}}
 - Use `async: true` for long-running commands when you don't need immediate output; the call returns a background job ID and the result is delivered automatically as a follow-up.
