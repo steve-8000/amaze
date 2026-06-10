@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-06-10
+
+### Fixed
+
+- Fixed adaptive-thinking Anthropic models (Claude 4.6+: Opus 4.7+, Fable, Mythos) being sent `thinking: { type: "disabled" }` when a caller disables thinking (e.g. title/commit-message generation, or any turn with thinking off). These models have no `disabled` thinking mode and reject the field with a `400 invalid_request_error`, which stalled every affected request. The disable path now omits the `thinking` field for adaptive-thinking models (the API defaults to adaptive when it is absent); budget-based models still receive the explicit `{ type: "disabled" }`.
+
 ## [2.2.1] - 2026-06-09
 
 ### Changed

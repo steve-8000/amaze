@@ -1,7 +1,7 @@
 {
 	"type": "module",
 	"name": "amaze",
-	"version": "2.2.1",
+	"version": "2.3.0",
 	"description": "Amaze CLI npx entry package",
 	"author": "Can Boluk",
 	"contributors": [

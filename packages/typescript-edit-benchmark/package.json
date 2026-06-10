@@ -2,7 +2,7 @@
   "type": "module",
   "private": true,
   "name": "@amaze/typescript-edit-benchmark",
-  "version": "2.2.1",
+  "version": "2.3.0",
   "description": "Edit benchmark suite using TypeScript source code mutations",
   "author": "Can Boluk",
   "license": "MIT",
