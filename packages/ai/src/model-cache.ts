@@ -4,6 +4,7 @@
  */
 import { Database } from "bun:sqlite";
 import { getModelDbPath } from "@amaze/utils";
+import { refreshModelThinking } from "./model-thinking";
 import type { Api, Model } from "./types";
 
 const CACHE_SCHEMA_VERSION = 3;
@@ -72,7 +73,15 @@ export function readModelCache<TApi extends Api>(
 		if (!row || row.version !== CACHE_SCHEMA_VERSION) {
 			return null;
 		}
-		const models = JSON.parse(row.models) as Model<TApi>[];
+		// Recompute thinking metadata from the current code rules. Cache rows store
+		// previously enriched models, and `enrichModelThinking` treats an existing
+		// `thinking` block as authoritative — so a row written before the code knew
+		// a model's real thinking mode (e.g. the Fable/Mythos flagship line, cached
+		// as the wrong `mode: "budget"`) would otherwise stay stale until the cache
+		// expired. Refreshing here keeps the discovered model list intact while
+		// correcting only the derived thinking config.
+		const parsed = JSON.parse(row.models) as unknown;
+		const models = Array.isArray(parsed) ? (parsed as Model<TApi>[]).map(model => refreshModelThinking(model)) : [];
 		const ageMs = now() - row.updated_at;
 		const fresh = Number.isFinite(ageMs) && ageMs >= 0 && ageMs <= ttlMs;
 		return {

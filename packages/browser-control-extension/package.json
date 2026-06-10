@@ -1,7 +1,7 @@
 {
 	"type": "module",
 	"name": "@amaze/browser-control-extension",
-	"version": "2.2.0",
+	"version": "2.2.1",
 	"description": "Chrome extension and MCP bridge for controlling logged-in browser tabs",
 	"author": "Can Boluk",
 	"license": "MIT",

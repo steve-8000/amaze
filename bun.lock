@@ -15,7 +15,7 @@
     },
     "packages/agent": {
       "name": "@amaze/agent-core",
-      "version": "2.2.0",
+      "version": "2.2.1",
       "dependencies": {
         "@amaze/ai": "catalog:",
         "@amaze/natives": "catalog:",
@@ -30,7 +30,7 @@
     },
     "packages/ai": {
       "name": "@amaze/ai",
-      "version": "2.2.0",
+      "version": "2.2.1",
       "bin": {
         "ai": "./src/cli.ts",
       },
@@ -48,14 +48,14 @@
     },
     "packages/amaze": {
       "name": "amaze",
-      "version": "2.2.0",
+      "version": "2.2.1",
       "bin": {
         "amaze": "bin/amaze",
       },
     },
     "packages/browser-control-extension": {
       "name": "@amaze/browser-control-extension",
-      "version": "2.2.0",
+      "version": "2.2.1",
       "bin": {
         "amaze-browser-bridge": "src/mcp-server.ts",
       },
@@ -65,7 +65,7 @@
     },
     "packages/coding-agent": {
       "name": "@amaze/coding-agent",
-      "version": "2.2.0",
+      "version": "2.2.1",
       "bin": {
         "amaze": "src/cli.ts",
       },
@@ -107,7 +107,7 @@
     },
     "packages/natives": {
       "name": "@amaze/natives",
-      "version": "2.2.0",
+      "version": "2.2.1",
       "devDependencies": {
         "@napi-rs/cli": "catalog:",
         "@types/bun": "catalog:",
@@ -115,7 +115,7 @@
     },
     "packages/stats": {
       "name": "@amaze/stats",
-      "version": "2.2.0",
+      "version": "2.2.1",
       "bin": {
         "amaze-stats": "./src/index.ts",
       },
@@ -140,7 +140,7 @@
     },
     "packages/swarm-extension": {
       "name": "@amaze/swarm-extension",
-      "version": "2.2.0",
+      "version": "2.2.1",
       "bin": {
         "amaze-swarm": "src/cli.ts",
       },
@@ -156,7 +156,7 @@
     },
     "packages/tui": {
       "name": "@amaze/tui",
-      "version": "2.2.0",
+      "version": "2.2.1",
       "dependencies": {
         "@amaze/natives": "catalog:",
         "@amaze/utils": "catalog:",
@@ -170,7 +170,7 @@
     },
     "packages/typescript-edit-benchmark": {
       "name": "@amaze/typescript-edit-benchmark",
-      "version": "2.2.0",
+      "version": "2.2.1",
       "bin": {
         "typescript-edit-benchmark": "src/index.ts",
       },
@@ -196,7 +196,7 @@
     },
     "packages/utils": {
       "name": "@amaze/utils",
-      "version": "2.2.0",
+      "version": "2.2.1",
       "dependencies": {
         "@amaze/natives": "catalog:",
         "beautiful-mermaid": "catalog:",

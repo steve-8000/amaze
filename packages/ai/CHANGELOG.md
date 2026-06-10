@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [2.2.1] - 2026-06-09
+
 ### Changed
 
 - Changed `resolveCacheRetention()` default from `"short"` to `"long"` so long-lived agent sessions keep their prompt-cache prefix warm across the 5-minute boundary. Anthropic 1h cache writes cost ~2x base input (vs 1.25x for 5m) but amortize over many 90%-discounted reads; sessions under 5 minutes pay slightly more, everything longer comes out ahead. Set `AMAZE_CACHE_RETENTION=short` to restore the previous behavior; explicit per-request `cacheRetention` still wins over both.
@@ -9,6 +11,7 @@
 ### Fixed
 
 - Fixed DeepSeek V4 direct API requests with tools to keep documented thinking mode instead of dropping reasoning: lower AMAZE efforts now map to DeepSeek's supported `high`, `tool_choice` is omitted, `thinking: { type: "enabled" }` and `max_tokens` are sent, and partial user `reasoningEffortMap` overrides merge with DeepSeek defaults. ([#1207](https://github.com/can1357/amaze/issues/1207))
+- Fixed the Fable/Mythos flagship Anthropic line being unrecognized by model parsing, which made the provider send unsupported budget thinking (`thinking: { type: "enabled" }`) and triggered a 400 `thinking.type.enabled is not supported` error. `claude-fable-*`/`claude-mythos-*` now parse as the Anthropic family, resolve to adaptive thinking with a real `xhigh` effort, and accept the adaptive `display` field. `readModelCache` additionally recomputes thinking metadata on read, so cache rows written before a model was recognized self-heal instead of staying stale until expiry.
 - Fixed xAI model discovery and model calls to use stored `xai-oauth` Grok OAuth credentials for the `xai` provider, so `/model` lists xAI models without requiring `XAI_API_KEY`.
 
 ## [1.0.0] - 2026-05-19

@@ -1194,6 +1194,35 @@ describe("Anthropic request fingerprint alignment", () => {
 		expect(payload.output_config).toEqual({ effort: "high" });
 	});
 
+	it("sends adaptive thinking with effort for the Fable flagship line", async () => {
+		const payload = (await captureAnthropicPayload(
+			{
+				...ANTHROPIC_MODEL,
+				id: "claude-fable-5",
+				name: "Fable 5",
+				thinking: {
+					mode: "anthropic-adaptive",
+					minLevel: Effort.Minimal,
+					maxLevel: Effort.XHigh,
+				},
+			},
+			{
+				systemPrompt: ["Stay concise."],
+				messages: [{ role: "user", content: "Hi", timestamp: Date.now() }],
+			},
+			{
+				thinkingEnabled: true,
+				reasoning: Effort.XHigh,
+			},
+		)) as {
+			thinking?: { type?: string; display?: string; budget_tokens?: number };
+			output_config?: { effort?: string };
+		};
+
+		expect(payload.thinking).toEqual({ type: "adaptive", display: "summarized" });
+		expect(payload.output_config).toEqual({ effort: "xhigh" });
+	});
+
 	it("treats tool prefix helpers as no-ops when prefix is empty", () => {
 		expect(applyClaudeToolPrefix("Read", "")).toBe("Read");
 		expect(stripClaudeToolPrefix("proxy_Read", "")).toBe("proxy_Read");

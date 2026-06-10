@@ -39,7 +39,7 @@ type SemVer = {
 };
 
 type GeminiKind = "pro" | "flash";
-type AnthropicKind = "opus" | "sonnet";
+type AnthropicKind = "opus" | "sonnet" | "fable" | "mythos";
 type OpenAIVariant = "base" | "codex" | "codex-max" | "codex-mini" | "codex-spark" | "mini" | "max" | "nano";
 
 const CODEX_GPT_5_4_PRIORITY_BY_VARIANT: Partial<Record<OpenAIVariant, number>> = {
@@ -320,7 +320,10 @@ export function hasOpus47ApiRestrictions(modelId: string): boolean {
 function anthropicModelHasRealXHighEffort<TApi extends Api>(model: ApiModel<TApi>): boolean {
 	if (model.api !== "anthropic-messages") return false;
 	const parsedModel = parseKnownModel(model.id);
-	if (parsedModel.family !== "anthropic" || parsedModel.kind !== "opus") return false;
+	if (parsedModel.family !== "anthropic") return false;
+	// The Fable/Mythos flagship line ships with the literal xhigh effort.
+	if (parsedModel.kind === "fable" || parsedModel.kind === "mythos") return true;
+	if (parsedModel.kind !== "opus") return false;
 	return semverGte(parsedModel.version, "4.7");
 }
 
@@ -516,7 +519,10 @@ function inferAnthropicSupportedEfforts<TApi extends Api>(
 		(model.api === "anthropic-messages" || model.api === "bedrock-converse-stream") &&
 		semverGte(parsedModel.version, "4.6")
 	) {
-		return parsedModel.kind === "opus" ? DEFAULT_REASONING_EFFORTS_WITH_XHIGH : DEFAULT_REASONING_EFFORTS;
+		// Opus and the Fable/Mythos flagship line expose the literal xhigh level;
+		// Sonnet tops out at high.
+		const hasXHigh = parsedModel.kind === "opus" || parsedModel.kind === "fable" || parsedModel.kind === "mythos";
+		return hasXHigh ? DEFAULT_REASONING_EFFORTS_WITH_XHIGH : DEFAULT_REASONING_EFFORTS;
 	}
 	return inferFallbackEfforts(model);
 }
@@ -612,7 +618,7 @@ function parseGeminiModel(modelId: string): GeminiModel | null {
 }
 
 function parseAnthropicModel(modelId: string): AnthropicModel | null {
-	const match = /claude-(opus|sonnet)-(\d{1,2}(?:[.-]\d{1,2}){0,2})\b/.exec(modelId);
+	const match = /claude-(opus|sonnet|fable|mythos)-(\d{1,2}(?:[.-]\d{1,2}){0,2})\b/.exec(modelId);
 	if (!match) {
 		return null;
 	}

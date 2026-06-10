@@ -107,6 +107,11 @@ describe("model thinking metadata", () => {
 			api: "anthropic-messages",
 			provider: "anthropic",
 		});
+		const fable5 = createModel({
+			id: "claude-fable-5",
+			api: "anthropic-messages",
+			provider: "anthropic",
+		});
 
 		expect(opus45.thinking?.mode).toBe("anthropic-budget-effort");
 		expect(opus46.thinking?.mode).toBe("anthropic-adaptive");
@@ -128,6 +133,15 @@ describe("model thinking metadata", () => {
 		// Bedrock Converse is not the Messages API, so xhigh is not available there yet.
 		expect(mapEffortToAnthropicAdaptiveEffort(opus47Bedrock, Effort.XHigh)).toBe("max");
 		expect(() => mapEffortToAnthropicAdaptiveEffort(sonnet46, Effort.XHigh)).toThrow(/not supported/);
+		// Fable 5 is a flagship Anthropic model that uses adaptive thinking with a
+		// real xhigh effort. Before the parser learned the fable kind it fell back
+		// to budget thinking and the API rejected the request.
+		expect(fable5.thinking).toEqual({
+			mode: "anthropic-adaptive",
+			minLevel: Effort.Minimal,
+			maxLevel: Effort.XHigh,
+		});
+		expect(mapEffortToAnthropicAdaptiveEffort(fable5, Effort.XHigh)).toBe("xhigh");
 	});
 });
 
