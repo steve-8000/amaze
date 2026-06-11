@@ -1,6 +1,6 @@
 {
   "name": "@amaze/natives",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "description": "Native Rust bindings for grep, clipboard, image processing, syntax highlighting, PTY, and shell operations via N-API",
   "type": "module",
   "author": "Can Boluk",
