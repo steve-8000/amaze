@@ -17,6 +17,7 @@ function mission(overrides: Partial<ResearchCampaign> = {}): ResearchCampaign {
 		createdAt: 1,
 		updatedAt: 1,
 		revision: 1,
+		mode: "interactive",
 		...overrides,
 	};
 }

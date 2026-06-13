@@ -26,6 +26,21 @@ export interface Objective {
 	budget: ObjectiveBudget;
 	guardrails: ObjectiveGuardrails;
 	status: ObjectiveStatus;
+	priority?: number;
+	recurrence?: {
+		kind: "none" | "interval" | "cron";
+		intervalMs?: number;
+		cron?: string;
+	};
+	progress?: {
+		score: number;
+		lastMeasuredAt: number;
+		evidenceRefs: string[];
+	};
+	parentObjectiveId?: string;
+	mergedIntoObjectiveId?: string;
+	retiredAt?: number;
+	retirementReason?: string;
 }
 
 export interface ObjectiveEvent {

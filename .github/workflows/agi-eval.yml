@@ -1,0 +1,23 @@
+name: agi-eval
+
+on:
+  pull_request:
+    paths:
+      - 'packages/coding-agent/src/agi/**'
+      - 'packages/coding-agent/src/mission/**'
+      - 'packages/coding-agent/src/tools/gateway/**'
+      - 'packages/coding-agent/src/autonomy/**'
+      - 'packages/coding-agent/src/cognition/**'
+      - 'packages/coding-agent/src/memory/**'
+      - 'packages/coding-agent/evals/**'
+  push:
+    branches: [main]
+
+jobs:
+  agi-eval:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun --cwd=packages/coding-agent run agi:eval

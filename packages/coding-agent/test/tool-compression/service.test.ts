@@ -5,7 +5,11 @@ import { SessionManager } from "../../src/session/session-manager";
 import { compressToolResult } from "../../src/tool-compression";
 import type { OutputMeta } from "../../src/tools/output-meta";
 
-function makeContext(toolName: "search" | "bash", text: string, details?: Record<string, unknown>): AfterToolCallContext {
+function makeContext(
+	toolName: "search" | "bash",
+	text: string,
+	details?: Record<string, unknown>,
+): AfterToolCallContext {
 	return {
 		assistantMessage: {
 			role: "assistant",

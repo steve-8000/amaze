@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import { EvidenceVerifier } from "../../src/agi/evidence-verifier";
 import { AgiGatewayStore, buildAgiCompletionState } from "../../src/agi/store";
 import { type AgiActionDriver, AgiSupervisor, createFailClosedAgiCompletionVerifier } from "../../src/agi/supervisor";
 
@@ -131,7 +132,7 @@ describe("AGI supervisor", () => {
 			});
 			store.updateSession("s1", { score: 60, completionState });
 
-			const result = await new AgiSupervisor({ store, driver }).tick();
+			const result = await new AgiSupervisor({ store, driver, completionVerifier: () => true }).tick();
 			const session = store.getSession("s1");
 			if (!session) throw new Error("Expected session");
 
@@ -333,6 +334,43 @@ describe("AGI supervisor", () => {
 			expect(session?.state).not.toBe("completed");
 			expect(session?.completionState.complete).toBe(false);
 			expect(store.listEvents("s1").some(event => event.payload.completionClaimRejected === true)).toBe(true);
+		} finally {
+			store.close();
+			await fs.rm(root, { recursive: true, force: true });
+		}
+	});
+
+	it("evidence verifier rejects self-report until mission criteria have non-agent evidence", async () => {
+		const root = await fs.mkdtemp(path.join(os.tmpdir(), "amaze-agi-evidence-verifier-"));
+		const store = new AgiGatewayStore(":memory:");
+		try {
+			const sessionFile = await makeCompletionClaimSession(root);
+			store.addSession({
+				sessionId: "s1",
+				sessionPath: sessionFile,
+				cwd: root,
+				title: "Evidence claim",
+				missionId: "mission-1",
+				objective: "Ship evidence verifier",
+				criteria: ["Verifier rejects self-report"],
+				evidenceRefs: ["test-output:agi/evidence-verifier"],
+			});
+			const verifier = new EvidenceVerifier({ gatewayStore: store });
+			const session = store.getSession("s1");
+			if (!session) throw new Error("Expected session");
+
+			expect(await verifier.verify(session, { score: 100, complete: true, satisfiedCriteria: [] })).toBe(false);
+
+			store.updateSession("s1", {
+				evidenceRefs: ["test-output:agi/evidence-verifier", "criterion:mission_criterion_1"],
+			});
+			const evidenced = store.getSession("s1");
+			if (!evidenced) throw new Error("Expected session");
+			expect(await verifier.verify(evidenced, { score: 100, complete: true, satisfiedCriteria: [] })).toBe(true);
+			expect(verifier.collectSources(evidenced)).toContainEqual({
+				type: "test-output",
+				ref: "test-output:agi/evidence-verifier",
+			});
 		} finally {
 			store.close();
 			await fs.rm(root, { recursive: true, force: true });

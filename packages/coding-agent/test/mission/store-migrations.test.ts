@@ -73,11 +73,11 @@ afterEach(() => {
 });
 
 describe("mission store migrations", () => {
-	test("fresh store bumps PRAGMA user_version to 6", () => {
+	test("fresh store bumps PRAGMA user_version to 8", () => {
 		const dbPath = tempDbPath();
 		createStore(dbPath);
 
-		expect(userVersion(dbPath)).toBe(6);
+		expect(userVersion(dbPath)).toBe(8);
 	});
 
 	test("pre-existing user_version 0 database with baseline schema upgrades idempotently", () => {
@@ -94,7 +94,75 @@ describe("mission store migrations", () => {
 
 		createStore(dbPath);
 
-		expect(userVersion(dbPath)).toBe(6);
+		expect(userVersion(dbPath)).toBe(8);
+	});
+
+	test("legacy missions without mode migrate with interactive default", () => {
+		const dbPath = tempDbPath();
+		const db = new Database(dbPath, { create: true, strict: true });
+		try {
+			db.exec(`
+				CREATE TABLE missions (
+					id TEXT PRIMARY KEY,
+					title TEXT NOT NULL,
+					objective TEXT,
+					objective_id TEXT,
+					brief_id TEXT,
+					decision_id TEXT,
+					risk_level TEXT NOT NULL,
+					state TEXT NOT NULL,
+					confidence TEXT,
+					snapshot_ref TEXT,
+					created_at INTEGER NOT NULL,
+					updated_at INTEGER NOT NULL,
+					revision INTEGER NOT NULL DEFAULT 0,
+					intent TEXT,
+					lifecycle TEXT,
+					proposal_id TEXT,
+					regression_contract_id TEXT
+				);
+				PRAGMA user_version = 6;
+			`);
+			db.query(
+				`INSERT INTO missions
+					(id, title, objective, objective_id, brief_id, decision_id, risk_level, state, confidence, snapshot_ref,
+					 created_at, updated_at, revision, intent, lifecycle, proposal_id, regression_contract_id)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			).run(
+				"legacy-mission",
+				"Legacy Mission",
+				"Legacy objective",
+				null,
+				null,
+				null,
+				"medium",
+				"drafting",
+				null,
+				null,
+				1,
+				1,
+				0,
+				null,
+				null,
+				null,
+				null,
+			);
+		} finally {
+			db.close();
+		}
+
+		const store = createStore(dbPath);
+		expect(store.getMission("legacy-mission")?.mode).toBe("interactive");
+		const columns = new Database(dbPath, { create: false, strict: true });
+		try {
+			const modeColumn = columns
+				.query("PRAGMA table_info(missions)")
+				.all()
+				.some(column => (column as { name: string }).name === "mode");
+			expect(modeColumn).toBe(true);
+		} finally {
+			columns.close();
+		}
 	});
 
 	test("savePlan rolls back partial writes when step serialization fails", () => {

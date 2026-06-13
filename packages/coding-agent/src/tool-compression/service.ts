@@ -1,10 +1,10 @@
 import type { AfterToolCallContext, AfterToolCallResult } from "@amaze/agent-core";
 import type { TextContent } from "@amaze/ai";
 import type { Settings } from "../config/settings";
+import type { SessionManager } from "../session/session-manager";
 import type { OutputMeta } from "../tools/output-meta";
 import { formatOutputNotice } from "../tools/output-meta";
-import type { SessionManager } from "../session/session-manager";
-import type { ToolCompressionMetadata, ToolCompressionSettings, CompressionOutcome, PreservedSuffix } from "./types";
+import type { CompressionOutcome, PreservedSuffix, ToolCompressionMetadata, ToolCompressionSettings } from "./types";
 
 const RAW_OUTPUT_FOOTER_RE = /\[raw output: artifact:\/\/(\d+)\]\s*$/;
 const COMPRESSED_OUTPUT_FOOTER_RE = /\[compressed output: artifact:\/\/(\d+)\]\s*$/;
@@ -69,7 +69,6 @@ function buildSettings(settings: Settings): ToolCompressionSettings {
 function splitPreservedSuffix(text: string, meta: OutputMeta | undefined): PreservedSuffix {
 	let body = text;
 	let suffix = "";
-	let existingArtifactId: string | undefined;
 	let rawArtifactId: string | undefined;
 	const metaNotice = formatOutputNotice(meta);
 	if (metaNotice) {
@@ -97,7 +96,7 @@ function splitPreservedSuffix(text: string, meta: OutputMeta | undefined): Prese
 		body = trimmed.slice(0, footerStart).trimEnd();
 		suffix = suffix.length > 0 ? `${suffix}\n\n${compressedMatch[0].trim()}` : compressedMatch[0].trim();
 	}
-	existingArtifactId = meta?.truncation?.artifactId;
+	const existingArtifactId = meta?.truncation?.artifactId;
 	return { body, suffix, rawArtifactId, existingArtifactId };
 }
 
@@ -205,7 +204,14 @@ function compressLog(text: string, settings: ToolCompressionSettings): Compressi
 function compressGeneric(text: string): CompressionOutcome | null {
 	const blocks = splitBlocks(text);
 	if (blocks.length < 3) return null;
-	const kept = [blocks[0], ...blocks.slice(1, -1).filter(block => LOG_ERROR_RE.test(block)).slice(0, 2), blocks[blocks.length - 1]];
+	const kept = [
+		blocks[0],
+		...blocks
+			.slice(1, -1)
+			.filter(block => LOG_ERROR_RE.test(block))
+			.slice(0, 2),
+		blocks[blocks.length - 1],
+	];
 	const unique = Array.from(new Set(kept));
 	const compressedText = unique.join("\n\n");
 	if (compressedText.length >= text.trim().length) return null;
@@ -247,7 +253,7 @@ export async function compressToolResult(
 	const outcome = isSearch
 		? compressSearch(body, compressionSettings)
 		: isLog
-			? compressLog(body, compressionSettings) ?? compressGeneric(body)
+			? (compressLog(body, compressionSettings) ?? compressGeneric(body))
 			: null;
 	if (!outcome) return undefined;
 	const artifactInfo = await ensureArtifactId(

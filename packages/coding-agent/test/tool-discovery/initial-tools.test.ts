@@ -88,10 +88,13 @@ describe("built-in tool loadMode annotations", () => {
 });
 
 describe("computeEssentialBuiltinNames", () => {
-	it("keeps read, find, search, edit, write, task, todo_write, and todo_read in the default essential set", () => {
+	it("keeps read, find, search, ast_grep, edit, ast_edit, write, task, todo_write, todo_read, and lsp in the default essential set", () => {
 		expect([...DEFAULT_ESSENTIAL_TOOL_NAMES].sort()).toEqual([
+			"ast_edit",
+			"ast_grep",
 			"edit",
 			"find",
+			"lsp",
 			"read",
 			"search",
 			"task",

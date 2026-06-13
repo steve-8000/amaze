@@ -282,11 +282,14 @@ export const DEFAULT_ESSENTIAL_TOOL_NAMES: readonly string[] = [
 	"read",
 	"find",
 	"search",
+	"ast_grep",
 	"edit",
+	"ast_edit",
 	"write",
 	"task",
 	"todo_write",
 	"todo_read",
+	"lsp",
 ] as const;
 
 /**

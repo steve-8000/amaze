@@ -300,7 +300,7 @@ export class MissionRuntimeImpl implements MissionRuntime {
 			id: record.id,
 			title: record.title,
 			objective: record.objective ?? record.title,
-			mode: "auto",
+			mode: (record.mode as MissionMode | null) ?? "auto",
 			lifecycle: (record.lifecycle as MissionLifecycleState | null) ?? storeStateToLifecycle(record.state),
 			riskLevel: record.riskLevel,
 			...(record.intent ? { intent: record.intent as Mission["intent"] } : {}),
@@ -411,6 +411,7 @@ export class MissionRuntimeImpl implements MissionRuntime {
 			snapshotRef: null,
 			intent: input.intent ?? null,
 			lifecycle: "created",
+			mode,
 		});
 
 		const mission: Mission = {

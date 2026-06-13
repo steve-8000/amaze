@@ -6,9 +6,17 @@ describe("tool compression hook helpers", () => {
 	it("merges compression result with a later TTSR override", () => {
 		const merged = mergeAfterToolCallResult(
 			{ content: [{ type: "text", text: "compressed" }], details: { compression: { applied: true } } },
-			{ content: [{ type: "text", text: "reminder" }, { type: "text", text: "compressed" }] },
+			{
+				content: [
+					{ type: "text", text: "reminder" },
+					{ type: "text", text: "compressed" },
+				],
+			},
 		);
-		expect(merged?.content).toEqual([{ type: "text", text: "reminder" }, { type: "text", text: "compressed" }]);
+		expect(merged?.content).toEqual([
+			{ type: "text", text: "reminder" },
+			{ type: "text", text: "compressed" },
+		]);
 		expect(merged?.details).toEqual({ compression: { applied: true } });
 	});
 

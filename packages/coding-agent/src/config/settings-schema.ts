@@ -1864,15 +1864,20 @@ export const SETTINGS_SCHEMA = {
 	"toolCompression.log.maxTotalLines": { type: "number", default: 120 },
 	"tools.gateway.permissionMode": {
 		type: "enum",
-		values: ["allow-all", "enforce"] as const,
+		values: ["allow-all", "enforce", "lease"] as const,
 		default: "allow-all",
 		ui: {
 			tab: "tools",
 			label: "Gateway Permission Mode",
-			description: "How strictly the session gateway enforces high-risk seam approvals",
+			description: "How strictly the session gateway enforces high-risk seam approvals or AGI leases",
 			options: [
 				{ value: "allow-all", label: "Allow all", description: "Keep seam enforcement permissive" },
 				{ value: "enforce", label: "Enforce", description: "Require approval for high-risk seam tool execution" },
+				{
+					value: "lease",
+					label: "Lease",
+					description: "Require AGI capability lease for gateway-mediated tool execution",
+				},
 			],
 		},
 	},
@@ -2314,7 +2319,7 @@ export const SETTINGS_SCHEMA = {
 			tab: "tools",
 			label: "Essential Tools Override",
 			description:
-				"Override the always-loaded built-in tools (default: read, find, search, edit, write, task, todo_write, todo_read). Leave empty to use defaults.",
+				"Override the always-loaded built-in tools (default: read, find, search, ast_grep, edit, ast_edit, write, task, todo_write, todo_read, lsp). Leave empty to use defaults.",
 		},
 	},
 
@@ -3094,7 +3099,6 @@ export interface LocalLlmSettings {
 	useForLogSummarizer: boolean;
 	useForContextCompressor: boolean;
 }
-
 
 export interface PromptEnhancerSettings {
 	enabled: boolean;

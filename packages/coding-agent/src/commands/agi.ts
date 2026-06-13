@@ -1,6 +1,23 @@
 import { Args, Command, Flags } from "@amaze/utils/cli";
 
-const ACTIONS = ["tui", "status", "events", "actions", "add", "run", "pause", "resume", "unblock", "remove"] as const;
+const ACTIONS = [
+	"tui",
+	"status",
+	"events",
+	"actions",
+	"timeline",
+	"leases",
+	"evidence",
+	"audit-export",
+	"revoke-lease",
+	"add",
+	"run",
+	"runtime",
+	"pause",
+	"resume",
+	"unblock",
+	"remove",
+] as const;
 type AgiAction = (typeof ACTIONS)[number];
 
 export default class Agi extends Command {
@@ -19,12 +36,18 @@ export default class Agi extends Command {
 		mission: Flags.string({ description: "Mission id to bind when adding an AGI session" }),
 		objective: Flags.string({ description: "Mission objective for AGI session goal derivation" }),
 		"objective-contract": Flags.string({ description: "Objective contract id for AGI session binding" }),
+		lease: Flags.string({ description: "Capability lease id for lease operations" }),
+		reason: Flags.string({ description: "Operator reason for governance actions" }),
 		criteria: Flags.string({
 			description: "Acceptance criterion for mission-bound AGI sessions; repeat or separate with newlines",
 			multiple: true,
 		}),
 		"legacy-trust-self-report": Flags.boolean({
 			description: "Compatibility mode: allow AGI structured self-report completion without verifier evidence",
+		}),
+		profile: Flags.string({
+			description: "AGI runtime profile (for runtime action)",
+			options: ["strict-supervised"],
 		}),
 	};
 
@@ -42,8 +65,11 @@ export default class Agi extends Command {
 			mission: flags.mission,
 			objective: flags.objective,
 			objectiveContract: flags["objective-contract"],
+			lease: flags.lease,
+			reason: flags.reason,
 			criteria: normalizeCriteriaFlags(flags.criteria),
 			legacyTrustSelfReport: flags["legacy-trust-self-report"],
+			profile: flags.profile,
 		});
 	}
 }

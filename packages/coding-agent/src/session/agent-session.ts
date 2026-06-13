@@ -86,6 +86,7 @@ import {
 import { getCodexAccountId } from "@amaze/ai/providers/openai-codex/constants";
 import { MacOSPowerAssertion } from "@amaze/natives";
 import { getAgentDbPath, isEnoent, isUnexpectedSocketCloseMessage, logger, prompt, Snowflake } from "@amaze/utils";
+import type { CapabilityLease } from "../agi/capability-lease";
 import { type AsyncJob, type AsyncJobDeliveryState, AsyncJobManager } from "../async";
 import { reset as resetCapabilities } from "../capability";
 import type { Rule } from "../capability/rule";
@@ -132,11 +133,6 @@ import type {
 	TurnEndEvent,
 	TurnStartEvent,
 } from "../extensibility/extensions";
-import {
-	applyAfterToolCallOverride,
-	compressToolResult,
-	mergeAfterToolCallResult,
-} from "../tool-compression";
 import type { CompactOptions, ContextUsage } from "../extensibility/extensions/types";
 import { ExtensionToolWrapper } from "../extensibility/extensions/wrapper";
 import type { HookCommandContext } from "../extensibility/hooks/types";
@@ -185,6 +181,7 @@ import { redactBashChunk } from "../security";
 import { invalidateHostMetadata } from "../ssh/connection-manager";
 import { enforceContractFreshness, type SubagentContract } from "../subagent/contract";
 import { resolveThinkingLevelForModel, toReasoningEffort } from "../thinking";
+import { applyAfterToolCallOverride, compressToolResult, mergeAfterToolCallResult } from "../tool-compression";
 import {
 	buildDiscoverableToolSearchIndex,
 	collectDiscoverableTools,
@@ -384,6 +381,13 @@ export interface AgentSessionConfig {
 	 * AgentSession. Defaults to the standard {@link SessionToolGateway}.
 	 */
 	createToolGateway?: (deps: { missionControl: MissionControlRuntime }) => SessionToolGateway;
+	getActiveRuntimeActionContext?: () =>
+		| {
+				capabilityLease: CapabilityLease;
+				actionId: string;
+				planStepId: string;
+		  }
+		| undefined;
 }
 
 /** Options for AgentSession.prompt() */
@@ -901,6 +905,7 @@ export class AgentSession {
 	 * this when a mission/task is bound to the session; the gateway emits mission.tool.* records.
 	 */
 	#missionToolContext: ToolMissionContext | undefined;
+	readonly #getActiveRuntimeActionContext: AgentSessionConfig["getActiveRuntimeActionContext"];
 
 	// Compaction state
 	#compactionAbortController: AbortController | undefined = undefined;
@@ -1140,6 +1145,7 @@ export class AgentSession {
 		this.#ownedAsyncJobManager = config.ownedAsyncJobManager;
 		this.#asyncCleanupOnSessionClose = config.asyncCleanupOnSessionClose ?? true;
 		this.#role = config.role ?? "orchestrator";
+		this.#getActiveRuntimeActionContext = config.getActiveRuntimeActionContext;
 		this.#subagentContract = config.subagentContract;
 		this.#scopedModels = config.scopedModels ?? [];
 		this.#thinkingLevel = config.thinkingLevel;
@@ -2198,7 +2204,6 @@ export class AgentSession {
 			this.#ttsrManager?.markInjectedByNames(newlyAdded);
 		}
 	}
-
 
 	#mergeAfterToolCallResult(
 		base: AfterToolCallResult | undefined,
@@ -3466,10 +3471,18 @@ export class AgentSession {
 					onUpdate: unknown,
 					ctx: unknown,
 				) => {
+					const actionCtx = session.#getActiveRuntimeActionContext?.();
 					const gctx: ToolExecutionContext = {
 						toolCallId,
 						input: args,
 						agentRole: session.#role,
+						...(actionCtx
+							? {
+									capabilityLease: actionCtx.capabilityLease,
+									actionId: actionCtx.actionId,
+									planStepId: actionCtx.planStepId,
+								}
+							: {}),
 						...(signal ? { signal } : {}),
 						...(session.#missionToolContext ? { mission: session.#missionToolContext } : {}),
 					};

@@ -24,7 +24,7 @@ function manifest(overrides: Partial<AgiEvalManifest> = {}): AgiEvalManifest {
 		suiteId: "agi-runtime-substrate-v1",
 		claim: "Runtime substrate claim",
 		minimumProfile: {
-			toolsGatewayPermissionMode: "enforce",
+			toolsGatewayPermissionMode: "lease",
 			continuation: "explicit-only",
 			completionAuthority: "verifier",
 			providerMemoryAuthority: false,
@@ -73,7 +73,7 @@ describe("AGI eval suite validation", () => {
 		const invalid = validateAgiEvalManifest(
 			manifest({
 				minimumProfile: {
-					toolsGatewayPermissionMode: "allow-all" as "enforce",
+					toolsGatewayPermissionMode: "allow-all" as "lease",
 					continuation: "ambient" as "explicit-only",
 					completionAuthority: "self-report" as "verifier",
 					providerMemoryAuthority: true as false,
@@ -84,7 +84,7 @@ describe("AGI eval suite validation", () => {
 		);
 		expect(invalid.valid).toBe(false);
 		if (!invalid.valid) {
-			expect(invalid.errors).toContain("minimumProfile.toolsGatewayPermissionMode must be enforce");
+			expect(invalid.errors).toContain("minimumProfile.toolsGatewayPermissionMode must be lease");
 			expect(invalid.errors).toContain("minimumProfile.continuation must be explicit-only");
 			expect(invalid.errors).toContain("minimumProfile.completionAuthority must be verifier");
 			expect(invalid.errors).toContain("minimumProfile.providerMemoryAuthority must be false");

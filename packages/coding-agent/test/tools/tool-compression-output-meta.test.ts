@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import type { OutputMeta } from "../../src/tools/output-meta";
-import { compressToolResult } from "../../src/tool-compression";
-import { SessionManager } from "../../src/session/session-manager";
 import { Settings } from "../../src/config/settings";
+import { SessionManager } from "../../src/session/session-manager";
+import { compressToolResult } from "../../src/tool-compression";
+import type { OutputMeta } from "../../src/tools/output-meta";
 
 const settings = Settings.isolated({
 	"toolCompression.enabled": true,

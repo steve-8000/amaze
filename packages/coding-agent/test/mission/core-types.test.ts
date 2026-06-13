@@ -105,6 +105,7 @@ function legacyMission(overrides: Partial<LegacyMission> = {}): LegacyMission {
 		createdAt: 1,
 		updatedAt: 2,
 		revision: 1,
+		mode: "interactive",
 		...overrides,
 	};
 }

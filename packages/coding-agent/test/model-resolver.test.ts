@@ -515,7 +515,6 @@ describe("resolveModelRoleValue", () => {
 		expect(resolvedResearcher.model?.provider).toBe("openai-codex");
 		expect(resolvedResearcher.model?.id).toBe("gpt-5.3-codex-spark");
 	});
-
 });
 describe("resolveAgentModelPatterns", () => {
 	test("falls back to the active session model when pi/task is unset", () => {
@@ -567,8 +566,6 @@ describe("resolveAgentModelPatterns", () => {
 		expect(result).toEqual(["openrouter/qwen/qwen3-coder:exacto"]);
 	});
 });
-
-
 
 describe("resolveModelFromString", () => {
 	test("falls back to pattern parsing for provider/model:thinking when strict provider+id miss", () => {

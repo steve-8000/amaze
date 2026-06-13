@@ -1,6 +1,8 @@
+import { buildMissionTimeline } from "../agi/observability";
 import { AgiGatewayStore, buildAgiControlState } from "../agi/store";
 import { AgiSupervisor, createFailClosedAgiCompletionVerifier } from "../agi/supervisor";
 import { renderAgiStatusText, runAgiTui } from "../agi/tui";
+import { MissionStore } from "../mission/store";
 import { SessionManager } from "../session/session-manager";
 
 export interface AgiCommandArgs {
@@ -15,6 +17,9 @@ export interface AgiCommandArgs {
 	objectiveContract?: string;
 	criteria?: string[];
 	legacyTrustSelfReport?: boolean;
+	lease?: string;
+	reason?: string;
+	profile?: string;
 }
 
 export async function runAgiCommand(args: AgiCommandArgs = {}): Promise<void> {
@@ -26,6 +31,17 @@ export async function runAgiCommand(args: AgiCommandArgs = {}): Promise<void> {
 			tickMs: args.tickMs,
 			legacyTrustSelfReport: args.legacyTrustSelfReport,
 		});
+		return;
+	}
+
+	if (
+		action === "timeline" ||
+		action === "leases" ||
+		action === "evidence" ||
+		action === "audit-export" ||
+		action === "revoke-lease"
+	) {
+		await runMissionControlPlaneCommand(action, args);
 		return;
 	}
 
@@ -85,6 +101,13 @@ export async function runAgiCommand(args: AgiCommandArgs = {}): Promise<void> {
 			const handle = supervisor.start();
 			await handle.done;
 			process.stdout.write(`AGI Gateway score: ${store.overallScore()}/100\n`);
+			return;
+		}
+		if (action === "runtime") {
+			if (args.profile !== undefined && args.profile !== "strict-supervised") {
+				throw new Error("agi runtime supports --profile strict-supervised");
+			}
+			process.stdout.write("AGI strict-supervised runtime entrypoint is AgiRuntime.tick()\\n");
 			return;
 		}
 
@@ -149,6 +172,52 @@ export async function runAgiCommand(args: AgiCommandArgs = {}): Promise<void> {
 		throw new Error(`Unknown agi action: ${action}`);
 	} finally {
 		store.close();
+	}
+}
+
+async function runMissionControlPlaneCommand(action: string, args: AgiCommandArgs): Promise<void> {
+	if (!args.mission && action !== "revoke-lease") throw new Error(`agi ${action} requires --mission <id>`);
+	const missionStore = new MissionStore(args.db);
+	try {
+		if (action === "timeline") {
+			for (const event of buildMissionTimeline({ missionId: args.mission as string, store: missionStore })) {
+				process.stdout.write(
+					`${event.ts}\t${event.missionId}\t${event.type}\t${event.actor}\t${event.actionId ?? ""}\t${event.leaseId ?? ""}\t${event.summary}\t${event.evidenceRefs.join(",")}\n`,
+				);
+			}
+			return;
+		}
+		if (action === "leases") {
+			for (const actionRecord of missionStore.listRuntimeActionsForMission(args.mission as string)) {
+				if (actionRecord.lease) {
+					process.stdout.write(`${actionRecord.lease.leaseId}\t${actionRecord.id}\t${actionRecord.status}\n`);
+				}
+			}
+			return;
+		}
+		if (action === "evidence") {
+			for (const event of missionStore.listRuntimeEvents(args.mission as string)) {
+				if (event.evidenceRefs.length > 0 || event.type === "evidence.verified") {
+					process.stdout.write(`${event.occurredAt}\t${event.type}\t${event.evidenceRefs.join(",")}\n`);
+				}
+			}
+			return;
+		}
+		if (action === "audit-export") {
+			for (const event of missionStore.listRuntimeEvents(args.mission as string)) {
+				process.stdout.write(`${JSON.stringify(event)}\n`);
+			}
+			return;
+		}
+		if (action === "revoke-lease") {
+			if (!args.lease) throw new Error("agi revoke-lease requires --lease <id>");
+			const revoked = missionStore.revokeCapabilityLease(args.lease, args.reason ?? "operator revoked");
+			process.stdout.write(`${revoked.id}\t${revoked.status}\t${revoked.revokedReason ?? ""}\n`);
+			return;
+		}
+		throw new Error(`Unknown AGI control-plane action: ${action}`);
+	} finally {
+		missionStore.close();
 	}
 }
 

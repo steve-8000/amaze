@@ -1,4 +1,5 @@
 import type { ConfidenceLevel, ResearchLane, RiskLevel } from "../research/types";
+import type { MissionMode } from "./core/mission-input";
 
 export const MISSION_STATES = [
 	"drafting",
@@ -55,6 +56,7 @@ export interface ResearchCampaign {
 	lifecycle?: string | null;
 	proposalId?: string | null;
 	regressionContractId?: string | null;
+	mode: MissionMode;
 }
 
 export type RuntimeEventType =
@@ -113,9 +115,10 @@ export type RuntimeEventDraft = Omit<
 	schemaVersion?: number;
 };
 
-export type NewResearchCampaign = Omit<ResearchCampaign, "id" | "createdAt" | "updatedAt" | "revision"> & {
+export type NewResearchCampaign = Omit<ResearchCampaign, "id" | "createdAt" | "updatedAt" | "revision" | "mode"> & {
 	id?: string;
 	revision?: number;
+	mode?: MissionMode;
 };
 
 export interface MissionLaneRun {

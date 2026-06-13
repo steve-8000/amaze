@@ -18,6 +18,7 @@ function missionView(): MissionView {
 			createdAt: now,
 			updatedAt: now,
 			revision: 1,
+			mode: "interactive",
 		},
 		brief: null,
 		decision: {

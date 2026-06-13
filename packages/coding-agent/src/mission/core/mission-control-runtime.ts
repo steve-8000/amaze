@@ -205,6 +205,14 @@ export class MissionControlRuntime {
 		return mission;
 	}
 
+	getMission(missionId: string): Mission | undefined {
+		return this.#runtime.tryGet(missionId);
+	}
+
+	getProposal(proposalId: string): MissionProposal | undefined {
+		return this.#deps.store.getProposal(proposalId);
+	}
+
 	recordTaskUsage(missionId: string, delta: number): void {
 		if (!Number.isFinite(delta) || delta <= 0) return;
 		const mission = this.#runtime.tryGet(missionId);

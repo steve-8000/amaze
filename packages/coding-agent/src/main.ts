@@ -36,6 +36,8 @@ import {
 	MarketplaceManager,
 } from "./extensibility/plugins/marketplace";
 import type { MCPManager } from "./mcp";
+import { templateFor } from "./mission/core/lifecycle-template";
+import { inferIntent } from "./mission/policy/intent";
 import { InteractiveMode, runAcpMode, runPrintMode, runRpcMode } from "./modes";
 import { initTheme, stopThemeWatcher } from "./modes/theme/theme";
 import type { SubmittedUserInput } from "./modes/types";
@@ -52,8 +54,6 @@ import { resolvePromptInput } from "./system-prompt";
 import type { LspStartupServerInfo } from "./tools";
 import { getChangelogPath, getNewEntries, parseChangelog } from "./utils/changelog";
 import type { EventBus } from "./utils/event-bus";
-import { templateFor } from "./mission/core/lifecycle-template";
-import { inferIntent } from "./mission/policy/intent";
 
 async function checkForNewVersion(currentVersion: string): Promise<string | undefined> {
 	if (!settings.get("startup.checkUpdate")) {

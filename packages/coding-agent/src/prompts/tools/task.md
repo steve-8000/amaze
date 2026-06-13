@@ -35,8 +35,6 @@ Choose the narrowest specialist that matches the work; do not default everything
 - Use `SRE` for runtime/operations/deployment validation: k3s, Kubernetes, Docker, ArgoCD, pods, services, rollouts, health checks, and production/runtime state.
 - Use `Reviewer` only for code-review verdicts on an existing diff; it is blocking and reports findings, not implementation work.
 </routing>
-
-
 <rules>
 - NEVER assign tasks to run project-wide build/test/lint. Caller verifies after the batch.
 - **Subagents do not verify, lint, or format.** Every assignment MUST instruct the subagent to skip all gates and formatters. You run them once at the end across the union of changed files — avoids redundant runs and racing formatter passes.

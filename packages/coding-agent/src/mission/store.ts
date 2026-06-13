@@ -3,6 +3,9 @@ import { createHash, randomBytes } from "node:crypto";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import type { CapabilityLease } from "../agi/capability-lease";
+import type { ObjectiveContract, RuntimeAction } from "../autonomy/types";
+
 import {
 	CONFIDENCE_LEVELS,
 	type ConfidenceLevel,
@@ -96,6 +99,7 @@ const MIGRATIONS: StoreMigration[] = [
 				state TEXT NOT NULL,
 				confidence TEXT,
 				snapshot_ref TEXT,
+				mode TEXT NOT NULL DEFAULT 'interactive',
 				created_at INTEGER NOT NULL,
 				updated_at INTEGER NOT NULL
 			);
@@ -388,6 +392,7 @@ const MIGRATIONS: StoreMigration[] = [
 			CREATE INDEX IF NOT EXISTS runtime_events_hash_idx ON runtime_events(hash);
 			`);
 			ensureColumn(db, "missions", "intent", "TEXT");
+			ensureColumn(db, "missions", "mode", "TEXT NOT NULL DEFAULT 'interactive'");
 			ensureColumn(db, "missions", "objective", "TEXT");
 			db.run("UPDATE missions SET objective = title WHERE objective IS NULL");
 			ensureColumn(db, "missions", "lifecycle", "TEXT");
@@ -499,6 +504,7 @@ const MIGRATIONS: StoreMigration[] = [
 		description: "add mission objectives and runtime event ledger",
 		up: db => {
 			ensureColumn(db, "missions", "objective", "TEXT");
+			ensureColumn(db, "missions", "mode", "TEXT NOT NULL DEFAULT 'interactive'");
 			db.run("UPDATE missions SET objective = title WHERE objective IS NULL");
 			db.exec(`
 			CREATE TABLE IF NOT EXISTS runtime_events (
@@ -524,6 +530,152 @@ const MIGRATIONS: StoreMigration[] = [
 			CREATE INDEX IF NOT EXISTS runtime_events_mission_idx ON runtime_events(mission_id, occurred_at);
 			CREATE INDEX IF NOT EXISTS runtime_events_stream_idx ON runtime_events(stream_id, sequence);
 			CREATE INDEX IF NOT EXISTS runtime_events_hash_idx ON runtime_events(hash);
+
+			CREATE TABLE IF NOT EXISTS objective_contracts (
+				id TEXT PRIMARY KEY,
+				mission_id TEXT NOT NULL,
+				contract_json TEXT NOT NULL CHECK (json_valid(contract_json)),
+				created_at INTEGER NOT NULL,
+				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
+			);
+			CREATE INDEX IF NOT EXISTS objective_contracts_mission_idx ON objective_contracts(mission_id);
+
+			CREATE TABLE IF NOT EXISTS runtime_actions (
+				id TEXT PRIMARY KEY,
+				mission_id TEXT NOT NULL,
+				objective_contract_id TEXT NOT NULL,
+				plan_id TEXT NOT NULL,
+				step_id TEXT NOT NULL,
+				action_json TEXT NOT NULL CHECK (json_valid(action_json)),
+				lease_json TEXT NOT NULL CHECK (json_valid(lease_json)),
+				status TEXT NOT NULL,
+				created_at INTEGER NOT NULL,
+				updated_at INTEGER NOT NULL,
+				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE,
+				FOREIGN KEY (objective_contract_id) REFERENCES objective_contracts(id) ON DELETE CASCADE
+			);
+			CREATE INDEX IF NOT EXISTS runtime_actions_mission_idx ON runtime_actions(mission_id, created_at);
+			CREATE INDEX IF NOT EXISTS runtime_actions_status_idx ON runtime_actions(status);
+			`);
+		},
+	},
+	{
+		version: 7,
+		description: "persist mission mode with interactive legacy default",
+		up: db => {
+			ensureColumn(db, "missions", "mode", "TEXT NOT NULL DEFAULT 'interactive'");
+			db.run("UPDATE missions SET mode = 'interactive' WHERE mode IS NULL OR mode = '' OR mode = 'auto'");
+		},
+	},
+	{
+		version: 8,
+		description: "durable AGI objective contracts, runtime actions, and capability leases",
+		up: db => {
+			db.exec(`
+			CREATE TABLE IF NOT EXISTS objective_contracts (
+				id TEXT PRIMARY KEY,
+				mission_id TEXT NOT NULL,
+				contract_hash TEXT NOT NULL DEFAULT '',
+				contract_json TEXT NOT NULL CHECK (json_valid(contract_json)),
+				status TEXT NOT NULL DEFAULT 'active',
+				created_at INTEGER NOT NULL,
+				approved_at INTEGER,
+				approved_by TEXT,
+				supersedes_contract_id TEXT,
+				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
+			);
+			CREATE TABLE IF NOT EXISTS runtime_actions (
+				id TEXT PRIMARY KEY,
+				mission_id TEXT NOT NULL,
+				objective_contract_id TEXT NOT NULL,
+				plan_id TEXT NOT NULL,
+				step_id TEXT NOT NULL,
+				plan_step_id TEXT NOT NULL DEFAULT '',
+				role TEXT NOT NULL DEFAULT '',
+				instruction TEXT NOT NULL DEFAULT '',
+				dependencies_json TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(dependencies_json)),
+				acceptance_criteria_json TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(acceptance_criteria_json)),
+				required_evidence_json TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(required_evidence_json)),
+				scope_guard_json TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(scope_guard_json)),
+				budget_guard_json TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(budget_guard_json)),
+				action_json TEXT NOT NULL CHECK (json_valid(action_json)),
+				lease_json TEXT CHECK (lease_json IS NULL OR json_valid(lease_json)),
+				lease_id TEXT,
+				status TEXT NOT NULL,
+				attempt_count INTEGER NOT NULL DEFAULT 0,
+				created_at INTEGER NOT NULL,
+				updated_at INTEGER NOT NULL,
+				started_at INTEGER,
+				completed_at INTEGER,
+				last_error TEXT,
+				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE,
+				FOREIGN KEY (objective_contract_id) REFERENCES objective_contracts(id) ON DELETE CASCADE
+			);
+			`);
+			ensureColumn(db, "objective_contracts", "contract_hash", "TEXT NOT NULL DEFAULT ''");
+			ensureColumn(db, "objective_contracts", "status", "TEXT NOT NULL DEFAULT 'active'");
+			ensureColumn(db, "objective_contracts", "approved_at", "INTEGER");
+			ensureColumn(db, "objective_contracts", "approved_by", "TEXT");
+			ensureColumn(db, "objective_contracts", "supersedes_contract_id", "TEXT");
+			ensureColumn(db, "runtime_actions", "plan_step_id", "TEXT NOT NULL DEFAULT ''");
+			ensureColumn(db, "runtime_actions", "role", "TEXT NOT NULL DEFAULT ''");
+			ensureColumn(db, "runtime_actions", "instruction", "TEXT NOT NULL DEFAULT ''");
+			ensureColumn(
+				db,
+				"runtime_actions",
+				"dependencies_json",
+				"TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(dependencies_json))",
+			);
+			ensureColumn(
+				db,
+				"runtime_actions",
+				"acceptance_criteria_json",
+				"TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(acceptance_criteria_json))",
+			);
+			ensureColumn(
+				db,
+				"runtime_actions",
+				"required_evidence_json",
+				"TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(required_evidence_json))",
+			);
+			ensureColumn(
+				db,
+				"runtime_actions",
+				"scope_guard_json",
+				"TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(scope_guard_json))",
+			);
+			ensureColumn(
+				db,
+				"runtime_actions",
+				"budget_guard_json",
+				"TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(budget_guard_json))",
+			);
+			ensureColumn(db, "runtime_actions", "lease_id", "TEXT");
+			ensureColumn(db, "runtime_actions", "attempt_count", "INTEGER NOT NULL DEFAULT 0");
+			ensureColumn(db, "runtime_actions", "started_at", "INTEGER");
+			ensureColumn(db, "runtime_actions", "completed_at", "INTEGER");
+			ensureColumn(db, "runtime_actions", "last_error", "TEXT");
+			db.exec(`
+			CREATE INDEX IF NOT EXISTS objective_contracts_mission_idx ON objective_contracts(mission_id, created_at);
+			CREATE INDEX IF NOT EXISTS objective_contracts_hash_idx ON objective_contracts(contract_hash);
+			CREATE INDEX IF NOT EXISTS runtime_actions_mission_idx ON runtime_actions(mission_id, created_at);
+			CREATE INDEX IF NOT EXISTS runtime_actions_status_idx ON runtime_actions(status, created_at);
+			CREATE INDEX IF NOT EXISTS runtime_actions_contract_step_idx ON runtime_actions(objective_contract_id, plan_step_id);
+			CREATE TABLE IF NOT EXISTS capability_leases (
+				id TEXT PRIMARY KEY,
+				mission_id TEXT NOT NULL,
+				runtime_action_id TEXT NOT NULL,
+				lease_json TEXT NOT NULL CHECK (json_valid(lease_json)),
+				status TEXT NOT NULL,
+				issued_at INTEGER NOT NULL,
+				expires_at INTEGER NOT NULL,
+				revoked_at INTEGER,
+				revoked_reason TEXT,
+				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE,
+				FOREIGN KEY (runtime_action_id) REFERENCES runtime_actions(id) ON DELETE CASCADE
+			);
+			CREATE INDEX IF NOT EXISTS capability_leases_action_idx ON capability_leases(runtime_action_id);
+			CREATE INDEX IF NOT EXISTS capability_leases_status_idx ON capability_leases(status, expires_at);
 			`);
 		},
 	},
@@ -551,6 +703,7 @@ type MissionRow = {
 	revision: number;
 	intent: string | null;
 	lifecycle: string | null;
+	mode: string | null;
 	proposal_id: string | null;
 	regression_contract_id: string | null;
 };
@@ -571,6 +724,48 @@ type RuntimeEventRow = {
 	schema_version: number;
 	hash: string;
 	created_at: number;
+};
+
+type ObjectiveContractRow = {
+	id: string;
+	mission_id: string;
+	contract_hash: string;
+	contract_json: string;
+	status: ObjectiveContractRecord["status"];
+	created_at: number;
+	approved_at: number | null;
+	approved_by: string | null;
+	supersedes_contract_id: string | null;
+};
+
+type RuntimeActionRow = {
+	id: string;
+	mission_id: string;
+	objective_contract_id: string;
+	plan_id: string;
+	step_id: string;
+	plan_step_id: string;
+	action_json: string;
+	lease_json: string | null;
+	status: RuntimeAction["status"];
+	attempt_count: number;
+	created_at: number;
+	updated_at: number;
+	started_at: number | null;
+	completed_at: number | null;
+	last_error: string | null;
+};
+
+type CapabilityLeaseRow = {
+	id: string;
+	mission_id: string;
+	runtime_action_id: string;
+	lease_json: string;
+	status: CapabilityLeaseRecord["status"];
+	issued_at: number;
+	expires_at: number;
+	revoked_at: number | null;
+	revoked_reason: string | null;
 };
 
 type MissionLaneRunRow = {
@@ -756,6 +951,47 @@ function rowToContinuation(row: MissionContinuationRow): MissionContinuationReco
 	};
 }
 
+export interface ObjectiveContractRecord {
+	id: string;
+	missionId: string;
+	contractHash: string;
+	contract: ObjectiveContract;
+	status: "active" | "superseded" | "revoked";
+	createdAt: number;
+	approvedAt?: number;
+	approvedBy?: string;
+	supersedesContractId?: string;
+}
+
+export interface RuntimeActionRecord {
+	id: string;
+	missionId: string;
+	objectiveContractId: string;
+	planId: string;
+	planStepId: string;
+	action: RuntimeAction;
+	lease?: CapabilityLease;
+	status: RuntimeAction["status"];
+	attemptCount: number;
+	createdAt: number;
+	updatedAt: number;
+	startedAt?: number;
+	completedAt?: number;
+	lastError?: string;
+}
+
+export interface CapabilityLeaseRecord {
+	id: string;
+	missionId: string;
+	runtimeActionId: string;
+	lease: CapabilityLease;
+	status: "active" | "revoked" | "expired";
+	issuedAt: number;
+	expiresAt: number;
+	revokedAt?: number;
+	revokedReason?: string;
+}
+
 export class MissionStore {
 	readonly dbPath: string;
 	readonly #db: Database;
@@ -796,13 +1032,14 @@ export class MissionStore {
 			lifecycle: input.lifecycle ?? null,
 			proposalId: input.proposalId ?? null,
 			regressionContractId: input.regressionContractId ?? null,
+			mode: input.mode ?? "interactive",
 		};
 		this.#db
 			.query(
 				`INSERT INTO missions
-					(id, title, objective, objective_id, brief_id, decision_id, risk_level, state, confidence, snapshot_ref, created_at, updated_at, revision,
+					(id, title, objective, objective_id, brief_id, decision_id, risk_level, state, confidence, snapshot_ref, mode, created_at, updated_at, revision,
 					 intent, lifecycle, proposal_id, regression_contract_id)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			)
 			.run(
 				mission.id,
@@ -815,6 +1052,7 @@ export class MissionStore {
 				mission.state,
 				mission.confidence,
 				mission.snapshotRef,
+				mission.mode ?? "interactive",
 				mission.createdAt,
 				mission.updatedAt,
 				mission.revision,
@@ -925,6 +1163,7 @@ export class MissionStore {
 				| "lifecycle"
 				| "proposalId"
 				| "regressionContractId"
+				| "mode"
 			>
 		>,
 	): ResearchCampaign {
@@ -946,7 +1185,7 @@ export class MissionStore {
 		this.#db
 			.query(
 				`UPDATE missions
-				SET title = ?, objective = ?, state = ?, confidence = ?, decision_id = ?, snapshot_ref = ?, objective_id = ?, brief_id = ?, risk_level = ?, updated_at = ?,
+				SET title = ?, objective = ?, state = ?, confidence = ?, decision_id = ?, snapshot_ref = ?, objective_id = ?, brief_id = ?, risk_level = ?, mode = ?, updated_at = ?,
 					revision = revision + 1, intent = ?, lifecycle = ?, proposal_id = ?, regression_contract_id = ?
 				WHERE id = ?`,
 			)
@@ -960,6 +1199,7 @@ export class MissionStore {
 				next.objectiveId,
 				next.briefId,
 				next.riskLevel,
+				next.mode ?? "interactive",
 				next.updatedAt,
 				next.intent ?? null,
 				next.lifecycle ?? null,
@@ -1081,11 +1321,224 @@ export class MissionStore {
 		return rows.map(rowToRuntimeEvent);
 	}
 
+	listRuntimeEventsByType(missionId: string, type: RuntimeEventType): RuntimeEvent[] {
+		assertRuntimeEventType(type);
+		const rows = this.#db
+			.query("SELECT * FROM runtime_events WHERE mission_id = ? AND type = ? ORDER BY stream_id ASC, sequence ASC")
+			.all(missionId, type) as RuntimeEventRow[];
+		return rows.map(rowToRuntimeEvent);
+	}
+
 	getRuntimeEventByIdempotencyKey(streamId: string, idempotencyKey: string): RuntimeEvent | undefined {
 		const row = this.#db
 			.query("SELECT * FROM runtime_events WHERE stream_id = ? AND idempotency_key = ?")
 			.get(streamId, idempotencyKey) as RuntimeEventRow | null;
 		return row ? rowToRuntimeEvent(row) : undefined;
+	}
+
+	saveObjectiveContract(missionId: string, contract: ObjectiveContract): ObjectiveContractRecord {
+		if (!this.getMission(missionId)) throw new Error(`Mission not found: ${missionId}`);
+		const now = Date.now();
+		const contractJson = stringifyCanonicalJson(contract);
+		const contractHash = sha256Hex(contractJson);
+		this.#db
+			.query(
+				`INSERT INTO objective_contracts
+					(id, mission_id, contract_hash, contract_json, status, created_at)
+				VALUES (?, ?, ?, ?, ?, ?)
+				ON CONFLICT(id) DO UPDATE SET
+					contract_hash = excluded.contract_hash,
+					contract_json = excluded.contract_json,
+					status = excluded.status`,
+			)
+			.run(contract.id, missionId, contractHash, contractJson, "active", now);
+		const record = this.getObjectiveContractRecord(contract.id);
+		if (!record) throw new Error(`Objective contract not found after save: ${contract.id}`);
+		return record;
+	}
+
+	getObjectiveContract(id: string): ObjectiveContract | undefined {
+		return this.getObjectiveContractRecord(id)?.contract;
+	}
+
+	getObjectiveContractRecord(id: string): ObjectiveContractRecord | undefined {
+		const row = this.#db
+			.query("SELECT * FROM objective_contracts WHERE id = ?")
+			.get(id) as ObjectiveContractRow | null;
+		return row ? rowToObjectiveContractRecord(row) : undefined;
+	}
+
+	getLatestObjectiveContractForMission(missionId: string): ObjectiveContractRecord | undefined {
+		const row = this.#db
+			.query("SELECT * FROM objective_contracts WHERE mission_id = ? ORDER BY created_at DESC, id DESC LIMIT 1")
+			.get(missionId) as ObjectiveContractRow | null;
+		return row ? rowToObjectiveContractRecord(row) : undefined;
+	}
+
+	saveRuntimeAction(action: RuntimeAction, lease: CapabilityLease): RuntimeActionRecord {
+		if (!this.getMission(action.missionId)) throw new Error(`Mission not found: ${action.missionId}`);
+		if (!this.getObjectiveContract(action.objectiveContractId)) {
+			throw new Error(`Objective contract not found: ${action.objectiveContractId}`);
+		}
+		const now = Date.now();
+		const actionJson = stringifyCanonicalJson(action);
+		const leaseJson = stringifyCanonicalJson(lease);
+		this.#tx(() => {
+			this.#db
+				.query(
+					`INSERT INTO runtime_actions
+						(id, mission_id, objective_contract_id, plan_id, step_id, plan_step_id, role, instruction,
+						 dependencies_json, acceptance_criteria_json, required_evidence_json, scope_guard_json, budget_guard_json,
+						 action_json, lease_json, lease_id, status, created_at, updated_at)
+					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+					ON CONFLICT(id) DO UPDATE SET
+						role = excluded.role,
+						instruction = excluded.instruction,
+						dependencies_json = excluded.dependencies_json,
+						acceptance_criteria_json = excluded.acceptance_criteria_json,
+						required_evidence_json = excluded.required_evidence_json,
+						scope_guard_json = excluded.scope_guard_json,
+						budget_guard_json = excluded.budget_guard_json,
+						action_json = excluded.action_json,
+						lease_json = excluded.lease_json,
+						lease_id = excluded.lease_id,
+						status = excluded.status,
+						updated_at = excluded.updated_at`,
+				)
+				.run(
+					action.id,
+					action.missionId,
+					action.objectiveContractId,
+					action.planId,
+					action.stepId,
+					action.stepId,
+					action.role,
+					action.instruction,
+					stringifyCanonicalJson(action.dependencies),
+					stringifyCanonicalJson(action.acceptanceCriteria),
+					stringifyCanonicalJson(action.requiredEvidence),
+					stringifyCanonicalJson(action.scopeGuard),
+					stringifyCanonicalJson(action.budgetGuard),
+					actionJson,
+					leaseJson,
+					lease.leaseId,
+					action.status,
+					now,
+					now,
+				);
+			this.saveCapabilityLease(lease);
+		});
+		const record = this.getRuntimeAction(action.id);
+		if (!record) throw new Error(`Runtime action not found after save: ${action.id}`);
+		return record;
+	}
+
+	getRuntimeAction(actionId: string): RuntimeActionRecord | undefined {
+		const row = this.#db.query("SELECT * FROM runtime_actions WHERE id = ?").get(actionId) as RuntimeActionRow | null;
+		return row ? rowToRuntimeActionRecord(row) : undefined;
+	}
+
+	listRunnableActions(missionId: string): RuntimeActionRecord[] {
+		const rows = this.#db
+			.query("SELECT * FROM runtime_actions WHERE mission_id = ? AND status = 'queued' ORDER BY created_at ASC")
+			.all(missionId) as RuntimeActionRow[];
+		return rows.map(rowToRuntimeActionRecord);
+	}
+
+	listRuntimeActionsForMission(missionId: string): RuntimeActionRecord[] {
+		const rows = this.#db
+			.query("SELECT * FROM runtime_actions WHERE mission_id = ? ORDER BY created_at ASC")
+			.all(missionId) as RuntimeActionRow[];
+		return rows.map(rowToRuntimeActionRecord);
+	}
+
+	markRuntimeAction(actionId: string, status: RuntimeAction["status"]): RuntimeActionRecord {
+		const existing = this.getRuntimeAction(actionId);
+		if (!existing) throw new Error(`Runtime action not found: ${actionId}`);
+		assertRuntimeActionTransition(existing.status, status);
+		const now = Date.now();
+		this.#db
+			.query(
+				`UPDATE runtime_actions
+				SET status = ?,
+					started_at = CASE WHEN ? = 'running' AND started_at IS NULL THEN ? ELSE started_at END,
+					completed_at = CASE WHEN ? IN ('succeeded', 'failed', 'verified') THEN ? ELSE completed_at END,
+					updated_at = ?
+				WHERE id = ?`,
+			)
+			.run(status, status, now, status, now, now, actionId);
+		const next = this.getRuntimeAction(actionId);
+		if (!next) throw new Error(`Runtime action not found after update: ${actionId}`);
+		return next;
+	}
+
+	markActionFailed(actionId: string, error: string): RuntimeActionRecord {
+		const existing = this.getRuntimeAction(actionId);
+		if (!existing) throw new Error(`Runtime action not found: ${actionId}`);
+		assertRuntimeActionTransition(existing.status, "failed");
+		const now = Date.now();
+		this.#db
+			.query(
+				`UPDATE runtime_actions
+				SET status = 'failed', last_error = ?, completed_at = ?, updated_at = ?
+				WHERE id = ?`,
+			)
+			.run(error, now, now, actionId);
+		const next = this.getRuntimeAction(actionId);
+		if (!next) throw new Error(`Runtime action not found after update: ${actionId}`);
+		return next;
+	}
+
+	saveCapabilityLease(lease: CapabilityLease): CapabilityLeaseRecord {
+		const now = Date.now();
+		this.#db
+			.query(
+				`INSERT INTO capability_leases
+					(id, mission_id, runtime_action_id, lease_json, status, issued_at, expires_at, revoked_at, revoked_reason)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+				ON CONFLICT(id) DO UPDATE SET
+					lease_json = excluded.lease_json,
+					status = excluded.status,
+					expires_at = excluded.expires_at,
+					revoked_at = excluded.revoked_at,
+					revoked_reason = excluded.revoked_reason`,
+			)
+			.run(
+				lease.leaseId,
+				lease.missionId,
+				lease.actionId,
+				stringifyCanonicalJson(lease),
+				lease.revokedAt ? "revoked" : lease.expiresAt <= now ? "expired" : "active",
+				lease.issuedAt,
+				lease.expiresAt,
+				lease.revokedAt ?? null,
+				lease.revokedReason ?? null,
+			);
+		const record = this.getCapabilityLease(lease.leaseId);
+		if (!record) throw new Error(`Capability lease not found after save: ${lease.leaseId}`);
+		return record;
+	}
+
+	getCapabilityLease(id: string): CapabilityLeaseRecord | undefined {
+		const row = this.#db.query("SELECT * FROM capability_leases WHERE id = ?").get(id) as CapabilityLeaseRow | null;
+		return row ? rowToCapabilityLeaseRecord(row) : undefined;
+	}
+
+	revokeCapabilityLease(id: string, reason: string): CapabilityLeaseRecord {
+		const existing = this.getCapabilityLease(id);
+		if (!existing) throw new Error(`Capability lease not found: ${id}`);
+		const now = Date.now();
+		const lease = { ...existing.lease, revokedAt: now, revokedReason: reason };
+		this.#db
+			.query(
+				`UPDATE capability_leases
+				SET lease_json = ?, status = 'revoked', revoked_at = ?, revoked_reason = ?
+				WHERE id = ?`,
+			)
+			.run(stringifyCanonicalJson(lease), now, reason, id);
+		const record = this.getCapabilityLease(id);
+		if (!record) throw new Error(`Capability lease not found after revoke: ${id}`);
+		return record;
 	}
 
 	createLaneRun(input: NewMissionLaneRun): MissionLaneRun {
@@ -2477,6 +2930,7 @@ function rowToMission(row: MissionRow): ResearchCampaign {
 		intent: row.intent ?? null,
 		lifecycle: row.lifecycle ?? null,
 		proposalId: row.proposal_id ?? null,
+		mode: normalizeMissionMode(row.mode),
 		regressionContractId: row.regression_contract_id ?? null,
 	};
 }
@@ -2500,6 +2954,76 @@ function rowToRuntimeEvent(row: RuntimeEventRow): RuntimeEvent {
 		hash: row.hash,
 		createdAt: row.created_at,
 	};
+}
+
+function normalizeMissionMode(value: string | null | undefined): ResearchCampaign["mode"] {
+	if (value === "autonomous" || value === "interactive" || value === "dry-run" || value === "auto") return value;
+	if (value !== null && value !== undefined && value !== "") {
+		console.debug(`Unknown mission mode "${value}" in durable store; falling back to interactive`);
+	}
+	return "interactive";
+}
+
+function rowToObjectiveContractRecord(row: ObjectiveContractRow): ObjectiveContractRecord {
+	return {
+		id: row.id,
+		missionId: row.mission_id,
+		contractHash: row.contract_hash,
+		contract: parseJsonObject(row.contract_json, "contract_json") as unknown as ObjectiveContract,
+		status: row.status,
+		createdAt: row.created_at,
+		approvedAt: row.approved_at ?? undefined,
+		approvedBy: row.approved_by ?? undefined,
+		supersedesContractId: row.supersedes_contract_id ?? undefined,
+	};
+}
+
+function rowToRuntimeActionRecord(row: RuntimeActionRow): RuntimeActionRecord {
+	return {
+		id: row.id,
+		missionId: row.mission_id,
+		objectiveContractId: row.objective_contract_id,
+		planId: row.plan_id,
+		planStepId: row.plan_step_id || row.step_id,
+		action: parseJsonObject(row.action_json, "action_json") as unknown as RuntimeAction,
+		lease: row.lease_json ? (parseJsonObject(row.lease_json, "lease_json") as unknown as CapabilityLease) : undefined,
+		status: row.status,
+		attemptCount: row.attempt_count,
+		createdAt: row.created_at,
+		updatedAt: row.updated_at,
+		startedAt: row.started_at ?? undefined,
+		completedAt: row.completed_at ?? undefined,
+		lastError: row.last_error ?? undefined,
+	};
+}
+
+function rowToCapabilityLeaseRecord(row: CapabilityLeaseRow): CapabilityLeaseRecord {
+	return {
+		id: row.id,
+		missionId: row.mission_id,
+		runtimeActionId: row.runtime_action_id,
+		lease: parseJsonObject(row.lease_json, "lease_json") as unknown as CapabilityLease,
+		status: row.status,
+		issuedAt: row.issued_at,
+		expiresAt: row.expires_at,
+		revokedAt: row.revoked_at ?? undefined,
+		revokedReason: row.revoked_reason ?? undefined,
+	};
+}
+
+function assertRuntimeActionTransition(from: RuntimeAction["status"], to: RuntimeAction["status"]): void {
+	const allowed: Record<RuntimeAction["status"], RuntimeAction["status"][]> = {
+		queued: ["running", "blocked", "failed"],
+		running: ["succeeded", "failed", "blocked"],
+		blocked: ["queued", "failed"],
+		succeeded: ["verified", "failed"],
+		failed: [],
+		verified: [],
+	};
+	if (from === to) return;
+	if (!allowed[from].includes(to)) {
+		throw new Error(`Invalid runtime action status transition: ${from} -> ${to}`);
+	}
 }
 
 function rowToLaneRun(row: MissionLaneRunRow): MissionLaneRun {
@@ -2764,6 +3288,10 @@ function assertProposalStatus(status: MissionProposalStatus): void {
 }
 function canonicalRuntimeEventHash(event: RuntimeEvent): string {
 	return createHash("sha256").update(canonicalRuntimeEventBody(event)).digest("hex");
+}
+
+function sha256Hex(value: string): string {
+	return createHash("sha256").update(value).digest("hex");
 }
 
 function canonicalRuntimeEventBody(event: RuntimeEvent): string {

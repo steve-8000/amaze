@@ -55,7 +55,7 @@ export interface AgiEvalManifest {
 	suiteId: string;
 	claim: string;
 	minimumProfile: {
-		toolsGatewayPermissionMode: "enforce";
+		toolsGatewayPermissionMode: "lease";
 		continuation: "explicit-only";
 		completionAuthority: "verifier";
 		providerMemoryAuthority: false;
@@ -137,9 +137,9 @@ export function validateAgiEvalManifest(manifest: AgiEvalManifest): AgiEvalValid
 	pushIf(!hasText(manifest.claim), errors, "claim is required");
 	const profile = manifest.minimumProfile;
 	pushIf(
-		profile.toolsGatewayPermissionMode !== "enforce",
+		profile.toolsGatewayPermissionMode !== "lease",
 		errors,
-		"minimumProfile.toolsGatewayPermissionMode must be enforce",
+		"minimumProfile.toolsGatewayPermissionMode must be lease",
 	);
 	pushIf(profile.continuation !== "explicit-only", errors, "minimumProfile.continuation must be explicit-only");
 	pushIf(profile.completionAuthority !== "verifier", errors, "minimumProfile.completionAuthority must be verifier");

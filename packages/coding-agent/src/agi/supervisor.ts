@@ -1,6 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { procmgr } from "@amaze/utils";
+import { createEvidenceCompletionVerifier } from "./evidence-verifier";
 import {
 	type AgiControlState,
 	type AgiGatewayAction,
@@ -103,7 +104,8 @@ export class AgiSupervisor {
 		this.#targetScore = options.targetScore ?? DEFAULT_TARGET_SCORE;
 		this.#driver = options.driver ?? new CliAgiActionDriver();
 		this.#now = options.now ?? Date.now;
-		this.#completionVerifier = options.completionVerifier;
+		this.#completionVerifier =
+			options.completionVerifier ?? createEvidenceCompletionVerifier({ gatewayStore: options.store });
 		this.#done = new Promise((resolve, reject) => {
 			this.#doneResolve = resolve;
 			this.#doneReject = reject;

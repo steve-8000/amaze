@@ -30,6 +30,7 @@ const commands: CommandEntry[] = [
 	{ name: "auth-broker", load: () => import("./commands/auth-broker").then(m => m.default) },
 	{ name: "auth-gateway", load: () => import("./commands/auth-gateway").then(m => m.default) },
 	{ name: "agi", load: () => import("./commands/agi").then(m => m.default) },
+	{ name: "agi-eval", load: () => import("./commands/agi-eval").then(m => m.default) },
 	{ name: "agents", load: () => import("./commands/agents").then(m => m.default) },
 	{ name: "commit", load: () => import("./commands/commit").then(m => m.default) },
 	{ name: "config", load: () => import("./commands/config").then(m => m.default) },

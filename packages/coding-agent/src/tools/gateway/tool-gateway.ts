@@ -190,7 +190,11 @@ export class ToolGateway {
 
 		const permission = this.#permissionGate.check(descriptor, ctx, riskLevel);
 		if (!permission.allowed) {
-			return deny("permission", permission.reason ?? `permission denied for tool "${descriptor.name}"`);
+			return deny(
+				"permission",
+				permission.reason ?? `permission denied for tool "${descriptor.name}"`,
+				permission.code,
+			);
 		}
 
 		const mutation = this.#mutationGuard.check(descriptor, ctx);

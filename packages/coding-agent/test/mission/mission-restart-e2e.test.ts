@@ -93,6 +93,7 @@ describe("Mission restart/replay e2e", () => {
 		expect(hydrated?.id).toBe(expectedIds.missionId);
 		expect(hydrated?.title).toBe("Restart Replay");
 		expect(hydrated?.objective).toBe("Persist everything distinct from title");
+		expect(hydrated?.mode).toBe("interactive");
 		expect(hydrated?.acceptanceCriteria.map(c => c.id)).toEqual(["c1"]);
 		expect(hydrated?.scopeGuard?.allowedPaths).toEqual(["src/**"]);
 		expect(hydrated?.scopeGuard?.deniedPaths).toEqual(["dist/**"]);

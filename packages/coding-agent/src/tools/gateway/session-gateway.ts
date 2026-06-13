@@ -18,8 +18,15 @@ import type { ToolDescriptor, ToolExecutionContext } from "../registry/tool-desc
 import { ToolRegistry } from "../registry/tool-registry";
 import { MissionPolicyGate } from "./mission-policy-gate";
 import { SubagentMutationScopeGuard } from "./mutation-guard";
-import { AllowAllPermissionGate, DefaultPermissionGate } from "./permission-gate";
+import {
+	AllowAllPermissionGate,
+	CapabilityLeasePermissionGate,
+	type CapabilityLeasePermissionGateDeps,
+	DefaultPermissionGate,
+} from "./permission-gate";
 import { type GuardDecision, ToolGateway } from "./tool-gateway";
+
+export type GatewayPermissionMode = "allow-all" | "enforce" | "lease";
 
 /** Tool names whose calls are routed through the gateway at the dispatch seam. */
 export const GATEWAY_MUTATION_TOOLS: ReadonlySet<string> = new Set(["write", "edit", "ast_edit", "bash", "github"]);
@@ -104,10 +111,13 @@ export class SessionToolGateway {
 		mutationToolNames?: ReadonlySet<string>;
 		/**
 		 * "enforce" activates {@link DefaultPermissionGate}: HIGH/CRITICAL seam tools
-		 * are denied unless `ctx.approvalGranted` is set. Default "allow-all" keeps
-		 * the legacy transparent pass-through.
+		 * are denied unless `ctx.approvalGranted` is set. "lease" activates
+		 * {@link CapabilityLeasePermissionGate}: every seam mutation must carry a
+		 * capability lease bound to its mission, plan step, and runtime action.
+		 * Default "allow-all" keeps the legacy transparent pass-through.
 		 */
-		permissionMode?: "allow-all" | "enforce";
+		permissionMode?: GatewayPermissionMode;
+		leaseDeps?: CapabilityLeasePermissionGateDeps;
 	}) {
 		this.#missionControl = options?.missionControl;
 		this.#mutationTools = options?.mutationToolNames ?? GATEWAY_MUTATION_TOOLS;
@@ -118,11 +128,14 @@ export class SessionToolGateway {
 			policyGate: options?.missionControl
 				? new MissionPolicyGate({ missionControl: options.missionControl, mutationToolNames: this.#mutationTools })
 				: undefined,
-			// Default seam is a transparent pass-through (allow-all permission keeps
-			// behavior for allowed calls identical to today); "enforce" switches to the
-			// real approval gate for HIGH/CRITICAL tools.
-			permissionGate:
-				options?.permissionMode === "enforce" ? new DefaultPermissionGate() : new AllowAllPermissionGate(),
+			// The default seam is a transparent pass-through. "enforce" switches to
+			// approval checks for HIGH/CRITICAL tools; "lease" requires AGI capability
+			// leases for every seam-routed mutation.
+			permissionGate: createPermissionGate({
+				mode: options?.permissionMode,
+				missionControl: options?.missionControl,
+				leaseDeps: options?.leaseDeps,
+			}),
 			// The inline tool enforcement remains authoritative by default; opt in to
 			// seam-level scope enforcement (tests / strict modes) explicitly.
 			...(options?.enforceMutationScopeAtSeam
@@ -163,4 +176,29 @@ export class SessionToolGateway {
 		const descriptor = this.#registry.get(name) ?? seamDescriptor(name);
 		this.#gateway.settle(descriptor, ctx, status);
 	}
+}
+
+function createPermissionGate(options: {
+	mode?: GatewayPermissionMode;
+	missionControl?: MissionControlRuntime;
+	leaseDeps?: CapabilityLeasePermissionGateDeps;
+}) {
+	if (options.mode === "lease") {
+		const deps = options.leaseDeps ?? leaseDepsFromMissionControl(options.missionControl);
+		if (!deps) throw new Error("permissionMode=lease requires leaseDeps or missionControl");
+		return new CapabilityLeasePermissionGate(deps);
+	}
+	if (options.mode === "enforce") return new DefaultPermissionGate();
+	return new AllowAllPermissionGate();
+}
+
+function leaseDepsFromMissionControl(
+	missionControl: MissionControlRuntime | undefined,
+): CapabilityLeasePermissionGateDeps | undefined {
+	if (!missionControl) return undefined;
+	return {
+		getMission: missionId => missionControl.getMission(missionId),
+		getProposal: proposalId => missionControl.getProposal(proposalId),
+		now: Date.now,
+	};
 }
