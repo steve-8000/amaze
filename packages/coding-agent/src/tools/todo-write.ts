@@ -342,6 +342,12 @@ function applyParamsToMission(
 			notices.push(`Skipped op "${entry.op}" on phase "${entry.phase}" — projection-only. ${projectionAdvice}`);
 			continue;
 		}
+		if (entry.task && !findTaskByContent([executionPhase], entry.task)) {
+			notices.push(
+				`Skipped op "${entry.op}" on "${entry.task}" — task is not present in the active mission Execution projection. Refresh with todo_read before updating mission-projected tasks.`,
+			);
+			continue;
+		}
 		const before = executionPhase.tasks.length;
 		const nextPhases = applyEntry([executionPhase], entry, errors);
 		executionPhase = nextPhases[0] ?? { name: "Execution", tasks: [] };

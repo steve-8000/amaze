@@ -25,6 +25,7 @@ Allowed `op` values are only `init`, `start`, `done`, `drop`, `rm`, `append`, an
 - Complete phases in order.
 - On blockers, `append` a new task to the active phase to unblock yourself, or `drop`.
 - `task` and `phase` fields reference content/name verbatim; keep them stable once introduced.
+- When Mission Control projection rows are visible (`Decision record`, `Regression contract`, `Verification verdict`, or stale execution rows after a context split), refresh with `todo_read` and only update exact currently visible Execution tasks. Projection rows advance through Mission Control runtime commands, not `todo_write`.
 
 ## When to create a list
 - Task requires 3+ distinct steps

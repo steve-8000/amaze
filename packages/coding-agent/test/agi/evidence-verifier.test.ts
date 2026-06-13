@@ -88,6 +88,62 @@ describe("EvidenceVerifier", () => {
 		}
 	});
 
+	test("review evidence requires explicit pass verdict", async () => {
+		const store = new MissionStore(":memory:");
+		try {
+			const mission = createMission(store);
+			store.recordReview({
+				missionId: mission.id,
+				status: "pass",
+				verdict: "pending",
+				failedCount: 0,
+				uncertainCount: 0,
+				summary: "not reviewed",
+				sourceFiles: [],
+				excludedMarkdownFiles: [],
+				reviewedAt: 1,
+			});
+			const verifier = new EvidenceVerifier({ missionStore: store, now: () => 13 });
+			const result = await verifier.verifyMission({
+				missionId: mission.id,
+				requirements: [
+					{ criterionId: "c1", description: "review clean", required: true, evidenceKinds: ["review_finding"] },
+				],
+			});
+			expect(result.status).toBe("insufficient_evidence");
+		} finally {
+			store.close();
+		}
+	});
+
+	test("explicit review pass satisfies review evidence", async () => {
+		const store = new MissionStore(":memory:");
+		try {
+			const mission = createMission(store);
+			store.recordReview({
+				missionId: mission.id,
+				status: "pass",
+				verdict: "pass",
+				failedCount: 0,
+				uncertainCount: 0,
+				summary: "clean",
+				sourceFiles: [],
+				excludedMarkdownFiles: [],
+				reviewedAt: 1,
+			});
+			const verifier = new EvidenceVerifier({ missionStore: store, now: () => 14 });
+			const result = await verifier.verifyMission({
+				missionId: mission.id,
+				requirements: [
+					{ criterionId: "c1", description: "review clean", required: true, evidenceKinds: ["review_finding"] },
+				],
+			});
+			expect(result.status).toBe("pass");
+		} finally {
+			store.close();
+		}
+	});
+
 	test("unknown evidence kinds never pass", async () => {
 		const store = new MissionStore(":memory:");
 		try {

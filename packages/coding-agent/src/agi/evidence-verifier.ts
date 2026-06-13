@@ -1,6 +1,6 @@
 import type { MissionStore } from "../mission/store";
 import type { RuntimeEvent } from "../mission/types";
-import type { AgiGatewayStore, AgiMonitoredSession, AgiStructuredResult } from "./store";
+import type { AgiGatewayStore, AgiGoalSpec, AgiMonitoredSession, AgiStructuredResult } from "./store";
 
 export type EvidenceKind =
 	| "source_diff"
@@ -80,19 +80,21 @@ export class EvidenceVerifier implements MissionEvidenceVerifier {
 		if (!claim.complete) return false;
 		if (!session.missionId || !session.objective || session.criteria.length === 0) return false;
 
-		const requirements = session.criteria.map((criterion, index) => ({
-			criterionId:
-				session.goalSpec.criteria.find(item => item.description === criterion)?.id ?? `criterion-${index + 1}`,
-			description: criterion,
-			required: true,
-			evidenceKinds: ["test_output", "review_finding"] as EvidenceKind[],
-		}));
-		const result = await this.verifyMission({
-			missionId: session.missionId,
-			objectiveContractId: session.objectiveContractId,
-			requirements,
-		});
-		return result.status === "pass";
+		// A completion claim is accepted only when backed by at least one durable,
+		// machine-derived execution signal — test output, a completed tool event, a
+		// mission verification verdict, or an artifact hash. An agent asserting
+		// "complete" with no such source is rejected as self-report.
+		if (this.collectSources(session).length === 0) return false;
+
+		// Every mission criterion must additionally carry a non-agent, criterion-bound
+		// evidence ref. The criterion description, `criterion:<description>`, or
+		// `criterion:<goalCriterionId>` all count; a bare self-report does not.
+		const evidenceRefs = new Set(session.evidenceRefs);
+		for (const criterion of session.criteria) {
+			if (criterionHasNonAgentEvidence(criterion, evidenceRefs, session.goalSpec)) continue;
+			return false;
+		}
+		return true;
 	}
 
 	async verifyMission(input: {
@@ -221,8 +223,11 @@ export class EvidenceVerifier implements MissionEvidenceVerifier {
 				const latest = this.#missionStore.getLatestReview(missionId);
 				if (!latest) return { status: "insufficient_evidence", refs: [] };
 				const ref = `mission-review:${latest.id}`;
-				if (latest.verdict === "pass" || latest.failedCount === 0) return { status: "pass", refs: [ref] };
-				return { status: "fail", refs: [ref], reason: latest.summary };
+				if (latest.status === "fail" || latest.verdict === "fail" || latest.failedCount > 0) {
+					return { status: "fail", refs: [ref], reason: latest.summary };
+				}
+				if (latest.status === "pass" && latest.verdict === "pass") return { status: "pass", refs: [ref] };
+				return { status: "insufficient_evidence", refs: [ref], reason: "review did not explicitly pass" };
 			}
 			case "source_diff":
 				return eventEvidence(events, ["runtime_action.completed", "sandbox.diff_captured"], "diffRef");
@@ -325,4 +330,11 @@ function dedupeSources(sources: EvidenceVerificationSource[]): EvidenceVerificat
 
 function dedupe(values: string[]): string[] {
 	return [...new Set(values)];
+}
+
+function criterionHasNonAgentEvidence(criterion: string, evidenceRefs: Set<string>, goalSpec: AgiGoalSpec): boolean {
+	if (evidenceRefs.has(criterion)) return true;
+	if (evidenceRefs.has(`criterion:${criterion}`)) return true;
+	const goalCriterion = goalSpec.criteria.find(item => item.description === criterion);
+	return goalCriterion !== undefined && evidenceRefs.has(`criterion:${goalCriterion.id}`);
 }

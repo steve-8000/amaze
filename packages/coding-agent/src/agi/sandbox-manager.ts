@@ -1,3 +1,7 @@
+import { createHash } from "node:crypto";
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
+
 export interface SandboxWorkspace {
 	id: string;
 	missionId: string;
@@ -14,6 +18,10 @@ export interface SandboxManager {
 	applyToMain(workspaceId: string): Promise<{ appliedRef: string; rollbackRef: string }>;
 	rollback(input: { rollbackRef: string; reason: string }): Promise<void>;
 	dispose(workspaceId: string): Promise<void>;
+}
+
+interface ManagedWorkspace extends SandboxWorkspace {
+	repoCwd: string;
 }
 
 export class InMemorySandboxManager implements SandboxManager {
@@ -66,4 +74,123 @@ export class InMemorySandboxManager implements SandboxManager {
 		if (!workspace) throw new Error(`Sandbox workspace not found: ${workspaceId}`);
 		return workspace;
 	}
+}
+
+export class GitWorktreeSandboxManager implements SandboxManager {
+	readonly #workspaces = new Map<string, ManagedWorkspace>();
+	readonly #rootDir: string;
+	readonly #now: () => number;
+
+	constructor(input: { rootDir: string; now?: () => number }) {
+		this.#rootDir = input.rootDir;
+		this.#now = input.now ?? Date.now;
+	}
+
+	async create(input: {
+		missionId: string;
+		actionId: string;
+		cwd: string;
+		baselineRef?: string;
+	}): Promise<SandboxWorkspace> {
+		const baselineRef = input.baselineRef ?? (await git(input.cwd, ["rev-parse", "HEAD"])).trim();
+		const id = safeId(`sandbox-${input.missionId}-${input.actionId}-${this.#now()}`);
+		const workspaceCwd = path.join(this.#rootDir, id);
+		await fs.mkdir(this.#rootDir, { recursive: true });
+		await git(input.cwd, ["worktree", "add", "--detach", workspaceCwd, baselineRef]);
+		const workspace: ManagedWorkspace = {
+			id,
+			missionId: input.missionId,
+			actionId: input.actionId,
+			mode: "isolated-worktree",
+			cwd: workspaceCwd,
+			baselineRef,
+			repoCwd: input.cwd,
+			createdAt: this.#now(),
+		};
+		this.#workspaces.set(workspace.id, workspace);
+		return publicWorkspace(workspace);
+	}
+
+	async captureDiff(workspaceId: string): Promise<{ diffRef: string; contentHash: string }> {
+		const workspace = this.#require(workspaceId);
+		const diff = await git(workspace.cwd, ["diff", "--binary", workspace.baselineRef, "--"]);
+		const contentHash = sha256(diff);
+		const diffPath = path.join(this.#rootDir, `${workspace.id}-${contentHash}.patch`);
+		await fs.writeFile(diffPath, diff, "utf8");
+		return { diffRef: diffPath, contentHash };
+	}
+
+	async applyToMain(workspaceId: string): Promise<{ appliedRef: string; rollbackRef: string }> {
+		const workspace = this.#require(workspaceId);
+		const rollbackRef = (await git(workspace.repoCwd, ["rev-parse", "HEAD"])).trim();
+		const diff = await git(workspace.cwd, ["diff", "--binary", workspace.baselineRef, "--"]);
+		if (diff.trim()) {
+			const patchPath = path.join(this.#rootDir, `${workspace.id}-apply.patch`);
+			await fs.writeFile(patchPath, diff, "utf8");
+			await git(workspace.repoCwd, ["apply", "--index", patchPath]);
+		}
+		return { appliedRef: `git-worktree://${workspace.id}`, rollbackRef };
+	}
+
+	async rollback(input: { rollbackRef: string; reason: string }): Promise<void> {
+		if (!input.rollbackRef || !input.reason) throw new Error("rollback requires rollbackRef and reason");
+		for (const workspace of this.#workspaces.values()) {
+			await git(workspace.repoCwd, ["reset", "--hard", input.rollbackRef]);
+			return;
+		}
+		throw new Error(`No sandbox workspace available for rollback ref: ${input.rollbackRef}`);
+	}
+
+	async dispose(workspaceId: string): Promise<void> {
+		const workspace = this.#workspaces.get(workspaceId);
+		if (!workspace) return;
+		await git(workspace.repoCwd, ["worktree", "remove", "--force", workspace.cwd]);
+		this.#workspaces.delete(workspaceId);
+	}
+
+	#require(workspaceId: string): ManagedWorkspace {
+		const workspace = this.#workspaces.get(workspaceId);
+		if (!workspace) throw new Error(`Sandbox workspace not found: ${workspaceId}`);
+		return workspace;
+	}
+}
+
+function publicWorkspace(workspace: ManagedWorkspace): SandboxWorkspace {
+	return {
+		id: workspace.id,
+		missionId: workspace.missionId,
+		actionId: workspace.actionId,
+		mode: workspace.mode,
+		cwd: workspace.cwd,
+		baselineRef: workspace.baselineRef,
+		createdAt: workspace.createdAt,
+	};
+}
+
+function safeId(value: string): string {
+	return value.replace(/[^a-zA-Z0-9_.-]/g, "-");
+}
+
+function sha256(value: string): string {
+	return createHash("sha256").update(value).digest("hex");
+}
+
+async function git(cwd: string, args: string[]): Promise<string> {
+	return gitWithInput(cwd, args);
+}
+
+async function gitWithInput(cwd: string, args: string[]): Promise<string> {
+	const proc = Bun.spawn(["git", ...args], {
+		cwd,
+		stdin: "ignore",
+		stdout: "pipe",
+		stderr: "pipe",
+	});
+	const [stdout, stderr, exitCode] = await Promise.all([
+		new Response(proc.stdout).text(),
+		new Response(proc.stderr).text(),
+		proc.exited,
+	]);
+	if (exitCode !== 0) throw new Error(`git ${args.join(" ")} failed: ${stderr.trim() || stdout.trim()}`);
+	return stdout;
 }

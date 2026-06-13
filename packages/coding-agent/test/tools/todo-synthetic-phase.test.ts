@@ -75,6 +75,30 @@ describe("todo_write synthetic mission phases", () => {
 		}
 	});
 
+	it("skips stale execution task completions without failing the batch", async () => {
+		const { store, session, missionControl } = build();
+		try {
+			await missionControl.ensureActiveMission({
+				content: "redesign architecture for the runtime status review",
+			});
+			const tool = new TodoWriteTool(session);
+			await tool.execute("call-1", {
+				ops: [{ op: "init", list: [{ phase: "Execution", items: ["Read status review"] }] }],
+			});
+			const result = await tool.execute("call-2", {
+				ops: [{ op: "done", task: "Run focused verification" }],
+			});
+
+			expect(result.isError).toBeFalsy();
+			const text = result.content?.[0]?.type === "text" ? result.content[0].text : "";
+			expect(text).toContain('Skipped op "done" on "Run focused verification"');
+			expect(text).toContain("Refresh with todo_read");
+			expect(text).not.toContain('Task "Run focused verification" not found');
+		} finally {
+			store.close();
+		}
+	});
+
 	it("skips ops targeting a synthetic phase by name with a notice", async () => {
 		const { store, session, missionControl } = build();
 		try {

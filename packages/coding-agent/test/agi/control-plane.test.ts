@@ -86,10 +86,44 @@ describe("AGI control plane", () => {
 		const request = governance.requestApproval(runtimeAction, "high");
 		expect(request.status).toBe("pending");
 		expect(governance.approve(request.id, "operator").status).toBe("approved");
+		expect(governance.reject(governance.requestApproval(runtimeAction, "high").id, "operator", "no").status).toBe(
+			"rejected",
+		);
 		governance.stopMission("mission-1");
 		expect(() => governance.assertLeaseMayRun({ missionId: "mission-1", allowedRisk: "LOW" } as never)).toThrow(
 			/emergency-stopped/,
 		);
+	});
+
+	test("governance persists approvals and emergency stops", () => {
+		const store = new MissionStore(":memory:");
+		const mission = store.createMission({
+			title: "Governed Mission",
+			objective: "Governed Mission",
+			objectiveId: null,
+			briefId: null,
+			decisionId: null,
+			riskLevel: "medium",
+			state: "executing",
+			confidence: null,
+			snapshotRef: null,
+			mode: "interactive",
+			intent: "conversation",
+			lifecycle: "active",
+		});
+		const runtimeAction = { ...action(), missionId: mission.id };
+		const governance = new AgiGovernance({ store, now: () => 20 });
+		const request = governance.requestApproval(runtimeAction, "high");
+		governance.approve(request.id, "operator");
+		governance.stopMission(mission.id, "test stop");
+
+		const reloaded = new AgiGovernance({ store, now: () => 30 });
+		expect(store.getAgiApprovalRequest(request.id)?.status).toBe("approved");
+		expect(reloaded.isStopped(mission.id)).toBe(true);
+		expect(() => reloaded.assertLeaseMayRun({ missionId: mission.id, allowedRisk: "LOW" } as never)).toThrow(
+			/emergency-stopped/,
+		);
+		store.close();
 	});
 
 	test("objective manager orders priority and excludes retired objectives", () => {
@@ -106,7 +140,7 @@ describe("AGI control plane", () => {
 			scope: {},
 			kind: "claim",
 			content: "old",
-			sourceRefs: [{ kind: "provider", uri: "https://example.test", observedAt: 1 }],
+			sourceRefs: [{ kind: "provider", uri: "https://example.test", contentHash: "sha256:old", observedAt: 1 }],
 			confidence: "high",
 			verified: true,
 			createdAt: 1,
@@ -122,5 +156,37 @@ describe("AGI control plane", () => {
 		});
 		expect(result.satisfied).toBe(false);
 		expect(result.blockers).toContain("fresh citation evidence required before mutation");
+	});
+
+	test("research loop accepts only citations with durable source metadata", async () => {
+		const now = 10 * 24 * 60 * 60 * 1000;
+		const fresh: MemoryItem = {
+			id: "fresh",
+			level: "L4",
+			scope: {},
+			kind: "claim",
+			content: "fresh",
+			sourceRefs: [
+				{ kind: "provider", uri: "https://example.test/fresh", contentHash: "sha256:fresh", observedAt: now },
+				{ kind: "provider", uri: "https://example.test/malformed", observedAt: now },
+			],
+			confidence: "high",
+			verified: true,
+			createdAt: now,
+			updatedAt: now,
+		};
+		const loop = new MemoryBackedResearchLoop({
+			now: () => now,
+			memory: { query: async () => [fresh], record: async () => fresh, linkClaims: async () => undefined },
+		});
+		const result = await loop.satisfyFreshnessPolicy({
+			missionId: "mission-1",
+			contract: { ...validContract(), freshnessPolicy: { researchRequired: true, maxSourceAgeDays: 1 } },
+		});
+
+		expect(result.satisfied).toBe(true);
+		expect(result.citations).toEqual([
+			{ kind: "provider", uri: "https://example.test/fresh", contentHash: "sha256:fresh", observedAt: now },
+		]);
 	});
 });

@@ -1,1 +1,16 @@
-{"id":"long-horizon-repo-task","expected":{"blocker":"completion without plan/action/verifier chain"}}
+{
+  "id": "long-horizon-repo-task",
+  "expected": { "blocker": "completion without plan/action/verifier chain" },
+  "scenario": {
+    "longHorizonRepoTask": {
+      "objectiveContractId": "contract-long-horizon-repo-task",
+      "runtimeActionId": "action-long-horizon-repo-task",
+      "leaseId": "lease-long-horizon-repo-task",
+      "verifierRunId": "verifier-long-horizon-repo-task",
+      "actionReferencesContract": true,
+      "leaseReferencesAction": true,
+      "verifierReferencesAction": true,
+      "nonSelfReportEvidenceRefs": ["event-ledger:action-long-horizon-repo-task", "verifier:verifier-long-horizon-repo-task"]
+    }
+  }
+}

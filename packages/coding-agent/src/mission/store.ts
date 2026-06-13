@@ -564,7 +564,7 @@ const MIGRATIONS: StoreMigration[] = [
 		description: "persist mission mode with interactive legacy default",
 		up: db => {
 			ensureColumn(db, "missions", "mode", "TEXT NOT NULL DEFAULT 'interactive'");
-			db.run("UPDATE missions SET mode = 'interactive' WHERE mode IS NULL OR mode = '' OR mode = 'auto'");
+			db.run("UPDATE missions SET mode = 'interactive' WHERE mode IS NULL OR trim(mode) = ''");
 		},
 	},
 	{
@@ -679,6 +679,35 @@ const MIGRATIONS: StoreMigration[] = [
 			`);
 		},
 	},
+	{
+		version: 9,
+		description: "durable AGI governance approvals and emergency stops",
+		up: db => {
+			db.exec(`
+			CREATE TABLE IF NOT EXISTS agi_approval_requests (
+				id TEXT PRIMARY KEY,
+				mission_id TEXT NOT NULL,
+				action_id TEXT NOT NULL,
+				risk TEXT NOT NULL,
+				status TEXT NOT NULL,
+				created_at INTEGER NOT NULL,
+				decided_at INTEGER,
+				decided_by TEXT,
+				reason TEXT,
+				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
+			);
+			CREATE INDEX IF NOT EXISTS agi_approval_requests_mission_idx ON agi_approval_requests(mission_id, created_at);
+			CREATE INDEX IF NOT EXISTS agi_approval_requests_action_idx ON agi_approval_requests(action_id);
+
+			CREATE TABLE IF NOT EXISTS agi_emergency_stops (
+				mission_id TEXT PRIMARY KEY,
+				stopped_at INTEGER NOT NULL,
+				reason TEXT,
+				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
+			);
+			`);
+		},
+	},
 ];
 
 function ensureColumn(db: Database, table: string, column: string, definition: string): void {
@@ -736,6 +765,24 @@ type ObjectiveContractRow = {
 	approved_at: number | null;
 	approved_by: string | null;
 	supersedes_contract_id: string | null;
+};
+
+type AgiApprovalRequestRow = {
+	id: string;
+	mission_id: string;
+	action_id: string;
+	risk: "low" | "medium" | "high" | "critical";
+	status: "pending" | "approved" | "rejected";
+	created_at: number;
+	decided_at: number | null;
+	decided_by: string | null;
+	reason: string | null;
+};
+
+type AgiEmergencyStopRow = {
+	mission_id: string;
+	stopped_at: number;
+	reason: string | null;
 };
 
 type RuntimeActionRow = {
@@ -990,6 +1037,24 @@ export interface CapabilityLeaseRecord {
 	expiresAt: number;
 	revokedAt?: number;
 	revokedReason?: string;
+}
+
+export interface AgiApprovalRequestRecord {
+	id: string;
+	missionId: string;
+	actionId: string;
+	risk: "low" | "medium" | "high" | "critical";
+	status: "pending" | "approved" | "rejected";
+	createdAt: number;
+	decidedAt?: number;
+	decidedBy?: string;
+	reason?: string;
+}
+
+export interface AgiEmergencyStopRecord {
+	missionId: string;
+	stoppedAt: number;
+	reason?: string;
 }
 
 export class MissionStore {
@@ -1380,6 +1445,8 @@ export class MissionStore {
 		if (!this.getObjectiveContract(action.objectiveContractId)) {
 			throw new Error(`Objective contract not found: ${action.objectiveContractId}`);
 		}
+		const existing = this.getRuntimeAction(action.id);
+		if (existing) assertRuntimeActionTransition(existing.status, action.status);
 		const now = Date.now();
 		const actionJson = stringifyCanonicalJson(action);
 		const leaseJson = stringifyCanonicalJson(lease);
@@ -1539,6 +1606,66 @@ export class MissionStore {
 		const record = this.getCapabilityLease(id);
 		if (!record) throw new Error(`Capability lease not found after revoke: ${id}`);
 		return record;
+	}
+
+	saveAgiApprovalRequest(request: AgiApprovalRequestRecord): AgiApprovalRequestRecord {
+		if (!this.getMission(request.missionId)) throw new Error(`Mission not found: ${request.missionId}`);
+		this.#db
+			.query(
+				`INSERT INTO agi_approval_requests
+					(id, mission_id, action_id, risk, status, created_at, decided_at, decided_by, reason)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+				ON CONFLICT(id) DO UPDATE SET
+					status = excluded.status,
+					decided_at = excluded.decided_at,
+					decided_by = excluded.decided_by,
+					reason = excluded.reason`,
+			)
+			.run(
+				request.id,
+				request.missionId,
+				request.actionId,
+				request.risk,
+				request.status,
+				request.createdAt,
+				request.decidedAt ?? null,
+				request.decidedBy ?? null,
+				request.reason ?? null,
+			);
+		const saved = this.getAgiApprovalRequest(request.id);
+		if (!saved) throw new Error(`AGI approval request not found after save: ${request.id}`);
+		return saved;
+	}
+
+	getAgiApprovalRequest(id: string): AgiApprovalRequestRecord | undefined {
+		const row = this.#db
+			.query("SELECT * FROM agi_approval_requests WHERE id = ?")
+			.get(id) as AgiApprovalRequestRow | null;
+		return row ? rowToAgiApprovalRequestRecord(row) : undefined;
+	}
+
+	recordAgiEmergencyStop(missionId: string, reason?: string): AgiEmergencyStopRecord {
+		if (!this.getMission(missionId)) throw new Error(`Mission not found: ${missionId}`);
+		const now = Date.now();
+		this.#db
+			.query(
+				`INSERT INTO agi_emergency_stops (mission_id, stopped_at, reason)
+				VALUES (?, ?, ?)
+				ON CONFLICT(mission_id) DO UPDATE SET
+					stopped_at = excluded.stopped_at,
+					reason = excluded.reason`,
+			)
+			.run(missionId, now, reason ?? null);
+		const stop = this.getAgiEmergencyStop(missionId);
+		if (!stop) throw new Error(`AGI emergency stop not found after save: ${missionId}`);
+		return stop;
+	}
+
+	getAgiEmergencyStop(missionId: string): AgiEmergencyStopRecord | undefined {
+		const row = this.#db
+			.query("SELECT * FROM agi_emergency_stops WHERE mission_id = ?")
+			.get(missionId) as AgiEmergencyStopRow | null;
+		return row ? rowToAgiEmergencyStopRecord(row) : undefined;
 	}
 
 	createLaneRun(input: NewMissionLaneRun): MissionLaneRun {
@@ -3008,6 +3135,28 @@ function rowToCapabilityLeaseRecord(row: CapabilityLeaseRow): CapabilityLeaseRec
 		expiresAt: row.expires_at,
 		revokedAt: row.revoked_at ?? undefined,
 		revokedReason: row.revoked_reason ?? undefined,
+	};
+}
+
+function rowToAgiApprovalRequestRecord(row: AgiApprovalRequestRow): AgiApprovalRequestRecord {
+	return {
+		id: row.id,
+		missionId: row.mission_id,
+		actionId: row.action_id,
+		risk: row.risk,
+		status: row.status,
+		createdAt: row.created_at,
+		decidedAt: row.decided_at ?? undefined,
+		decidedBy: row.decided_by ?? undefined,
+		reason: row.reason ?? undefined,
+	};
+}
+
+function rowToAgiEmergencyStopRecord(row: AgiEmergencyStopRow): AgiEmergencyStopRecord {
+	return {
+		missionId: row.mission_id,
+		stoppedAt: row.stopped_at,
+		reason: row.reason ?? undefined,
 	};
 }
 

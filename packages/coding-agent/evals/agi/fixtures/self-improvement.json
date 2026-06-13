@@ -1,1 +1,14 @@
-{"id":"self-improvement","expected":{"blocker":"self-improvement applies without eval sandbox human gate"}}
+{
+  "id": "self-improvement",
+  "expected": { "blocker": "self-improvement applies without eval sandbox human gate" },
+  "scenario": {
+    "selfImprovement": {
+      "evalRunId": "eval-run-self-improvement",
+      "evalPassed": true,
+      "sandboxId": "sandbox-self-improvement",
+      "rollbackPlanId": "rollback-self-improvement",
+      "humanApprovalId": "approval-self-improvement",
+      "appliedAfterApproval": true
+    }
+  }
+}

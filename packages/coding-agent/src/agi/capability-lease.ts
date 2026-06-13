@@ -83,6 +83,32 @@ export const TOOL_RISK_ORDER: Record<ToolRiskLevel, number> = {
 	CRITICAL: 3,
 };
 
+/**
+ * Mutation classification of a tool descriptor, derived purely from declared
+ * descriptor metadata (never from agent self-report):
+ * - "read-only": does not mutate the workspace.
+ * - "mutating": mutates the workspace but cannot be rolled back (e.g. `bash`).
+ * - "rollback": mutates the workspace and supports rollback (e.g. `write`, `edit`).
+ */
+export type ToolMutationClass = "read-only" | "mutating" | "rollback";
+
+export function classifyToolMutation(
+	tool: Pick<ToolDescriptor, "mutatesWorkspace" | "supportsRollback">,
+): ToolMutationClass {
+	if (!tool.mutatesWorkspace) return "read-only";
+	return tool.supportsRollback ? "rollback" : "mutating";
+}
+
+/** Mutating and rollback descriptors must execute inside an isolated sandbox. */
+export function mutationClassRequiresSandbox(mutationClass: ToolMutationClass): boolean {
+	return mutationClass !== "read-only";
+}
+
+/** Whether a lease grants an isolated sandbox for mutating execution. */
+export function leaseGrantsSandbox(lease: Pick<CapabilityLease, "sandbox">): boolean {
+	return lease.sandbox.mode === "isolated-worktree" || lease.sandbox.mode === "remote-sandbox";
+}
+
 export interface LeaseAuthorizationInput {
 	lease: CapabilityLease;
 	tool: Pick<ToolDescriptor, "name" | "riskLevel" | "mutatesWorkspace" | "requiresApproval">;

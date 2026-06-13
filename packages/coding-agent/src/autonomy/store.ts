@@ -18,6 +18,13 @@ type ObjectiveRow = {
 	budget: string;
 	guardrails: string;
 	status: ObjectiveStatus;
+	priority: number | null;
+	recurrence: string | null;
+	progress: string | null;
+	parent_objective_id: string | null;
+	merged_into_objective_id: string | null;
+	retired_at: number | null;
+	retirement_reason: string | null;
 	created_at: number;
 	updated_at: number;
 };
@@ -60,8 +67,8 @@ export class ObjectiveStore {
 		this.#db
 			.query(
 				`INSERT INTO objectives
-					(id, title, metric_targets, budget, guardrails, status, created_at, updated_at)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+					(id, title, metric_targets, budget, guardrails, status, priority, recurrence, progress, parent_objective_id, merged_into_objective_id, retired_at, retirement_reason, created_at, updated_at)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			)
 			.run(
 				objective.id,
@@ -70,6 +77,13 @@ export class ObjectiveStore {
 				JSON.stringify(objective.budget),
 				JSON.stringify(objective.guardrails),
 				objective.status,
+				objective.priority ?? null,
+				objective.recurrence === undefined ? null : JSON.stringify(objective.recurrence),
+				objective.progress === undefined ? null : JSON.stringify(objective.progress),
+				objective.parentObjectiveId ?? null,
+				objective.mergedIntoObjectiveId ?? null,
+				objective.retiredAt ?? null,
+				objective.retirementReason ?? null,
 				now,
 				now,
 			);
@@ -130,6 +144,13 @@ export class ObjectiveStore {
 				budget TEXT NOT NULL CHECK (json_valid(budget)),
 				guardrails TEXT NOT NULL CHECK (json_valid(guardrails)),
 				status TEXT NOT NULL,
+				priority REAL,
+				recurrence TEXT CHECK (recurrence IS NULL OR json_valid(recurrence)),
+				progress TEXT CHECK (progress IS NULL OR json_valid(progress)),
+				parent_objective_id TEXT,
+				merged_into_objective_id TEXT,
+				retired_at INTEGER,
+				retirement_reason TEXT,
 				created_at INTEGER NOT NULL,
 				updated_at INTEGER NOT NULL
 			);
@@ -145,6 +166,7 @@ export class ObjectiveStore {
 			CREATE INDEX IF NOT EXISTS objectives_status_idx ON objectives(status);
 			CREATE INDEX IF NOT EXISTS objective_events_objective_id_idx ON objective_events(objective_id);
 		`);
+		ensureObjectiveColumns(this.#db);
 		migrateLegacyIfNeeded(this.#db, this.dbPath);
 	}
 }
@@ -165,12 +187,14 @@ function migrateLegacyIfNeeded(
 	let attached = false;
 	try {
 		db.exec(`ATTACH DATABASE '${escapedLegacyPath}' AS legacy`);
+		ensureObjectiveColumns(db);
+		ensureObjectiveColumns(db, "legacy");
 		attached = true;
 		db.transaction(() => {
 			db.exec(`
 				INSERT OR IGNORE INTO objectives
-					(id, title, metric_targets, budget, guardrails, status, created_at, updated_at)
-				SELECT id, title, metric_targets, budget, guardrails, status, created_at, updated_at
+					(id, title, metric_targets, budget, guardrails, status, priority, recurrence, progress, parent_objective_id, merged_into_objective_id, retired_at, retirement_reason, created_at, updated_at)
+				SELECT id, title, metric_targets, budget, guardrails, status, priority, recurrence, progress, parent_objective_id, merged_into_objective_id, retired_at, retirement_reason, created_at, updated_at
 				FROM legacy.objectives;
 
 				INSERT OR IGNORE INTO objective_events
@@ -188,6 +212,27 @@ function migrateLegacyIfNeeded(
 			} catch {
 				// Best-effort cleanup after a failed migration; callers must still be able to use the new DB.
 			}
+		}
+	}
+}
+
+function ensureObjectiveColumns(db: Database, schema?: string): void {
+	const tableName = schema ? `${schema}.objectives` : "objectives";
+	const columns = db.query(`PRAGMA ${schema ? `${schema}.` : ""}table_info(objectives)`).all() as { name: string }[];
+	const existing = new Set(columns.map(column => column.name));
+	const additions: Record<string, string> = {
+		priority: "priority REAL",
+		recurrence: "recurrence TEXT CHECK (recurrence IS NULL OR json_valid(recurrence))",
+		progress: "progress TEXT CHECK (progress IS NULL OR json_valid(progress))",
+		parent_objective_id: "parent_objective_id TEXT",
+		merged_into_objective_id: "merged_into_objective_id TEXT",
+		retired_at: "retired_at INTEGER",
+		retirement_reason: "retirement_reason TEXT",
+	};
+
+	for (const [name, definition] of Object.entries(additions)) {
+		if (!existing.has(name)) {
+			db.exec(`ALTER TABLE ${tableName} ADD COLUMN ${definition}`);
 		}
 	}
 }
@@ -212,6 +257,13 @@ function rowToObjective(row: ObjectiveRow): Objective {
 		budget: JSON.parse(row.budget) as Objective["budget"],
 		guardrails: JSON.parse(row.guardrails) as Objective["guardrails"],
 		status: row.status,
+		...(row.priority === null ? {} : { priority: row.priority }),
+		...(row.recurrence === null ? {} : { recurrence: JSON.parse(row.recurrence) as Objective["recurrence"] }),
+		...(row.progress === null ? {} : { progress: JSON.parse(row.progress) as Objective["progress"] }),
+		...(row.parent_objective_id === null ? {} : { parentObjectiveId: row.parent_objective_id }),
+		...(row.merged_into_objective_id === null ? {} : { mergedIntoObjectiveId: row.merged_into_objective_id }),
+		...(row.retired_at === null ? {} : { retiredAt: row.retired_at }),
+		...(row.retirement_reason === null ? {} : { retirementReason: row.retirement_reason }),
 	};
 }
 

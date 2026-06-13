@@ -1,4 +1,5 @@
 import type { ObjectiveContract } from "../autonomy/types";
+import { verifySourceRefs } from "../research/source-verifier";
 import type { AgiMemory, MemorySourceRef } from "./memory";
 
 export interface ResearchLoopResult {
@@ -34,18 +35,12 @@ export class MemoryBackedResearchLoop implements ResearchLoop {
 		});
 		const maxAgeMs =
 			policy.maxSourceAgeDays === undefined ? undefined : policy.maxSourceAgeDays * 24 * 60 * 60 * 1000;
-		const citations = items
-			.flatMap(item => item.sourceRefs)
-			.filter(ref => isFreshCitation(ref, this.#now(), maxAgeMs));
+		const citations = verifySourceRefs(
+			items.flatMap(item => item.sourceRefs),
+			{ now: this.#now(), maxAgeMs },
+		).valid;
 		return citations.length > 0
 			? { satisfied: true, citations, blockers: [] }
 			: { satisfied: false, citations: [], blockers: ["fresh citation evidence required before mutation"] };
 	}
-}
-
-function isFreshCitation(ref: MemorySourceRef, now: number, maxAgeMs: number | undefined): boolean {
-	if (!ref.uri) return false;
-	if (!ref.contentHash && ref.observedAt === undefined) return false;
-	if (maxAgeMs !== undefined && (ref.observedAt === undefined || now - ref.observedAt > maxAgeMs)) return false;
-	return true;
 }

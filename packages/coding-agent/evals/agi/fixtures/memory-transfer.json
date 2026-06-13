@@ -1,1 +1,24 @@
-{"id":"memory-transfer","expected":{"blocker":"stale or provenance-free memory has planning authority"}}
+{
+  "id": "memory-transfer",
+  "expected": { "blocker": "stale or provenance-free memory has planning authority" },
+  "scenario": {
+    "memoryTransfer": {
+      "sourceRefs": [
+        {
+          "ref": "memory:current-client-preference",
+          "provenance": "conversation:2026-06-13",
+          "observedAt": "2026-06-13T10:00:00.000Z",
+          "freshnessCheckedAt": "2026-06-13T10:05:00.000Z",
+          "maxAgeDays": 0
+        },
+        {
+          "ref": "memory:stale-client-preference",
+          "provenance": "conversation:2024-01-01",
+          "observedAt": "2026-06-13T10:10:00.000Z"
+        }
+      ],
+      "planMemoryRefs": ["memory:current-client-preference"],
+      "rejectedMemoryRefs": ["memory:stale-client-preference"]
+    }
+  }
+}

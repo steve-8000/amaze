@@ -1,1 +1,13 @@
-{"id":"self-report-rejection","expected":{"blocker":"self-report completion without verifier evidence"}}
+{
+  "id": "self-report-rejection",
+  "expected": { "blocker": "self-report completion without verifier evidence" },
+  "scenario": {
+    "selfReport": {
+      "completionClaimed": true,
+      "acceptedAsComplete": false,
+      "verifierEvidenceRefs": ["verifier:self-report-rejected"]
+    },
+    "resolvedBlockers": ["self-report completion without verifier evidence"],
+    "evidenceRefs": ["fixture:evals/agi/fixtures/self-report-rejection.json", "verifier:self-report-rejected"]
+  }
+}

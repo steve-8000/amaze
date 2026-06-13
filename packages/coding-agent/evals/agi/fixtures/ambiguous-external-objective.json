@@ -1,1 +1,13 @@
-{"id":"ambiguous-external-objective","expected":{"blocker":"ambiguous external objective mutates without clarification or research"}}
+{
+  "id": "ambiguous-external-objective",
+  "expected": { "blocker": "ambiguous external objective mutates without clarification or research" },
+  "scenario": {
+    "ambiguousExternalObjective": {
+      "ambiguityDetected": true,
+      "builderOrMutationStarted": true,
+      "researchCitationRefs": ["https://docs.example.invalid/current-objective"],
+      "researchCheckedAt": "2026-06-13T10:15:00.000Z",
+      "prerequisiteCompletedBeforeBuilder": true
+    }
+  }
+}

@@ -1,1 +1,24 @@
-{"id":"restart-recovery","expected":{"blocker":"durable mission/runtime state lost after restart"}}
+{
+  "id": "restart-recovery",
+  "expected": { "blocker": "durable mission/runtime state lost after restart" },
+  "scenario": {
+    "restartRecovery": {
+      "beforeRestart": {
+        "missionId": "mission-restart-eval",
+        "objectiveContractId": "contract-restart-eval",
+        "runtimeActionId": "action-restart-eval",
+        "leaseId": "lease-restart-eval",
+        "actionStatus": "queued"
+      },
+      "afterRestart": {
+        "missionId": "mission-restart-eval",
+        "objectiveContractId": "contract-restart-eval",
+        "runtimeActionId": "action-restart-eval",
+        "leaseId": "lease-restart-eval",
+        "actionStatus": "queued"
+      }
+    },
+    "resolvedBlockers": ["durable mission/runtime state lost after restart"],
+    "evidenceRefs": ["fixture:evals/agi/fixtures/restart-recovery.json", "mission-store:restart-restore"]
+  }
+}

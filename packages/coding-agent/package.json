@@ -38,7 +38,8 @@
     "generate-docs-index": "bun scripts/generate-docs-index.ts",
     "prepack": "bun scripts/generate-docs-index.ts",
     "generate-template": "bun scripts/generate-template.ts",
-    "agi:eval": "bun src/cli/agi-eval.ts run --manifest evals/agi/manifest.json"
+    "agi:eval": "bun src/cli/agi-eval.ts run --manifest evals/agi/manifest.json",
+    "agi:runtime-eval": "bun src/cli/agi-runtime-eval.ts"
   },
   "dependencies": {
     "@agentclientprotocol/sdk": "catalog:",

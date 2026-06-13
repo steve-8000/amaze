@@ -73,11 +73,11 @@ afterEach(() => {
 });
 
 describe("mission store migrations", () => {
-	test("fresh store bumps PRAGMA user_version to 8", () => {
+	test("fresh store bumps PRAGMA user_version to 9", () => {
 		const dbPath = tempDbPath();
 		createStore(dbPath);
 
-		expect(userVersion(dbPath)).toBe(8);
+		expect(userVersion(dbPath)).toBe(9);
 	});
 
 	test("pre-existing user_version 0 database with baseline schema upgrades idempotently", () => {
@@ -94,7 +94,7 @@ describe("mission store migrations", () => {
 
 		createStore(dbPath);
 
-		expect(userVersion(dbPath)).toBe(8);
+		expect(userVersion(dbPath)).toBe(9);
 	});
 
 	test("legacy missions without mode migrate with interactive default", () => {
@@ -163,6 +163,66 @@ describe("mission store migrations", () => {
 		} finally {
 			columns.close();
 		}
+	});
+
+	test("migration preserves persisted auto mission mode", () => {
+		const dbPath = tempDbPath();
+		const db = new Database(dbPath, { create: true, strict: true });
+		try {
+			db.exec(`
+				CREATE TABLE missions (
+					id TEXT PRIMARY KEY,
+					title TEXT NOT NULL,
+					objective TEXT,
+					objective_id TEXT,
+					brief_id TEXT,
+					decision_id TEXT,
+					risk_level TEXT NOT NULL,
+					state TEXT NOT NULL,
+					confidence TEXT,
+					snapshot_ref TEXT,
+					mode TEXT NOT NULL DEFAULT 'interactive',
+					created_at INTEGER NOT NULL,
+					updated_at INTEGER NOT NULL,
+					revision INTEGER NOT NULL DEFAULT 0,
+					intent TEXT,
+					lifecycle TEXT,
+					proposal_id TEXT,
+					regression_contract_id TEXT
+				);
+				PRAGMA user_version = 6;
+			`);
+			db.query(
+				`INSERT INTO missions
+					(id, title, objective, objective_id, brief_id, decision_id, risk_level, state, confidence, snapshot_ref, mode,
+					 created_at, updated_at, revision, intent, lifecycle, proposal_id, regression_contract_id)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			).run(
+				"auto-mission",
+				"Auto Mission",
+				"Auto objective",
+				null,
+				null,
+				null,
+				"medium",
+				"drafting",
+				null,
+				null,
+				"auto",
+				1,
+				1,
+				0,
+				null,
+				null,
+				null,
+				null,
+			);
+		} finally {
+			db.close();
+		}
+
+		const store = createStore(dbPath);
+		expect(store.getMission("auto-mission")?.mode).toBe("auto");
 	});
 
 	test("savePlan rolls back partial writes when step serialization fails", () => {

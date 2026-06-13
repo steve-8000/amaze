@@ -124,6 +124,21 @@ describe("AGI runtime durable store", () => {
 		expect(() => store.markRuntimeAction(action.id, "running")).toThrow(/Invalid runtime action status transition/);
 	});
 
+	test("rejects invalid runtime action status transitions through saveRuntimeAction upsert", () => {
+		const store = createStore();
+		const mission = createMission(store);
+		store.saveObjectiveContract(mission.id, validContract());
+		const action = runtimeAction(mission.id);
+		store.saveRuntimeAction(action, leaseFor(action));
+		store.markRuntimeAction(action.id, "running");
+		store.markRuntimeAction(action.id, "succeeded");
+
+		expect(() => store.saveRuntimeAction({ ...action, status: "running" }, leaseFor(action))).toThrow(
+			/Invalid runtime action status transition/,
+		);
+		expect(store.getRuntimeAction(action.id)?.status).toBe("succeeded");
+	});
+
 	test("migration creates capability lease table for old runtime schema", () => {
 		const dbPath = tempDbPath();
 		const db = new Database(dbPath, { create: true, strict: true });

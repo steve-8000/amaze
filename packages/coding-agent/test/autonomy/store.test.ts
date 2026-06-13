@@ -64,6 +64,67 @@ describe("ObjectiveStore", () => {
 		expect(store.list().map(item => item.id)).toEqual(["objective-1"]);
 	});
 
+	test("persists long-horizon objective fields across restarts", () => {
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "amaze-objective-store-"));
+		const dbPath = path.join(root, "autonomy.db");
+		const input = objective({
+			id: "long-horizon",
+			priority: 7,
+			recurrence: { kind: "interval", intervalMs: 86_400_000 },
+			progress: { score: 0.4, lastMeasuredAt: 123, evidenceRefs: ["evidence-1"] },
+			parentObjectiveId: "parent",
+			mergedIntoObjectiveId: "canonical",
+			retiredAt: 456,
+			retirementReason: "merged",
+		});
+		const first = createTempStore(dbPath);
+		const expected = first.create(input);
+		first.close();
+		stores.splice(stores.indexOf(first), 1);
+
+		const second = createTempStore(dbPath);
+		try {
+			expect(second.get("long-horizon")).toEqual(expected);
+		} finally {
+			fs.rmSync(root, { recursive: true, force: true });
+		}
+	});
+
+	test("adds long-horizon columns to existing objective databases", () => {
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "amaze-objective-store-"));
+		const dbPath = path.join(root, "autonomy.db");
+		const db = new Database(dbPath, { create: true, strict: true });
+		db.exec(`
+			CREATE TABLE objectives (
+				id TEXT PRIMARY KEY,
+				title TEXT NOT NULL,
+				metric_targets TEXT NOT NULL CHECK (json_valid(metric_targets)),
+				budget TEXT NOT NULL CHECK (json_valid(budget)),
+				guardrails TEXT NOT NULL CHECK (json_valid(guardrails)),
+				status TEXT NOT NULL,
+				created_at INTEGER NOT NULL,
+				updated_at INTEGER NOT NULL
+			);
+
+			CREATE TABLE objective_events (
+				objective_id TEXT NOT NULL,
+				ts INTEGER NOT NULL,
+				kind TEXT NOT NULL,
+				payload TEXT NOT NULL CHECK (json_valid(payload)),
+				FOREIGN KEY (objective_id) REFERENCES objectives(id) ON DELETE CASCADE
+			);
+		`);
+		db.close();
+
+		const store = createTempStore(dbPath);
+		try {
+			const created = store.create(objective({ id: "migrated", priority: 3 }));
+			expect(store.get(created.id)?.priority).toBe(3);
+		} finally {
+			fs.rmSync(root, { recursive: true, force: true });
+		}
+	});
+
 	test("records objective events", () => {
 		const store = createStore();
 		const created = store.create(objective({ id: "objective-events" }));
