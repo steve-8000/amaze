@@ -30,7 +30,7 @@ Webhook → durable queue → async dispatcher → per-issue git worktree → am
 Task runner is `bun` against the **monorepo root** `package.json`. rocky itself no longer ships a `package.json`; every recipe lives at the root under the `rocky:*` namespace. Local venv (no docker): `bun run rocky:install` runs `pip install -e 'python/rocky[dev]'`. From there:
 
 ```
-bun run test:py                   # pytest -x python/amaze-rpc/tests python/rocky/tests
+bun run test:py                   # pytest -x python/amaze-rpc/tests, then python/rocky/tests
 bun run rocky:test:integration   # ROCKY_INTEGRATION=1, requires amaze on PATH
 bun run rocky:serve              # python -m rocky serve on the host
 ```

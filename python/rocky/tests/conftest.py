@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 from pathlib import Path
+
 import pytest
 
 from rocky.config import Settings, reset_settings_cache
 from rocky.db import Database, close_database
+
 
 @pytest.fixture(autouse=True)
 def _open_tmp_path_for_slot_traversal(tmp_path: Path) -> None:

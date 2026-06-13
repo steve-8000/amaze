@@ -310,7 +310,7 @@ describe("deriveMissionPolicyGuidance", () => {
 					id: "attempt-speculative",
 					missionId: "mission-1",
 					taskId: "task-speculative",
-					agent: "Resercher",
+					agent: "Researcher",
 					role: "researcher",
 					attempt: 1,
 					status: "completed",

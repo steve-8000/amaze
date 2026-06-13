@@ -899,6 +899,7 @@ class RpcClient:
         with self._event_condition:
             self._scheduled_agent_runs += 1
             self._last_schedule_async_error_index = self._async_errors.current_index()
+
     def _mark_agent_run_completed(self) -> None:
         with self._event_condition:
             self._completed_agent_runs += 1
@@ -1010,7 +1011,9 @@ class RpcClient:
             raise response
 
         if not bool(response.get("success", False)):
-            raise RpcCommandError(command=str(response.get("command", command_type)), error=str(response.get("error", "")))
+            raise RpcCommandError(
+                command=str(response.get("command", command_type)), error=str(response.get("error", ""))
+            )
 
         data = response.get("data")
         if data is None:
@@ -1040,7 +1043,10 @@ class RpcClient:
                 {
                     "type": "host_tool_result",
                     "id": request_id,
-                    "result": {"content": [{"type": "text", "text": "Host tool arguments must be an object"}], "details": {}},
+                    "result": {
+                        "content": [{"type": "text", "text": "Host tool arguments must be an object"}],
+                        "details": {},
+                    },
                     "isError": True,
                 }
             )
@@ -1272,7 +1278,9 @@ class RpcClient:
                 raw_tasks = seed.get("tasks") or ()
                 if not isinstance(raw_tasks, Sequence) or isinstance(raw_tasks, (str, bytes)):
                     raise RpcError("Todo phase 'tasks' must be a sequence")
-                phase_id = str(phase_id_value) if isinstance(phase_id_value, str) and phase_id_value else f"phase-{index}"
+                phase_id = (
+                    str(phase_id_value) if isinstance(phase_id_value, str) and phase_id_value else f"phase-{index}"
+                )
                 name = raw_name
                 tasks = [normalize_todo_item(cast(TodoSeed, task)) for task in raw_tasks]
 
@@ -1286,7 +1294,9 @@ class RpcClient:
                 phases.append(normalize_phase(cast(TodoPhaseSeed, seed), index))
             return phases
 
-        return [{"id": "phase-1", "name": "Todos", "tasks": [normalize_todo_item(cast(TodoSeed, todo)) for todo in todos]}]
+        return [
+            {"id": "phase-1", "name": "Todos", "tasks": [normalize_todo_item(cast(TodoSeed, todo)) for todo in todos]}
+        ]
 
     def _build_command(self) -> tuple[str, ...]:
         if self._command is not None:
@@ -1393,7 +1403,9 @@ class RpcClient:
                 if isinstance(notification, ReadyEvent):
                     self._ready_received = True
                     self._ready.set()
-                    self._dispatch_listeners("ready", listener_notification.type, self._ready_listeners, listener_notification)
+                    self._dispatch_listeners(
+                        "ready", listener_notification.type, self._ready_listeners, listener_notification
+                    )
                     continue
 
                 if isinstance(notification, ExtensionUiRequest):
@@ -1430,7 +1442,10 @@ class RpcClient:
                     self._mark_agent_run_completed()
                 self._dispatch_listeners("event", listener_event.type, self._event_listeners, listener_event)
                 self._dispatch_listeners(
-                    "typed_event", listener_event.type, self._typed_event_listeners.get(listener_event.type, []), listener_event
+                    "typed_event",
+                    listener_event.type,
+                    self._typed_event_listeners.get(listener_event.type, []),
+                    listener_event,
                 )
         except Exception as exc:
             self._mark_closed(exc)
@@ -1443,7 +1458,9 @@ class RpcClient:
                     except subprocess.TimeoutExpired:
                         self._mark_closed(RpcProcessExitError("RPC process stdout closed before the process exited"))
                         return
-                self._mark_closed(RpcProcessExitError(f"RPC process exited with code {exit_code}. Stderr: {self.stderr}"))
+                self._mark_closed(
+                    RpcProcessExitError(f"RPC process exited with code {exit_code}. Stderr: {self.stderr}")
+                )
 
     def _read_stderr_loop(self) -> None:
         process = self._process

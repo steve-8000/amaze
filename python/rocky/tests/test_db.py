@@ -6,6 +6,7 @@ from pathlib import Path
 
 from rocky.db import Database, iso_seconds_ago, issue_key
 
+
 def test_database_defaults_sqlite_synchronous_to_full(tmp_path: Path) -> None:
     database = Database(tmp_path / "durable.sqlite")
     try:
@@ -22,7 +23,6 @@ def test_database_accepts_configured_sqlite_synchronous(tmp_path: Path) -> None:
         assert row[0] == 1
     finally:
         database.close()
-
 
 
 def test_record_event_dedupes_by_delivery(db: Database) -> None:

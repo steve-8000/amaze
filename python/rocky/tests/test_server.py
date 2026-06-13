@@ -12,12 +12,13 @@ import pytest
 from fastapi.testclient import TestClient
 
 from rocky.config import Settings, reset_settings_cache
-from rocky.log_tail import tail_jsonl
 from rocky.db import Database, close_database, get_database, issue_key
 from rocky.github_client import GitHubClient
+from rocky.log_tail import tail_jsonl
 from rocky.manual_triage import InvalidIssueRef, ManualTriageTimeout, await_terminal_state, parse_issue_ref
 from rocky.sandbox import LocalGitTransport
 from rocky.server import create_app
+
 
 class _UnreadyPool:
     is_ready = False
@@ -25,6 +26,7 @@ class _UnreadyPool:
 
 class _ReadyPool:
     is_ready = True
+
 
 def _seed_db(settings: Settings) -> None:
     db = get_database(settings.sqlite_path)
@@ -102,7 +104,6 @@ def test_index_does_not_expose_replay_token(env, monkeypatch: pytest.MonkeyPatch
         close_database()
 
 
-
 def test_readyz_succeeds_when_worker_and_db_are_available(settings: Settings) -> None:
     app = create_app(settings)
     with TestClient(app) as client:
@@ -131,6 +132,7 @@ def test_readyz_fails_when_database_is_unavailable(settings: Settings) -> None:
     close_database()
     assert resp.status_code == 503
     assert resp.json()["detail"] == "database unavailable"
+
 
 def test_api_status_reports_runtime_counts_and_inflight(settings: Settings) -> None:
     app = create_app(settings)

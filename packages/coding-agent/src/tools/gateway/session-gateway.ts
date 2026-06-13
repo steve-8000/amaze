@@ -18,7 +18,7 @@ import type { ToolDescriptor, ToolExecutionContext } from "../registry/tool-desc
 import { ToolRegistry } from "../registry/tool-registry";
 import { MissionPolicyGate } from "./mission-policy-gate";
 import { SubagentMutationScopeGuard } from "./mutation-guard";
-import { AllowAllPermissionGate } from "./permission-gate";
+import { AllowAllPermissionGate, DefaultPermissionGate } from "./permission-gate";
 import { type GuardDecision, ToolGateway } from "./tool-gateway";
 
 /** Tool names whose calls are routed through the gateway at the dispatch seam. */
@@ -102,6 +102,12 @@ export class SessionToolGateway {
 		enforceMutationScopeAtSeam?: boolean;
 		missionControl?: MissionControlRuntime;
 		mutationToolNames?: ReadonlySet<string>;
+		/**
+		 * "enforce" activates {@link DefaultPermissionGate}: HIGH/CRITICAL seam tools
+		 * are denied unless `ctx.approvalGranted` is set. Default "allow-all" keeps
+		 * the legacy transparent pass-through.
+		 */
+		permissionMode?: "allow-all" | "enforce";
 	}) {
 		this.#missionControl = options?.missionControl;
 		this.#mutationTools = options?.mutationToolNames ?? GATEWAY_MUTATION_TOOLS;
@@ -112,9 +118,11 @@ export class SessionToolGateway {
 			policyGate: options?.missionControl
 				? new MissionPolicyGate({ missionControl: options.missionControl, mutationToolNames: this.#mutationTools })
 				: undefined,
-			// Production seam is a transparent pass-through unless mission control is supplied:
-			// allow-all permission keeps behavior for allowed calls identical to today.
-			permissionGate: new AllowAllPermissionGate(),
+			// Default seam is a transparent pass-through (allow-all permission keeps
+			// behavior for allowed calls identical to today); "enforce" switches to the
+			// real approval gate for HIGH/CRITICAL tools.
+			permissionGate:
+				options?.permissionMode === "enforce" ? new DefaultPermissionGate() : new AllowAllPermissionGate(),
 			// The inline tool enforcement remains authoritative by default; opt in to
 			// seam-level scope enforcement (tests / strict modes) explicitly.
 			...(options?.enforceMutationScopeAtSeam

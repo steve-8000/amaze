@@ -28,6 +28,14 @@ Subagents have no conversation history. Every fact, file path, and direction the
 {{#if customSchemaEnabled}}- `schema`: JTD schema for expected structured output (do not put format rules in assignments){{/if}}
 {{#if isolationEnabled}}- `isolated`: run in isolated env; use when tasks edit overlapping files{{/if}}
 </parameters>
+<routing>
+Choose the narrowest specialist that matches the work; do not default everything to Builder.
+- Use `Builder` for in-repository implementation, refactors, debugging, tests, docs, and code investigation.
+- Use `Researcher` for external facts: current docs, releases, issues, changelogs, web/X evidence, version checks, or any question whose answer may be stale outside this repository.
+- Use `SRE` for runtime/operations/deployment validation: k3s, Kubernetes, Docker, ArgoCD, pods, services, rollouts, health checks, and production/runtime state.
+- Use `Reviewer` only for code-review verdicts on an existing diff; it is blocking and reports findings, not implementation work.
+</routing>
+
 
 <rules>
 - NEVER assign tasks to run project-wide build/test/lint. Caller verifies after the batch.

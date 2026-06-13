@@ -1,7 +1,7 @@
 import type { Settings } from "../config/settings";
 import type { LocalLlmRuntimeConfig, LocalLlmUseCase } from "./types";
 
-export const LOCAL_LLM_MODEL_ROLE = "Resercher";
+export const LOCAL_LLM_MODEL_ROLE = "LocalScout";
 
 export function getLocalLlmConfig(settings: Settings): LocalLlmRuntimeConfig {
 	return {

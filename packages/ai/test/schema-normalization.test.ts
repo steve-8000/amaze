@@ -518,6 +518,34 @@ describe("sanitizeSchemaForOpenAIResponses", () => {
 		});
 	});
 
+	it("adds items: true to bare array schemas (OpenAI rejects array without items)", () => {
+		expect(sanitizeSchemaForOpenAIResponses({ type: "array" })).toEqual({
+			type: "array",
+			items: true,
+		});
+	});
+
+	it("adds items: true to bare array branches inside anyOf", () => {
+		expect(sanitizeSchemaForOpenAIResponses({ anyOf: [{ type: "object" }, { type: "array" }] })).toEqual({
+			anyOf: [
+				{ type: "object", properties: {} },
+				{ type: "array", items: true },
+			],
+		});
+	});
+
+	it("adds items: true when `type` is a draft 2020-12 array including array", () => {
+		expect(sanitizeSchemaForOpenAIResponses({ type: ["array", "null"] })).toEqual({
+			type: ["array", "null"],
+			items: true,
+		});
+	});
+
+	it("leaves array schemas with explicit items untouched", () => {
+		const schema = { type: "array", items: { type: "string" } };
+		expect(sanitizeSchemaForOpenAIResponses(schema)).toBe(schema);
+	});
+
 	it("preserves non-array oneOf payloads verbatim instead of dropping them", () => {
 		const malformed = { type: "object", oneOf: { type: "object" } } as unknown as Record<string, unknown>;
 

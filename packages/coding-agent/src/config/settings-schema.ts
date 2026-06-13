@@ -1116,6 +1116,20 @@ export const SETTINGS_SCHEMA = {
 			],
 		},
 	},
+	"prompt.subagentContextMode": {
+		type: "enum",
+		values: ["full", "compact"] as const,
+		default: "compact",
+		ui: {
+			tab: "context",
+			label: "Subagent Prompt Context",
+			description: "How much project context delegated subagents receive at startup",
+			options: [
+				{ value: "compact", label: "Compact", description: "Keep delegated prompts lean" },
+				{ value: "full", label: "Full", description: "Load full project context into delegated prompts" },
+			],
+		},
+	},
 	"mission.terminalPanel": {
 		type: "enum",
 		values: ["off", "compact", "expanded"] as const,
@@ -1187,6 +1201,15 @@ export const SETTINGS_SCHEMA = {
 					description: "Use the provider/global default retention policy",
 				},
 			],
+		},
+	},
+	"prompt.mcpServerInstructions": {
+		type: "boolean",
+		default: false,
+		ui: {
+			tab: "context",
+			label: "MCP Server Instructions",
+			description: "Include MCP server setup instructions in the prompt when relevant servers are active",
 		},
 	},
 
@@ -1341,7 +1364,7 @@ export const SETTINGS_SCHEMA = {
 		},
 	},
 	"localLlm.required": { type: "boolean", default: false },
-	"localLlm.modelRole": { type: "string", default: "Resercher" },
+	"localLlm.modelRole": { type: "string", default: "LocalScout" },
 	"localLlm.structuredOutput": { type: "boolean", default: true },
 	"localLlm.disableThinking": { type: "boolean", default: true },
 	"localLlm.maxInputTokens": { type: "number", default: 12000 },
@@ -1350,6 +1373,11 @@ export const SETTINGS_SCHEMA = {
 	"localLlm.useForLogSummarizer": { type: "boolean", default: true },
 	"localLlm.useForContextCompressor": { type: "boolean", default: true },
 
+	"promptEnhancer.enabled": { type: "boolean", default: false },
+	"promptEnhancer.model": { type: "string", default: undefined },
+	"promptEnhancer.contextChars": { type: "number", default: 2000 },
+	"promptEnhancer.maxOutputTokens": { type: "number", default: 512 },
+	"promptEnhancer.timeoutMs": { type: "number", default: 15000 },
 	"compaction.reserveTokens": { type: "number", default: 16384 },
 
 	"compaction.keepRecentTokens": { type: "number", default: 20000 },
@@ -1816,6 +1844,37 @@ export const SETTINGS_SCHEMA = {
 	"shellMinimizer.settingsPath": {
 		type: "string",
 		default: undefined,
+	},
+	"toolCompression.enabled": {
+		type: "boolean",
+		default: true,
+		ui: {
+			tab: "tools",
+			label: "Tool Output Compression",
+			description: "Compress oversized search and bash outputs before returning them to the agent",
+		},
+	},
+	"toolCompression.minimumBytes": { type: "number", default: 8192 },
+	"toolCompression.search.enabled": { type: "boolean", default: true },
+	"toolCompression.search.maxFiles": { type: "number", default: 12 },
+	"toolCompression.search.maxMatchesPerFile": { type: "number", default: 4 },
+	"toolCompression.bash.enabled": { type: "boolean", default: true },
+	"toolCompression.log.maxErrorBlocks": { type: "number", default: 8 },
+	"toolCompression.log.maxWarningFamilies": { type: "number", default: 5 },
+	"toolCompression.log.maxTotalLines": { type: "number", default: 120 },
+	"tools.gateway.permissionMode": {
+		type: "enum",
+		values: ["allow-all", "enforce"] as const,
+		default: "allow-all",
+		ui: {
+			tab: "tools",
+			label: "Gateway Permission Mode",
+			description: "How strictly the session gateway enforces high-risk seam approvals",
+			options: [
+				{ value: "allow-all", label: "Allow all", description: "Keep seam enforcement permissive" },
+				{ value: "enforce", label: "Enforce", description: "Require approval for high-risk seam tool execution" },
+			],
+		},
 	},
 	"shellMinimizer.only": { type: "array", default: EMPTY_STRING_ARRAY },
 	"shellMinimizer.except": { type: "array", default: EMPTY_STRING_ARRAY },
@@ -3036,6 +3095,14 @@ export interface LocalLlmSettings {
 	useForContextCompressor: boolean;
 }
 
+
+export interface PromptEnhancerSettings {
+	enabled: boolean;
+	model: string | undefined;
+	contextChars: number;
+	maxOutputTokens: number;
+	timeoutMs: number;
+}
 export interface ExaSettings {
 	enabled: boolean;
 	enableSearch: boolean;
@@ -3112,6 +3179,7 @@ export interface GroupTypeMap {
 	modelTags: ModelTagsSettings;
 	cycleOrder: string[];
 	shellMinimizer: ShellMinimizerSettings;
+	promptEnhancer: PromptEnhancerSettings;
 }
 
 export type GroupPrefix = keyof GroupTypeMap;

@@ -1,13 +1,18 @@
 modelRoles:
-  default: openai-codex/gpt-5.5
-  Builder: openai-codex/gpt-5.5
-  Resercher: openai-codex/gpt-5.3-codex-spark
-  SRE: openai-codex/gpt-5.5
+  default: openai-codex/gpt-5.4:medium
+  Planner: anthropic/claude-opus-4.8:medium
+  Builder: openai-codex/gpt-5.5:medium
+  Researcher: openai-codex/gpt-5.3-codex-spark:medium
+  Reviewer: anthropic/claude-opus-4.8:medium
+  SRE: openai-codex/gpt-5.5:medium
+  Explore: local-qwen36/Qwen3.6-35B-A3B-Claude-4.7-Opus-Reasoning-Distilled-MLX-oQ4-MTP:medium
+  Designer: anthropic/claude-opus-4.8:medium
+  LocalScout: local-qwen36/Qwen3.6-35B-A3B-Claude-4.7-Opus-Reasoning-Distilled-MLX-oQ4-MTP:medium
 hideThinkingBlock: true
 localLlm:
   enabled: true
   required: false
-  modelRole: Resercher
+  modelRole: LocalScout
   structuredOutput: true
   disableThinking: true
   useForLogSummarizer: true
@@ -74,9 +79,6 @@ skills:
     - triage
     - patch
     - customize
-    - browser-control
-    - skillui
-    - build-ios-apps:*
     - baguette-ios-runtime
     - system-prompts
     - sui-validater

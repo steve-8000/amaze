@@ -72,8 +72,9 @@ export type ModelRole =
 	| "Reviewer"
 	| "Builder"
 	| "Designer"
-	| "Resercher"
-	| "Resercher_X"
+	| "Researcher"
+	| "Researcher_X"
+	| "LocalScout"
 	| "commit";
 
 export interface ModelRoleInfo {
@@ -89,8 +90,9 @@ export const MODEL_ROLES: Record<ModelRole, ModelRoleInfo> = {
 	Reviewer: { tag: "REVIEW", name: "Reviewer", color: "accent" },
 	Builder: { tag: "BUILD", name: "Builder", color: "success" },
 	Designer: { tag: "DESIGN", name: "Designer", color: "error" },
-	Resercher: { tag: "RESEARCH", name: "Resercher", color: "muted" },
-	Resercher_X: { tag: "X", name: "Resercher X", color: "muted" },
+	Researcher: { tag: "RESEARCH", name: "Researcher", color: "muted" },
+	Researcher_X: { tag: "X", name: "Researcher X", color: "muted" },
+	LocalScout: { tag: "SCOUT", name: "Local Scout", color: "warning" },
 	commit: { tag: "COMMIT", name: "Commit", color: "dim" },
 };
 export const MODEL_ROLE_IDS: ModelRole[] = [
@@ -100,8 +102,9 @@ export const MODEL_ROLE_IDS: ModelRole[] = [
 	"Reviewer",
 	"Builder",
 	"Designer",
-	"Resercher",
-	"Resercher_X",
+	"Researcher",
+	"Researcher_X",
+	"LocalScout",
 	"commit",
 ];
 

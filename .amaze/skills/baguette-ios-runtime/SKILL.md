@@ -57,7 +57,7 @@ Logs:
 
 1. Check `https://app.clab.one/simulators` or `/simulators.json`.
 2. Choose the existing booted simulator when possible.
-3. If no simulator is booted, boot one through Baguette or the existing XcodeBuildMCP simulator workflow.
+3. If no simulator is booted, boot one through Baguette.
 4. For low-latency input automation, use one persistent `baguette input --udid <simulator-udid>` process for the active workflow.
 5. Verify with a real Baguette frame or WebSocket stream before claiming browser-visible simulator proof.
 

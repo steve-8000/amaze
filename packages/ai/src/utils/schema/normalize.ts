@@ -971,6 +971,14 @@ function normalizeOpenAIResponsesSchemaNode(value: unknown, cache: WeakMap<JsonO
 		changed = true;
 	}
 
+	// OpenAI's function-schema validator likewise rejects `type: "array"`
+	// nodes without an `items` member ("array schema missing items"). `true`
+	// is the canonical "any value" item schema on the 2020-12 wire.
+	if (declaresType(value.type, "array") && !Object.hasOwn(value, "items")) {
+		output.items = true;
+		changed = true;
+	}
+
 	// Safe to overwrite the seed: any cyclic re-entry above already observed
 	// the seeded partial and set `changed = true` for that node, so a node
 	// that finishes with `changed === false` is provably non-cyclic and
@@ -981,10 +989,14 @@ function normalizeOpenAIResponsesSchemaNode(value: unknown, cache: WeakMap<JsonO
 }
 
 function declaresObjectType(type: unknown): boolean {
-	if (type === "object") return true;
+	return declaresType(type, "object");
+}
+
+function declaresType(type: unknown, expected: string): boolean {
+	if (type === expected) return true;
 	if (!Array.isArray(type)) return false;
 	for (const variant of type) {
-		if (variant === "object") return true;
+		if (variant === expected) return true;
 	}
 	return false;
 }

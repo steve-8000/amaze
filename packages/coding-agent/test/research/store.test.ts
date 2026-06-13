@@ -341,7 +341,7 @@ describe("ResearchStore", () => {
 					id: "lane-finalize-source",
 					missionId: mission.id,
 					lane: "source",
-					agent: "Resercher",
+					agent: "Researcher",
 					epistemicRole: "source_harvest",
 					status: "pending",
 					evidenceCount: 0,

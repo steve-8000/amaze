@@ -73,6 +73,7 @@ export default class Research extends Command {
 			description: "Critique verdict: accept|accept-with-modifications|reject|needs-more-research",
 		}),
 		json: Flags.boolean({ description: "Output JSON" }),
+		auto: Flags.boolean({ description: "Execute lanes automatically (source lane via web search) for run" }),
 	};
 
 	async run(): Promise<void> {
@@ -113,7 +114,7 @@ export default class Research extends Command {
 
 		if (action === "run") {
 			const { runResearchRunCommand } = await import("../cli/research");
-			await runResearchRunCommand({ db: flags.db, briefId: id, json: flags.json });
+			await runResearchRunCommand({ db: flags.db, briefId: id, json: flags.json, auto: flags.auto });
 			return;
 		}
 		if (action === "show") {

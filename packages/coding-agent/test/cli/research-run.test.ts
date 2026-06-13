@@ -54,7 +54,7 @@ describe("research run CLI helper", () => {
 				{
 					id: output.laneRunIds[0],
 					lane: "repo",
-					agent: "Resercher",
+					agent: "Researcher",
 					epistemicRole: "repo_truth",
 					status: "pending",
 					evidenceCount: 0,
@@ -62,7 +62,7 @@ describe("research run CLI helper", () => {
 				{
 					id: output.laneRunIds[1],
 					lane: "source",
-					agent: "Resercher",
+					agent: "Researcher",
 					epistemicRole: "source_harvest",
 					status: "pending",
 					evidenceCount: 0,
@@ -70,7 +70,7 @@ describe("research run CLI helper", () => {
 				{
 					id: output.laneRunIds[2],
 					lane: "social",
-					agent: "Resercher_X",
+					agent: "Researcher_X",
 					epistemicRole: "social_signal",
 					status: "pending",
 					evidenceCount: 0,

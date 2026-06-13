@@ -185,6 +185,13 @@ export function classifyContinuation(input: ContinuationDecisionInput): Continua
 		return { kind: "hold", status: "budget_limited", reason: "max_auto_turns" };
 	}
 
+	// Token budget cap: a mission with a positive token budget that has consumed it
+	// may not continue autonomously (cost-runaway protection). tokenBudget <= 0
+	// means "no cap" (DEFAULT_TOKEN_BUDGET is 0).
+	if (mission.budget.tokenBudget > 0 && mission.budget.tokensUsed >= mission.budget.tokenBudget) {
+		return { kind: "hold", status: "budget_limited", reason: "token_budget_exhausted" };
+	}
+
 	// No-progress limit: pause rather than loop forever (design doc default 3).
 	if (noProgressLimit > 0 && (record?.noProgressCount ?? 0) >= noProgressLimit) {
 		return { kind: "hold", status: "paused", reason: "no_progress_limit" };

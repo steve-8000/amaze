@@ -50,5 +50,6 @@ export type {
 } from "./utils/oauth/types";
 export * from "./utils/overflow";
 export * from "./utils/retry";
+export * from "./utils/safety-boundary";
 export * from "./utils/schema";
 export * from "./utils/validation";

@@ -11,6 +11,28 @@ async function makeSessionFile(root: string, lines: unknown[]): Promise<string> 
 	return file;
 }
 
+async function makeCompletionClaimSession(root: string): Promise<string> {
+	return makeSessionFile(root, [
+		{ type: "session", id: "s1", timestamp: new Date().toISOString(), cwd: root, title: "AGI claim" },
+		{
+			type: "message",
+			id: "a1",
+			parentId: null,
+			timestamp: new Date().toISOString(),
+			message: {
+				role: "assistant",
+				content: [
+					{
+						type: "text",
+						text: 'Done.\nAGI_GATEWAY_RESULT {"score":100,"complete":true,"satisfiedCriteria":["context_boundaries_preserved","initial_build_goal_complete"],"summary":"Claimed complete."}',
+					},
+				],
+				stopReason: "endTurn",
+			},
+		},
+	]);
+}
+
 describe("AGI supervisor", () => {
 	it("observes completed turns, schedules follow-up work, and increases structured progress", async () => {
 		const root = await fs.mkdtemp(path.join(os.tmpdir(), "amaze-agi-supervisor-"));
@@ -182,6 +204,83 @@ describe("AGI supervisor", () => {
 				}
 			}
 			expect(calls).toBe(3);
+		} finally {
+			store.close();
+			await fs.rm(root, { recursive: true, force: true });
+		}
+	});
+
+	it("rejects an unverified completion claim and keeps the session incomplete", async () => {
+		const root = await fs.mkdtemp(path.join(os.tmpdir(), "amaze-agi-supervisor-"));
+		const driver: AgiActionDriver = {
+			async run() {
+				return { exitCode: 0, stdout: "", stderr: "" };
+			},
+		};
+		const store = new AgiGatewayStore(":memory:");
+		try {
+			const sessionFile = await makeCompletionClaimSession(root);
+			store.addSession({ sessionId: "s1", sessionPath: sessionFile, cwd: root, title: "AGI claim" });
+
+			const result = await new AgiSupervisor({
+				store,
+				driver,
+				completionVerifier: () => false,
+			}).tick();
+			const session = store.getSession("s1");
+			if (!session) throw new Error("Expected session");
+
+			// Claim was rejected: not complete, score below target, claim kept for audit.
+			expect(session.completionState.complete).toBe(false);
+			expect(result.score).toBeLessThan(100);
+			expect(session.state).not.toBe("completed");
+			expect(session.completionState.lastStructuredResult).toMatchObject({ complete: false, score: 100 });
+			const events = store.listEvents("s1");
+			expect(events.some(event => event.payload.completionClaimRejected === true)).toBe(true);
+		} finally {
+			store.close();
+			await fs.rm(root, { recursive: true, force: true });
+		}
+	});
+
+	it("honors a completion claim when the verifier confirms it", async () => {
+		const root = await fs.mkdtemp(path.join(os.tmpdir(), "amaze-agi-supervisor-"));
+		const driver: AgiActionDriver = {
+			async run() {
+				return { exitCode: 0, stdout: "", stderr: "" };
+			},
+		};
+		const store = new AgiGatewayStore(":memory:");
+		try {
+			const sessionFile = await makeCompletionClaimSession(root);
+			const attached = store.addSession({
+				sessionId: "s1",
+				sessionPath: sessionFile,
+				cwd: root,
+				title: "AGI claim",
+			});
+			// Pre-satisfy the supervisor-owned criteria so the agent claim is the last gate.
+			const completionState = buildAgiCompletionState(attached.goalSpec, {
+				score: 60,
+				complete: false,
+				structuredResultSeen: false,
+				summary: attached.completionState.summary,
+				agentSatisfiedCriteria: [],
+				supervisorSatisfiedCriteria: ["monitored_by_gateway", "follow_up_turn_executed"],
+			});
+			store.updateSession("s1", { score: 60, completionState });
+
+			const result = await new AgiSupervisor({
+				store,
+				driver,
+				completionVerifier: () => true,
+			}).tick();
+			const session = store.getSession("s1");
+			if (!session) throw new Error("Expected session");
+
+			expect(result.score).toBe(100);
+			expect(session.state).toBe("completed");
+			expect(session.completionState.complete).toBe(true);
 		} finally {
 			store.close();
 			await fs.rm(root, { recursive: true, force: true });

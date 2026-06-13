@@ -28,6 +28,7 @@ interface MissionControlSlashRuntime {
  */
 export const MISSION_SUBCOMMANDS = [
 	{ name: "create", description: "Create a new mission and make it active", usage: "<objective>" },
+	{ name: "plan", description: "Decompose the active mission's objective into a plan DAG (cognition planner)" },
 	{ name: "show", description: "Show mission details", usage: "<missionId>" },
 	{ name: "stream", description: "Show or follow the mission event log", usage: "<missionId> [--follow]" },
 	{ name: "evidence", description: "List mission evidence", usage: "<missionId>" },

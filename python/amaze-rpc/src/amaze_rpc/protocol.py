@@ -246,7 +246,9 @@ def parse_agent_messages(payload: JsonValue | None) -> tuple[AgentMessage, ...]:
 
     messages: list[AgentMessage] = []
     for index, item in enumerate(payload):
-        messages.append(_parse_agent_message(_clone_json_object(item, field=f"messages[{index}]"), field=f"messages[{index}]"))
+        messages.append(
+            _parse_agent_message(_clone_json_object(item, field=f"messages[{index}]"), field=f"messages[{index}]")
+        )
     return tuple(messages)
 
 
@@ -315,12 +317,16 @@ def parse_assistant_message_event(payload: JsonObject) -> AssistantMessageEvent:
         if content_index is None:
             raise ValueError("assistantMessageEvent.contentIndex must be an integer")
         tool_call = _clone_json_object(payload.get("toolCall"), field="assistantMessageEvent.toolCall")
-        return AssistantToolCallEndEvent(contentIndex=content_index, toolCall=cast(ToolCall, tool_call), partial=partial)
+        return AssistantToolCallEndEvent(
+            contentIndex=content_index, toolCall=cast(ToolCall, tool_call), partial=partial
+        )
     if event_type == "done":
         return AssistantDoneEvent(
             reason=cast(
                 Literal["stop", "length", "toolUse"],
-                _require_literal(payload.get("reason"), _ASSISTANT_DONE_REASON_VALUES, field="assistantMessageEvent.reason"),
+                _require_literal(
+                    payload.get("reason"), _ASSISTANT_DONE_REASON_VALUES, field="assistantMessageEvent.reason"
+                ),
             ),
             message=_parse_assistant_message(
                 _clone_json_object(payload.get("message"), field="assistantMessageEvent.message"),
@@ -330,7 +336,9 @@ def parse_assistant_message_event(payload: JsonObject) -> AssistantMessageEvent:
     return AssistantErrorEvent(
         reason=cast(
             Literal["aborted", "error"],
-            _require_literal(payload.get("reason"), _ASSISTANT_ERROR_REASON_VALUES, field="assistantMessageEvent.reason"),
+            _require_literal(
+                payload.get("reason"), _ASSISTANT_ERROR_REASON_VALUES, field="assistantMessageEvent.reason"
+            ),
         ),
         error=_parse_assistant_message(
             _clone_json_object(payload.get("error"), field="assistantMessageEvent.error"),
@@ -1068,11 +1076,15 @@ def parse_model_info(payload: JsonObject | None) -> ModelInfo | None:
             ThinkingConfig(
                 min_level=cast(
                     ThinkingLevel,
-                    _require_literal(thinking_payload.get("minLevel"), _THINKING_LEVEL_VALUES, field="model.thinking.minLevel"),
+                    _require_literal(
+                        thinking_payload.get("minLevel"), _THINKING_LEVEL_VALUES, field="model.thinking.minLevel"
+                    ),
                 ),
                 max_level=cast(
                     ThinkingLevel,
-                    _require_literal(thinking_payload.get("maxLevel"), _THINKING_LEVEL_VALUES, field="model.thinking.maxLevel"),
+                    _require_literal(
+                        thinking_payload.get("maxLevel"), _THINKING_LEVEL_VALUES, field="model.thinking.maxLevel"
+                    ),
                 ),
                 mode=_require_str(cast(JsonObject, thinking_payload), "mode"),
             )
@@ -1127,7 +1139,8 @@ def parse_todo_phases(payload: JsonValue | None) -> tuple[TodoPhase, ...]:
 
 def parse_session_state(payload: JsonObject) -> SessionState:
     dump_tools = tuple(
-        parse_tool_descriptor(_clone_json_object(item, field="dumpTools[]")) for item in cast(list[Any], payload.get("dumpTools") or [])
+        parse_tool_descriptor(_clone_json_object(item, field="dumpTools[]"))
+        for item in cast(list[Any], payload.get("dumpTools") or [])
     )
     return SessionState(
         model=parse_model_info(cast(JsonObject | None, payload.get("model"))),
@@ -1313,7 +1326,9 @@ def parse_notification(payload: JsonObject) -> RpcNotification:
                 field="turn_end.message",
             ),
             tool_results=tuple(
-                _parse_tool_result_message(_clone_json_object(item, field="turn_end.toolResults[]"), field="turn_end.toolResults[]")
+                _parse_tool_result_message(
+                    _clone_json_object(item, field="turn_end.toolResults[]"), field="turn_end.toolResults[]"
+                )
                 for item in cast(list[Any], payload.get("toolResults") or [])
             ),
         )
@@ -1345,14 +1360,18 @@ def parse_notification(payload: JsonObject) -> RpcNotification:
         return ToolExecutionStartEvent(
             tool_call_id=str(payload.get("toolCallId", "")),
             tool_name=str(payload.get("toolName", "")),
-            args=_clone_json_value(payload.get("args"), field="tool_execution_start.args") if "args" in payload else None,
+            args=_clone_json_value(payload.get("args"), field="tool_execution_start.args")
+            if "args" in payload
+            else None,
             intent=_optional_str(payload, "intent"),
         )
     if event_type == "tool_execution_update":
         return ToolExecutionUpdateEvent(
             tool_call_id=str(payload.get("toolCallId", "")),
             tool_name=str(payload.get("toolName", "")),
-            args=_clone_json_value(payload.get("args"), field="tool_execution_update.args") if "args" in payload else None,
+            args=_clone_json_value(payload.get("args"), field="tool_execution_update.args")
+            if "args" in payload
+            else None,
             partial_result=(
                 _clone_json_value(payload.get("partialResult"), field="tool_execution_update.partialResult")
                 if "partialResult" in payload
@@ -1363,18 +1382,28 @@ def parse_notification(payload: JsonObject) -> RpcNotification:
         return ToolExecutionEndEvent(
             tool_call_id=str(payload.get("toolCallId", "")),
             tool_name=str(payload.get("toolName", "")),
-            result=_clone_json_value(payload.get("result"), field="tool_execution_end.result") if "result" in payload else None,
+            result=_clone_json_value(payload.get("result"), field="tool_execution_end.result")
+            if "result" in payload
+            else None,
             is_error=_optional_bool(payload, "isError"),
         )
     if event_type == "auto_compaction_start":
         return AutoCompactionStartEvent(
             reason=cast(
                 Literal["threshold", "overflow", "idle"],
-                _require_literal(payload.get("reason", "threshold"), _AUTO_COMPACTION_REASON_VALUES, field="auto_compaction_start.reason"),
+                _require_literal(
+                    payload.get("reason", "threshold"),
+                    _AUTO_COMPACTION_REASON_VALUES,
+                    field="auto_compaction_start.reason",
+                ),
             ),
             action=cast(
                 Literal["context-full", "handoff"],
-                _require_literal(payload.get("action", "context-full"), _AUTO_COMPACTION_ACTION_VALUES, field="auto_compaction_start.action"),
+                _require_literal(
+                    payload.get("action", "context-full"),
+                    _AUTO_COMPACTION_ACTION_VALUES,
+                    field="auto_compaction_start.action",
+                ),
             ),
         )
     if event_type == "auto_compaction_end":
@@ -1382,7 +1411,11 @@ def parse_notification(payload: JsonObject) -> RpcNotification:
         return AutoCompactionEndEvent(
             action=cast(
                 Literal["context-full", "handoff"],
-                _require_literal(payload.get("action", "context-full"), _AUTO_COMPACTION_ACTION_VALUES, field="auto_compaction_end.action"),
+                _require_literal(
+                    payload.get("action", "context-full"),
+                    _AUTO_COMPACTION_ACTION_VALUES,
+                    field="auto_compaction_end.action",
+                ),
             ),
             result=(
                 parse_compaction_result(_clone_json_object(result_payload, field="auto_compaction_end.result"))

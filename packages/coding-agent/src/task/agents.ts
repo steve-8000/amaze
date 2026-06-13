@@ -51,11 +51,11 @@ const EMBEDDED_AGENT_DEFS: EmbeddedAgentDef[] = [
 	{
 		fileName: "researcher.md",
 		frontmatter: {
-			name: "Resercher",
+			name: "Researcher",
 			description:
 				"GPT-5.3 Codex Spark search-only researcher for web and X/Twitter. Use for external facts, docs, issues, changelogs, and social signals; browser only when search/read are blocked.",
 			tools: "web_search, x_search, x_search_deep, read, browser",
-			model: "Resercher",
+			model: "Researcher",
 			thinkingLevel: Effort.Low,
 		},
 		template: researcherMd,

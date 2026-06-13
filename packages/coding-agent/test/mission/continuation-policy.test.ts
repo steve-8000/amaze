@@ -161,6 +161,30 @@ describe("classifyContinuation", () => {
 		expect(action).toEqual({ kind: "hold", status: "paused", reason: "no_progress_limit" });
 	});
 
+	test("token budget exhausted → hold budget_limited", () => {
+		const action = classifyContinuation({
+			...baseInput,
+			mission: mission({ budget: { tokenBudget: 1_000, tokensUsed: 1_000 } }),
+		});
+		expect(action).toEqual({ kind: "hold", status: "budget_limited", reason: "token_budget_exhausted" });
+	});
+
+	test("token budget with headroom → continue", () => {
+		const action = classifyContinuation({
+			...baseInput,
+			mission: mission({ budget: { tokenBudget: 1_000, tokensUsed: 999 }, intent: "runtime_refactor" }),
+		});
+		expect(action).toEqual({ kind: "continue", reason: "missing_requirements" });
+	});
+
+	test("zero token budget means no cap", () => {
+		const action = classifyContinuation({
+			...baseInput,
+			mission: mission({ budget: { tokenBudget: 0, tokensUsed: 5_000_000 }, intent: "runtime_refactor" }),
+		});
+		expect(action).toEqual({ kind: "continue", reason: "missing_requirements" });
+	});
+
 	test("executing incomplete mission → continue (missing_requirements)", () => {
 		const action = classifyContinuation({ ...baseInput, mission: mission({ intent: "runtime_refactor" }) });
 		expect(action).toEqual({ kind: "continue", reason: "missing_requirements" });

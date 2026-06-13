@@ -44,6 +44,12 @@ export interface EvidenceCard {
 	recency: number;
 	/** 0..1 — can be reproduced by code/tests */
 	reproducibility: number;
+	/**
+	 * SHA-256 hex of the captured excerpt at collection time. Citation provenance:
+	 * lets later staleness checks detect that the underlying source content drifted.
+	 * Absent/null for legacy or manual cards recorded before hashing existed.
+	 */
+	contentHash?: string | null;
 }
 
 export type NewEvidenceCard = Omit<EvidenceCard, "id" | "capturedAt"> & {

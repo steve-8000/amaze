@@ -13,20 +13,21 @@ describe("prompt cache policy", () => {
 		});
 	});
 
-	it("keeps subagents full-context and short-retention by default", () => {
+	it("keeps subagents compact-context and short-retention by default", () => {
 		const settings = Settings.isolated({ "prompt.mainContextMode": "compact" });
 		const policy = resolvePromptCachePolicy({ settings, taskDepth: 1, parentTaskPrefix: "0-Task" });
 
 		expect(policy).toEqual({
 			role: "subagent",
-			projectContextMode: "full",
+			projectContextMode: "compact",
 			cacheRetention: "short",
 		});
 	});
 
-	it("honors explicit retention overrides without changing subagent context policy", () => {
+	it("honors explicit retention and context overrides", () => {
 		const settings = Settings.isolated({
 			"prompt.mainContextMode": "full",
+			"prompt.subagentContextMode": "full",
 			"prompt.cache.orchestratorRetention": "none",
 			"prompt.cache.subagentRetention": "long",
 		});
@@ -51,7 +52,7 @@ describe("prompt cache policy", () => {
 
 		expect(resolvePromptCachePolicy({ settings, taskDepth: 1 })).toEqual({
 			role: "subagent",
-			projectContextMode: "full",
+			projectContextMode: "compact",
 			cacheRetention: "long",
 		});
 	});

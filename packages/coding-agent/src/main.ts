@@ -52,6 +52,8 @@ import { resolvePromptInput } from "./system-prompt";
 import type { LspStartupServerInfo } from "./tools";
 import { getChangelogPath, getNewEntries, parseChangelog } from "./utils/changelog";
 import type { EventBus } from "./utils/event-bus";
+import { templateFor } from "./mission/core/lifecycle-template";
+import { inferIntent } from "./mission/policy/intent";
 
 async function checkForNewVersion(currentVersion: string): Promise<string | undefined> {
 	if (!settings.get("startup.checkUpdate")) {
@@ -119,13 +121,25 @@ export interface InteractiveModeNotify {
 export async function submitInteractiveInput(
 	mode: Pick<
 		InteractiveMode,
-		"markPendingSubmissionStarted" | "finishPendingSubmission" | "showError" | "checkShutdownRequested"
+		| "markPendingSubmissionStarted"
+		| "finishPendingSubmission"
+		| "showError"
+		| "checkShutdownRequested"
+		| "handlePlanModeCommand"
+		| "planModeEnabled"
 	>,
 	session: Pick<AgentSession, "prompt" | "promptCustomMessage">,
 	input: SubmittedUserInput,
 ): Promise<void> {
 	if (input.cancelled) {
 		return;
+	}
+
+	function shouldAutoPlanInput(text: string): boolean {
+		const trimmed = text.trim();
+		if (!trimmed || trimmed.startsWith("/")) return false;
+		const intent = inferIntent({ objective: trimmed });
+		return templateFor(intent).requireProposalBeforeMutation;
 	}
 
 	try {
@@ -140,6 +154,8 @@ export async function submitInteractiveInput(
 				display: input.display ?? false,
 				attribution: "agent",
 			});
+		} else if (!input.started && !mode.planModeEnabled && shouldAutoPlanInput(input.text)) {
+			await mode.handlePlanModeCommand(input.text);
 		} else {
 			await session.prompt(input.text, { images: input.images });
 		}

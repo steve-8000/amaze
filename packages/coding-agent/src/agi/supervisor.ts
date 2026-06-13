@@ -18,7 +18,22 @@ export interface AgiSupervisorOptions {
 	targetScore?: number;
 	driver?: AgiActionDriver;
 	now?: () => number;
+	/**
+	 * Verifier for agent-claimed completion. The structured marker result an agent
+	 * emits is a SELF-REPORT; when a verifier is configured, a claimed
+	 * `complete: true` is only honored after the verifier confirms it against
+	 * external evidence (tests, telemetry, artifacts). On rejection the claim is
+	 * still recorded (`lastStructuredResult`) but the session does not complete.
+	 * Without a verifier the legacy claim-trusting behavior is preserved.
+	 */
+	completionVerifier?: AgiCompletionVerifier;
 }
+
+/** Returns true when an agent's completion claim is backed by external evidence. */
+export type AgiCompletionVerifier = (
+	session: AgiMonitoredSession,
+	claim: AgiStructuredResult,
+) => boolean | Promise<boolean>;
 
 export interface AgiSupervisorHandle {
 	stop(): void;
@@ -59,6 +74,7 @@ export class AgiSupervisor {
 	readonly #targetScore: number;
 	readonly #driver: AgiActionDriver;
 	readonly #now: () => number;
+	readonly #completionVerifier: AgiCompletionVerifier | undefined;
 	#timer: ReturnType<typeof setTimeout> | undefined;
 	#running = false;
 	#stopping = false;
@@ -72,6 +88,7 @@ export class AgiSupervisor {
 		this.#targetScore = options.targetScore ?? DEFAULT_TARGET_SCORE;
 		this.#driver = options.driver ?? new CliAgiActionDriver();
 		this.#now = options.now ?? Date.now;
+		this.#completionVerifier = options.completionVerifier;
 		this.#done = new Promise((resolve, reject) => {
 			this.#doneResolve = resolve;
 			this.#doneReject = reject;
@@ -111,7 +128,7 @@ export class AgiSupervisor {
 	}
 
 	async tick(): Promise<AgiTickResult> {
-		const observed = await observeSessions(this.#store, this.#targetScore, this.#now);
+		const observed = await observeSessions(this.#store, this.#targetScore, this.#now, this.#completionVerifier);
 		const actionsCreated = planActions(this.#store, this.#targetScore, this.#now);
 		const actionsCompleted = await runPendingActions(this.#store, this.#driver, this.#targetScore, this.#now);
 		const score = this.#store.overallScore();
@@ -141,6 +158,7 @@ export async function observeSessions(
 	store: AgiGatewayStore,
 	targetScore = DEFAULT_TARGET_SCORE,
 	now: () => number = Date.now,
+	completionVerifier?: AgiCompletionVerifier,
 ): Promise<number> {
 	let observed = 0;
 	for (const session of store.listSessions()) {
@@ -190,9 +208,21 @@ export async function observeSessions(
 
 		const delta = await readSessionDelta(session.sessionPath, session.observedBytes);
 		const analysis = analyzeSessionDelta(delta, session.goalSpec.markerPrefix, stat.size);
+		// Self-report demotion: a claimed complete=true is only honored when the
+		// configured verifier confirms it against external evidence. The rejected
+		// claim is preserved as a claim (lastStructuredResult) for audit.
+		let structuredResult = analysis.structuredResult;
+		let claimRejected = false;
+		if (structuredResult?.complete && completionVerifier) {
+			const verified = await completionVerifier(session, structuredResult);
+			if (!verified) {
+				structuredResult = { ...structuredResult, complete: false };
+				claimRejected = true;
+			}
+		}
 		const completionState = withCompletionUpdate(session, {
 			assistantTurnCompleted: analysis.hasAssistantEnd,
-			structuredResult: analysis.structuredResult,
+			structuredResult,
 			summary: analysis.summary,
 		});
 		const controlState = nextControlState(session.controlState, {
@@ -226,6 +256,7 @@ export async function observeSessions(
 				structuredResultSeen: completionState.structuredResultSeen,
 				complete: completionState.complete,
 				missingCriteria: completionState.missingCriteria,
+				...(claimRejected ? { completionClaimRejected: true } : {}),
 			},
 			{ id: eventId(session, analysis.eventType, stat.size), createdAt: now() },
 		);

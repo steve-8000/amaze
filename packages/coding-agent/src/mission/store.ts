@@ -439,6 +439,31 @@ const MIGRATIONS: StoreMigration[] = [
 			`);
 		},
 	},
+	{
+		version: 5,
+		description: "scope mission_plan_steps primary key per mission",
+		up: db => {
+			// Step ids are planner-local slugs (s1, s2, …): two missions legitimately
+			// reuse the same id. The baseline table made `id` a global PRIMARY KEY,
+			// so the second mission's savePlan hit UNIQUE constraint failures.
+			// Recreate with a composite (mission_id, id) key.
+			db.exec(`
+			CREATE TABLE IF NOT EXISTS mission_plan_steps_v5 (
+				id TEXT NOT NULL,
+				mission_id TEXT NOT NULL,
+				ordinal INTEGER NOT NULL,
+				description TEXT NOT NULL,
+				edges_json TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(edges_json)),
+				PRIMARY KEY (mission_id, id)
+			);
+			INSERT OR IGNORE INTO mission_plan_steps_v5 (id, mission_id, ordinal, description, edges_json)
+				SELECT id, mission_id, ordinal, description, edges_json FROM mission_plan_steps;
+			DROP TABLE mission_plan_steps;
+			ALTER TABLE mission_plan_steps_v5 RENAME TO mission_plan_steps;
+			CREATE INDEX IF NOT EXISTS mission_plan_steps_mission_idx ON mission_plan_steps(mission_id);
+			`);
+		},
+	},
 ];
 
 function ensureColumn(db: Database, table: string, column: string, definition: string): void {

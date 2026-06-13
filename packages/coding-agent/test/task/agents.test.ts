@@ -11,7 +11,7 @@ describe("bundled agents", () => {
 		const names = agents.map(agent => agent.name);
 
 		expect(agents).toHaveLength(4);
-		expect(names).toEqual(["Builder", "Resercher", "SRE", "Reviewer"]);
+		expect(names).toEqual(["Builder", "Researcher", "SRE", "Reviewer"]);
 	});
 
 	it("registers Builder as the default delegated implementation agent", () => {
@@ -24,11 +24,11 @@ describe("bundled agents", () => {
 		expect(builder.systemPrompt).toContain("worker agent for delegated tasks");
 	});
 
-	it("registers Resercher as the Codex Spark-backed search-only agent", () => {
-		const researcher = getBundledAgent("Resercher");
-		if (!researcher) throw new Error("Expected bundled Resercher agent");
+	it("registers Researcher as the Codex Spark-backed search-only agent", () => {
+		const researcher = getBundledAgent("Researcher");
+		if (!researcher) throw new Error("Expected bundled Researcher agent");
 
-		expect(researcher.model).toEqual(["Resercher"]);
+		expect(researcher.model).toEqual(["Researcher"]);
 		expect(researcher.tools?.filter(tool => tool !== "yield")).toEqual([
 			"web_search",
 			"x_search",

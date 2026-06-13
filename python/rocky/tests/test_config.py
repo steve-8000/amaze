@@ -133,6 +133,7 @@ def test_task_timeout_hard_grace_env_parses(monkeypatch: pytest.MonkeyPatch, env
     cfg = Settings()  # type: ignore[call-arg]
     assert cfg.task_timeout_hard_grace_seconds == 12.5
 
+
 def test_sqlite_synchronous_defaults_to_full(env: dict[str, str]) -> None:
     cfg = Settings()  # type: ignore[call-arg]
     assert cfg.sqlite_synchronous == "FULL"

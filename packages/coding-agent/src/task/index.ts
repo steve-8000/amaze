@@ -62,13 +62,12 @@ import type { LocalProtocolOptions } from "../internal-urls";
 import { generateCommitMessage } from "../utils/commit-message-generator";
 import * as git from "../utils/git";
 import { discoverAgents, getAgent } from "./discovery";
-import { runSubprocess } from "./executor";
 import { MissionTaskRunner } from "./mission-task-runner";
 import { AgentOutputManager } from "./output-manager";
 import { mapWithConcurrencyLimit, Semaphore } from "./parallel";
 import { renderResult, renderCall as renderTaskCall } from "./render";
-
 import { getTaskSimpleModeCapabilities, type TaskSimpleMode } from "./simple-mode";
+import { InProcessSubagentWorker, type SubagentWorker } from "./worker";
 import {
 	applyNestedPatches,
 	captureBaseline,
@@ -468,6 +467,8 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 	readonly renderResult = renderResult;
 	readonly #discoveredAgents: AgentDefinition[];
 	readonly #blockedAgent: string | undefined;
+	/** Execution backend for subagent runs. Defaults to the in-process executor. */
+	readonly #worker: SubagentWorker;
 
 	get parameters(): TaskToolSchemaInstance {
 		const isolationEnabled = this.session.settings.get("task.isolation.mode") !== "none";
@@ -497,9 +498,11 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 	private constructor(
 		private readonly session: ToolSession,
 		discoveredAgents: AgentDefinition[],
+		worker: SubagentWorker = new InProcessSubagentWorker(),
 	) {
 		this.#blockedAgent = $env.AMAZE_BLOCKED_AGENT;
 		this.#discoveredAgents = discoveredAgents;
+		this.#worker = worker;
 	}
 
 	#getTaskSimpleMode(): TaskSimpleMode {
@@ -508,10 +511,11 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 
 	/**
 	 * Create a TaskTool instance with async agent discovery.
+	 * `worker` overrides the subagent execution backend (tests / alternate runtimes).
 	 */
-	static async create(session: ToolSession): Promise<TaskTool> {
+	static async create(session: ToolSession, worker?: SubagentWorker): Promise<TaskTool> {
 		const { agents } = await discoverAgents(session.cwd);
-		return new TaskTool(session, agents);
+		return new TaskTool(session, agents, worker);
 	}
 
 	async execute(
@@ -1132,7 +1136,9 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 					const parentMissionRev = activeMission?.contractRevision ?? activeMission?.plan?.revision ?? 0;
 					const parentMissionScope = toContractMissionScope(activeMission?.scopeGuard);
 					const missionRunner = activeMission
-						? new MissionTaskRunner({ missionId: activeMission.id, taskId: task.id })
+						? new MissionTaskRunner({ missionId: activeMission.id, taskId: task.id }, opts =>
+								this.#worker.run(opts),
+							)
 						: undefined;
 					const stampedContract = task.contract
 						? stampContractRevision(
@@ -1220,7 +1226,7 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 												assignment: composedAssignment,
 											})
 										).result
-									: await runSubprocess({
+									: await this.#worker.run({
 											...baseSubprocessOptions,
 											task: renderSubagentUserPrompt(composedAssignment, simpleMode),
 											assignment: composedAssignment,
@@ -1313,7 +1319,7 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 									assignment: task.assignment.trim(),
 								})
 							).result
-						: runSubprocess({
+						: this.#worker.run({
 								...baseSubprocessOptions,
 								task: renderSubagentUserPrompt(task.assignment, simpleMode),
 								assignment: task.assignment.trim(),
@@ -1334,7 +1340,9 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 					const parentMissionRev = activeMission?.contractRevision ?? activeMission?.plan?.revision ?? 0;
 					const parentMissionScope = toContractMissionScope(activeMission?.scopeGuard);
 					const missionRunner = activeMission
-						? new MissionTaskRunner({ missionId: activeMission.id, taskId: task.id })
+						? new MissionTaskRunner({ missionId: activeMission.id, taskId: task.id }, opts =>
+								this.#worker.run(opts),
+							)
 						: undefined;
 					const stampedContract = task.contract
 						? stampContractRevision(
@@ -1413,7 +1421,7 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 												assignment: composedAssignment,
 											})
 										).result
-									: await runSubprocess({
+									: await this.#worker.run({
 											...baseSubprocessOptions,
 											task: renderSubagentUserPrompt(composedAssignment, simpleMode),
 											assignment: composedAssignment,
@@ -1501,7 +1509,7 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 										assignment: task.assignment.trim(),
 									})
 								).result
-							: await runSubprocess({
+							: await this.#worker.run({
 									...baseSubprocessOptions,
 									task: renderSubagentUserPrompt(task.assignment, simpleMode),
 									assignment: task.assignment.trim(),

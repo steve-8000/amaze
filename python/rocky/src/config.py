@@ -119,7 +119,6 @@ class Settings(BaseSettings):
     # webhook before the queue row is durable on host power loss.
     sqlite_synchronous: SQLiteSynchronous = Field("FULL", alias="ROCKY_SQLITE_SYNCHRONOUS")
 
-
     # Paths
     workspace_root: Path = Field(Path("./data/workspaces"), alias="ROCKY_WORKSPACE_ROOT")
     sqlite_path: Path = Field(Path("./data/rocky.sqlite"), alias="ROCKY_SQLITE_PATH")

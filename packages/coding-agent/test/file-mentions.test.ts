@@ -79,3 +79,21 @@ describe("generateFileMentionMessages path resolution", () => {
 		expect(shortQuery).toHaveLength(0);
 	});
 });
+
+describe("generateFileMentionMessages context budget", () => {
+	test("skips text files larger than the auto-read limit", async () => {
+		const cwd = await createTempDir();
+		const fileName = "large.txt";
+		await Bun.write(path.join(cwd, fileName), "x".repeat(256 * 1024 + 1));
+
+		const messages = await generateFileMentionMessages([fileName], cwd);
+		expect(messages).toHaveLength(1);
+		const message = messages[0];
+		if (!message || message.role !== "fileMention") {
+			throw new Error("expected file mention message");
+		}
+		expect(message.files[0]?.path).toBe(fileName);
+		expect(message.files[0]?.skippedReason).toBe("tooLarge");
+		expect(message.files[0]?.content).toContain("skipped auto-read: too large");
+	});
+});

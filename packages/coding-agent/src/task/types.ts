@@ -116,10 +116,18 @@ export const subagentContractSchema = z.object({
 	outputContract: z.object({ mustProduce: z.array(z.string()) }).optional(),
 });
 
+// Wire shape for "any JSON value". Two provider constraints drive the exact form:
+// - OpenAI's function-schema validator rejects `type: "array"` without `items`
+//   and bare `{}`/`true` nodes, so every branch declares an explicit type.
+// - The object branch must stay OPEN (`additionalProperties: true`): strict-mode
+//   enforcement would otherwise close it to `additionalProperties: false` with
+//   empty `properties`, making a non-empty contract impossible to emit. The open
+//   keyset is intentionally unrepresentable in strict mode so the whole tool
+//   schema fails open to non-strict — matching the pre-meta `z.unknown()` behavior.
 const jsonValueWireSchema = z.unknown().meta({
 	anyOf: [
-		{ type: "object" },
-		{ type: "array" },
+		{ type: "object", additionalProperties: true },
+		{ type: "array", items: {} },
 		{ type: "string" },
 		{ type: "number" },
 		{ type: "boolean" },

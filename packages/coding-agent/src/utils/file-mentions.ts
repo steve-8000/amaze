@@ -51,9 +51,9 @@ function getMentionCandidateDiscoveryProfile(): MentionDiscoveryProfile {
 	};
 }
 
-// Avoid OOM when users @mention very large files. Above these limits we skip
-// auto-reading and only include the path in the message.
-const MAX_AUTO_READ_TEXT_BYTES = 5 * 1024 * 1024; // 5MB
+// Keep auto-read mentions bounded: large text files should be read through the
+// explicit read tool with ranges instead of being pinned into session context.
+const MAX_AUTO_READ_TEXT_BYTES = 256 * 1024; // 256 KiB
 const MAX_AUTO_READ_IMAGE_BYTES = 25 * 1024 * 1024; // 25MB
 
 function isMentionBoundary(text: string, index: number): boolean {

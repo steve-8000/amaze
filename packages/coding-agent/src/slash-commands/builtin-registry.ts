@@ -106,6 +106,11 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 				);
 				return commandConsumed();
 			}
+			if (verb === "plan") {
+				const output = await runtime.session.planActiveMission();
+				await runtime.output(output);
+				return commandConsumed();
+			}
 			const writerResult = await handleMissionWriteVerb(
 				verb ?? "",
 				command.args || "",
@@ -193,6 +198,12 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 						? `Approved proposal for mission ${mission.id}. Mutations are now permitted.`
 						: "No active mission to approve.",
 				);
+				ctx.editor.setText("");
+				return commandConsumed();
+			}
+			if (verbForApprove === "plan") {
+				const output = await ctx.session.planActiveMission();
+				ctx.showStatus(output);
 				ctx.editor.setText("");
 				return commandConsumed();
 			}

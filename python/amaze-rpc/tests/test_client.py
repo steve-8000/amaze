@@ -576,7 +576,9 @@ BROKEN_STARTUP_SERVER = textwrap.dedent(
 
 class RpcClientTests(unittest.TestCase):
     def make_client(self, server: str = FAKE_SERVER, **kwargs: object) -> RpcClient:
-        return RpcClient(command=[sys.executable, "-u", "-c", server], startup_timeout=2.0, request_timeout=2.0, **kwargs)
+        return RpcClient(
+            command=[sys.executable, "-u", "-c", server], startup_timeout=2.0, request_timeout=2.0, **kwargs
+        )
 
     def test_command_builder_supports_common_rpc_options(self) -> None:
         client = RpcClient(
@@ -911,6 +913,7 @@ class RpcClientTests(unittest.TestCase):
         errors: list[BaseException] = []
 
         with self.make_client() as client:
+
             def run_prompt() -> None:
                 try:
                     results.append(client.prompt_and_wait("slow", timeout=2.0).require_assistant_text())
@@ -936,7 +939,9 @@ class RpcClientTests(unittest.TestCase):
 
     def test_listener_mutation_does_not_change_retained_turn(self) -> None:
         with self.make_client() as client:
-            client.on_message_end(lambda event: event.message["content"].__setitem__(0, {"type": "text", "text": "mutated"}))
+            client.on_message_end(
+                lambda event: event.message["content"].__setitem__(0, {"type": "text", "text": "mutated"})
+            )
             turn = client.prompt_and_wait("say hello", timeout=2.0)
             messages = client.get_messages()
 
@@ -973,9 +978,9 @@ class RpcClientTests(unittest.TestCase):
         listener_errors: list[tuple[str, str | None, str]] = []
         client = self.make_client()
         client.on_notification(
-            lambda notification: (_ for _ in ()).throw(RuntimeError("boom"))
-            if notification.type == "turn_start"
-            else None
+            lambda notification: (
+                (_ for _ in ()).throw(RuntimeError("boom")) if notification.type == "turn_start" else None
+            )
         )
         client.on_listener_error(
             lambda event: listener_errors.append((event.listener_kind, event.source_type, str(event.error)))
@@ -1016,7 +1021,6 @@ class RpcClientTests(unittest.TestCase):
                 client.prompt_and_wait("say hello", timeout=2.0)
 
         self.assertIn("max_event_history", str(ctx.exception))
-
 
 
 HANGING_SERVER = textwrap.dedent(
@@ -1099,6 +1103,7 @@ class StopUnblocksPromptAndWaitTests(unittest.TestCase):
         finally:
             # stop() is idempotent; safe to call again on cleanup paths.
             client.stop()
+
 
 if __name__ == "__main__":
     unittest.main()

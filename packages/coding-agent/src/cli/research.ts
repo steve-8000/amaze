@@ -67,8 +67,40 @@ export async function runResearchRunCommand(
 	opts: ResearchCommandOptionsBase & {
 		briefId: string;
 		json?: boolean;
+		/** Execute lanes automatically (source lane via web search) instead of only creating lane runs. */
+		auto?: boolean;
 	},
 ): Promise<void> {
+	if (opts.auto) {
+		const { ResearchRunner, webSearchLaneExecutor } = await import("../research/runner");
+		const research = new ResearchStore(opts.db);
+		const missions = new MissionStore(opts.db);
+		try {
+			const runner = new ResearchRunner({
+				research,
+				missions,
+				executors: { source: webSearchLaneExecutor() },
+			});
+			const outcome = await runner.run(opts.briefId);
+			if (opts.json) {
+				writeJson(outcome);
+				return;
+			}
+			const lines = [
+				`research run ${outcome.runId} for mission ${outcome.missionId}: ${outcome.ok ? "completed" : "blocked"}`,
+				...outcome.lanes.map(
+					lane =>
+						`  lane ${lane.lane}: ${lane.status} (${lane.evidence.length} evidence)${lane.error ? ` — ${lane.error}` : ""}`,
+				),
+				`  critic checks: ${outcome.criticChecks.length} (${outcome.criticChecks.filter(c => c.severity === "blocking").length} blocking)`,
+			];
+			process.stdout.write(`${lines.join("\n")}\n`);
+		} finally {
+			missions.close();
+			research.close();
+		}
+		return;
+	}
 	const research = new ResearchStore(opts.db);
 	const missions = new MissionStore(opts.db);
 	try {
@@ -504,8 +536,8 @@ function writeJson(value: unknown): void {
 }
 
 function agentForLane(lane: ResearchLane): string {
-	if (lane === "social") return "Resercher_X";
-	return "Resercher";
+	if (lane === "social") return "Researcher_X";
+	return "Researcher";
 }
 
 function epistemicRoleForLane(lane: ResearchLane): EpistemicRole {

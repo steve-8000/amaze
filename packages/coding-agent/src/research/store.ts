@@ -84,6 +84,7 @@ type EvidenceCardRow = {
 	specificity: number;
 	recency: number;
 	reproducibility: number;
+	content_hash: string | null;
 };
 
 type DecisionRecordRow = {
@@ -228,12 +229,13 @@ export class ResearchStore {
 			specificity: clamp01(input.specificity),
 			recency: clamp01(input.recency),
 			reproducibility: clamp01(input.reproducibility),
+			contentHash: input.contentHash ?? null,
 		};
 		this.#db
 			.query(
 				`INSERT INTO evidence_cards
-					(id, brief_id, lane, grade, source_ref, excerpt, claims, captured_at, directness, specificity, recency, reproducibility)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+					(id, brief_id, lane, grade, source_ref, excerpt, claims, captured_at, directness, specificity, recency, reproducibility, content_hash)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			)
 			.run(
 				evidence.id,
@@ -248,6 +250,7 @@ export class ResearchStore {
 				evidence.specificity,
 				evidence.recency,
 				evidence.reproducibility,
+				evidence.contentHash ?? null,
 			);
 		const mission = this.getMissionForBrief(evidence.briefId);
 		if (mission) {
@@ -948,6 +951,7 @@ export class ResearchStore {
 				specificity REAL NOT NULL,
 				recency REAL NOT NULL,
 				reproducibility REAL NOT NULL,
+				content_hash TEXT,
 				FOREIGN KEY (brief_id) REFERENCES research_briefs(id) ON DELETE CASCADE
 			);
 			CREATE INDEX IF NOT EXISTS evidence_cards_brief_idx ON evidence_cards(brief_id);
@@ -1012,6 +1016,7 @@ export class ResearchStore {
 		`);
 		this.#ensureDecisionKindColumn();
 		this.#ensureCritiqueFindingsColumn();
+		this.#ensureEvidenceContentHashColumn();
 	}
 
 	#ensureDecisionKindColumn(): void {
@@ -1025,6 +1030,13 @@ export class ResearchStore {
 		const columns = this.#db.query("PRAGMA table_info(research_critiques)").all() as Array<{ name: string }>;
 		if (!columns.some(column => column.name === "findings")) {
 			this.#db.run("ALTER TABLE research_critiques ADD COLUMN findings TEXT NOT NULL DEFAULT '[]'");
+		}
+	}
+
+	#ensureEvidenceContentHashColumn(): void {
+		const columns = this.#db.query("PRAGMA table_info(evidence_cards)").all() as Array<{ name: string }>;
+		if (!columns.some(column => column.name === "content_hash")) {
+			this.#db.run("ALTER TABLE evidence_cards ADD COLUMN content_hash TEXT");
 		}
 	}
 }
@@ -1225,6 +1237,7 @@ function rowToEvidence(row: EvidenceCardRow): EvidenceCard {
 		specificity: row.specificity,
 		recency: row.recency,
 		reproducibility: row.reproducibility,
+		contentHash: row.content_hash ?? null,
 	};
 }
 

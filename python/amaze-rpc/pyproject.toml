@@ -35,3 +35,14 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 amaze_rpc = ["py.typed"]
+
+# Mirror python/rocky/pyproject.toml so `ruff format --check python` (root
+# `check:py`) measures both packages with the same line length. Without this
+# ruff falls back to its 88-column default and flags the whole package.
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.format]
+quote-style = "double"

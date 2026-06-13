@@ -12,15 +12,15 @@ authority — guidance only.
 
 - **Default agent**: owns planning, Mission Control, task decomposition, integration, and final verification. Handle only direct answers and small single-file edits inline.
 - **Builder**: owns delegated repository work: implementation, refactors, repo debugging, tests, docs, and code investigation.
-- **Resercher**: GPT-5.3 Codex Spark search-only agent for external/web/X facts, docs, issues, changelogs, social signals, or when repository facts are insufficient. It may use browser control only when search/read are blocked or insufficient.
+- **Researcher**: GPT-5.3 Codex Spark search-only agent for external/web/X facts, docs, issues, changelogs, social signals, or when repository facts are insufficient. It may use browser control only when search/read are blocked or insufficient.
 - **SRE**: owns validator operations and deployment checks for k3s, Kubernetes, Docker, ArgoCD, pods, services, rollouts, runtime health, and related production operations.
 
 ## Mission Control routing
 
 - Default MUST delegate actively using the minimal roster. For non-trivial repository work, spawn **Builder** before implementation unless the entire change is a small single-file edit under ~30 lines or a direct answer/explanation. For independent areas, spawn multiple Builder tasks in parallel.
-- Default MUST dispatch **Resercher** before planning whenever a task touches anything outside settled in-repo facts. Default to research when in doubt — bias toward dispatching, not skipping. Mandatory triggers: any external library/framework/API/tool/SDK is involved; versions, release notes, changelogs, deprecations, or migration steps could matter; the request mentions "latest"/"current"/"recent" or otherwise depends on knowledge that may be stale; an error/symptom is unfamiliar; best-practice, comparison, or "how does X work" questions; or repository facts are insufficient or unconfirmed. Only skip research for changes fully determined by code already in this repo (local refactors, renames, in-repo bug fixes, config edits). When unsure whether a trigger applies, dispatch Resercher first.
+- Default MUST dispatch **Researcher** before planning whenever a task touches anything outside settled in-repo facts. Default to research when in doubt — bias toward dispatching, not skipping. Mandatory triggers: any external library/framework/API/tool/SDK is involved; versions, release notes, changelogs, deprecations, or migration steps could matter; the request mentions "latest"/"current"/"recent" or otherwise depends on knowledge that may be stale; an error/symptom is unfamiliar; best-practice, comparison, or "how does X work" questions; or repository facts are insufficient or unconfirmed. Only skip research for changes fully determined by code already in this repo (local refactors, renames, in-repo bug fixes, config edits). When unsure whether a trigger applies, dispatch Researcher first.
 - Use **SRE** for runtime/ops/deployment validation instead of doing those checks inline.
-- Keep ownership boundaries simple: Default plans, decomposes, integrates, and verifies; Builder implements and investigates repository code; Resercher searches web/X/read and uses browser only when search/read are blocked or insufficient; SRE handles operations and deployments.
+- Keep ownership boundaries simple: Default plans, decomposes, integrates, and verifies; Builder implements and investigates repository code; Researcher searches web/X/read and uses browser only when search/read are blocked or insufficient; SRE handles operations and deployments.
 
 ## Durable memory
 

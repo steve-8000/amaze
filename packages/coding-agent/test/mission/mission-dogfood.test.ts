@@ -130,7 +130,7 @@ describe("mission control dogfood", () => {
 			missions.createLaneRun({
 				missionId: mission.id,
 				lane: "source",
-				agent: "Resercher",
+				agent: "Researcher",
 				epistemicRole: "source_harvest",
 				status: "completed",
 				evidenceCount: 1,
@@ -201,7 +201,7 @@ describe("mission control dogfood", () => {
 			expect(controlLines).toContain("Verification: pass | failed 0 | uncertain 0 | dogfood passed");
 			expect(controlLines).toContain("Rollback: restore pre-decision state | snapshots 1");
 			expect(controlLines).toContain("[repo truth] Explore | repo | completed | evidence 1");
-			expect(controlLines).toContain("[source] Resercher | source | completed | evidence 1");
+			expect(controlLines).toContain("[source] Researcher | source | completed | evidence 1");
 		} finally {
 			readModel.close();
 			missions.close();

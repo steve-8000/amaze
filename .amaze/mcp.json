@@ -1,16 +1,34 @@
 {
 	"$schema": "https://raw.githubusercontent.com/can1357/amaze/main/packages/coding-agent/src/config/mcp-schema.json",
 	"mcpServers": {
+		"gbrain": {
+			"type": "stdio",
+			"command": "gbrain",
+			"args": [
+				"serve"
+			],
+			"env": {
+				"MCP_STDIO": "1"
+			}
+		},
 		"amaze-browser-bridge": {
 			"type": "stdio",
 			"command": "bun",
 			"args": [
 				"packages/browser-control-extension/src/mcp-server.ts"
 			],
-			"env": {
-				"AMAZE_BROWSER_BRIDGE_HOST": "127.0.0.1",
-				"AMAZE_BROWSER_BRIDGE_PORT": "17362"
-			}
+			"cwd": ".",
+			"enabled": false
+		},
+		"chrome-devtools": {
+			"type": "stdio",
+			"command": "npx",
+			"args": [
+				"-y",
+				"chrome-devtools-mcp@latest"
+			],
+			"cwd": ".",
+			"enabled": false
 		}
 	}
 }

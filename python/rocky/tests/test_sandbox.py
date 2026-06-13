@@ -588,7 +588,11 @@ def test_provision_runtime_dirs_replaces_tmpdir_symlink_and_creates_xdg_tree(tmp
     assert not tmpdir.is_symlink()
     assert target.is_dir()
     assert stat.S_IMODE(tmpdir.stat().st_mode) == 0o700
-    for base in (tmp_path / ".amaze-xdg" / "data", tmp_path / ".amaze-xdg" / "state", tmp_path / ".amaze-xdg" / "cache"):
+    for base in (
+        tmp_path / ".amaze-xdg" / "data",
+        tmp_path / ".amaze-xdg" / "state",
+        tmp_path / ".amaze-xdg" / "cache",
+    ):
         assert base.is_dir()
         assert (base / "amaze").is_dir()
     assert (tmp_path / ".amaze-xdg" / "cache" / "bun-install").is_dir()

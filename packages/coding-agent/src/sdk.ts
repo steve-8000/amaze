@@ -81,7 +81,7 @@ import {
 import { type FileSlashCommand, loadSlashCommands as loadSlashCommandsInternal } from "./extensibility/slash-commands";
 import { LocalProtocolHandler, type LocalProtocolOptions } from "./internal-urls";
 import { LSP_STARTUP_EVENT_CHANNEL, type LspStartupEvent } from "./lsp/startup-events";
-import { discoverAndLoadMCPTools, MCPManager, type MCPToolsLoadResult } from "./mcp";
+import { discoverAndLoadMCPTools, MCPManager, type MCPToolsLoadResult, parseMCPToolName } from "./mcp";
 import {
 	collectDiscoverableMCPTools,
 	formatDiscoverableMCPToolServerSummary,
@@ -1558,7 +1558,14 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 			const promptTools = buildSystemPromptToolMetadata(tools, {
 				search_tool_bm25: { description: renderSearchToolBm25Description(discoverableToolsForDesc) },
 			});
-			const serverInstructions = mcpManager?.getServerInstructions();
+			const discoverableMCPServerNames = new Set(discoverableToolSummary.servers.map(server => server.name));
+			const includeMcpServerInstructions =
+				settings.get("prompt.mcpServerInstructions") ||
+				toolNames.some(name => {
+					const parsed = parseMCPToolName(name);
+					return parsed !== null && !discoverableMCPServerNames.has(parsed.serverName);
+				});
+			const serverInstructions = includeMcpServerInstructions ? mcpManager?.getServerInstructions() : undefined;
 			let appendPrompt: string | undefined;
 			if (serverInstructions && serverInstructions.size > 0) {
 				const parts: string[] = [];

@@ -132,6 +132,11 @@ import type {
 	TurnEndEvent,
 	TurnStartEvent,
 } from "../extensibility/extensions";
+import {
+	applyAfterToolCallOverride,
+	compressToolResult,
+	mergeAfterToolCallResult,
+} from "../tool-compression";
 import type { CompactOptions, ContextUsage } from "../extensibility/extensions/types";
 import { ExtensionToolWrapper } from "../extensibility/extensions/wrapper";
 import type { HookCommandContext } from "../extensibility/hooks/types";
@@ -148,7 +153,11 @@ import {
 	isMCPToolName,
 	selectDiscoverableMCPToolNamesByServer,
 } from "../mcp/discoverable-tool-metadata";
-import { MISSION_CONTINUATION_MESSAGE_TYPE, MissionContinuationRuntime } from "../mission/continuation";
+import {
+	MISSION_CONTINUATION_MESSAGE_TYPE,
+	MissionContinuationRuntime,
+	type MissionContinuationRuntimeDeps,
+} from "../mission/continuation";
 import type { Mission } from "../mission/core/mission";
 import type { MissionControlRuntime } from "../mission/core/mission-control-runtime";
 import type { MissionScopeGuard } from "../mission/core/mission-scope";
@@ -197,6 +206,7 @@ import { parseCommandArgs } from "../utils/command-args";
 import { type EditMode, resolveEditMode } from "../utils/edit-mode";
 import { resolveFileDisplayMode } from "../utils/file-display-mode";
 import { extractFileMentions, generateFileMentionMessages } from "../utils/file-mentions";
+import { enhancePrompt } from "../utils/prompt-enhancer";
 import { buildNamedToolChoice } from "../utils/tool-choice";
 import type { AuthStorage } from "./auth-storage";
 import type { ClientBridge, ClientBridgePermissionOption, ClientBridgePermissionOutcome } from "./client-bridge";
@@ -362,6 +372,18 @@ export interface AgentSessionConfig {
 	 * so that credential sticky selection is consistent with the session's streaming calls.
 	 */
 	providerSessionId?: string;
+	/**
+	 * Factory for the mission continuation runtime. Lets hosts/tests substitute the
+	 * scheduling policy (e.g. stricter budget gates) without subclassing AgentSession.
+	 * Defaults to the standard {@link MissionContinuationRuntime}.
+	 */
+	createMissionContinuation?: (deps: MissionContinuationRuntimeDeps) => MissionContinuationRuntime;
+	/**
+	 * Factory for the session tool gateway (dispatch-seam policy pipeline). Lets
+	 * hosts/tests substitute permission/mutation-scope enforcement without subclassing
+	 * AgentSession. Defaults to the standard {@link SessionToolGateway}.
+	 */
+	createToolGateway?: (deps: { missionControl: MissionControlRuntime }) => SessionToolGateway;
 }
 
 /** Options for AgentSession.prompt() */
@@ -846,6 +868,12 @@ export class AgentSession {
 	#missionContinuation: MissionContinuationRuntime;
 	/** Set when the in-flight turn was triggered by a mission continuation envelope. */
 	#activeContinuationTurn: { missionId: string; generation: number } | undefined = undefined;
+	/**
+	 * Session token total at the last mission-budget accounting point. Lets
+	 * `#accountMissionTurnUsage` charge only the per-turn delta to the active
+	 * mission's budget (the continuation policy's token gate reads tokensUsed).
+	 */
+	#missionUsageBaseline = 0;
 	#missionStoreInstance: MissionStore | undefined;
 	#selfImproveLoopUnsub: Unsubscribe | undefined;
 	readonly #subagentContract: SubagentContract | undefined;
@@ -1197,7 +1225,7 @@ export class AgentSession {
 			this.#maybeAbortStreamingEdit(event);
 		});
 		// Per-tool TTSR reminders are folded into the matched tool's result via this hook.
-		this.agent.afterToolCall = ctx => this.#ttsrAfterToolCall(ctx);
+		this.agent.afterToolCall = async ctx => this.#afterToolCall(ctx);
 		this.agent.providerSessionState = this.#providerSessionState;
 		this.#syncAgentSessionId();
 		this.#syncTodoPhasesFromBranch();
@@ -1225,9 +1253,13 @@ export class AgentSession {
 				// Mark the continuation ledger terminal so no scheduled/running
 				// generation can resume a finished mission.
 				this.#missionContinuation?.observeTerminal(mission);
+				// Cognition learner: derive durable heuristics from the finished
+				// mission's checkpoints/outcome (L5) so future planning sees them.
+				// Best-effort — learning must never break the session.
+				this.#learnFromTerminalMission(mission);
 			}
 		});
-		this.#missionContinuation = new MissionContinuationRuntime({
+		const continuationDeps: MissionContinuationRuntimeDeps = {
 			missionControl: this.#missionControl,
 			store: this.#missionBinding.store,
 			settings: this.settings,
@@ -1263,8 +1295,16 @@ export class AgentSession {
 						{ deliverAs: "nextTurn" },
 					),
 			},
-		});
-		this.#toolGateway = new SessionToolGateway({ missionControl: this.#missionControl });
+		};
+		this.#missionContinuation = config.createMissionContinuation
+			? config.createMissionContinuation(continuationDeps)
+			: new MissionContinuationRuntime(continuationDeps);
+		this.#toolGateway = config.createToolGateway
+			? config.createToolGateway({ missionControl: this.#missionControl })
+			: new SessionToolGateway({
+					missionControl: this.#missionControl,
+					permissionMode: this.settings.get("tools.gateway.permissionMode"),
+				});
 
 		// Always subscribe to agent events for internal handling
 		// (session persistence, hooks, auto-compaction, retry logic)
@@ -2159,6 +2199,40 @@ export class AgentSession {
 		}
 	}
 
+
+	#mergeAfterToolCallResult(
+		base: AfterToolCallResult | undefined,
+		override: AfterToolCallResult | undefined,
+	): AfterToolCallResult | undefined {
+		return mergeAfterToolCallResult(base, override);
+	}
+
+	#applyAfterToolCallOverride(
+		ctx: AfterToolCallContext,
+		override: AfterToolCallResult | undefined,
+	): AfterToolCallContext {
+		return applyAfterToolCallOverride(ctx, override);
+	}
+
+	async #compressAfterToolCall(ctx: AfterToolCallContext): Promise<AfterToolCallResult | undefined> {
+		try {
+			return await compressToolResult(ctx, this.sessionManager, this.settings);
+		} catch (error) {
+			logger.warn("Tool compression failed", {
+				toolName: ctx.toolCall.name,
+				error: error instanceof Error ? error.message : String(error),
+			});
+			return undefined;
+		}
+	}
+
+	async #afterToolCall(ctx: AfterToolCallContext): Promise<AfterToolCallResult | undefined> {
+		const compressed = await this.#compressAfterToolCall(ctx);
+		const compressedCtx = this.#applyAfterToolCallOverride(ctx, compressed);
+		const ttsr = this.#ttsrAfterToolCall(compressedCtx);
+		return this.#mergeAfterToolCallResult(compressed, ttsr);
+	}
+
 	/** `afterToolCall` hook: fold any per-tool TTSR reminders into the result. */
 	#ttsrAfterToolCall(ctx: AfterToolCallContext): AfterToolCallResult | undefined {
 		const rules = this.#perToolTtsrInjections.get(ctx.toolCall.id);
@@ -2670,6 +2744,64 @@ export class AgentSession {
 		}
 	}
 
+	/**
+	 * Charge the tokens consumed since the last accounting point to the active
+	 * mission's budget. Pairs with the continuation policy's token-budget gate
+	 * (`token_budget_exhausted`): without this write the gate would never fire
+	 * because `budget.tokensUsed` stayed at 0. Best-effort: never throws.
+	 */
+	#accountMissionTurnUsage(): void {
+		try {
+			const total = this.getSessionStats().tokens.total;
+			const delta = total - this.#missionUsageBaseline;
+			this.#missionUsageBaseline = total;
+			if (delta <= 0) return;
+			const mission = this.#missionControl.getActiveMission();
+			if (!mission) return;
+			this.#missionControl.recordTaskUsage(mission.id, delta);
+		} catch {
+			// Budget bookkeeping must never break the turn.
+		}
+	}
+
+	/**
+	 * Cognition learner hook: when a mission terminalizes with a recorded outcome,
+	 * derive heuristics from its durable checkpoints and persist them at L5 so the
+	 * next planning pass sees the lessons. Fire-and-forget; never throws.
+	 */
+	#learnFromTerminalMission(mission: Mission): void {
+		const missions = this.#missionStoreInstance;
+		if (!missions) return;
+		try {
+			void import("../cognition").then(async ({ learnFromTerminalMission }) => {
+				const { KnowledgeStore } = await import("../memory/knowledge-store");
+				const knowledge = new KnowledgeStore();
+				try {
+					const result = learnFromTerminalMission(
+						{ missions, knowledge },
+						{
+							id: mission.id,
+							objective: mission.objective,
+							outcome: mission.outcome,
+							verification: mission.verification,
+						},
+					);
+					if (result && result.recorded.length > 0) {
+						logger.info("cognition.learner.recorded", {
+							missionId: mission.id,
+							heuristics: result.recorded.length,
+							skippedDuplicates: result.skippedDuplicates,
+						});
+					}
+				} finally {
+					knowledge.close();
+				}
+			});
+		} catch (error) {
+			logger.debug("cognition learner pass failed", { error: String(error) });
+		}
+	}
+
 	/** Emit extension events based on session events */
 	async #emitExtensionEvent(event: AgentSessionEvent): Promise<void> {
 		if (event.type === "agent_end") {
@@ -2683,6 +2815,9 @@ export class AgentSession {
 			// continue active missions.
 			const wasContinuationTurn = this.#activeContinuationTurn !== undefined;
 			this.#activeContinuationTurn = undefined;
+			// Charge this turn's token usage to the active mission BEFORE the
+			// continuation decision so the token-budget gate sees real usage.
+			this.#accountMissionTurnUsage();
 			await this.#missionContinuation.afterAgentEnd({ wasContinuationTurn });
 			return;
 		}
@@ -3944,6 +4079,49 @@ export class AgentSession {
 	}
 
 	/**
+	 * Cognition planner: decompose the active mission's objective into a validated
+	 * plan DAG, persist it, and record the decomposition in the world model.
+	 * Learned heuristics (L5) and world-model claims are injected automatically.
+	 * Returns a human-readable summary, or an explanation when no mission is active.
+	 */
+	async planActiveMission(): Promise<string> {
+		const mission = this.#missionControl.getActiveMission();
+		if (!mission) return "No active mission to plan. Create one with `/mission create <objective>`.";
+		const missions = this.#missionStoreInstance;
+		if (!missions) return "Mission store unavailable; cannot persist a plan.";
+		const { createRegistryPlannerLlm, planMission } = await import("../cognition");
+		const { KnowledgeStore } = await import("../memory/knowledge-store");
+		const knowledge = new KnowledgeStore();
+		try {
+			// Invalidate repo-anchored knowledge whose backing files drifted so the
+			// planner never consumes stale claims as heuristics.
+			knowledge.invalidateStale(this.sessionManager.getCwd());
+			const result = await planMission(
+				{
+					missions,
+					knowledge,
+					llm: createRegistryPlannerLlm(this.#modelRegistry, this.settings, this.sessionManager.getSessionId()),
+				},
+				{
+					missionId: mission.id,
+					objective: mission.objective,
+					...(mission.constraints.length > 0 ? { constraints: mission.constraints } : {}),
+				},
+			);
+			const steps = result.plan.steps.map((step, i) => `  ${i + 1}. [${step.id}] ${step.description}`).join("\n");
+			return [
+				`Planned mission ${mission.id} (revision ${result.plan.revision}, ${result.plan.steps.length} steps, ${result.attempts} attempt(s)).`,
+				...(result.injectedHeuristics > 0 ? [`Injected ${result.injectedHeuristics} learned heuristic(s).`] : []),
+				steps,
+			].join("\n");
+		} catch (error) {
+			return `Planning failed: ${error instanceof Error ? error.message : String(error)}`;
+		} finally {
+			knowledge.close();
+		}
+	}
+
+	/**
 	 * V3 coordination telemetry aggregator for this session. Producers (ask tool, goal
 	 * tool, task tool) call `record*` methods directly. Consumers (debug command, session
 	 * dispose, external dashboards) call `getStats()` or `formatV3TelemetrySummary()`.
@@ -4149,7 +4327,26 @@ export class AgentSession {
 		}
 
 		// Expand file-based prompt templates if requested
-		const expandedText = expandPromptTemplates ? expandPromptTemplate(text, [...this.#promptTemplates]) : text;
+		let expandedText = expandPromptTemplates ? expandPromptTemplate(text, [...this.#promptTemplates]) : text;
+
+		// Prompt enhancer prepass: rewrite the user's instruction into an
+		// engineered prompt via a config-selected model (promptEnhancer.*).
+		// Synthetic (agent-originated) prompts are never rewritten, and any
+		// enhancer failure falls back to the original text.
+		if (!options?.synthetic && this.settings.get("promptEnhancer.enabled")) {
+			const enhanced = await enhancePrompt({
+				text: expandedText,
+				messages: this.messages,
+				registry: this.#modelRegistry,
+				settings: this.settings,
+				sessionId: this.sessionId,
+				currentModel: this.model,
+				metadataResolver: provider => this.agent.metadataForProvider(provider),
+			});
+			if (enhanced) {
+				expandedText = enhanced;
+			}
+		}
 
 		// If streaming, queue via steer() or followUp() based on option
 		if (this.isStreaming) {
@@ -6629,8 +6826,8 @@ export class AgentSession {
 				"Planner",
 				"commit",
 				"Designer",
-				"Resercher",
-				"Resercher_X",
+				"Researcher",
+				"Researcher_X",
 			]) {
 				await addCandidate(this.#resolveRoleModelFull(role, availableModels, this.model).model);
 			}

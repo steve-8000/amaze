@@ -39,8 +39,8 @@ describe("doctor local-llm", () => {
 		const settings = Settings.isolated({
 			"localLlm.enabled": true,
 			"localLlm.required": false,
-			"localLlm.modelRole": "Resercher",
-			modelRoles: { Resercher: "openai/local" },
+			"localLlm.modelRole": "LocalScout",
+			modelRoles: { LocalScout: "openai/local" },
 		});
 		const { report, json } = await captureJson(() =>
 			runDoctorLocalLlmCommand({ json: true, settings, availableModels: [] }),
@@ -55,8 +55,8 @@ describe("doctor local-llm", () => {
 		const settings = Settings.isolated({
 			"localLlm.enabled": true,
 			"localLlm.required": true,
-			"localLlm.modelRole": "Resercher",
-			modelRoles: { Resercher: "openai/local" },
+			"localLlm.modelRole": "LocalScout",
+			modelRoles: { LocalScout: "openai/local" },
 		});
 		const { report, json } = await captureJson(() =>
 			runDoctorLocalLlmCommand({ json: true, settings, availableModels: [] }),
@@ -72,8 +72,8 @@ describe("doctor local-llm", () => {
 		const settings = Settings.isolated({
 			"localLlm.enabled": true,
 			"localLlm.required": true,
-			"localLlm.modelRole": "Resercher",
-			modelRoles: { Resercher: "openai/local" },
+			"localLlm.modelRole": "LocalScout",
+			modelRoles: { LocalScout: "openai/local" },
 		});
 		const { report, json } = await captureJson(() =>
 			runDoctorLocalLlmCommand({ json: true, settings, availableModels: [local] }),

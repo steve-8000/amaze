@@ -16,7 +16,6 @@ from fastapi.responses import JSONResponse
 from rocky import github_events
 from rocky.autoclose import AutocloseScheduler
 from rocky.config import Settings, get_settings
-from rocky.log_tail import tail_jsonl
 from rocky.db import (
     INACTIVE_EVENT_STATES,
     Database,
@@ -28,6 +27,7 @@ from rocky.db import (
 )
 from rocky.github_backend import GitHubBackend
 from rocky.github_client import GitHubError, IssueSummary
+from rocky.log_tail import tail_jsonl
 from rocky.manual_triage import (
     InvalidIssueRef,
     ManualTriageConflict,
@@ -795,7 +795,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         capped = max(1, min(int(limit), 2000))
         entries = tail_jsonl(cfg.log_dir / "rocky.log.jsonl", limit=capped)
         return {"entries": entries, "count": len(entries), "limit": capped}
-
 
     return app
 

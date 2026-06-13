@@ -17,8 +17,8 @@ describe("local LLM config", () => {
 
 		expect(config.enabled).toBe(false);
 		expect(config.required).toBe(false);
-		expect(config.modelRole).toBe("Resercher");
-		expect(getLocalLlmRoleAlias(config)).toBe("Resercher");
+		expect(config.modelRole).toBe("LocalScout");
+		expect(getLocalLlmRoleAlias(config)).toBe("LocalScout");
 		expect(isLocalLlmUseCaseEnabled(config, "log_summarizer")).toBe(false);
 	});
 

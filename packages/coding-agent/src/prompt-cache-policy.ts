@@ -27,9 +27,9 @@ function resolveCacheRetentionSetting(value: PromptCacheRetentionSetting): Cache
  *   premium for 1h vs 5m — acceptable tradeoff since the alternative penalizes the common case.
  *   Override globally with `AMAZE_CACHE_RETENTION=short` for short-lived one-shot CLI runs.
  *
- * - Subagent (fan-out): forced to "long" when `prompt.cache.subagentPrefixReuse` is set — siblings share
- *   STABLE_CORE byte-for-byte, so one write amortizes across many reads. Without prefix reuse, defaults to
- *   "short" since orphan subagents don't repay long-cache write premiums.
+ * - Subagent (fan-out): defaults to compact project context, with cache retention forced to "long" when
+ *   `prompt.cache.subagentPrefixReuse` is set. Without prefix reuse, defaults to "short" since orphan
+ *   subagents don't repay long-cache write premiums.
  *
  * **Important**: the STABLE_CORE breakpoint is placed by `system-prompt.ts` via `systemPromptCacheBreakpointIndex`.
  * The retention setting here only chooses the TTL (5m vs 1h vs none); it does NOT choose which block is cached.
@@ -43,16 +43,17 @@ export function resolvePromptCachePolicy(options: {
 	const role: AgentPromptCacheRole = isSubagent ? "subagent" : "orchestrator";
 
 	if (role === "subagent") {
+		const projectContextMode = options.settings.get("prompt.subagentContextMode") ?? "compact";
 		// Prefix reuse promotes subagents to long retention: the parent's
 		// system+tools+skills prefix is identical, so a fan-out of sibling
 		// subagents amortizes one long cache write across many cheap reads.
 		const prefixReuse = options.settings.get("prompt.cache.subagentPrefixReuse");
 		if (prefixReuse) {
-			return { role, projectContextMode: "full", cacheRetention: "long" };
+			return { role, projectContextMode, cacheRetention: "long" };
 		}
 		return {
 			role,
-			projectContextMode: "full",
+			projectContextMode,
 			cacheRetention: resolveCacheRetentionSetting(options.settings.get("prompt.cache.subagentRetention")),
 		};
 	}
