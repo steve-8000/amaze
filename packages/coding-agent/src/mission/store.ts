@@ -1,5 +1,5 @@
 import { Database } from "bun:sqlite";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -58,6 +58,9 @@ import {
 	type ResearchCampaign,
 	type ResearchRun,
 	type ResearchRunStatus,
+	type RuntimeEvent,
+	type RuntimeEventDraft,
+	type RuntimeEventType,
 } from "./types";
 
 export const DEFAULT_DB_PATH = path.join(os.homedir(), ".amaze", "autonomy", "autonomy.db");
@@ -85,6 +88,7 @@ const MIGRATIONS: StoreMigration[] = [
 			CREATE TABLE IF NOT EXISTS missions (
 				id TEXT PRIMARY KEY,
 				title TEXT NOT NULL,
+				objective TEXT,
 				objective_id TEXT,
 				brief_id TEXT,
 				decision_id TEXT,
@@ -358,8 +362,34 @@ const MIGRATIONS: StoreMigration[] = [
 			);
 			CREATE INDEX IF NOT EXISTS mission_proposals_mission_idx ON mission_proposals(mission_id);
 			CREATE INDEX IF NOT EXISTS mission_proposals_status_idx ON mission_proposals(mission_id, status);
+
+			CREATE TABLE IF NOT EXISTS runtime_events (
+				id TEXT PRIMARY KEY,
+				mission_id TEXT NOT NULL,
+				stream_id TEXT NOT NULL,
+				sequence INTEGER NOT NULL,
+				type TEXT NOT NULL,
+				occurred_at INTEGER NOT NULL,
+				correlation_id TEXT,
+				causation_id TEXT,
+				actor TEXT,
+				idempotency_key TEXT,
+				payload_json TEXT NOT NULL CHECK (json_valid(payload_json)),
+				evidence_refs_json TEXT NOT NULL CHECK (json_valid(evidence_refs_json)),
+				schema_version INTEGER NOT NULL,
+				hash TEXT NOT NULL,
+				created_at INTEGER NOT NULL,
+				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE,
+				UNIQUE(stream_id, sequence),
+				UNIQUE(stream_id, idempotency_key)
+			);
+			CREATE INDEX IF NOT EXISTS runtime_events_mission_idx ON runtime_events(mission_id, occurred_at);
+			CREATE INDEX IF NOT EXISTS runtime_events_stream_idx ON runtime_events(stream_id, sequence);
+			CREATE INDEX IF NOT EXISTS runtime_events_hash_idx ON runtime_events(hash);
 			`);
 			ensureColumn(db, "missions", "intent", "TEXT");
+			ensureColumn(db, "missions", "objective", "TEXT");
+			db.run("UPDATE missions SET objective = title WHERE objective IS NULL");
 			ensureColumn(db, "missions", "lifecycle", "TEXT");
 			ensureColumn(db, "missions", "proposal_id", "TEXT");
 			ensureColumn(db, "missions", "regression_contract_id", "TEXT");
@@ -464,6 +494,39 @@ const MIGRATIONS: StoreMigration[] = [
 			`);
 		},
 	},
+	{
+		version: 6,
+		description: "add mission objectives and runtime event ledger",
+		up: db => {
+			ensureColumn(db, "missions", "objective", "TEXT");
+			db.run("UPDATE missions SET objective = title WHERE objective IS NULL");
+			db.exec(`
+			CREATE TABLE IF NOT EXISTS runtime_events (
+				id TEXT PRIMARY KEY,
+				mission_id TEXT NOT NULL,
+				stream_id TEXT NOT NULL,
+				sequence INTEGER NOT NULL,
+				type TEXT NOT NULL,
+				occurred_at INTEGER NOT NULL,
+				correlation_id TEXT,
+				causation_id TEXT,
+				actor TEXT,
+				idempotency_key TEXT,
+				payload_json TEXT NOT NULL CHECK (json_valid(payload_json)),
+				evidence_refs_json TEXT NOT NULL CHECK (json_valid(evidence_refs_json)),
+				schema_version INTEGER NOT NULL,
+				hash TEXT NOT NULL,
+				created_at INTEGER NOT NULL,
+				FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE,
+				UNIQUE(stream_id, sequence),
+				UNIQUE(stream_id, idempotency_key)
+			);
+			CREATE INDEX IF NOT EXISTS runtime_events_mission_idx ON runtime_events(mission_id, occurred_at);
+			CREATE INDEX IF NOT EXISTS runtime_events_stream_idx ON runtime_events(stream_id, sequence);
+			CREATE INDEX IF NOT EXISTS runtime_events_hash_idx ON runtime_events(hash);
+			`);
+		},
+	},
 ];
 
 function ensureColumn(db: Database, table: string, column: string, definition: string): void {
@@ -475,6 +538,7 @@ function ensureColumn(db: Database, table: string, column: string, definition: s
 type MissionRow = {
 	id: string;
 	title: string;
+	objective: string | null;
 	objective_id: string | null;
 	brief_id: string | null;
 	decision_id: string | null;
@@ -489,6 +553,24 @@ type MissionRow = {
 	lifecycle: string | null;
 	proposal_id: string | null;
 	regression_contract_id: string | null;
+};
+
+type RuntimeEventRow = {
+	id: string;
+	mission_id: string;
+	stream_id: string;
+	sequence: number;
+	type: RuntimeEventType;
+	occurred_at: number;
+	correlation_id: string | null;
+	causation_id: string | null;
+	actor: string | null;
+	idempotency_key: string | null;
+	payload_json: string;
+	evidence_refs_json: string;
+	schema_version: number;
+	hash: string;
+	created_at: number;
 };
 
 type MissionLaneRunRow = {
@@ -707,6 +789,7 @@ export class MissionStore {
 			createdAt: now,
 			updatedAt: now,
 			revision: input.revision ?? 0,
+			objective: input.objective ?? input.title,
 			// Normalize the durable core pointers so the returned aggregate matches what a
 			// subsequent getMission()/listMissions() read reconstructs from the row.
 			intent: input.intent ?? null,
@@ -717,13 +800,14 @@ export class MissionStore {
 		this.#db
 			.query(
 				`INSERT INTO missions
-					(id, title, objective_id, brief_id, decision_id, risk_level, state, confidence, snapshot_ref, created_at, updated_at, revision,
+					(id, title, objective, objective_id, brief_id, decision_id, risk_level, state, confidence, snapshot_ref, created_at, updated_at, revision,
 					 intent, lifecycle, proposal_id, regression_contract_id)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			)
 			.run(
 				mission.id,
 				mission.title,
+				mission.objective ?? mission.title,
 				mission.objectiveId,
 				mission.briefId,
 				mission.decisionId,
@@ -829,6 +913,7 @@ export class MissionStore {
 			Pick<
 				ResearchCampaign,
 				| "title"
+				| "objective"
 				| "state"
 				| "confidence"
 				| "decisionId"
@@ -861,12 +946,13 @@ export class MissionStore {
 		this.#db
 			.query(
 				`UPDATE missions
-				SET title = ?, state = ?, confidence = ?, decision_id = ?, snapshot_ref = ?, objective_id = ?, brief_id = ?, risk_level = ?, updated_at = ?,
+				SET title = ?, objective = ?, state = ?, confidence = ?, decision_id = ?, snapshot_ref = ?, objective_id = ?, brief_id = ?, risk_level = ?, updated_at = ?,
 					revision = revision + 1, intent = ?, lifecycle = ?, proposal_id = ?, regression_contract_id = ?
 				WHERE id = ?`,
 			)
 			.run(
 				next.title,
+				next.objective ?? next.title,
 				next.state,
 				next.confidence,
 				next.decisionId,
@@ -904,6 +990,102 @@ export class MissionStore {
 		} | null;
 		if (!row?.design_answers_json) return undefined;
 		return JSON.parse(row.design_answers_json) as Record<string, string>;
+	}
+
+	appendRuntimeEvent(input: RuntimeEventDraft): RuntimeEvent {
+		if (!this.getMission(input.missionId)) {
+			throw new Error(`Mission not found: ${input.missionId}`);
+		}
+		assertRuntimeEventType(input.type);
+		if (input.idempotencyKey) {
+			const existing = this.getRuntimeEventByIdempotencyKey(input.streamId, input.idempotencyKey);
+			if (existing) return existing;
+		}
+		return this.#tx(() => {
+			if (input.idempotencyKey) {
+				const existing = this.getRuntimeEventByIdempotencyKey(input.streamId, input.idempotencyKey);
+				if (existing) return existing;
+			}
+			const now = Date.now();
+			const sequence =
+				input.sequence ??
+				(
+					this.#db
+						.query("SELECT COALESCE(MAX(sequence), 0) + 1 AS sequence FROM runtime_events WHERE stream_id = ?")
+						.get(input.streamId) as { sequence: number }
+				).sequence ??
+				1;
+			const event: RuntimeEvent = {
+				id: input.id ?? generateId("runtime-event", now),
+				missionId: input.missionId,
+				streamId: input.streamId,
+				sequence,
+				type: input.type,
+				occurredAt: input.occurredAt ?? now,
+				correlationId: input.correlationId ?? null,
+				causationId: input.causationId ?? null,
+				actor: input.actor ?? null,
+				idempotencyKey: input.idempotencyKey ?? null,
+				payload: input.payload ?? {},
+				evidenceRefs: input.evidenceRefs ?? [],
+				schemaVersion: input.schemaVersion ?? 1,
+				hash: "",
+				createdAt: input.createdAt ?? now,
+			};
+			event.hash = canonicalRuntimeEventHash(event);
+			try {
+				this.#db
+					.query(
+						`INSERT INTO runtime_events
+							(id, mission_id, stream_id, sequence, type, occurred_at, correlation_id, causation_id, actor,
+							 idempotency_key, payload_json, evidence_refs_json, schema_version, hash, created_at)
+						VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+					)
+					.run(
+						event.id,
+						event.missionId,
+						event.streamId,
+						event.sequence,
+						event.type,
+						event.occurredAt,
+						event.correlationId,
+						event.causationId,
+						event.actor,
+						event.idempotencyKey,
+						stringifyCanonicalJson(event.payload),
+						stringifyCanonicalJson(event.evidenceRefs),
+						event.schemaVersion,
+						event.hash,
+						event.createdAt,
+					);
+				return event;
+			} catch (error) {
+				if (input.idempotencyKey && error instanceof Error && /UNIQUE constraint failed/.test(error.message)) {
+					const existing = this.getRuntimeEventByIdempotencyKey(input.streamId, input.idempotencyKey);
+					if (existing) return existing;
+				}
+				throw error;
+			}
+		});
+	}
+
+	listRuntimeEvents(missionId: string, opts: { streamId?: string } = {}): RuntimeEvent[] {
+		const rows =
+			opts.streamId === undefined
+				? (this.#db
+						.query("SELECT * FROM runtime_events WHERE mission_id = ? ORDER BY stream_id ASC, sequence ASC")
+						.all(missionId) as RuntimeEventRow[])
+				: (this.#db
+						.query("SELECT * FROM runtime_events WHERE mission_id = ? AND stream_id = ? ORDER BY sequence ASC")
+						.all(missionId, opts.streamId) as RuntimeEventRow[]);
+		return rows.map(rowToRuntimeEvent);
+	}
+
+	getRuntimeEventByIdempotencyKey(streamId: string, idempotencyKey: string): RuntimeEvent | undefined {
+		const row = this.#db
+			.query("SELECT * FROM runtime_events WHERE stream_id = ? AND idempotency_key = ?")
+			.get(streamId, idempotencyKey) as RuntimeEventRow | null;
+		return row ? rowToRuntimeEvent(row) : undefined;
 	}
 
 	createLaneRun(input: NewMissionLaneRun): MissionLaneRun {
@@ -2231,6 +2413,12 @@ function assertEpistemicRole(role: EpistemicRole): void {
 	}
 }
 
+function assertRuntimeEventType(type: RuntimeEventType): void {
+	if (type.trim().length === 0) {
+		throw new Error("Runtime event type is required");
+	}
+}
+
 function assertLaneStatus(status: MissionLaneStatus): void {
 	if (!VALID_LANE_STATUSES.has(status)) {
 		throw new Error(`Invalid mission lane status: ${status}`);
@@ -2275,6 +2463,7 @@ function rowToMission(row: MissionRow): ResearchCampaign {
 	return {
 		id: row.id,
 		title: row.title,
+		objective: row.objective ?? row.title,
 		objectiveId: row.objective_id,
 		briefId: row.brief_id,
 		decisionId: row.decision_id,
@@ -2289,6 +2478,27 @@ function rowToMission(row: MissionRow): ResearchCampaign {
 		lifecycle: row.lifecycle ?? null,
 		proposalId: row.proposal_id ?? null,
 		regressionContractId: row.regression_contract_id ?? null,
+	};
+}
+function rowToRuntimeEvent(row: RuntimeEventRow): RuntimeEvent {
+	const payload = parseJsonObject(row.payload_json, "payload_json");
+	const evidenceRefs = parseStringArray(row.evidence_refs_json, "evidence_refs_json");
+	return {
+		id: row.id,
+		missionId: row.mission_id,
+		streamId: row.stream_id,
+		sequence: row.sequence,
+		type: row.type,
+		occurredAt: row.occurred_at,
+		correlationId: row.correlation_id,
+		causationId: row.causation_id,
+		actor: row.actor,
+		idempotencyKey: row.idempotency_key,
+		payload,
+		evidenceRefs,
+		schemaVersion: row.schema_version,
+		hash: row.hash,
+		createdAt: row.created_at,
 	};
 }
 
@@ -2435,6 +2645,14 @@ function parseStringArray(value: string, column: string): string[] {
 	return parsed;
 }
 
+function parseJsonObject(value: string, column: string): Record<string, unknown> {
+	const parsed = JSON.parse(value) as unknown;
+	if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+		throw new Error(`Invalid runtime event JSON column: ${column}`);
+	}
+	return parsed as Record<string, unknown>;
+}
+
 function parseWorldModelLinks(value: string): MissionWorldModelLink[] {
 	const parsed = JSON.parse(value) as unknown;
 	if (!Array.isArray(parsed)) {
@@ -2543,4 +2761,38 @@ function assertProposalStatus(status: MissionProposalStatus): void {
 	if (!MISSION_PROPOSAL_STATUSES.includes(status)) {
 		throw new Error(`Invalid mission proposal status: ${status}`);
 	}
+}
+function canonicalRuntimeEventHash(event: RuntimeEvent): string {
+	return createHash("sha256").update(canonicalRuntimeEventBody(event)).digest("hex");
+}
+
+function canonicalRuntimeEventBody(event: RuntimeEvent): string {
+	return stringifyCanonicalJson({
+		actor: event.actor,
+		causationId: event.causationId,
+		correlationId: event.correlationId,
+		evidenceRefs: event.evidenceRefs,
+		idempotencyKey: event.idempotencyKey,
+		missionId: event.missionId,
+		occurredAt: event.occurredAt,
+		payload: event.payload,
+		schemaVersion: event.schemaVersion,
+		sequence: event.sequence,
+		type: event.type,
+	});
+}
+
+function stringifyCanonicalJson(value: unknown): string {
+	return JSON.stringify(sortJson(value));
+}
+
+function sortJson(value: unknown): unknown {
+	if (Array.isArray(value)) return value.map(sortJson);
+	if (typeof value !== "object" || value === null) return value;
+	const sorted: Record<string, unknown> = {};
+	for (const key of Object.keys(value).sort()) {
+		const child = (value as Record<string, unknown>)[key];
+		if (child !== undefined) sorted[key] = sortJson(child);
+	}
+	return sorted;
 }

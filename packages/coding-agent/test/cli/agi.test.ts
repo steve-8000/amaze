@@ -165,7 +165,7 @@ describe("agi CLI", () => {
 			store.close();
 		}
 
-		const run = await runCli(cleanupRoot, ["agi", "run", "--once"]);
+		const run = await runCli(cleanupRoot, ["agi", "run", "--once", "--legacy-trust-self-report"]);
 		expect(run.exitCode).toBe(0);
 		expect(run.stderr).toBe("");
 		expect(run.stdout).toContain("AGI Gateway score: 100/100");
@@ -173,6 +173,119 @@ describe("agi CLI", () => {
 		const status = await runCli(cleanupRoot, ["agi", "status"]);
 		expect(status.stdout).toContain("completed");
 		expect(status.stdout).toContain("100/100");
+	});
+
+	it("rejects self-report-only completion by default on the CLI run path", async () => {
+		cleanupRoot = await fs.mkdtemp(path.join(os.tmpdir(), "amaze-agi-cli-"));
+		const sessionDir = path.join(cleanupRoot, "sessions");
+		const sessionFile = path.join(sessionDir, "session.jsonl");
+		await fs.mkdir(sessionDir, { recursive: true });
+		await fs.writeFile(
+			sessionFile,
+			[
+				JSON.stringify({
+					type: "session",
+					id: "s1",
+					timestamp: new Date().toISOString(),
+					cwd: repoRoot,
+					title: "AGI unverified session",
+				}),
+				JSON.stringify({
+					type: "message",
+					id: "a1",
+					parentId: null,
+					timestamp: new Date().toISOString(),
+					message: {
+						role: "assistant",
+						content: [
+							{
+								type: "text",
+								text: 'All AGI controls are wired.\nAGI_GATEWAY_RESULT {"score":100,"complete":true,"satisfiedCriteria":["context_boundaries_preserved","initial_build_goal_complete"],"summary":"All AGI controls are wired."}',
+							},
+						],
+						api: "test",
+						provider: "test",
+						model: "test",
+						usage: {
+							input: 1,
+							output: 1,
+							cacheRead: 0,
+							cacheWrite: 0,
+							totalTokens: 2,
+							cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+						},
+						stopReason: "endTurn",
+					},
+				}),
+				"",
+			].join("\n"),
+		);
+
+		const added = await runCli(cleanupRoot, ["agi", "add", "--session", sessionFile]);
+		expect(added.stderr).toBe("");
+		expect(added.exitCode).toBe(0);
+		const store = new AgiGatewayStore(gatewayDbPath(cleanupRoot));
+		try {
+			const session = store.getSession("s1");
+			if (!session) throw new Error("Expected AGI session");
+			store.updateSession("s1", {
+				score: 60,
+				completionState: buildAgiCompletionState(session.goalSpec, {
+					score: 60,
+					complete: false,
+					structuredResultSeen: false,
+					summary: session.completionState.summary,
+					agentSatisfiedCriteria: [],
+					supervisorSatisfiedCriteria: ["monitored_by_gateway", "follow_up_turn_executed"],
+				}),
+			});
+		} finally {
+			store.close();
+		}
+
+		const run = await runCli(cleanupRoot, ["agi", "run", "--once"]);
+		expect(run.exitCode).toBe(0);
+		expect(run.stdout).not.toContain("100/100");
+		const status = await runCli(cleanupRoot, ["agi", "status"]);
+		expect(status.stdout).not.toContain("completed");
+	});
+
+	it("adds mission-bound sessions with objective and criteria flags", async () => {
+		cleanupRoot = await fs.mkdtemp(path.join(os.tmpdir(), "amaze-agi-cli-"));
+		const sessionDir = path.join(cleanupRoot, "sessions");
+		const sessionFile = path.join(sessionDir, "session.jsonl");
+		await fs.mkdir(sessionDir, { recursive: true });
+		await fs.writeFile(
+			sessionFile,
+			`${JSON.stringify({ type: "session", id: "s1", timestamp: new Date().toISOString(), cwd: repoRoot, title: "AGI mission flags" })}\n`,
+		);
+
+		const added = await runCli(cleanupRoot, [
+			"agi",
+			"add",
+			"--session",
+			sessionFile,
+			"--mission",
+			"mission-1",
+			"--objective",
+			"Ship mission runtime",
+			"--criteria",
+			"Persist bridge fields",
+			"--criteria",
+			"Use mission criteria",
+		]);
+		expect(added.exitCode).toBe(0);
+
+		const store = new AgiGatewayStore(gatewayDbPath(cleanupRoot));
+		try {
+			const session = store.getSession("s1");
+			expect(session?.missionId).toBe("mission-1");
+			expect(session?.objective).toBe("Ship mission runtime");
+			expect(session?.criteria).toEqual(["Persist bridge fields", "Use mission criteria"]);
+			expect(session?.goalSpec.criteria.map(criterion => criterion.id)).toContain("mission_criterion_1");
+		} finally {
+			store.close();
+		}
 	});
 
 	it("supports pause resume unblock and remove controls", async () => {

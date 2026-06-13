@@ -1,5 +1,5 @@
 import { AgiGatewayStore, buildAgiControlState } from "../agi/store";
-import { AgiSupervisor } from "../agi/supervisor";
+import { AgiSupervisor, createFailClosedAgiCompletionVerifier } from "../agi/supervisor";
 import { renderAgiStatusText, runAgiTui } from "../agi/tui";
 import { SessionManager } from "../session/session-manager";
 
@@ -10,12 +10,22 @@ export interface AgiCommandArgs {
 	cwd?: string;
 	tickMs?: number;
 	once?: boolean;
+	mission?: string;
+	objective?: string;
+	objectiveContract?: string;
+	criteria?: string[];
+	legacyTrustSelfReport?: boolean;
 }
 
 export async function runAgiCommand(args: AgiCommandArgs = {}): Promise<void> {
 	const action = args.action ?? "tui";
 	if (action === "tui") {
-		await runAgiTui({ dbPath: args.db, cwd: args.cwd, tickMs: args.tickMs });
+		await runAgiTui({
+			dbPath: args.db,
+			cwd: args.cwd,
+			tickMs: args.tickMs,
+			legacyTrustSelfReport: args.legacyTrustSelfReport,
+		});
 		return;
 	}
 
@@ -51,6 +61,10 @@ export async function runAgiCommand(args: AgiCommandArgs = {}): Promise<void> {
 				sessionPath: session.path,
 				cwd: session.cwd,
 				title: session.title,
+				missionId: args.mission,
+				objective: args.objective,
+				objectiveContractId: args.objectiveContract,
+				criteria: args.criteria,
 			});
 			process.stdout.write(
 				`${attached.sessionId}\t${attached.state}\t${attached.score}/100\t${attached.sessionPath}\n`,
@@ -58,7 +72,11 @@ export async function runAgiCommand(args: AgiCommandArgs = {}): Promise<void> {
 			return;
 		}
 		if (action === "run") {
-			const supervisor = new AgiSupervisor({ store, tickMs: args.tickMs });
+			const supervisor = new AgiSupervisor({
+				store,
+				tickMs: args.tickMs,
+				completionVerifier: args.legacyTrustSelfReport ? undefined : createFailClosedAgiCompletionVerifier(),
+			});
 			if (args.once) {
 				const result = await supervisor.tick();
 				process.stdout.write(`AGI Gateway score: ${result.score}/100\n`);

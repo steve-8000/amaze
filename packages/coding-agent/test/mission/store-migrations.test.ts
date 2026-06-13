@@ -73,11 +73,11 @@ afterEach(() => {
 });
 
 describe("mission store migrations", () => {
-	test("fresh store bumps PRAGMA user_version to 5", () => {
+	test("fresh store bumps PRAGMA user_version to 6", () => {
 		const dbPath = tempDbPath();
 		createStore(dbPath);
 
-		expect(userVersion(dbPath)).toBe(5);
+		expect(userVersion(dbPath)).toBe(6);
 	});
 
 	test("pre-existing user_version 0 database with baseline schema upgrades idempotently", () => {
@@ -94,7 +94,7 @@ describe("mission store migrations", () => {
 
 		createStore(dbPath);
 
-		expect(userVersion(dbPath)).toBe(5);
+		expect(userVersion(dbPath)).toBe(6);
 	});
 
 	test("savePlan rolls back partial writes when step serialization fails", () => {

@@ -65,8 +65,23 @@ const MAX_ACTION_RETRIES = 3;
 const BASE_RETRY_MS = 5000;
 const WAIT_IDLE_TICKS = 2;
 const BLOCK_IDLE_TICKS = 6;
-const FOLLOW_UP_PROMPT =
+const LEGACY_FOLLOW_UP_PROMPT =
 	"AGI Gateway requires continued progress toward full `amaze agi` control. Continue the next smallest safe implementation step, keep context bounded, and do not stop until the initial AGI build goal is genuinely complete.";
+
+export function createFailClosedAgiCompletionVerifier(): AgiCompletionVerifier {
+	return session => {
+		if (!session.missionId || !session.objective || session.criteria.length === 0) return false;
+		const evidenceRefs = new Set(session.evidenceRefs);
+		for (const criterion of session.criteria) {
+			if (evidenceRefs.has(criterion)) continue;
+			if (evidenceRefs.has(`criterion:${criterion}`)) continue;
+			const goalCriterion = session.goalSpec.criteria.find(item => item.description === criterion);
+			if (goalCriterion && evidenceRefs.has(`criterion:${goalCriterion.id}`)) continue;
+			return false;
+		}
+		return true;
+	};
+}
 
 export class AgiSupervisor {
 	readonly #store: AgiGatewayStore;
@@ -535,17 +550,27 @@ function compactSummary(text: string): string {
 function buildFollowUpInstruction(session: AgiMonitoredSession, event: AgiGatewayEvent): string {
 	const summary = typeof event.payload.summary === "string" ? event.payload.summary : session.lastSummary;
 	const agentCriteria = session.goalSpec.criteria.filter(criterion => criterion.source === "agent");
-	const criterionLines = agentCriteria.map(criterion => `- ${criterion.id}: ${criterion.description}`).join("\n");
-	const markerExample = `${session.goalSpec.markerPrefix} {"score":80,"complete":false,"satisfiedCriteria":["${agentCriteria[0]?.id ?? "context_boundaries_preserved"}"],"summary":"short status"}`;
+	const unsatisfiedAgentCriteria = agentCriteria.filter(criterion =>
+		session.completionState.missingCriteria.includes(criterion.id),
+	);
+	const criteriaForPrompt = unsatisfiedAgentCriteria.length > 0 ? unsatisfiedAgentCriteria : agentCriteria;
+	const criterionLines = criteriaForPrompt.map(criterion => `- ${criterion.id}: ${criterion.description}`).join("\n");
+	const markerExample = `${session.goalSpec.markerPrefix} {"score":80,"complete":false,"satisfiedCriteria":["${criteriaForPrompt[0]?.id ?? "mission_criterion_1"}"],"summary":"short status"}`;
+	const objectivePrompt = session.objective ? `Mission objective: ${session.objective}` : LEGACY_FOLLOW_UP_PROMPT;
 	return [
-		FOLLOW_UP_PROMPT,
+		"AGI Gateway requires continued progress toward the active mission objective. Continue the next smallest safe implementation step, keep context bounded, and do not stop until the verifier-backed criteria are genuinely complete.",
+		objectivePrompt,
+		session.missionId ? `Mission: ${session.missionId}` : undefined,
 		`Current AGI Gateway score: ${session.score}/100.`,
 		summary ? `Last observed summary: ${summary}` : undefined,
+		session.criteria.length > 0
+			? "Unsatisfied acceptance criteria:"
+			: "Only report agent-owned criteria that are truly satisfied:",
+		criterionLines,
+		session.evidenceRefs.length > 0 ? `Current evidence refs: ${session.evidenceRefs.join(", ")}` : undefined,
 		"At the end of your response, emit exactly one single-line structured completion marker.",
 		`Marker format: ${markerExample}`,
-		"Only report agent-owned criteria that are truly satisfied:",
-		criterionLines,
-		"Do not claim complete=true unless every required AGI build criterion is actually satisfied.",
+		"Do not claim complete=true unless every required criterion is actually satisfied and backed by evidence.",
 	]
 		.filter(Boolean)
 		.join("\n\n");

@@ -1,3 +1,4 @@
+import type { CapabilityLease } from "../../agi/capability-lease";
 /**
  * Lane C1 — ToolGateway Skeleton (workplan §9.3).
  *
@@ -68,6 +69,8 @@ export interface ToolExecutionContext {
 	 * underlying tool read it from here. The gateway never inspects it.
 	 */
 	session?: unknown;
+	/** Optional AGI capability lease or durable lease id for strict runtime profiles. */
+	capabilityLease?: CapabilityLease | string;
 	/** Declared mutation scope the caller is permitted to touch (e.g. globs). */
 	mutationScope?: readonly string[];
 	/** Whether the caller has been granted approval for risky/mutating tools. */
@@ -92,6 +95,10 @@ export interface ToolExecutionContext {
 	 * legacy default for sessions that predate role plumbing).
 	 */
 	agentRole?: "orchestrator" | "subagent";
+	/** Runtime action id authorized by a capability lease, when present. */
+	actionId?: string;
+	/** Plan step id authorized by a capability lease, when present. */
+	planStepId?: string;
 }
 
 /** Mission binding threaded into the gateway for tool-call lifecycle telemetry. */

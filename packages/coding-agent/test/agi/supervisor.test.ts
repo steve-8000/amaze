@@ -3,7 +3,7 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { AgiGatewayStore, buildAgiCompletionState } from "../../src/agi/store";
-import { type AgiActionDriver, AgiSupervisor } from "../../src/agi/supervisor";
+import { type AgiActionDriver, AgiSupervisor, createFailClosedAgiCompletionVerifier } from "../../src/agi/supervisor";
 
 async function makeSessionFile(root: string, lines: unknown[]): Promise<string> {
 	const file = path.join(root, "session.jsonl");
@@ -281,6 +281,106 @@ describe("AGI supervisor", () => {
 			expect(result.score).toBe(100);
 			expect(session.state).toBe("completed");
 			expect(session.completionState.complete).toBe(true);
+		} finally {
+			store.close();
+			await fs.rm(root, { recursive: true, force: true });
+		}
+	});
+
+	it("rejects mission-bound self-report completion without enough verifier evidence", async () => {
+		const root = await fs.mkdtemp(path.join(os.tmpdir(), "amaze-agi-supervisor-"));
+		const store = new AgiGatewayStore(":memory:");
+		try {
+			const sessionFile = await makeSessionFile(root, [
+				{ type: "session", id: "s1", timestamp: new Date().toISOString(), cwd: root, title: "Mission claim" },
+				{
+					type: "message",
+					id: "a1",
+					parentId: null,
+					timestamp: new Date().toISOString(),
+					message: {
+						role: "assistant",
+						content: [
+							{
+								type: "text",
+								text: 'Done.\nAGI_GATEWAY_RESULT {"score":100,"complete":true,"satisfiedCriteria":["mission_criterion_1"],"summary":"Claimed complete."}',
+							},
+						],
+						stopReason: "endTurn",
+					},
+				},
+			]);
+			store.addSession({
+				sessionId: "s1",
+				sessionPath: sessionFile,
+				cwd: root,
+				missionId: "mission-1",
+				objective: "Ship the bridge",
+				criteria: ["Bridge persists mission fields"],
+			});
+
+			await new AgiSupervisor({
+				store,
+				driver: {
+					async run() {
+						return { exitCode: 0, stdout: "", stderr: "" };
+					},
+				},
+				completionVerifier: createFailClosedAgiCompletionVerifier(),
+			}).tick();
+
+			const session = store.getSession("s1");
+			expect(session?.state).not.toBe("completed");
+			expect(session?.completionState.complete).toBe(false);
+			expect(store.listEvents("s1").some(event => event.payload.completionClaimRejected === true)).toBe(true);
+		} finally {
+			store.close();
+			await fs.rm(root, { recursive: true, force: true });
+		}
+	});
+
+	it("uses objective and unsatisfied mission criteria in follow-up instructions", async () => {
+		const root = await fs.mkdtemp(path.join(os.tmpdir(), "amaze-agi-supervisor-"));
+		const driverCalls: string[] = [];
+		const store = new AgiGatewayStore(":memory:");
+		try {
+			const sessionFile = await makeSessionFile(root, [
+				{ type: "session", id: "s1", timestamp: new Date().toISOString(), cwd: root, title: "Mission follow-up" },
+				{
+					type: "message",
+					id: "a1",
+					parentId: null,
+					timestamp: new Date().toISOString(),
+					message: {
+						role: "assistant",
+						content: [{ type: "text", text: "Progress made." }],
+						stopReason: "endTurn",
+					},
+				},
+			]);
+			store.addSession({
+				sessionId: "s1",
+				sessionPath: sessionFile,
+				cwd: root,
+				missionId: "mission-1",
+				objective: "Deliver mission-aware AGI follow-up",
+				criteria: ["Persist session mission fields", "Mention unsatisfied verifier criteria"],
+			});
+
+			await new AgiSupervisor({
+				store,
+				driver: {
+					async run(action) {
+						driverCalls.push(action.instruction);
+						return { exitCode: 0, stdout: "ok", stderr: "" };
+					},
+				},
+			}).tick();
+
+			expect(driverCalls[0]).toContain("Mission objective: Deliver mission-aware AGI follow-up");
+			expect(driverCalls[0]).toContain("mission_criterion_1: Persist session mission fields");
+			expect(driverCalls[0]).toContain("mission_criterion_2: Mention unsatisfied verifier criteria");
+			expect(driverCalls[0]).not.toContain("initial AGI build goal");
 		} finally {
 			store.close();
 			await fs.rm(root, { recursive: true, force: true });

@@ -3,13 +3,14 @@ import { Input } from "@amaze/tui/components/input";
 import { initTheme, theme } from "../modes/theme/theme";
 import { type SessionInfo, SessionManager } from "../session/session-manager";
 import { AgiGatewayStore, type AgiMonitoredSession, buildAgiControlState } from "./store";
-import { AgiSupervisor } from "./supervisor";
+import { AgiSupervisor, createFailClosedAgiCompletionVerifier } from "./supervisor";
 
 export interface AgiTuiOptions {
 	dbPath?: string;
 	cwd?: string;
 	tickMs?: number;
 	targetScore?: number;
+	legacyTrustSelfReport?: boolean;
 }
 
 export async function runAgiTui(options: AgiTuiOptions = {}): Promise<void> {
@@ -25,6 +26,7 @@ export async function runAgiTui(options: AgiTuiOptions = {}): Promise<void> {
 			store,
 			tickMs: options.tickMs,
 			targetScore: options.targetScore,
+			completionVerifier: options.legacyTrustSelfReport ? undefined : createFailClosedAgiCompletionVerifier(),
 		});
 		const app = new AgiApp(store, supervisor, options.cwd ?? process.cwd());
 		const ui = new TUI(new ProcessTerminal());
@@ -49,6 +51,8 @@ export function renderAgiStatusText(sessions: readonly AgiMonitoredSession[], sc
 				`${session.sessionId}\t${session.state}\t${session.score}/100\t${session.title ?? "(untitled)"}\t${session.cwd}\t${session.sessionPath}`,
 			);
 			if (session.preferredModel) lines.push(`\tmodel\t${session.preferredModel}`);
+			if (session.missionId) lines.push(`\tmission\t${session.missionId}`);
+			if (session.objective) lines.push(`\tobjective\t${session.objective}`);
 			if (session.controlState.blockedReason) lines.push(`\tblocked\t${session.controlState.blockedReason}`);
 			if (session.controlState.waitReason) lines.push(`\twaiting\t${session.controlState.waitReason}`);
 		}

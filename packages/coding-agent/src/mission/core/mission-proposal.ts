@@ -23,6 +23,16 @@ export interface MissionProposal {
 	updatedAt: number;
 }
 
+export interface MissionProposalLeaseRefs {
+	proposalId: string;
+	artifactUri: string;
+	contentHash: string;
+	approvedBy: string;
+	approvedAt: number;
+	rollbackRefs: string[];
+	evidenceRefs: string[];
+}
+
 export interface NewMissionProposal {
 	id?: string;
 	missionId: string;

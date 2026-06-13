@@ -299,7 +299,7 @@ export class MissionRuntimeImpl implements MissionRuntime {
 		const mission: Mission = {
 			id: record.id,
 			title: record.title,
-			objective: record.title,
+			objective: record.objective ?? record.title,
 			mode: "auto",
 			lifecycle: (record.lifecycle as MissionLifecycleState | null) ?? storeStateToLifecycle(record.state),
 			riskLevel: record.riskLevel,
@@ -401,6 +401,7 @@ export class MissionRuntimeImpl implements MissionRuntime {
 		const record = this.#store.createMission({
 			...(input.id ? { id: input.id } : {}),
 			title,
+			objective,
 			objectiveId: input.projectId ?? null,
 			briefId: null,
 			decisionId: null,

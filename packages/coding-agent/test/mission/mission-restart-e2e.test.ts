@@ -46,7 +46,7 @@ describe("Mission restart/replay e2e", () => {
 		const runtime = createRuntime(store);
 		const mission = await runtime.create({
 			title: "Restart Replay",
-			objective: "Persist everything",
+			objective: "Persist everything distinct from title",
 			mode: "interactive",
 			intent: "architecture_change",
 			acceptanceCriteria: [{ id: "c1", description: "tests pass", satisfied: false }],
@@ -91,6 +91,8 @@ describe("Mission restart/replay e2e", () => {
 
 		expect(hydrated).toBeDefined();
 		expect(hydrated?.id).toBe(expectedIds.missionId);
+		expect(hydrated?.title).toBe("Restart Replay");
+		expect(hydrated?.objective).toBe("Persist everything distinct from title");
 		expect(hydrated?.acceptanceCriteria.map(c => c.id)).toEqual(["c1"]);
 		expect(hydrated?.scopeGuard?.allowedPaths).toEqual(["src/**"]);
 		expect(hydrated?.scopeGuard?.deniedPaths).toEqual(["dist/**"]);

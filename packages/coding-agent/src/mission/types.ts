@@ -34,6 +34,7 @@ export type MissionLaneStatus = (typeof MISSION_LANE_STATUSES)[number];
 export interface ResearchCampaign {
 	id: string;
 	title: string;
+	objective?: string | null;
 	objectiveId: string | null;
 	briefId: string | null;
 	decisionId: string | null;
@@ -55,6 +56,62 @@ export interface ResearchCampaign {
 	proposalId?: string | null;
 	regressionContractId?: string | null;
 }
+
+export type RuntimeEventType =
+	| "objective.created"
+	| "mission.bound"
+	| "verification.completed"
+	| "mission.completed"
+	| "mission.blocked"
+	| "mission.cancelled"
+	| "mission.failed"
+	| (string & {});
+
+export interface RuntimeEvent {
+	id: string;
+	missionId: string;
+	streamId: string;
+	sequence: number;
+	type: RuntimeEventType;
+	occurredAt: number;
+	correlationId: string | null;
+	causationId: string | null;
+	actor: string | null;
+	idempotencyKey: string | null;
+	payload: Record<string, unknown>;
+	evidenceRefs: string[];
+	schemaVersion: number;
+	hash: string;
+	createdAt: number;
+}
+
+export type RuntimeEventDraft = Omit<
+	RuntimeEvent,
+	| "id"
+	| "sequence"
+	| "occurredAt"
+	| "correlationId"
+	| "causationId"
+	| "actor"
+	| "idempotencyKey"
+	| "payload"
+	| "evidenceRefs"
+	| "schemaVersion"
+	| "hash"
+	| "createdAt"
+> & {
+	id?: string;
+	sequence?: number;
+	occurredAt?: number;
+	createdAt?: number;
+	correlationId?: string | null;
+	causationId?: string | null;
+	actor?: string | null;
+	idempotencyKey?: string | null;
+	payload?: Record<string, unknown>;
+	evidenceRefs?: string[];
+	schemaVersion?: number;
+};
 
 export type NewResearchCampaign = Omit<ResearchCampaign, "id" | "createdAt" | "updatedAt" | "revision"> & {
 	id?: string;

@@ -67,6 +67,11 @@ export interface AgiMonitoredSession {
 	createdAt: number;
 	updatedAt: number;
 	lastEventAt?: number;
+	missionId?: string;
+	objective?: string;
+	objectiveContractId?: string;
+	criteria: string[];
+	evidenceRefs: string[];
 }
 
 export interface AddAgiSessionInput {
@@ -77,6 +82,11 @@ export interface AddAgiSessionInput {
 	preferredModel?: string;
 	state?: AgiSessionState;
 	goalSpec?: AgiGoalSpec;
+	missionId?: string;
+	objective?: string;
+	objectiveContractId?: string;
+	criteria?: string[];
+	evidenceRefs?: string[];
 }
 
 export interface UpdateAgiSessionInput {
@@ -90,6 +100,11 @@ export interface UpdateAgiSessionInput {
 	lastSummary?: string | null;
 	lastError?: string | null;
 	lastEventAt?: number | null;
+	missionId?: string | null;
+	objective?: string | null;
+	objectiveContractId?: string | null;
+	criteria?: string[];
+	evidenceRefs?: string[];
 }
 
 export interface AgiGatewayEvent {
@@ -132,6 +147,11 @@ type AgiSessionRow = {
 	created_at: number;
 	updated_at: number;
 	last_event_at: number | null;
+	mission_id: string | null;
+	objective: string | null;
+	objective_contract_id: string | null;
+	criteria_json: string | null;
+	evidence_refs_json: string | null;
 };
 
 type AgiEventRow = {
@@ -190,6 +210,53 @@ export function createDefaultAgiGoalSpec(): AgiGoalSpec {
 				description: "The session confirms the initial AGI control goal is complete.",
 				source: "agent",
 			},
+		],
+	};
+}
+
+export function createMissionAgiGoalSpec(input: {
+	objective?: string | null;
+	criteria?: readonly string[] | null;
+}): AgiGoalSpec {
+	const objective = input.objective?.trim();
+	const criteria = normalizeStringList(input.criteria);
+	const agentCriteria =
+		criteria.length > 0
+			? criteria.map((description, index) => ({
+					id: `mission_criterion_${index + 1}`,
+					description,
+					source: "agent" as const,
+				}))
+			: objective
+				? [
+						{
+							id: "mission_objective_complete",
+							description: objective,
+							source: "agent" as const,
+						},
+					]
+				: [];
+	if (agentCriteria.length === 0) return createDefaultAgiGoalSpec();
+	return {
+		version: 1,
+		markerPrefix: DEFAULT_GOAL_MARKER,
+		criteria: [
+			{
+				id: "monitored_by_gateway",
+				description: "The session is attached to the AGI Gateway and tracked durably.",
+				source: "supervisor",
+			},
+			{
+				id: "completion_alarm_detected",
+				description: "The gateway observed a completed assistant turn for this session.",
+				source: "supervisor",
+			},
+			{
+				id: "follow_up_turn_executed",
+				description: "The supervisor executed at least one follow-up control turn for this session.",
+				source: "supervisor",
+			},
+			...agentCriteria,
 		],
 	};
 }
@@ -282,19 +349,32 @@ export class AgiGatewayStore {
 
 	addSession(input: AddAgiSessionInput): AgiMonitoredSession {
 		const now = Date.now();
-		const goalSpec = input.goalSpec ?? createDefaultAgiGoalSpec();
+		const criteria = normalizeStringList(input.criteria);
+		const evidenceRefs = normalizeStringList(input.evidenceRefs);
+		const goalSpec = input.goalSpec ?? createMissionAgiGoalSpec({ objective: input.objective, criteria });
 		const completionState = createInitialAgiCompletionState(goalSpec);
 		const controlState = createInitialAgiControlState();
+		const shouldRefreshGoalState =
+			input.goalSpec !== undefined || input.objective !== undefined || input.criteria !== undefined;
 		this.#db
 			.query(
 				`INSERT INTO agi_sessions
-					(session_id, session_path, cwd, title, preferred_model, state, score, observed_bytes, goal_spec_json, completion_state_json, control_state_json, last_summary, last_error, created_at, updated_at, last_event_at)
-				VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, NULL, ?, ?, NULL)
+					(session_id, session_path, cwd, title, preferred_model, state, score, observed_bytes, goal_spec_json, completion_state_json, control_state_json, last_summary, last_error, created_at, updated_at, last_event_at, mission_id, objective, objective_contract_id, criteria_json, evidence_refs_json)
+				VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, NULL, ?, ?, NULL, ?, ?, ?, ?, ?)
 				ON CONFLICT(session_id) DO UPDATE SET
 					session_path = excluded.session_path,
 					cwd = excluded.cwd,
 					title = excluded.title,
 					preferred_model = COALESCE(excluded.preferred_model, agi_sessions.preferred_model),
+					score = CASE WHEN ? THEN excluded.score ELSE agi_sessions.score END,
+					goal_spec_json = CASE WHEN ? THEN excluded.goal_spec_json ELSE agi_sessions.goal_spec_json END,
+					completion_state_json = CASE WHEN ? THEN excluded.completion_state_json ELSE agi_sessions.completion_state_json END,
+					last_summary = CASE WHEN ? THEN excluded.last_summary ELSE agi_sessions.last_summary END,
+					mission_id = COALESCE(excluded.mission_id, agi_sessions.mission_id),
+					objective = COALESCE(excluded.objective, agi_sessions.objective),
+					objective_contract_id = COALESCE(excluded.objective_contract_id, agi_sessions.objective_contract_id),
+					criteria_json = CASE WHEN excluded.criteria_json != '[]' THEN excluded.criteria_json ELSE agi_sessions.criteria_json END,
+					evidence_refs_json = CASE WHEN excluded.evidence_refs_json != '[]' THEN excluded.evidence_refs_json ELSE agi_sessions.evidence_refs_json END,
 					updated_at = excluded.updated_at`,
 			)
 			.run(
@@ -311,6 +391,15 @@ export class AgiGatewayStore {
 				completionState.summary ?? null,
 				now,
 				now,
+				input.missionId ?? null,
+				input.objective ?? null,
+				input.objectiveContractId ?? null,
+				JSON.stringify(criteria),
+				JSON.stringify(evidenceRefs),
+				shouldRefreshGoalState ? 1 : 0,
+				shouldRefreshGoalState ? 1 : 0,
+				shouldRefreshGoalState ? 1 : 0,
+				shouldRefreshGoalState ? 1 : 0,
 			);
 		const session = this.getSession(input.sessionId);
 		if (!session) throw new Error(`AGI session disappeared after add: ${input.sessionId}`);
@@ -351,6 +440,9 @@ export class AgiGatewayStore {
 						lastStructuredResult: current.completionState.lastStructuredResult,
 					}));
 		const controlState = input.controlState ?? current.controlState;
+		const criteria = input.criteria === undefined ? current.criteria : normalizeStringList(input.criteria);
+		const evidenceRefs =
+			input.evidenceRefs === undefined ? current.evidenceRefs : normalizeStringList(input.evidenceRefs);
 		this.#db
 			.query(
 				`UPDATE agi_sessions SET
@@ -364,6 +456,11 @@ export class AgiGatewayStore {
 					last_summary = ?,
 					last_error = ?,
 					last_event_at = ?,
+					mission_id = ?,
+					objective = ?,
+					objective_contract_id = ?,
+					criteria_json = ?,
+					evidence_refs_json = ?,
 					updated_at = ?
 				WHERE session_id = ?`,
 			)
@@ -378,6 +475,11 @@ export class AgiGatewayStore {
 				input.lastSummary === undefined ? (current.lastSummary ?? null) : input.lastSummary,
 				input.lastError === undefined ? (current.lastError ?? null) : input.lastError,
 				input.lastEventAt === undefined ? (current.lastEventAt ?? null) : input.lastEventAt,
+				input.missionId === undefined ? (current.missionId ?? null) : input.missionId,
+				input.objective === undefined ? (current.objective ?? null) : input.objective,
+				input.objectiveContractId === undefined ? (current.objectiveContractId ?? null) : input.objectiveContractId,
+				JSON.stringify(criteria),
+				JSON.stringify(evidenceRefs),
 				now,
 				sessionId,
 			);
@@ -554,7 +656,12 @@ export class AgiGatewayStore {
 				last_error TEXT,
 				created_at INTEGER NOT NULL,
 				updated_at INTEGER NOT NULL,
-				last_event_at INTEGER
+				last_event_at INTEGER,
+				mission_id TEXT,
+				objective TEXT,
+				objective_contract_id TEXT,
+				criteria_json TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(criteria_json)),
+				evidence_refs_json TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(evidence_refs_json))
 			);
 			CREATE INDEX IF NOT EXISTS agi_sessions_state_idx ON agi_sessions(state);
 			CREATE INDEX IF NOT EXISTS agi_sessions_updated_idx ON agi_sessions(updated_at);
@@ -598,6 +705,13 @@ export class AgiGatewayStore {
 		ensureColumn(this.#db, "agi_sessions", "control_state_json", "TEXT");
 		ensureColumn(this.#db, "agi_sessions", "last_summary", "TEXT");
 		ensureColumn(this.#db, "agi_sessions", "last_error", "TEXT");
+		ensureColumn(this.#db, "agi_sessions", "last_event_at", "INTEGER");
+		ensureColumn(this.#db, "agi_sessions", "mission_id", "TEXT");
+		ensureColumn(this.#db, "agi_sessions", "objective", "TEXT");
+		ensureColumn(this.#db, "agi_sessions", "objective_contract_id", "TEXT");
+		ensureColumn(this.#db, "agi_sessions", "criteria_json", "TEXT DEFAULT '[]'");
+		ensureColumn(this.#db, "agi_sessions", "evidence_refs_json", "TEXT DEFAULT '[]'");
+		this.#db.exec("CREATE INDEX IF NOT EXISTS agi_sessions_mission_idx ON agi_sessions(mission_id)");
 		this.#db
 			.query("UPDATE agi_sessions SET goal_spec_json = ? WHERE goal_spec_json IS NULL OR goal_spec_json = ''")
 			.run(defaultGoalSpecJson);
@@ -611,6 +725,14 @@ export class AgiGatewayStore {
 				"UPDATE agi_sessions SET control_state_json = ? WHERE control_state_json IS NULL OR control_state_json = ''",
 			)
 			.run(defaultControlJson);
+		this.#db
+			.query("UPDATE agi_sessions SET criteria_json = '[]' WHERE criteria_json IS NULL OR criteria_json = ''")
+			.run();
+		this.#db
+			.query(
+				"UPDATE agi_sessions SET evidence_refs_json = '[]' WHERE evidence_refs_json IS NULL OR evidence_refs_json = ''",
+			)
+			.run();
 	}
 }
 
@@ -623,6 +745,25 @@ function ensureColumn(db: Database, table: string, column: string, definition: s
 function clampScore(score: number): number {
 	if (!Number.isFinite(score)) return 0;
 	return Math.max(0, Math.min(100, Math.trunc(score)));
+}
+
+function normalizeStringList(values: readonly string[] | null | undefined): string[] {
+	if (!values) return [];
+	const normalized: string[] = [];
+	for (const value of values) {
+		const item = value.trim();
+		if (item.length > 0 && !normalized.includes(item)) normalized.push(item);
+	}
+	return normalized;
+}
+
+function parseStringList(value: string | null): string[] {
+	if (!value) return [];
+	try {
+		const parsed = JSON.parse(value) as unknown;
+		if (Array.isArray(parsed)) return normalizeStringList(parsed.filter(item => typeof item === "string"));
+	} catch {}
+	return [];
 }
 
 function parseGoalSpec(value: string | null): AgiGoalSpec {
@@ -683,6 +824,11 @@ function rowToSession(row: AgiSessionRow): AgiMonitoredSession {
 		createdAt: row.created_at,
 		updatedAt: row.updated_at,
 		...(row.last_event_at !== null ? { lastEventAt: row.last_event_at } : {}),
+		...(row.mission_id !== null ? { missionId: row.mission_id } : {}),
+		...(row.objective !== null ? { objective: row.objective } : {}),
+		...(row.objective_contract_id !== null ? { objectiveContractId: row.objective_contract_id } : {}),
+		criteria: parseStringList(row.criteria_json),
+		evidenceRefs: parseStringList(row.evidence_refs_json),
 	};
 }
 

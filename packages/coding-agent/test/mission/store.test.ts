@@ -114,6 +114,16 @@ describe("MissionStore", () => {
 		expect(store.getMission("mission-1")).toEqual(updated);
 	});
 
+	test("persists objective text distinct from title", () => {
+		const store = createStore();
+		const created = store.createMission(
+			mission({ id: "mission-objective", title: "Short title", objective: "Long durable objective" }),
+		);
+
+		expect(created.objective).toBe("Long durable objective");
+		expect(store.getMission("mission-objective")?.objective).toBe("Long durable objective");
+	});
+
 	test("listMissions filters by objectiveId, briefId, and state", () => {
 		const store = createStore();
 		const target = store.createMission(
@@ -284,6 +294,67 @@ describe("MissionStore", () => {
 		} finally {
 			fs.rmSync(root, { recursive: true, force: true });
 		}
+	});
+
+	test("appends runtime events with stream sequence, idempotency, and stable hash", () => {
+		const store = createStore();
+		const createdMission = store.createMission(mission({ id: "mission-ledger" }));
+
+		const first = store.appendRuntimeEvent({
+			id: "event-1",
+			missionId: createdMission.id,
+			streamId: `mission:${createdMission.id}`,
+			type: "objective.created",
+			occurredAt: 100,
+			actor: "test",
+			idempotencyKey: "objective-created",
+			payload: { z: 1, a: { b: true } },
+			evidenceRefs: ["evidence-1"],
+			schemaVersion: 1,
+			createdAt: 110,
+		});
+		const second = store.appendRuntimeEvent({
+			id: "event-2",
+			missionId: createdMission.id,
+			streamId: `mission:${createdMission.id}`,
+			type: "mission.bound",
+			occurredAt: 120,
+			payload: { missionId: createdMission.id },
+			createdAt: 130,
+		});
+		const duplicate = store.appendRuntimeEvent({
+			id: "event-duplicate",
+			missionId: createdMission.id,
+			streamId: `mission:${createdMission.id}`,
+			type: "objective.created",
+			occurredAt: 999,
+			idempotencyKey: "objective-created",
+			payload: { changed: true },
+		});
+		const sameHash = store.appendRuntimeEvent({
+			id: "event-same-hash",
+			missionId: createdMission.id,
+			streamId: "other-stream",
+			sequence: first.sequence,
+			type: first.type,
+			occurredAt: first.occurredAt,
+			actor: first.actor,
+			idempotencyKey: first.idempotencyKey,
+			payload: { a: { b: true }, z: 1 },
+			evidenceRefs: [...first.evidenceRefs],
+			schemaVersion: first.schemaVersion,
+			createdAt: 999,
+		});
+
+		expect(first.sequence).toBe(1);
+		expect(second.sequence).toBe(2);
+		expect(duplicate).toEqual(first);
+		expect(store.listRuntimeEvents(createdMission.id, { streamId: `mission:${createdMission.id}` })).toEqual([
+			first,
+			second,
+		]);
+		expect(store.getRuntimeEventByIdempotencyKey(`mission:${createdMission.id}`, "objective-created")).toEqual(first);
+		expect(sameHash.hash).toBe(first.hash);
 	});
 	test("emits lane started and completed events when a mission event bus is supplied", () => {
 		const bus = new MissionEventBus();

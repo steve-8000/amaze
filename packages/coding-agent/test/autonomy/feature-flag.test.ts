@@ -37,11 +37,23 @@ describe("autonomy feature flag", () => {
 		expect(handle.tickCount).toBe(0);
 	});
 
-	test("startAutonomyLoop ticks when enabled", async () => {
-		const handle = await startAutonomyLoop({ settings: settings(true), store: createStore(), tickMs: 1 });
+	test("startAutonomyLoop calls the scheduler when enabled", async () => {
+		let schedulerTicks = 0;
+		const handle = await startAutonomyLoop({
+			settings: settings(true),
+			store: createStore(),
+			tickMs: 1,
+			scheduler: {
+				async tick() {
+					schedulerTicks += 1;
+					return [];
+				},
+			},
+		});
 		try {
 			await Bun.sleep(5);
 			expect(handle.tickCount).toBeGreaterThanOrEqual(1);
+			expect(schedulerTicks).toBeGreaterThanOrEqual(1);
 		} finally {
 			handle.stop();
 		}

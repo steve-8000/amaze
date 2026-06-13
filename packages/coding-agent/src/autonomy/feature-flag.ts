@@ -1,3 +1,4 @@
+import type { ObjectiveScheduler } from "./scheduler";
 import type { ObjectiveStore } from "./store";
 
 export interface AutonomySettings {
@@ -8,6 +9,7 @@ export interface AutonomyLoopOptions {
 	settings: AutonomySettings;
 	store: ObjectiveStore;
 	tickMs?: number;
+	scheduler?: Pick<ObjectiveScheduler, "tick">;
 }
 
 export interface AutonomyLoopHandle {
@@ -33,6 +35,7 @@ export async function startAutonomyLoop(opts: AutonomyLoopOptions): Promise<Auto
 	const interval = setInterval(() => {
 		void opts.store;
 		tickCount += 1;
+		void opts.scheduler?.tick();
 	}, opts.tickMs ?? 60_000);
 
 	return {
