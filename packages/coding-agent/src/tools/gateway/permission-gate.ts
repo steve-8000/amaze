@@ -12,6 +12,7 @@ import { authorizeCapabilityLease } from "../../agi/capability-lease";
 import type { Mission } from "../../mission/core/mission";
 import type { MissionProposal } from "../../mission/core/mission-proposal";
 import type { ToolDescriptor, ToolExecutionContext, ToolRiskLevel } from "../registry/tool-descriptor";
+import type { PendingApprovalRegistry, PendingApprovalStatus } from "./pending-approvals";
 
 export interface PermissionDecision {
 	allowed: boolean;
@@ -58,6 +59,61 @@ export class DefaultPermissionGate implements PermissionGate {
 			};
 		}
 		return { allowed: true };
+	}
+}
+
+export interface ApprovalPermissionGateOptions {
+	registry: PendingApprovalRegistry;
+	defaultGate?: PermissionGate;
+}
+
+/** Permission gate that records operator approval requests instead of hard-denying silently. */
+export class ApprovalPermissionGate implements PermissionGate {
+	readonly #registry: PendingApprovalRegistry;
+	readonly #defaultGate: PermissionGate;
+
+	constructor(options: ApprovalPermissionGateOptions) {
+		this.#registry = options.registry;
+		this.#defaultGate = options.defaultGate ?? new DefaultPermissionGate();
+	}
+
+	check(
+		descriptor: ToolDescriptor<any, any>,
+		ctx: ToolExecutionContext,
+		riskLevel: ToolRiskLevel,
+	): PermissionDecision {
+		const defaultDecision = this.#defaultGate.check(descriptor, ctx, riskLevel);
+		if (defaultDecision.allowed || ctx.approvalGranted) return defaultDecision;
+
+		const toolCallId = ctx.toolCallId;
+		if (!toolCallId) return defaultDecision;
+
+		const existing = this.#registry.list({ toolCallId })[0];
+		if (existing?.status === "approved") return { allowed: true };
+		if (existing?.status === "rejected" || existing?.status === "cancelled") {
+			return {
+				allowed: false,
+				code: approvalDenialCode(existing.status),
+				reason: existing.resolutionReason ?? `approval ${existing.status} for tool "${descriptor.name}"`,
+				details: { approvalId: existing.id, status: existing.status },
+			};
+		}
+
+		const request = this.#registry.request({
+			tool: descriptor.name,
+			toolCallId,
+			missionId: ctx.mission?.missionId,
+			taskId: ctx.mission?.taskId,
+			riskLevel,
+			reason: defaultDecision.reason ?? `tool "${descriptor.name}" (${riskLevel}) requires approval; none granted`,
+			inputSummary: summarizeApprovalInput(ctx.input),
+		});
+		return {
+			allowed: false,
+			code: "APPROVAL_REQUIRED",
+			reason: request.reason,
+			details: { approvalId: request.id, status: request.status },
+		};
 	}
 }
 
@@ -144,4 +200,22 @@ function toPermissionDecision(decision: LeaseAuthorizationDecision): PermissionD
 		reason: decision.reason,
 		details: decision.details,
 	};
+}
+
+function approvalDenialCode(status: Exclude<PendingApprovalStatus, "pending" | "approved">): string {
+	return status === "rejected" ? "APPROVAL_REJECTED" : "APPROVAL_CANCELLED";
+}
+
+function summarizeApprovalInput(input: unknown): string | undefined {
+	if (input === undefined) return undefined;
+	if (typeof input === "string") return truncate(input);
+	try {
+		return truncate(JSON.stringify(input));
+	} catch {
+		return truncate(String(input));
+	}
+}
+
+function truncate(value: string, maxLength = 500): string {
+	return value.length > maxLength ? `${value.slice(0, maxLength)}…` : value;
 }

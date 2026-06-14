@@ -91,6 +91,32 @@ describe("authorizeCapabilityLease", () => {
 		expect(decision.allowed).toBe(true);
 	});
 
+	it("denies a mutating tool when the lease grants no sandbox", () => {
+		expect(
+			authorizeCapabilityLease({
+				lease: lease({ sandbox: { mode: "none", rollbackRefs: [] } }),
+				tool: tool(),
+				mission: mission(),
+				now,
+			}),
+		).toMatchObject({ allowed: false, code: "SANDBOX_REQUIRED" });
+	});
+
+	it("allows a read-only tool without a sandbox grant", () => {
+		const decision = authorizeCapabilityLease({
+			lease: lease({
+				allowedTools: ["read"],
+				allowedRisk: "LOW",
+				approval: undefined,
+				sandbox: { mode: "none", rollbackRefs: [] },
+			}),
+			tool: tool({ name: "read", riskLevel: "LOW", mutatesWorkspace: false, supportsRollback: false }),
+			mission: mission(),
+			now,
+		});
+		expect(decision.allowed).toBe(true);
+	});
+
 	it("denies mission, tool, risk, expiration, revocation, and missing approval failures", () => {
 		expect(
 			authorizeCapabilityLease({ lease: lease({ missionId: "other" }), tool: tool(), mission: mission(), now }),

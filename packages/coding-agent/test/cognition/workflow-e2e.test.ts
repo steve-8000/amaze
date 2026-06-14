@@ -10,8 +10,9 @@ import { afterEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { learnFromTerminalMission, planMission, replanMission } from "../../src/cognition";
+import { learnFromTerminalMission, openRuntimeKnowledge, planMission, replanMission } from "../../src/cognition";
 import type { PlannerLlm } from "../../src/cognition/planner";
+import { Settings } from "../../src/config/settings";
 import { KnowledgeStore } from "../../src/memory/knowledge-store";
 import { MissionStore } from "../../src/mission/store";
 import { ResearchRunner } from "../../src/research/runner";
@@ -190,6 +191,97 @@ describe("docs-driven development workflow (e2e over real stores)", () => {
 		);
 		expect(nextPlanned.injectedHeuristics).toBeGreaterThanOrEqual(1);
 		expect(nextPrompt).toContain("<learned-heuristics>");
+		expect(nextPrompt).toContain("narrower file scope");
+	});
+
+	test("okf runtime memory persists lessons and feeds the next plan", async () => {
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "amaze-okf-cognition-e2e-"));
+		cleanups.push(() => fs.rmSync(root, { recursive: true, force: true }));
+		const dbPath = path.join(root, "autonomy.db");
+		const missions = new MissionStore(dbPath);
+		const knowledge = openRuntimeKnowledge(
+			Settings.isolated({
+				"knowledge.enabled": true,
+				"knowledge.provider": "okf",
+				"knowledge.okfPath": path.join(root, "okf-documents.json"),
+			}),
+		);
+		cleanups.push(() => {
+			missions.close();
+			knowledge.close();
+		});
+
+		const mission = missions.createMission({
+			title: "Implement feature with okf memory",
+			objectiveId: null,
+			briefId: null,
+			decisionId: null,
+			riskLevel: "medium",
+			state: "drafting",
+			confidence: null,
+			snapshotRef: null,
+		});
+
+		const initialLlm: PlannerLlm = async () =>
+			JSON.stringify({
+				steps: [{ id: "s1", description: "implement validate()", dependsOn: [] }],
+			});
+		await planMission({ missions, knowledge: knowledge.knowledge, llm: initialLlm }, { missionId: mission.id, objective: "x" });
+
+		for (const attempt of [1, 2]) {
+			missions.recordTaskAttemptCheckpoint({
+				missionId: mission.id,
+				taskId: "t-impl",
+				agent: "Builder",
+				role: "builder",
+				attempt,
+				status: "failed",
+				failureMode: "contract-fail",
+				lastVerdict: "fail",
+				failedCount: 1,
+				uncertainCount: 0,
+				remediationAction: "retry",
+				sessionFile: null,
+				artifactRefs: [],
+				error: "returned untyped errors",
+			});
+		}
+
+		const learned = learnFromTerminalMission(
+			{ missions, knowledge: knowledge.knowledge },
+			{
+				id: mission.id,
+				objective: "x",
+				outcome: { status: "failed" },
+				verification: { verdict: "fail" },
+			},
+		);
+		expect(learned?.recorded.length).toBeGreaterThanOrEqual(1);
+		const stored = knowledge.knowledge.query({ scope: "global", activeOnly: true, limit: 10 });
+		expect(stored.length).toBeGreaterThanOrEqual(1);
+
+		const nextMission = missions.createMission({
+			title: "Next mission with okf memory",
+			objectiveId: null,
+			briefId: null,
+			decisionId: null,
+			riskLevel: "medium",
+			state: "drafting",
+			confidence: null,
+			snapshotRef: null,
+		});
+		let nextPrompt = "";
+		const nextLlm: PlannerLlm = async (_s, user) => {
+			nextPrompt = user;
+			return JSON.stringify({
+				steps: [{ id: "s1", description: "scoped first step", dependsOn: [] }],
+			});
+		};
+		const planned = await planMission(
+			{ missions, knowledge: knowledge.knowledge, llm: nextLlm },
+			{ missionId: nextMission.id, objective: "y" },
+		);
+		expect(planned.injectedHeuristics).toBeGreaterThanOrEqual(1);
 		expect(nextPrompt).toContain("narrower file scope");
 	});
 

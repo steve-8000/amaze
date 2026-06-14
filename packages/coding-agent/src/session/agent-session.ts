@@ -88,6 +88,7 @@ import { MacOSPowerAssertion } from "@amaze/natives";
 import { getAgentDbPath, isEnoent, isUnexpectedSocketCloseMessage, logger, prompt, Snowflake } from "@amaze/utils";
 import type { CapabilityLease } from "../agi/capability-lease";
 import { type AsyncJob, type AsyncJobDeliveryState, AsyncJobManager } from "../async";
+import { ensureObjectiveForMission, isAutonomyEnabled, ObjectiveStore, settleObjectiveForMission } from "../autonomy";
 import { reset as resetCapabilities } from "../capability";
 import type { Rule } from "../capability/rule";
 import { hasUsableAuth, type ModelRegistry } from "../config/model-registry";
@@ -159,6 +160,7 @@ import type { MissionControlRuntime } from "../mission/core/mission-control-runt
 import type { MissionScopeGuard } from "../mission/core/mission-scope";
 import { projectMissionToTodoPhases } from "../mission/core/mission-todo-projection";
 import type { MissionStore } from "../mission/store";
+import { createDurableMissionToolContext } from "../mission/tool-action-log";
 import { getCurrentThemeName, theme } from "../modes/theme/theme";
 import type { Unsubscribe } from "../observability/event-bus";
 import { emitPromptCacheEventIfPossible, type PromptCacheResponse } from "../observability/prompt-cache-emit";
@@ -879,6 +881,13 @@ export class AgentSession {
 	 */
 	#missionUsageBaseline = 0;
 	#missionStoreInstance: MissionStore | undefined;
+	/**
+	 * Lazily-opened objective store, sharing the mission store's durable db file
+	 * (`objectives`/`objective_events` tables coexist with the mission tables).
+	 * Only opened when `autonomy.enabled` is set and a mission terminalizes, so the
+	 * default interactive path pays nothing.
+	 */
+	#objectiveStoreInstance: ObjectiveStore | undefined;
 	#selfImproveLoopUnsub: Unsubscribe | undefined;
 	readonly #subagentContract: SubagentContract | undefined;
 	/**
@@ -1263,6 +1272,10 @@ export class AgentSession {
 				// mission's checkpoints/outcome (L5) so future planning sees them.
 				// Best-effort — learning must never break the session.
 				this.#learnFromTerminalMission(mission);
+				// Step-1 objective binding: under autonomy, link the finished mission
+				// to a durable objective so the objective runtime can settle it. No-op
+				// when autonomy is disabled (default). Best-effort.
+				this.#bindMissionToObjective(mission);
 			}
 		});
 		const continuationDeps: MissionContinuationRuntimeDeps = {
@@ -1312,16 +1325,28 @@ export class AgentSession {
 					permissionMode: this.settings.get("tools.gateway.permissionMode"),
 				});
 
+		// Step-3 durable tool-action log: route the gateway's tool lifecycle records
+		// into the mission store's runtime_events ledger, keyed to the active mission.
+		// Without this binding the live gateway emits no durable tool-action trail.
+		this.#missionToolContext = createDurableMissionToolContext({
+			store: this.#missionBinding.store,
+			getActiveMissionId: () => this.#missionControl.getActiveMission()?.id,
+			onError: error => logger.debug("tool-action log append failed", { error: String(error) }),
+		});
+
 		// Always subscribe to agent events for internal handling
 		// (session persistence, hooks, auto-compaction, retry logic)
 		this.#unsubscribeAgent = this.agent.subscribe(this.#handleAgentEvent);
 
-		// Self-improvement loop (flag-gated, default OFF): on objective completion, analyze
-		// session history against configured rules and file review-gated proposals. No-op
-		// unless AMAZE_SELF_IMPROVE_LOOP is set; pure observe→propose, never auto-applies.
+		// Self-improvement loop (flag-gated, default OFF): analyze session history against
+		// configured rules and file review-gated proposals. No-op unless AMAZE_SELF_IMPROVE_LOOP
+		// is set; pure observe→propose, never auto-applies. Triggers on objective completion AND
+		// on a finished subagent, so a failing subagent (e.g. the subagent-no-yield rule) drives
+		// a failure→analysis→proposal pass promptly rather than only at goal completion.
 		this.#selfImproveLoopUnsub = attachSelfImprovementLoop({
 			eventBus: getSessionEventBus(this),
 			analyze: createObjectiveLoopAnalyzer({ cwd: this.sessionManager.getCwd() }),
+			triggerOn: ["goal.complete", "subagent.end"],
 			onError: error => logger.debug("self-improvement loop pass failed", { error: String(error) }),
 		});
 	}
@@ -2778,12 +2803,12 @@ export class AgentSession {
 		const missions = this.#missionStoreInstance;
 		if (!missions) return;
 		try {
-			void import("../cognition").then(async ({ learnFromTerminalMission }) => {
-				const { KnowledgeStore } = await import("../memory/knowledge-store");
-				const knowledge = new KnowledgeStore();
+			void import("../cognition").then(async ({ learnFromTerminalMission, openRuntimeKnowledge }) => {
+				const knowledge = openRuntimeKnowledge(this.settings);
 				try {
+					if (!knowledge.persistLearnedHeuristics) return;
 					const result = learnFromTerminalMission(
-						{ missions, knowledge },
+						{ missions, knowledge: knowledge.knowledge },
 						{
 							id: mission.id,
 							objective: mission.objective,
@@ -2805,6 +2830,72 @@ export class AgentSession {
 		} catch (error) {
 			logger.debug("cognition learner pass failed", { error: String(error) });
 		}
+	}
+
+	/**
+	 * Step-1 binding + Step-2 settlement: under autonomy, lazily open the objective
+	 * store (sharing the mission store's db file), bind a finished live mission to a
+	 * durable objective, then re-evaluate (settle) that objective so its
+	 * progress/status reflect the finished mission. Gated on `autonomy.enabled`
+	 * (default OFF) and best-effort — objective bookkeeping must never break the
+	 * session.
+	 *
+	 * Settlement persists progress/status only; it spawns no missions, because a
+	 * live-bound objective's `maxAutoSubgoalsPerDay` cap is 0. The async settlement
+	 * is fire-and-forget so the terminal handler stays synchronous.
+	 */
+	#bindMissionToObjective(mission: Mission): void {
+		if (!isAutonomyEnabled(this.settings)) return;
+		const missions = this.#missionStoreInstance;
+		if (!missions) return;
+		let objectiveId: string;
+		try {
+			if (!this.#objectiveStoreInstance) {
+				this.#objectiveStoreInstance = new ObjectiveStore(missions.dbPath);
+			}
+			const result = ensureObjectiveForMission(
+				{ objectives: this.#objectiveStoreInstance, missions },
+				{ missionId: mission.id },
+			);
+			objectiveId = result.objectiveId;
+			if (result.created) {
+				logger.info("autonomy.objective.bound", { missionId: mission.id, objectiveId });
+			}
+		} catch (error) {
+			logger.debug("objective binding pass failed", { error: String(error) });
+			return;
+		}
+		const objectives = this.#objectiveStoreInstance;
+		// Fire-and-forget settlement: the terminal handler is synchronous, and
+		// settlement is pure-read + status writes that must never block or throw
+		// into the session.
+		void (async () => {
+			// Narrow the dispose race: if the session is already tearing down, skip the
+			// settlement writes entirely. A late close still only throws a catchable
+			// "closed database" error, which the catch below swallows.
+			if (this.#isDisposed) return;
+			try {
+				const { settlement } = await settleObjectiveForMission(
+					{
+						objectives,
+						missions,
+						// A live-bound objective has maxAutoSubgoalsPerDay 0, so this
+						// factory is never invoked. Reject loudly if that invariant breaks.
+						createMission: () => {
+							throw new Error("live-bound objective must not generate missions");
+						},
+					},
+					{ objectiveId },
+				);
+				logger.info("autonomy.objective.settled", {
+					objectiveId,
+					status: settlement.status,
+					complete: settlement.complete,
+				});
+			} catch (error) {
+				logger.debug("objective settlement pass failed", { error: String(error) });
+			}
+		})();
 	}
 
 	/** Emit extension events based on session events */
@@ -3044,6 +3135,8 @@ export class AgentSession {
 		this.#releasePowerAssertion();
 		this.#missionStoreInstance?.close();
 		this.#missionStoreInstance = undefined;
+		this.#objectiveStoreInstance?.close();
+		this.#objectiveStoreInstance = undefined;
 		await this.sessionManager.close();
 		this.#closeAllProviderSessions("dispose");
 		this.#disconnectFromAgent();
@@ -4102,9 +4195,8 @@ export class AgentSession {
 		if (!mission) return "No active mission to plan. Create one with `/mission create <objective>`.";
 		const missions = this.#missionStoreInstance;
 		if (!missions) return "Mission store unavailable; cannot persist a plan.";
-		const { createRegistryPlannerLlm, planMission } = await import("../cognition");
-		const { KnowledgeStore } = await import("../memory/knowledge-store");
-		const knowledge = new KnowledgeStore();
+		const { createRegistryPlannerLlm, openRuntimeKnowledge, planMission } = await import("../cognition");
+		const knowledge = openRuntimeKnowledge(this.settings);
 		try {
 			// Invalidate repo-anchored knowledge whose backing files drifted so the
 			// planner never consumes stale claims as heuristics.
@@ -4112,7 +4204,7 @@ export class AgentSession {
 			const result = await planMission(
 				{
 					missions,
-					knowledge,
+					knowledge: knowledge.knowledge,
 					llm: createRegistryPlannerLlm(this.#modelRegistry, this.settings, this.sessionManager.getSessionId()),
 				},
 				{

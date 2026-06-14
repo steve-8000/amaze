@@ -11,6 +11,7 @@ import type {
 	NumericMetricMap,
 	ReconstructedControlState,
 	RuntimeStore,
+	ParentSelectionStrategy,
 } from "./types";
 
 export function createExperimentState(): ExperimentState {
@@ -33,6 +34,9 @@ export function createExperimentState(): ExperimentState {
 		branch: null,
 		baselineCommit: null,
 		sessionId: null,
+		selectedParentRunNumber: null,
+		parentSelectionStrategy: "score_child_prop",
+		parentSelectionStrategyConfigured: "score_child_prop",
 	};
 }
 
@@ -72,6 +76,89 @@ function cloneResult(result: ExperimentResult): ExperimentResult {
 		modifiedPaths: [...result.modifiedPaths],
 		scopeDeviations: [...result.scopeDeviations],
 	};
+}
+
+export interface ParentSelectionResult {
+	runNumber: number | null;
+	strategy: ParentSelectionStrategy;
+	candidateCount: number;
+}
+
+export function selectNextParent(
+	results: ExperimentResult[],
+	segment: number,
+	direction: MetricDirection,
+	strategy: ParentSelectionStrategy = "score_child_prop",
+	random: () => number = Math.random,
+): ParentSelectionResult {
+	const candidates = currentResults(results, segment).filter(result => isSelectableParent(result, results));
+	if (candidates.length === 0) return { runNumber: null, strategy, candidateCount: 0 };
+	if (strategy === "latest") {
+		return { runNumber: candidates[candidates.length - 1]?.runNumber ?? null, strategy, candidateCount: candidates.length };
+	}
+	if (strategy === "best") {
+		return { runNumber: bestCandidate(candidates, direction)?.runNumber ?? null, strategy, candidateCount: candidates.length };
+	}
+	if (strategy === "random") {
+		return { runNumber: pickWeighted(candidates, candidates.map(() => 1), random)?.runNumber ?? null, strategy, candidateCount: candidates.length };
+	}
+
+	const weights = scoreWeights(candidates, direction);
+	if (strategy === "score_child_prop") {
+		const childCounts = countChildren(results, candidates);
+		for (let index = 0; index < weights.length; index += 1) {
+			const runNumber = candidates[index]?.runNumber;
+			const children = runNumber === null || runNumber === undefined ? 0 : (childCounts.get(runNumber) ?? 0);
+			weights[index] = (weights[index] ?? 0) * Math.exp(-((children / 8) ** 3));
+		}
+	}
+	return { runNumber: pickWeighted(candidates, weights, random)?.runNumber ?? null, strategy, candidateCount: candidates.length };
+}
+
+function isSelectableParent(result: ExperimentResult, allResults: ExperimentResult[]): boolean {
+	if (result.status !== "keep" || result.flagged || !result.validParent || !Number.isFinite(result.metric)) return false;
+	if (result.parentRunNumber === null) return true;
+	const parent = allResults.find(candidate => candidate.runNumber === result.parentRunNumber);
+	return parent?.status === "keep" && !parent.flagged && parent.validParent;
+}
+
+function bestCandidate(candidates: ExperimentResult[], direction: MetricDirection): ExperimentResult | null {
+	let best: ExperimentResult | null = null;
+	for (const candidate of candidates) {
+		if (best === null || isBetter(candidate.metric, best.metric, direction)) best = candidate;
+	}
+	return best;
+}
+
+function scoreWeights(candidates: ExperimentResult[], direction: MetricDirection): number[] {
+	const scores = candidates.map(candidate => candidate.metric);
+	const normalized = direction === "higher" ? scores : scores.map(score => -score);
+	const sorted = [...normalized].sort((left, right) => right - left);
+	const top = sorted.slice(0, 3);
+	const midpoint = top.reduce((sum, value) => sum + value, 0) / top.length;
+	return normalized.map(score => 1 / (1 + Math.exp(-10 * (score - midpoint))));
+}
+
+function countChildren(results: ExperimentResult[], candidates: ExperimentResult[]): Map<number, number> {
+	const candidateIds = new Set(candidates.map(candidate => candidate.runNumber).filter((value): value is number => value !== null));
+	const counts = new Map<number, number>();
+	for (const result of results) {
+		if (result.parentRunNumber !== null && candidateIds.has(result.parentRunNumber)) {
+			counts.set(result.parentRunNumber, (counts.get(result.parentRunNumber) ?? 0) + 1);
+		}
+	}
+	return counts;
+}
+
+function pickWeighted(candidates: ExperimentResult[], weights: number[], random: () => number): ExperimentResult | null {
+	const total = weights.reduce((sum, weight) => sum + (Number.isFinite(weight) && weight > 0 ? weight : 0), 0);
+	if (total <= 0) return candidates[Math.floor(random() * candidates.length)] ?? null;
+	let threshold = random() * total;
+	for (let index = 0; index < candidates.length; index += 1) {
+		threshold -= weights[index] ?? 0;
+		if (threshold <= 0) return candidates[index] ?? null;
+	}
+	return candidates[candidates.length - 1] ?? null;
 }
 
 export function currentResults(results: ExperimentResult[], segment: number): ExperimentResult[] {
@@ -185,6 +272,7 @@ export function buildExperimentState(session: SessionRow, loggedRuns: RunRow[]):
 	state.maxExperiments = session.maxIterations;
 	state.currentSegment = session.currentSegment;
 	state.secondaryMetrics = session.secondaryMetrics.map(name => ({ name, unit: inferMetricUnitFromName(name) }));
+	state.parentSelectionStrategyConfigured = session.parentSelectionStrategy;
 
 	for (const run of loggedRuns) {
 		if (run.status === null) continue;
@@ -204,6 +292,9 @@ export function buildExperimentState(session: SessionRow, loggedRuns: RunRow[]):
 			justification: run.justification,
 			flagged: run.flagged,
 			flaggedReason: run.flaggedReason,
+			parentRunNumber: run.parentRunId,
+			selectionStrategy: run.selectionStrategy,
+			validParent: run.validParent,
 		};
 		state.results.push(result);
 		if (run.segment === state.currentSegment) {
@@ -213,6 +304,9 @@ export function buildExperimentState(session: SessionRow, loggedRuns: RunRow[]):
 
 	state.bestMetric = findBaselineMetric(state.results, state.currentSegment);
 	state.confidence = computeConfidence(state.results, state.currentSegment, state.bestDirection);
+	const parent = selectNextParent(state.results, state.currentSegment, state.bestDirection, state.parentSelectionStrategyConfigured);
+	state.selectedParentRunNumber = parent.runNumber;
+	state.parentSelectionStrategy = parent.strategy;
 	return state;
 }
 

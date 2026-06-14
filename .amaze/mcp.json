@@ -1,16 +1,6 @@
 {
 	"$schema": "https://raw.githubusercontent.com/can1357/amaze/main/packages/coding-agent/src/config/mcp-schema.json",
 	"mcpServers": {
-		"gbrain": {
-			"type": "stdio",
-			"command": "gbrain",
-			"args": [
-				"serve"
-			],
-			"env": {
-				"MCP_STDIO": "1"
-			}
-		},
 		"amaze-browser-bridge": {
 			"type": "stdio",
 			"command": "bun",

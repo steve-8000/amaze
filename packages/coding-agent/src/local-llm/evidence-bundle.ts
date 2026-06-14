@@ -1,7 +1,7 @@
 import type { LocalEvidenceBundle, LocalEvidenceClaim, LocalEvidenceFileCandidate, LocalEvidenceRisk } from "./types";
 
 const CONFIDENCE_VALUES = new Set(["low", "medium", "high"]);
-const LOCAL_LLM_USE_CASE_VALUES = new Set(["log_summarizer", "context_compressor"]);
+const LOCAL_LLM_USE_CASE_VALUES = new Set(["log_summarizer", "context_compressor", "memory_worker"]);
 
 export const LOCAL_EVIDENCE_BUNDLE_SCHEMA = {
 	properties: {

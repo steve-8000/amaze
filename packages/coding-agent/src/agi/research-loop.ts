@@ -8,6 +8,10 @@ export interface ResearchLoopResult {
 	blockers: string[];
 }
 
+export interface ResearchAgent {
+	research(input: { missionId: string; contract: ObjectiveContract }): Promise<MemorySourceRef[]>;
+}
+
 export interface ResearchLoop {
 	satisfyFreshnessPolicy(input: { missionId: string; contract: ObjectiveContract }): Promise<ResearchLoopResult>;
 }
@@ -15,10 +19,12 @@ export interface ResearchLoop {
 export class MemoryBackedResearchLoop implements ResearchLoop {
 	readonly #memory: AgiMemory;
 	readonly #now: () => number;
+	readonly #researchAgent: ResearchAgent | undefined;
 
-	constructor(input: { memory: AgiMemory; now?: () => number }) {
+	constructor(input: { memory: AgiMemory; now?: () => number; researchAgent?: ResearchAgent }) {
 		this.#memory = input.memory;
 		this.#now = input.now ?? Date.now;
+		this.#researchAgent = input.researchAgent;
 	}
 
 	async satisfyFreshnessPolicy(input: {
@@ -39,8 +45,12 @@ export class MemoryBackedResearchLoop implements ResearchLoop {
 			items.flatMap(item => item.sourceRefs),
 			{ now: this.#now(), maxAgeMs },
 		).valid;
-		return citations.length > 0
-			? { satisfied: true, citations, blockers: [] }
+		if (citations.length > 0) return { satisfied: true, citations, blockers: [] };
+		const researched =
+			(await this.#researchAgent?.research({ missionId: input.missionId, contract: input.contract })) ?? [];
+		const researchedCitations = verifySourceRefs(researched, { now: this.#now(), maxAgeMs }).valid;
+		return researchedCitations.length > 0
+			? { satisfied: true, citations: researchedCitations, blockers: [] }
 			: { satisfied: false, citations: [], blockers: ["fresh citation evidence required before mutation"] };
 	}
 }

@@ -115,4 +115,47 @@ describe("attachSelfImprovementLoop", () => {
 		expect(errors.length).toBe(1);
 		off();
 	});
+
+	it("triggers on subagent.end when configured (failure-driven analysis)", async () => {
+		process.env[FLAG] = "1";
+		const bus = new EventBus();
+		let calls = 0;
+		const off = attachSelfImprovementLoop({
+			eventBus: bus,
+			analyze: async () => void calls++,
+			triggerOn: ["goal.complete", "subagent.end"],
+		});
+		bus.emit({
+			type: "subagent.end",
+			sessionId: "s",
+			ts: 1,
+			taskId: "t1",
+			verdict: "fail",
+			changedFiles: 0,
+			revisions: 0,
+		});
+		await new Promise(r => setTimeout(r, 5));
+		expect(calls).toBe(1);
+		off();
+	});
+
+	it("does NOT trigger on subagent.end under the default trigger set", async () => {
+		process.env[FLAG] = "1";
+		const bus = new EventBus();
+		let calls = 0;
+		// No triggerOn → default ["goal.complete"] only.
+		const off = attachSelfImprovementLoop({ eventBus: bus, analyze: async () => void calls++ });
+		bus.emit({
+			type: "subagent.end",
+			sessionId: "s",
+			ts: 1,
+			taskId: "t1",
+			verdict: "fail",
+			changedFiles: 0,
+			revisions: 0,
+		});
+		await new Promise(r => setTimeout(r, 5));
+		expect(calls).toBe(0);
+		off();
+	});
 });

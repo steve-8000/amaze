@@ -10,6 +10,7 @@ type CapturedRequest = {
 };
 
 const originalCodexSearchModel = process.env.AMAZE_CODEX_WEB_SEARCH_MODEL;
+const originalCodexSearchReasoning = process.env.AMAZE_CODEX_WEB_SEARCH_REASONING;
 
 function makeSseResponse(model: string): string {
 	return [
@@ -212,6 +213,11 @@ describe("searchCodex model selection", () => {
 		} else {
 			process.env.AMAZE_CODEX_WEB_SEARCH_MODEL = originalCodexSearchModel;
 		}
+		if (originalCodexSearchReasoning === undefined) {
+			delete process.env.AMAZE_CODEX_WEB_SEARCH_REASONING;
+		} else {
+			process.env.AMAZE_CODEX_WEB_SEARCH_REASONING = originalCodexSearchReasoning;
+		}
 	});
 
 	it("uses the built-in default model when AMAZE_CODEX_WEB_SEARCH_MODEL is unset", async () => {
@@ -247,6 +253,59 @@ describe("searchCodex model selection", () => {
 		expect(capturedRequest).not.toBeNull();
 		expect(capturedRequest?.body?.model).toBe("gpt-5.4-mini");
 		expect(result.model).toBe("gpt-5.4-mini");
+	});
+
+	it("strips provider prefix and reasoning suffix from AMAZE_CODEX_WEB_SEARCH_MODEL", async () => {
+		process.env.AMAZE_CODEX_WEB_SEARCH_MODEL = "openai-codex/gpt-5.3-codex-spark:medium";
+		using _hook = mockCodexFetch("gpt-5.3-codex-spark");
+
+		const result = await searchCodex({ query: "spark with reasoning" });
+
+		expect(capturedRequest).not.toBeNull();
+		expect(capturedRequest?.body?.model).toBe("gpt-5.3-codex-spark");
+		expect(capturedRequest?.body?.reasoning).toEqual({ effort: "medium" });
+		expect(result.model).toBe("gpt-5.3-codex-spark");
+	});
+
+	it("omits reasoning when no effort suffix is configured", async () => {
+		process.env.AMAZE_CODEX_WEB_SEARCH_MODEL = "gpt-5.3-codex-spark";
+		using _hook = mockCodexFetch("gpt-5.3-codex-spark");
+
+		await searchCodex({ query: "spark without reasoning" });
+
+		expect(capturedRequest).not.toBeNull();
+		expect(capturedRequest?.body?.model).toBe("gpt-5.3-codex-spark");
+		expect(capturedRequest?.body?.reasoning).toBeUndefined();
+	});
+
+	it("never sends reasoning for an explicit :none effort", async () => {
+		process.env.AMAZE_CODEX_WEB_SEARCH_MODEL = "gpt-5.3-codex-spark:none";
+		using _hook = mockCodexFetch("gpt-5.3-codex-spark");
+
+		await searchCodex({ query: "spark none effort" });
+
+		expect(capturedRequest?.body?.model).toBe("gpt-5.3-codex-spark");
+		expect(capturedRequest?.body?.reasoning).toBeUndefined();
+	});
+
+	it("applies AMAZE_CODEX_WEB_SEARCH_REASONING when the model has no suffix", async () => {
+		process.env.AMAZE_CODEX_WEB_SEARCH_MODEL = "gpt-5.3-codex-spark";
+		process.env.AMAZE_CODEX_WEB_SEARCH_REASONING = "high";
+		using _hook = mockCodexFetch("gpt-5.3-codex-spark");
+
+		await searchCodex({ query: "spark env reasoning" });
+
+		expect(capturedRequest?.body?.reasoning).toEqual({ effort: "high" });
+	});
+
+	it("prefers the model suffix over AMAZE_CODEX_WEB_SEARCH_REASONING", async () => {
+		process.env.AMAZE_CODEX_WEB_SEARCH_MODEL = "gpt-5.3-codex-spark:low";
+		process.env.AMAZE_CODEX_WEB_SEARCH_REASONING = "high";
+		using _hook = mockCodexFetch("gpt-5.3-codex-spark");
+
+		await searchCodex({ query: "spark suffix wins" });
+
+		expect(capturedRequest?.body?.reasoning).toEqual({ effort: "low" });
 	});
 
 	it("forces web_search tool choice and extracts markdown link citations when annotations are absent", async () => {

@@ -3,6 +3,7 @@ import * as path from "node:path";
 import { procmgr } from "@amaze/utils";
 import { createEvidenceCompletionVerifier } from "./evidence-verifier";
 import {
+	type AgiControlAction,
 	type AgiControlState,
 	type AgiGatewayAction,
 	type AgiGatewayEvent,
@@ -66,6 +67,7 @@ const MAX_ACTION_RETRIES = 3;
 const BASE_RETRY_MS = 5000;
 const WAIT_IDLE_TICKS = 2;
 const BLOCK_IDLE_TICKS = 6;
+const MAX_STALLS_BEFORE_BLOCK = 2;
 const LEGACY_FOLLOW_UP_PROMPT =
 	"AGI Gateway requires continued progress toward full `amaze agi` control. Continue the next smallest safe implementation step, keep context bounded, and do not stop until the initial AGI build goal is genuinely complete.";
 
@@ -237,23 +239,34 @@ export async function observeSessions(
 				claimRejected = true;
 			}
 		}
+		// A stall (priority-list / plan-only assistant turn with no tool activity and no
+		// structured marker) is NOT progress: it must not credit the completion alarm,
+		// inflate the score, or reset the idle/progress clock.
 		const completionState = withCompletionUpdate(session, {
-			assistantTurnCompleted: analysis.hasAssistantEnd,
+			assistantTurnCompleted: analysis.hasAssistantEnd && !analysis.stalled,
 			structuredResult,
 			summary: analysis.summary,
 		});
-		const controlState = nextControlState(session.controlState, {
-			consecutiveIdleTicks: 0,
-			waitReason: undefined,
-			blockedReason: undefined,
-			lastProgressAt: now(),
-		});
+		const controlState = analysis.stalled
+			? nextControlState(session.controlState, {
+					consecutiveStalls: session.controlState.consecutiveStalls + 1,
+					waitReason: "Stalled: priority-list/plan response without execution or evidence.",
+				})
+			: nextControlState(session.controlState, {
+					consecutiveStalls: 0,
+					consecutiveIdleTicks: 0,
+					waitReason: undefined,
+					blockedReason: undefined,
+					lastProgressAt: now(),
+				});
 		const state =
 			completionState.complete && completionState.score >= targetScore
 				? "completed"
-				: analysis.hasAssistantEnd
-					? "watching"
-					: "waiting";
+				: analysis.stalled
+					? "waiting"
+					: analysis.hasAssistantEnd
+						? "watching"
+						: "waiting";
 		store.updateSession(session.sessionId, {
 			state,
 			score: completionState.score,
@@ -273,6 +286,7 @@ export async function observeSessions(
 				structuredResultSeen: completionState.structuredResultSeen,
 				complete: completionState.complete,
 				missingCriteria: completionState.missingCriteria,
+				...(analysis.stalled ? { stalled: true } : {}),
 				...(claimRejected ? { completionClaimRejected: true } : {}),
 			},
 			{ id: eventId(session, analysis.eventType, stat.size), createdAt: now() },
@@ -304,6 +318,11 @@ export function planActions(
 					blockedReason: undefined,
 				}),
 			});
+			store.markEventProcessed(event.id);
+			continue;
+		}
+		if (event.type === "session.stalled" && !store.getActionForEvent(event.id)) {
+			if (planStallAction(store, session, event, now)) created += 1;
 			store.markEventProcessed(event.id);
 			continue;
 		}
@@ -340,6 +359,67 @@ export function planActions(
 		store.markEventProcessed(event.id);
 	}
 	return created;
+}
+
+/**
+ * React to a control stall. A stall NEVER earns a prompt re-injection. For a mission-bound
+ * session we queue a structured `runtime_tick` action so the AGI runtime expands the
+ * mandatory subagent roles and executes under lease/sandbox/verifier. After repeated stalls
+ * (or for a session with nothing to orchestrate) we escalate to `blocked` instead of spinning.
+ * Returns true when a structured action was created.
+ */
+function planStallAction(
+	store: AgiGatewayStore,
+	session: AgiMonitoredSession,
+	event: AgiGatewayEvent,
+	now: () => number,
+): boolean {
+	const stalls = session.controlState.consecutiveStalls;
+	if (stalls >= MAX_STALLS_BEFORE_BLOCK || !session.missionId) {
+		const reason = session.missionId
+			? `AGI control stalled ${stalls} times without execution or evidence.`
+			: "AGI session stalled without a mission to orchestrate; no prompt re-injection is allowed.";
+		store.updateSession(session.sessionId, {
+			state: "blocked",
+			score: session.score,
+			completionState: session.completionState,
+			controlState: nextControlState(session.controlState, {
+				blockedReason: reason,
+				activeActionId: undefined,
+				waitReason: undefined,
+			}),
+		});
+		store.recordEvent(
+			session.sessionId,
+			"session.blocked",
+			{ reason: "control_stall", consecutiveStalls: stalls, mission: session.missionId ?? null },
+			{ id: eventId(session, "stall-blocked", now()) },
+		);
+		return false;
+	}
+	const payload: AgiControlAction = {
+		kind: "runtime_tick",
+		missionId: session.missionId,
+		...(session.objectiveContractId ? { objectiveId: session.objectiveContractId } : {}),
+		profile: "strict-mutation",
+	};
+	const action = store.createAction({
+		sessionId: session.sessionId,
+		eventId: event.id,
+		actionType: "runtime_tick",
+		payload,
+		instruction: `Run AGI runtime tick for mission ${session.missionId} (stall recovery; subagent expansion mandated).`,
+	});
+	store.updateSession(session.sessionId, {
+		state: "waiting",
+		completionState: session.completionState,
+		controlState: nextControlState(session.controlState, {
+			activeActionId: action.id,
+			waitReason: "Queued AGI runtime tick after control stall.",
+		}),
+		score: session.score,
+	});
+	return true;
 }
 
 export async function runPendingActions(
@@ -454,6 +534,10 @@ interface DeltaAnalysis {
 	eventType: string;
 	summary: string;
 	hasAssistantEnd: boolean;
+	/** A tool was actually exercised in this delta (the strongest progress signal). */
+	hasToolActivity: boolean;
+	/** The turn ended but produced only a priority list / plan with no execution or evidence. */
+	stalled: boolean;
 	structuredResult?: AgiStructuredResult;
 }
 
@@ -466,11 +550,14 @@ function analyzeSessionDelta(delta: string, markerPrefix: string, totalBytes: nu
 	const assistantTexts: string[] = [];
 	let hasAssistantEnd = false;
 	let hasError = false;
+	let hasToolActivity = false;
 	for (const entry of entries) {
 		if (entry.type !== "message") continue;
 		const message = entry.message;
 		if (!message || typeof message !== "object") continue;
 		const record = message as Record<string, unknown>;
+		// A tool result is durable proof the agent executed something this turn.
+		if (record.role === "toolResult") hasToolActivity = true;
 		if (record.role !== "assistant") continue;
 		hasAssistantEnd = true;
 		const stopReason = record.stopReason;
@@ -482,12 +569,63 @@ function analyzeSessionDelta(delta: string, markerPrefix: string, totalBytes: nu
 	const compact = compactSummary(summaryText);
 	const summary =
 		structuredResult?.summary ?? (compact || `${entries.length} new session entries, ${totalBytes} bytes observed`);
+	const stalled = detectControlStall(summaryText, {
+		hasToolActivity,
+		hasStructuredResult: structuredResult !== undefined,
+		hasAssistantEnd,
+	});
 	return {
-		eventType: hasError ? "session.error" : hasAssistantEnd ? "session.turn_completed" : "session.changed",
+		eventType: hasError
+			? "session.error"
+			: stalled
+				? "session.stalled"
+				: hasAssistantEnd
+					? "session.turn_completed"
+					: "session.changed",
 		summary,
 		hasAssistantEnd,
+		hasToolActivity,
+		stalled,
 		...(structuredResult ? { structuredResult } : {}),
 	};
+}
+
+const STALL_PHRASES = [
+	"다음 미션컨트롤 우선순위",
+	"다음 우선순위",
+	"다음 단계",
+	"다음 작업",
+	"next mission control priority",
+	"next mission control priorities",
+	"mission control priorit",
+	"next priority",
+	"next priorities",
+	"next step",
+	"next steps",
+	"here is the plan",
+	"here's the plan",
+	"proposed plan",
+	"the plan is",
+] as const;
+
+/**
+ * Classify an assistant turn as a *control stall* — a priority list / plan-only response
+ * that reports intent without executing anything. A stall is NOT progress and must not
+ * earn a follow-up prompt; the runtime escalates it to a structured action instead.
+ *
+ * The detector is deliberately conservative: a turn that actually exercised a tool or emitted
+ * a structured completion marker is never a stall, regardless of phrasing. Only an
+ * end-of-turn, tool-free, marker-free response whose text reads like planning/priority prose
+ * is flagged — so generic progress narration ("Progress made.") does not trip it.
+ */
+export function detectControlStall(
+	assistantText: string,
+	signals: { hasToolActivity: boolean; hasStructuredResult: boolean; hasAssistantEnd: boolean },
+): boolean {
+	if (!signals.hasAssistantEnd) return false;
+	if (signals.hasToolActivity || signals.hasStructuredResult) return false;
+	const normalized = assistantText.toLowerCase();
+	return STALL_PHRASES.some(phrase => normalized.includes(phrase.toLowerCase()));
 }
 
 function extractStructuredResult(texts: string[], markerPrefix: string): AgiStructuredResult | undefined {
@@ -621,6 +759,7 @@ function nextControlState(current: AgiControlState, patch: Partial<AgiControlSta
 	return buildAgiControlState({
 		retryCount: patch.retryCount ?? current.retryCount,
 		failureCount: patch.failureCount ?? current.failureCount,
+		consecutiveStalls: patch.consecutiveStalls ?? current.consecutiveStalls,
 		consecutiveIdleTicks: patch.consecutiveIdleTicks ?? current.consecutiveIdleTicks,
 		waitReason: patch.waitReason,
 		blockedReason: patch.blockedReason,

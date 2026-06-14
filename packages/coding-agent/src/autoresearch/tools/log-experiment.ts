@@ -243,6 +243,9 @@ export function createLogExperimentTool(
 				justification,
 				flagged: false,
 				flaggedReason: null,
+				parentRunNumber: pendingRun.parentRunId,
+				selectionStrategy: pendingRun.selectionStrategy,
+				validParent: pendingRun.validParent,
 			};
 
 			const segmentRunCount = currentResults(finalState.results, finalState.currentSegment).length;

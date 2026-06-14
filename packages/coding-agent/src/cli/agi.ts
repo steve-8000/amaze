@@ -1,19 +1,32 @@
+import { CompositeAgiActionDriver } from "../agi/action-driver";
 import { descriptorFromAgentTool } from "../agi/agent-tool-adapter";
 import type { CapabilityLease } from "../agi/capability-lease";
 import { EvidenceVerifier } from "../agi/evidence-verifier";
 import { AgiGovernance } from "../agi/governance";
 import { buildMissionTimeline } from "../agi/observability";
+import { OkfAgiMemory } from "../agi/okf-agi-memory";
+import { DeterministicReplanner } from "../agi/replanner";
+import { MemoryBackedResearchLoop } from "../agi/research-loop";
 import { RegistryRoleExecutor, type RoleExecutor } from "../agi/role-executor";
 import { AgiRuntime, type AgiRuntimeDeps, type AgiRuntimePlanner } from "../agi/runtime";
-import { AgiGatewayStore, buildAgiControlState } from "../agi/store";
+import { AgiGatewayStore, type AgiRuntimeProfile, buildAgiControlState } from "../agi/store";
+import { MissionSubagentGate, shouldEnforceSubagentGate } from "../agi/subagent-orchestrator";
+import { createBundledRoleRunner } from "../agi/subagent-runner";
 import { AgiSupervisor, createFailClosedAgiCompletionVerifier } from "../agi/supervisor";
 import { renderAgiStatusText, runAgiTui } from "../agi/tui";
 import type { ContractiblePlanStep, ObjectiveContract, RuntimeAction } from "../autonomy";
+import { createLlmCompletionReviewer, createLlmObjectiveDecomposer } from "../autonomy/objective-llm";
+import type { ObjectiveCompletionReviewer, ObjectiveDecomposer } from "../autonomy/objective-runtime";
+import { createObjectiveRuntimeHooks } from "../autonomy/objective-runtime-store";
 import { ObjectiveScheduler } from "../autonomy/scheduler";
 import { ObjectiveStore } from "../autonomy/store";
+import { createRegistryPlannerLlm } from "../cognition";
+import { ModelRegistry } from "../config/model-registry";
 import { Settings } from "../config/settings";
 import { MissionRuntimeImpl } from "../mission/core/mission-runtime";
 import { MissionStore } from "../mission/store";
+import { OkfStore } from "../okf/store";
+import { AuthStorage } from "../session/auth-storage";
 import { SessionManager } from "../session/session-manager";
 import { createTools, type ToolSession } from "../tools";
 import { SessionToolGateway } from "../tools/gateway/session-gateway";
@@ -107,6 +120,17 @@ export async function runAgiCommand(args: AgiCommandArgs = {}): Promise<void> {
 				store,
 				tickMs: args.tickMs,
 				completionVerifier: args.legacyTrustSelfReport ? undefined : createFailClosedAgiCompletionVerifier(),
+				driver: new CompositeAgiActionDriver({
+					runtimeTick: async action => {
+						const profile = action.payload?.kind === "runtime_tick" ? action.payload.profile : "strict-mutation";
+						const result = await runAgiRuntimeProfile(profile, args);
+						return {
+							exitCode: result.missionsBlocked > 0 ? 1 : 0,
+							stdout: `runtime_tick observed=${result.missionsObserved} allowed=${result.actionsAllowed} blocked=${result.actionsBlocked} completed=${result.missionsCompleted} missionBlocked=${result.missionsBlocked}`,
+							stderr: "",
+						};
+					},
+				}),
 			});
 			if (args.once) {
 				const result = await supervisor.tick();
@@ -119,12 +143,10 @@ export async function runAgiCommand(args: AgiCommandArgs = {}): Promise<void> {
 			return;
 		}
 		if (action === "runtime") {
-			if (args.profile !== undefined && args.profile !== "strict-supervised") {
-				throw new Error("agi runtime supports --profile strict-supervised");
-			}
-			const result = await runStrictSupervisedRuntime(args);
+			const profile = normalizeRuntimeProfile(args.profile);
+			const result = await runAgiRuntimeProfile(profile, args);
 			process.stdout.write(
-				`AGI strict-supervised runtime: observed=${result.missionsObserved} queued=${result.actionsQueued} allowed=${result.actionsAllowed} blocked=${result.actionsBlocked} completed=${result.missionsCompleted} missionBlocked=${result.missionsBlocked}\n`,
+				`AGI ${profile} runtime: observed=${result.missionsObserved} queued=${result.actionsQueued} allowed=${result.actionsAllowed} blocked=${result.actionsBlocked} completed=${result.missionsCompleted} missionBlocked=${result.missionsBlocked}\n`,
 			);
 			return;
 		}
@@ -247,7 +269,18 @@ async function runMissionControlPlaneCommand(action: string, args: AgiCommandArg
 	}
 }
 
-async function runStrictSupervisedRuntime(args: AgiCommandArgs) {
+/** `strict-supervised` is the legacy alias of the read-only `strict-observe` profile. */
+function normalizeRuntimeProfile(profile: string | undefined): AgiRuntimeProfile {
+	if (profile === undefined || profile === "strict-supervised") return "strict-observe";
+	if (profile === "strict-observe" || profile === "strict-mutation" || profile === "strict-self-improve") {
+		return profile;
+	}
+	throw new Error(
+		`agi runtime supports --profile strict-observe | strict-mutation | strict-self-improve (or legacy strict-supervised); got "${profile}"`,
+	);
+}
+
+async function runAgiRuntimeProfile(profile: AgiRuntimeProfile, args: AgiCommandArgs) {
 	const missionStore = new MissionStore(args.db);
 	const objectiveStore = new ObjectiveStore(args.db);
 	const missionRuntime = new MissionRuntimeImpl({
@@ -255,6 +288,11 @@ async function runStrictSupervisedRuntime(args: AgiCommandArgs) {
 		autonomyProfile: "strict",
 	});
 	try {
+		// Optional LLM-backed objective seams. Gated on `localLlm.enabled` so the default
+		// headless path stays deterministic (and dependency-free for evals/tests); when a
+		// user opts into local mode, the same seam transparently uses whatever model the
+		// `Planner` role resolves to — local or cloud, decided entirely by settings.
+		const llmSeams = await buildObjectiveLlmSeams(args);
 		const scheduler = new ObjectiveScheduler({
 			store: objectiveStore,
 			missionRuntime,
@@ -263,8 +301,26 @@ async function runStrictSupervisedRuntime(args: AgiCommandArgs) {
 			findMissionForObjective: objective => missionStore.getPreferredMission({ objectiveId: objective.id })?.id,
 			resumeMission: () => undefined,
 			holdObjective: () => undefined,
+			// Objective runtime: after a mission goes terminal, re-evaluate the objective and
+			// generate the next mission(s) rather than treating a finished mission as the end.
+			objectiveRuntime: createObjectiveRuntimeHooks({ objectiveStore, missionStore, ...llmSeams }),
 			now: Date.now,
 		});
+		// Mutating profiles must clear the mandatory subagent gate before any runtime action
+		// executes; the read-only observe profile has nothing to mutate and skips it. Policy
+		// lives in one place (shouldEnforceSubagentGate) so runtimes/tests cannot drift.
+		const enforcesSubagents = shouldEnforceSubagentGate(profile);
+		const subagentGate = enforcesSubagents
+			? new MissionSubagentGate({
+					selfImprovement: profile === "strict-self-improve",
+					runRole: createBundledRoleRunner({ cwd: args.cwd ?? process.cwd(), missionId: "agi-runtime" }),
+				})
+			: undefined;
+		// Step-7 autonomous research: when OKF knowledge is configured, back the runtime
+		// with an OKF memory and a freshness-gated research loop. The gate only blocks a
+		// mission whose objective contract sets `freshnessPolicy.researchRequired`, so this
+		// is opt-in per contract and a no-op for contracts that declare no freshness need.
+		const researchSeam = await buildResearchSeam(args.cwd ?? process.cwd());
 		const runtime = new AgiRuntime({
 			scheduler,
 			objectives: objectiveStore,
@@ -281,8 +337,11 @@ async function runStrictSupervisedRuntime(args: AgiCommandArgs) {
 				},
 			}),
 			verifier: new EvidenceVerifier({ missionStore }),
+			replanner: new DeterministicReplanner(),
 			store: missionStore,
 			governance: new AgiGovernance({ store: missionStore }),
+			...(subagentGate ? { subagentGate } : {}),
+			...(researchSeam ? { research: researchSeam.research } : {}),
 			executor: await createStrictSupervisedRoleExecutor(args),
 		} satisfies AgiRuntimeDeps);
 		return await runtime.tick();
@@ -291,6 +350,27 @@ async function runStrictSupervisedRuntime(args: AgiCommandArgs) {
 		objectiveStore.close();
 		missionStore.close();
 	}
+}
+
+/**
+ * Step-7 research seam: build a freshness-gated research loop backed by OKF memory
+ * when OKF knowledge is configured. Returns undefined when knowledge is disabled or
+ * not OKF-backed, so the deterministic headless/eval path injects nothing and the
+ * runtime's research gate stays inert.
+ *
+ * Only the research loop is injected into the runtime — NOT the planning `memory`
+ * dep. The loop encapsulates its own OKF memory for citation lookup; leaving the
+ * runtime's `memory` dep unset preserves the existing planning-memory behavior, so
+ * activating research changes only the freshness gate (which acts solely on contracts
+ * declaring `freshnessPolicy.researchRequired`).
+ */
+async function buildResearchSeam(cwd: string): Promise<{ research: MemoryBackedResearchLoop } | undefined> {
+	const settings = await Settings.createForCwd(cwd);
+	if (settings.get("knowledge.enabled") !== true || settings.get("knowledge.provider") !== "okf") {
+		return undefined;
+	}
+	const memory = new OkfAgiMemory({ store: new OkfStore(settings.get("knowledge.okfPath")) });
+	return { research: new MemoryBackedResearchLoop({ memory }) };
 }
 
 class StrictSupervisedCompilerModel {
@@ -445,6 +525,30 @@ async function createStrictSupervisedRoleExecutor(args: AgiCommandArgs): Promise
 			agentRole: "orchestrator",
 		}),
 	});
+}
+
+/**
+ * Build the optional LLM-backed objective seams (mission generator + completion
+ * reviewer). Returns empty when local LLM mode is disabled — the objective runtime
+ * then uses its deterministic metric-target decomposition and metric-proof completion,
+ * with no model dependency. When `localLlm.enabled` is set, the seams resolve a model
+ * through the `Planner` role; whether that model is local or cloud is the user's config.
+ */
+async function buildObjectiveLlmSeams(
+	args: AgiCommandArgs,
+): Promise<{ decompose?: ObjectiveDecomposer; reviewCompletion?: ObjectiveCompletionReviewer }> {
+	const cwd = args.cwd ?? process.cwd();
+	const settings = await Settings.createForCwd(cwd);
+	if (!settings.get("localLlm.enabled")) return {};
+	const authStorage = await AuthStorage.create(":memory:");
+	const modelRegistry = new ModelRegistry(authStorage);
+	await modelRegistry.refresh("online-if-uncached");
+	if (modelRegistry.getAvailable().length === 0) return {};
+	const llm = createRegistryPlannerLlm(modelRegistry, settings, args.session);
+	return {
+		decompose: createLlmObjectiveDecomposer(llm),
+		reviewCompletion: createLlmCompletionReviewer(llm),
+	};
 }
 
 function strictRuntimeToolNames(): string[] {

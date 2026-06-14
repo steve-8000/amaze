@@ -6,7 +6,10 @@ import { HookEditorComponent, HookInputComponent, HookSelectorComponent } from "
 export { Container, Markdown, Spacer, Text } from "@amaze/tui";
 // Logging
 export { getAgentDir, logger, VERSION } from "@amaze/utils";
-export * from "./agency-brain";
+export type { KnowledgeRegistry, KnowledgeRegistryEntry, KnowledgeRegistryEntryStatus } from "./agency-brain/registry";
+export { parseKnowledgeRegistryPage } from "./agency-brain/registry";
+export * from "./memory/knowledge-store";
+export type * from "./memory/types";
 export * from "./config/keybindings";
 export * from "./config/model-registry";
 // Prompt templates

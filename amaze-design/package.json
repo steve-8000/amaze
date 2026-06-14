@@ -1,0 +1,7 @@
+{
+  "name": "amaze-design",
+  "private": true,
+  "scripts": {
+    "test": "node --test 'skills/amaze-design/agents/tests/*.test.mjs'"
+  }
+}

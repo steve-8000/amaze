@@ -10,7 +10,7 @@ import { parseWorkDirDirtyPaths } from "../git";
 import { dedupeStrings, normalizePathSpec } from "../helpers";
 import { buildExperimentState } from "../state";
 import { openAutoresearchStorage, type SessionRow } from "../storage";
-import type { AutoresearchToolFactoryOptions, ExperimentState } from "../types";
+import type { AutoresearchToolFactoryOptions, ExperimentState, ParentSelectionStrategy } from "../types";
 
 export const HARNESS_FILENAME = "autoresearch.sh";
 export const DEFAULT_HARNESS_COMMAND = `bash ${HARNESS_FILENAME}`;
@@ -31,6 +31,10 @@ const initExperimentSchema = z.object({
 	constraints: z.array(z.string()).describe("free-form constraints").optional(),
 	max_iterations: z.number().describe("soft iteration cap per segment").optional(),
 	new_segment: z.boolean().describe("bump to a new segment in existing session").optional(),
+	parent_selection_strategy: z
+		.enum(["latest", "best", "random", "score_prop", "score_child_prop"] as const)
+		.describe("parent selection strategy for future runs (default score_child_prop)")
+		.optional(),
 });
 
 interface InitExperimentDetails {
@@ -67,6 +71,7 @@ export function createInitExperimentTool(
 				params.max_iterations !== undefined && Number.isFinite(params.max_iterations) && params.max_iterations > 0
 					? Math.floor(params.max_iterations)
 					: null;
+			const parentSelectionStrategy: ParentSelectionStrategy = params.parent_selection_strategy ?? "score_child_prop";
 			const branch = (await git.branch.current(ctx.cwd)) ?? null;
 			const onAutoresearchBranch = branch?.startsWith("autoresearch/") ?? false;
 
@@ -126,6 +131,7 @@ export function createInitExperimentTool(
 					offLimits,
 					constraints,
 					secondaryMetrics,
+					parentSelectionStrategy,
 				});
 				createdSession = true;
 			} else {
@@ -141,6 +147,7 @@ export function createInitExperimentTool(
 					metricUnit,
 					direction,
 					branch,
+					parentSelectionStrategy,
 				};
 				if (isNewSegmentInit) {
 					updates.baselineCommit = baselineCommit;

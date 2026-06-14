@@ -75,6 +75,7 @@ export type ModelRole =
 	| "Researcher"
 	| "Researcher_X"
 	| "LocalScout"
+	| "MemoryWorker"
 	| "commit";
 
 export interface ModelRoleInfo {
@@ -93,6 +94,7 @@ export const MODEL_ROLES: Record<ModelRole, ModelRoleInfo> = {
 	Researcher: { tag: "RESEARCH", name: "Researcher", color: "muted" },
 	Researcher_X: { tag: "X", name: "Researcher X", color: "muted" },
 	LocalScout: { tag: "SCOUT", name: "Local Scout", color: "warning" },
+	MemoryWorker: { tag: "MEMORY", name: "Memory Worker", color: "warning" },
 	commit: { tag: "COMMIT", name: "Commit", color: "dim" },
 };
 export const MODEL_ROLE_IDS: ModelRole[] = [
@@ -105,6 +107,7 @@ export const MODEL_ROLE_IDS: ModelRole[] = [
 	"Researcher",
 	"Researcher_X",
 	"LocalScout",
+	"MemoryWorker",
 	"commit",
 ];
 

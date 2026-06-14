@@ -23,7 +23,18 @@ import type { DiscoverableTool, DiscoverableToolSearchIndex } from "../tool-disc
 import type { EventBus } from "../utils/event-bus";
 import { WebSearchTool } from "../web/search";
 import type { WorkspaceTree } from "../workspace-tree";
-import { AgencyBrainQueryTool, AgencyBrainRegistryTool } from "./agency-brain";
+import {
+	KnowledgeQueryTool,
+	KnowledgeRegistryTool,
+	MemoryWorkerGetPageTool,
+	MemoryWorkerQueryTool,
+	OkfBenchmarkRecordTool,
+	OkfHealthTool,
+	OkfPageGetTool,
+	OkfQueryTool,
+	OkfRecordTool,
+	OkfToolMethodQueryTool,
+} from "./knowledge";
 import { AskTool } from "./ask";
 import { AstEditTool } from "./ast-edit";
 import { AstGrepTool } from "./ast-grep";
@@ -64,7 +75,7 @@ export * from "../mission/core";
 export * from "../session/streaming-output";
 export * from "../task";
 export * from "../web/search";
-export * from "./agency-brain";
+export * from "./knowledge";
 export * from "./ask";
 export * from "./ast-edit";
 export * from "./ast-grep";
@@ -311,8 +322,16 @@ export function computeEssentialBuiltinNames(settings: Settings): string[] {
  * `BUILTIN_TOOLS[name](session)` to construct a tool directly.
  */
 export const BUILTIN_TOOLS: Record<string, ToolFactory> = {
-	agency_brain_registry: AgencyBrainRegistryTool.createIf,
-	agency_brain_query: AgencyBrainQueryTool.createIf,
+	knowledge_registry: KnowledgeRegistryTool.createIf,
+	knowledge_query: KnowledgeQueryTool.createIf,
+	mcp__memory_worker_get_page: MemoryWorkerGetPageTool.createIf,
+	mcp__memory_worker_query: MemoryWorkerQueryTool.createIf,
+	okf_health: OkfHealthTool.createIf,
+	okf_page_get: OkfPageGetTool.createIf,
+	okf_query: OkfQueryTool.createIf,
+	okf_record: OkfRecordTool.createIf,
+	okf_tool_method_query: OkfToolMethodQueryTool.createIf,
+	okf_benchmark_record: OkfBenchmarkRecordTool.createIf,
 	read: s => new ReadTool(s),
 	bash: s => new BashTool(s),
 	edit: s => new EditTool(s),
@@ -528,8 +547,8 @@ export async function createTools(session: ToolSession, toolNames?: string[]): P
 		if (name === "inspect_image") return session.settings.get("inspect_image.enabled");
 		if (name === "web_search") return session.settings.get("web_search.enabled");
 		// search_tool_bm25 is allowed when either legacy mcp.discoveryMode or new tools.discoveryMode is active.
-		if (name === "agency_brain_registry" || name === "agency_brain_query") {
-			return session.settings.get("agencyBrain.enabled") === true;
+		if (name === "knowledge_registry" || name === "knowledge_query" || name.startsWith("okf_")) {
+			return session.settings.get("knowledge.enabled") === true;
 		}
 		if (name === "search_tool_bm25") return discoveryActive;
 		if (name === "calc") return session.settings.get("calc.enabled");

@@ -485,21 +485,21 @@ describe("wave 3 commands", () => {
 	});
 
 	// /memory
-	it("/memory unknown: points to GBrain Agency Brain", async () => {
+	it("/memory unknown: points to OKF knowledge direction", async () => {
 		const { output, runtime } = createRuntime();
 		const result = await executeAcpBuiltinSlashCommand("/memory unknownverb", runtime);
 		expect(result).toEqual({ consumed: true });
-		expect(output[0]).toContain("GBrain Agency Brain");
+		expect(output[0]).toContain("OKF files with optional knowledge MCP retrieval");
 	});
 
-	it("/memory view: points to GBrain Agency Brain", async () => {
+	it("/memory view: points to OKF knowledge direction", async () => {
 		const { output, runtime } = createRuntime();
 		const result = await executeAcpBuiltinSlashCommand("/memory view", runtime);
 		expect(result).toEqual({ consumed: true });
 		expect(output.length).toBeGreaterThan(0);
 	});
 
-	it("/memory (no args): points to GBrain Agency Brain", async () => {
+	it("/memory (no args): points to OKF knowledge direction", async () => {
 		const { output, runtime } = createRuntime();
 		const result = await executeAcpBuiltinSlashCommand("/memory", runtime);
 		expect(result).toEqual({ consumed: true });

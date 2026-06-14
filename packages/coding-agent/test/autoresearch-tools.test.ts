@@ -162,7 +162,7 @@ describe("init_experiment", () => {
 		);
 		const second = await tool.execute(
 			"call-b",
-			{ name: "a", primary_metric: "ms", scope_paths: ["src", "lib"], goal: "v2" },
+			{ name: "a", primary_metric: "ms", scope_paths: ["src", "lib"], goal: "v2", parent_selection_strategy: "latest" },
 			undefined,
 			undefined,
 			createCtx(dir),
@@ -172,6 +172,7 @@ describe("init_experiment", () => {
 		expect(second.details?.state.scopePaths).toEqual(["src", "lib"]);
 		expect(second.details?.state.goal).toBe("v2");
 		expect(second.details?.state.currentSegment).toBe(0);
+		expect(second.details?.state.parentSelectionStrategyConfigured).toBe("latest");
 	});
 
 	it("bumps segment when new_segment is true on a re-init", async () => {
@@ -322,12 +323,79 @@ describe("run_experiment", () => {
 		expect(details.passed).toBe(true);
 		expect(fs.existsSync(details.benchmarkLogPath)).toBe(true);
 
+		const metadata = JSON.parse(await Bun.file(path.join(details.runDirectory, "metadata.json")).text());
+		const metrics = JSON.parse(await Bun.file(path.join(details.runDirectory, "metrics.json")).text());
+		expect(metadata).toMatchObject({
+			schema_version: 1,
+			run_id: details.runNumber,
+			eval_stage: "full",
+			command: "bash autoresearch.sh",
+			exit_code: 0,
+			passed: true,
+		});
+		expect(metadata.logs).toMatchObject({ benchmark: "benchmark.log", smoke: null });
+		expect(metrics).toMatchObject({
+			schema_version: 1,
+			primary_metric: "runtime_ms",
+			primary_value: 42,
+			metrics: { runtime_ms: 42, memory_mb: 12 },
+			asi: { hypothesis: "baseline" },
+		});
+		expect(fs.existsSync(path.join(details.runDirectory, "patch.diff"))).toBe(true);
 		const storage = await openAutoresearchStorage(dir);
 		const session = storage.getActiveSession();
 		const runs = storage.listRuns(session!.id);
 		expect(runs).toHaveLength(1);
 		expect(runs[0].parsedPrimary).toBe(42);
 		expect(runs[0].status).toBeNull();
+	});
+
+	it("runs staged smoke before full benchmark and skips full on smoke failure", async () => {
+		const dir = makeTempDir();
+		await writeHarnessStub(dir, "echo FULL_RAN >> stage-order.txt; echo METRIC m=42");
+		const runtime = createSessionRuntime();
+		const init = createInitExperimentTool({
+			dashboard: dashboardStub(),
+			getRuntime: () => runtime,
+			pi: createPiHarness().api,
+		});
+		await init.execute("i", { name: "x", primary_metric: "m" }, undefined, undefined, createCtx(dir));
+		const run = createRunExperimentTool({
+			dashboard: dashboardStub(),
+			getRuntime: () => runtime,
+			pi: createPiHarness().api,
+		});
+
+		const pass = await run.execute(
+			"r-pass",
+			{ stage: "staged", smoke_command: "echo SMOKE_RAN >> stage-order.txt; echo ASI smoke=pass" },
+			undefined,
+			undefined,
+			createCtx(dir),
+		);
+		const passDetails = pass.details as RunDetails;
+		expect(passDetails.evalStage).toBe("staged");
+		expect(passDetails.parsedPrimary).toBe(42);
+		expect(passDetails.parsedAsi).toMatchObject({ smoke: "pass", eval_stage: "staged", smoke_passed: true });
+		expect(await Bun.file(path.join(dir, "stage-order.txt")).text()).toBe("SMOKE_RAN\nFULL_RAN\n");
+
+		await writeHarnessStub(dir, "echo SHOULD_NOT_RUN >> stage-order.txt; echo METRIC m=99");
+		const fail = await run.execute(
+			"r-fail",
+			{ stage: "staged", smoke_command: "echo SMOKE_FAIL >> stage-order.txt; exit 3" },
+			undefined,
+			undefined,
+			createCtx(dir),
+		);
+		const failDetails = fail.details as RunDetails;
+		expect(failDetails.passed).toBe(false);
+		expect(failDetails.exitCode).toBe(3);
+		expect(failDetails.parsedPrimary).toBeNull();
+		expect(await Bun.file(path.join(dir, "stage-order.txt")).text()).toBe("SMOKE_RAN\nFULL_RAN\nSMOKE_FAIL\n");
+		expect(fs.existsSync(path.join(failDetails.runDirectory, "smoke.log"))).toBe(true);
+		const failMetadata = JSON.parse(await Bun.file(path.join(failDetails.runDirectory, "metadata.json")).text());
+		expect(failMetadata.logs).toMatchObject({ benchmark: "benchmark.log", smoke: "smoke.log" });
+		expect(failMetadata).toMatchObject({ eval_stage: "staged", smoke_command: "echo SMOKE_FAIL >> stage-order.txt; exit 3" });
 	});
 
 	it("abandons a prior pending run instead of blocking", async () => {

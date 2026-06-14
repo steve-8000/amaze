@@ -17,12 +17,12 @@ describe("local LLM config", () => {
 
 		expect(config.enabled).toBe(false);
 		expect(config.required).toBe(false);
-		expect(config.modelRole).toBe("LocalScout");
-		expect(getLocalLlmRoleAlias(config)).toBe("LocalScout");
-		expect(isLocalLlmUseCaseEnabled(config, "log_summarizer")).toBe(false);
+		expect(config.modelRole).toBe("MemoryWorker");
+		expect(getLocalLlmRoleAlias(config)).toBe("MemoryWorker");
+		expect(isLocalLlmUseCaseEnabled(config, "memory_worker")).toBe(false);
 	});
 
-	test("enables configured local LLM use cases", () => {
+	test("enables configured local LLM memory use cases", () => {
 		const settings = Settings.isolated({
 			"localLlm.enabled": true,
 			"localLlm.modelRole": "custom_local",
@@ -30,8 +30,8 @@ describe("local LLM config", () => {
 		const config = getLocalLlmConfig(settings);
 
 		expect(getLocalLlmRoleAlias(config)).toBe("custom_local");
+		expect(isLocalLlmUseCaseEnabled(config, "memory_worker")).toBe(true);
 		expect(isLocalLlmUseCaseEnabled(config, "log_summarizer")).toBe(true);
-		expect(isLocalLlmUseCaseEnabled(config, "context_compressor")).toBe(true);
 	});
 });
 
@@ -47,6 +47,9 @@ describe("local evidence bundle", () => {
 		});
 
 		expect(validateLocalEvidenceBundle(bundle)).toEqual([]);
+		const memoryBundle = createEmptyLocalEvidenceBundle("memory_worker", 1000);
+		memoryBundle.claims.push({ claim: "Memory claim", evidenceRefs: ["E2"], confidence: "medium" });
+		expect(validateLocalEvidenceBundle(memoryBundle)).toEqual([]);
 
 		bundle.risks.push({ risk: "Uncited risk", evidenceRefs: [] });
 		expect(validateLocalEvidenceBundle(bundle)).toContain(
@@ -69,14 +72,14 @@ describe("local evidence bundle", () => {
 describe("local LLM prompt", () => {
 	test("keeps stable local evidence contract separate from volatile evidence", () => {
 		const prompt = buildLocalLlmEvidencePrompt({
-			useCase: "context_compressor",
+			useCase: "memory_worker",
 			objective: "Compress evidence",
 			evidence: "[E1] src/a.ts says cache prefix is stable",
 		});
 
 		expect(LOCAL_LLM_STABLE_EVIDENCE_SYSTEM_PROMPT).toContain("Use only supplied evidence");
 		expect(LOCAL_LLM_STABLE_EVIDENCE_SYSTEM_PROMPT).not.toContain("[E1]");
-		expect(prompt).toContain("Use case: context_compressor");
+		expect(prompt).toContain("Use case: memory_worker");
 		expect(prompt).toContain("[E1] src/a.ts");
 	});
 });

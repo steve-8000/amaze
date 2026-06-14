@@ -1,2 +1,9 @@
-export type { AgencyAgentRegistry, AgencyAgentRegistryEntry } from "./registry";
-export { parseAgencyAgentRegistryPage } from "./registry";
+export type {
+	AgencyAgentRegistry,
+	AgencyAgentRegistryEntry,
+	AgencyAgentRegistryEntryStatus,
+	KnowledgeRegistry,
+	KnowledgeRegistryEntry,
+	KnowledgeRegistryEntryStatus,
+} from "./registry";
+export { parseAgencyAgentRegistryPage, parseKnowledgeRegistryPage } from "./registry";

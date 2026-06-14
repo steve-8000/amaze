@@ -3,6 +3,7 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { AgiGatewayStore, buildAgiCompletionState } from "../../src/agi/store";
+import { MissionStore } from "../../src/mission/store";
 
 const repoRoot = path.resolve(import.meta.dir, "..", "..", "..", "..");
 const cliEntry = path.join(repoRoot, "packages", "coding-agent", "src", "cli.ts");
@@ -391,5 +392,50 @@ describe("agi CLI", () => {
 
 		const status = await runCli(cleanupRoot, ["agi", "status"]);
 		expect(status.stdout).toContain("openai/gpt-5.2");
+	});
+	it("accepts the emergency-stop control-plane action through the CLI arg parser", async () => {
+		cleanupRoot = await fs.mkdtemp(path.join(os.tmpdir(), "amaze-agi-cli-"));
+		const missionDb = path.join(cleanupRoot, "mission.db");
+		const store = new MissionStore(missionDb);
+		let missionId: string;
+		try {
+			missionId = store.createMission({
+				title: "Emergency stop CLI",
+				objective: "Stoppable mission",
+				objectiveId: null,
+				briefId: null,
+				decisionId: null,
+				riskLevel: "medium",
+				state: "executing",
+				confidence: null,
+				snapshotRef: null,
+				mode: "interactive",
+			}).id;
+		} finally {
+			store.close();
+		}
+
+		const stopped = await runCli(cleanupRoot, [
+			"agi",
+			"emergency-stop",
+			"--db",
+			missionDb,
+			"--mission",
+			missionId,
+			"--reason",
+			"cli panic",
+		]);
+		// Before emergency-stop was added to the action option list, oclif rejected the
+		// arg before the router ran. A clean exit proves the action is reachable.
+		expect(stopped.exitCode).toBe(0);
+		expect(stopped.stderr).toBe("");
+		expect(stopped.stdout).toContain("stopped");
+
+		const reopened = new MissionStore(missionDb);
+		try {
+			expect(reopened.getAgiEmergencyStop(missionId)?.reason).toBe("cli panic");
+		} finally {
+			reopened.close();
+		}
 	});
 });

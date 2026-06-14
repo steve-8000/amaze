@@ -4,7 +4,7 @@ import * as path from "node:path";
 import { getAutoresearchDbPath, getAutoresearchProjectDir, logger } from "@amaze/utils";
 import { getEncodedProjectName } from "../task/worktree";
 import * as git from "../utils/git";
-import type { ASIData, ExperimentStatus, MetricDirection, NumericMetricMap } from "./types";
+import type { ASIData, ExperimentStatus, MetricDirection, NumericMetricMap, ParentSelectionStrategy } from "./types";
 
 export interface SessionRow {
 	id: number;
@@ -22,6 +22,7 @@ export interface SessionRow {
 	offLimits: string[];
 	constraints: string[];
 	secondaryMetrics: string[];
+	parentSelectionStrategy: ParentSelectionStrategy;
 	notes: string;
 	createdAt: number;
 	closedAt: number | null;
@@ -56,6 +57,9 @@ export interface RunRow {
 	flaggedReason: string | null;
 	loggedAt: number | null;
 	abandonedAt: number | null;
+	parentRunId: number | null;
+	selectionStrategy: ParentSelectionStrategy | null;
+	validParent: boolean;
 }
 
 export interface OpenSessionParams {
@@ -72,6 +76,7 @@ export interface OpenSessionParams {
 	offLimits: string[];
 	constraints: string[];
 	secondaryMetrics: string[];
+	parentSelectionStrategy?: ParentSelectionStrategy;
 }
 
 export interface UpdateSessionParams {
@@ -88,6 +93,7 @@ export interface UpdateSessionParams {
 	branch?: string | null;
 	baselineCommit?: string | null;
 	notes?: string;
+	parentSelectionStrategy?: ParentSelectionStrategy;
 }
 
 export interface InsertRunParams {
@@ -97,6 +103,8 @@ export interface InsertRunParams {
 	logPath: string;
 	preRunDirtyPaths: string[];
 	startedAt: number;
+	parentRunId?: number | null;
+	selectionStrategy?: ParentSelectionStrategy | null;
 }
 
 export interface MarkRunCompletedParams {
@@ -142,6 +150,7 @@ type SessionDbRow = {
 	constraints_json: string;
 	secondary_metrics_json: string;
 	notes: string;
+	parent_selection_strategy: string;
 	created_at: number;
 	closed_at: number | null;
 };
@@ -175,9 +184,12 @@ type RunDbRow = {
 	flagged_reason: string | null;
 	logged_at: number | null;
 	abandoned_at: number | null;
+	parent_run_id: number | null;
+	selection_strategy: string | null;
+	valid_parent: number;
 };
+const SCHEMA_VERSION = 3;
 
-const SCHEMA_VERSION = 1;
 
 const SCHEMA_SQL = `
 PRAGMA journal_mode=WAL;
@@ -201,6 +213,7 @@ CREATE TABLE IF NOT EXISTS sessions (
 	off_limits_json TEXT NOT NULL DEFAULT '[]',
 	constraints_json TEXT NOT NULL DEFAULT '[]',
 	secondary_metrics_json TEXT NOT NULL DEFAULT '[]',
+	parent_selection_strategy TEXT NOT NULL DEFAULT 'score_child_prop',
 	notes TEXT NOT NULL DEFAULT '',
 	created_at INTEGER NOT NULL,
 	closed_at INTEGER
@@ -234,9 +247,13 @@ CREATE TABLE IF NOT EXISTS runs (
 	flagged INTEGER NOT NULL DEFAULT 0,
 	flagged_reason TEXT,
 	logged_at INTEGER,
-	abandoned_at INTEGER
+	abandoned_at INTEGER,
+	parent_run_id INTEGER REFERENCES runs(id) ON DELETE SET NULL,
+	selection_strategy TEXT,
+	valid_parent INTEGER NOT NULL DEFAULT 1
 );
 
+CREATE INDEX IF NOT EXISTS runs_parent_idx ON runs(parent_run_id);
 CREATE INDEX IF NOT EXISTS runs_session_segment_idx ON runs(session_id, segment);
 CREATE INDEX IF NOT EXISTS runs_pending_idx ON runs(session_id, status, abandoned_at);
 `;
@@ -254,8 +271,41 @@ export class AutoresearchStorage {
 		this.#db.run(SCHEMA_SQL);
 		const versionRow = this.#db.query("PRAGMA user_version").get() as { user_version: number } | null;
 		const currentVersion = versionRow?.user_version ?? 0;
-		if (currentVersion < SCHEMA_VERSION) {
-			this.#db.run(`PRAGMA user_version = ${SCHEMA_VERSION}`);
+		this.#migrate(currentVersion);
+		this.#db.run(`PRAGMA user_version = ${SCHEMA_VERSION}`);
+	}
+
+	#migrate(currentVersion: number): void {
+		if (currentVersion < 2) {
+			const columns = new Set(
+				(
+					this.#db.query("PRAGMA table_info(runs)").all() as Array<{ name: string }>
+				).map(column => column.name),
+			);
+			if (!columns.has("parent_run_id")) {
+				this.#db.run("ALTER TABLE runs ADD COLUMN parent_run_id INTEGER REFERENCES runs(id) ON DELETE SET NULL");
+			}
+			if (!columns.has("selection_strategy")) {
+				this.#db.run("ALTER TABLE runs ADD COLUMN selection_strategy TEXT");
+			}
+			if (!columns.has("valid_parent")) {
+				this.#db.run("ALTER TABLE runs ADD COLUMN valid_parent INTEGER NOT NULL DEFAULT 1");
+			}
+			const sessionColumns = new Set(
+				(this.#db.query("PRAGMA table_info(sessions)").all() as Array<{ name: string }>).map(column => column.name),
+			);
+			if (!sessionColumns.has("parent_selection_strategy")) {
+				this.#db.run("ALTER TABLE sessions ADD COLUMN parent_selection_strategy TEXT NOT NULL DEFAULT 'score_child_prop'");
+			}
+			this.#db.run("CREATE INDEX IF NOT EXISTS runs_parent_idx ON runs(parent_run_id)");
+		}
+		if (currentVersion < 3) {
+			const sessionColumns = new Set(
+				(this.#db.query("PRAGMA table_info(sessions)").all() as Array<{ name: string }>).map(column => column.name),
+			);
+			if (!sessionColumns.has("parent_selection_strategy")) {
+				this.#db.run("ALTER TABLE sessions ADD COLUMN parent_selection_strategy TEXT NOT NULL DEFAULT 'score_child_prop'");
+			}
 		}
 	}
 
@@ -309,8 +359,8 @@ export class AutoresearchStorage {
 				name, goal, primary_metric, metric_unit, direction,
 				preferred_command, branch, baseline_commit, max_iterations,
 				scope_paths_json, off_limits_json, constraints_json, secondary_metrics_json,
-				created_at
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+				parent_selection_strategy, created_at
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
 		);
 		const row = stmt.get(
 			params.name,
@@ -326,6 +376,7 @@ export class AutoresearchStorage {
 			JSON.stringify(params.offLimits),
 			JSON.stringify(params.constraints),
 			JSON.stringify(params.secondaryMetrics),
+			params.parentSelectionStrategy ?? "score_child_prop",
 			Date.now(),
 		);
 		if (!row) throw new Error("Failed to insert autoresearch session");
@@ -385,6 +436,10 @@ export class AutoresearchStorage {
 			setClauses.push("baseline_commit = ?");
 			values.push(updates.baselineCommit);
 		}
+		if (updates.parentSelectionStrategy !== undefined) {
+			setClauses.push("parent_selection_strategy = ?");
+			values.push(updates.parentSelectionStrategy);
+		}
 		if (updates.notes !== undefined) {
 			setClauses.push("notes = ?");
 			values.push(updates.notes);
@@ -412,8 +467,8 @@ export class AutoresearchStorage {
 	insertRun(params: InsertRunParams): RunRow {
 		const stmt = this.#db.prepare<{ id: number }, SQLQueryBindings[]>(
 			`INSERT INTO runs (
-				session_id, segment, command, started_at, log_path, pre_run_dirty_paths_json
-			) VALUES (?, ?, ?, ?, ?, ?) RETURNING id`,
+				session_id, segment, command, started_at, log_path, pre_run_dirty_paths_json, parent_run_id, selection_strategy
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
 		);
 		const row = stmt.get(
 			params.sessionId,
@@ -422,6 +477,8 @@ export class AutoresearchStorage {
 			params.startedAt,
 			params.logPath,
 			JSON.stringify(params.preRunDirtyPaths),
+			params.parentRunId ?? null,
+			params.selectionStrategy ?? null,
 		);
 		if (!row) throw new Error("Failed to insert run");
 		return this.getRunByIdRequired(row.id);
@@ -486,6 +543,11 @@ export class AutoresearchStorage {
 
 	flagRun(runId: number, reason: string): RunRow {
 		this.#db.prepare("UPDATE runs SET flagged = 1, flagged_reason = ? WHERE id = ?").run(reason, runId);
+		return this.getRunByIdRequired(runId);
+	}
+
+	markRunInvalidParent(runId: number): RunRow {
+		this.#db.prepare("UPDATE runs SET valid_parent = 0 WHERE id = ?").run(runId);
 		return this.getRunByIdRequired(runId);
 	}
 
@@ -605,6 +667,7 @@ function rowToSession(row: SessionDbRow): SessionRow {
 		offLimits: parseStringArray(row.off_limits_json),
 		constraints: parseStringArray(row.constraints_json),
 		secondaryMetrics: parseStringArray(row.secondary_metrics_json),
+		parentSelectionStrategy: parseParentSelectionStrategy(row.parent_selection_strategy) ?? "score_child_prop",
 		notes: row.notes,
 		createdAt: row.created_at,
 		closedAt: row.closed_at,
@@ -641,11 +704,27 @@ function rowToRun(row: RunDbRow): RunRow {
 		flaggedReason: row.flagged_reason,
 		loggedAt: row.logged_at,
 		abandonedAt: row.abandoned_at,
+		parentRunId: row.parent_run_id,
+		selectionStrategy: parseParentSelectionStrategy(row.selection_strategy),
+		validParent: row.valid_parent !== 0,
 	};
 }
 
 function parseStatus(value: string | null): ExperimentStatus | null {
 	if (value === "keep" || value === "discard" || value === "crash" || value === "checks_failed") return value;
+	return null;
+}
+
+function parseParentSelectionStrategy(value: string | null): ParentSelectionStrategy | null {
+	if (
+		value === "latest" ||
+		value === "best" ||
+		value === "random" ||
+		value === "score_prop" ||
+		value === "score_child_prop"
+	) {
+		return value;
+	}
 	return null;
 }
 

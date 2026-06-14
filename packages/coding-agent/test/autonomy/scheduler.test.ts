@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { type NewObjective, ObjectiveScheduler, ObjectiveStore } from "../../src/autonomy";
+import {
+	type NewObjective,
+	type ObjectiveMissionSummary,
+	type ObjectiveProgress,
+	type ObjectiveRuntimeHooks,
+	ObjectiveScheduler,
+	ObjectiveStore,
+} from "../../src/autonomy";
 import type { MissionRuntime } from "../../src/mission/core";
 
 const stores: ObjectiveStore[] = [];
@@ -150,5 +157,110 @@ describe("ObjectiveScheduler", () => {
 		]);
 		expect(runtime.created).toHaveLength(0);
 		expect(store.listEvents("objective-1").at(-1)?.payload).toMatchObject({ kind: "hold" });
+	});
+	describe("objective runtime", () => {
+		function hooks(missions: ObjectiveMissionSummary[]) {
+			const progress: ObjectiveProgress[] = [];
+			const statuses: string[] = [];
+			return {
+				progress,
+				statuses,
+				runtime: {
+					summarizeMissions: () => missions,
+					updateProgress: (_id, p) => {
+						progress.push(p);
+					},
+					updateStatus: (_id, s) => {
+						statuses.push(s);
+					},
+				} satisfies ObjectiveRuntimeHooks,
+			};
+		}
+
+		test("generates the next mission when a completed mission leaves targets unmet", async () => {
+			const store = createStore();
+			store.create(
+				objective({
+					metricTargets: [
+						{ metric: "alpha", target: 1, direction: "up" },
+						{ metric: "beta", target: 0, direction: "down" },
+					],
+				}),
+			);
+			const runtime = missionRuntime();
+			const objectiveHooks = hooks([{ id: "m1", state: "completed", addressedMetrics: ["alpha"] }]);
+			const scheduler = new ObjectiveScheduler({
+				store,
+				missionRuntime: runtime.runtime,
+				classifyContinuation: () => ({
+					kind: "observe-terminal",
+					status: "completed",
+					reason: "mission_completed",
+				}),
+				findMissionForObjective: () => "m1",
+				objectiveRuntime: objectiveHooks.runtime,
+				now: () => 123,
+			});
+
+			const [decision] = await scheduler.tick();
+			expect(decision).toMatchObject({
+				objectiveId: "objective-1",
+				kind: "generate-missions",
+				objectiveStatus: "in_progress",
+			});
+			expect(decision.generatedMissionIds).toHaveLength(1);
+			expect(runtime.created).toHaveLength(1);
+			expect(objectiveHooks.statuses).toEqual(["in_progress"]);
+			expect(objectiveHooks.progress.at(-1)?.score).toBe(0.5);
+		});
+
+		test("completes the objective when every target is met and nothing is blocked", async () => {
+			const store = createStore();
+			store.create(objective({ metricTargets: [{ metric: "alpha", target: 1, direction: "up" }] }));
+			const runtime = missionRuntime();
+			const objectiveHooks = hooks([{ id: "m1", state: "completed", addressedMetrics: ["alpha"] }]);
+			const scheduler = new ObjectiveScheduler({
+				store,
+				missionRuntime: runtime.runtime,
+				classifyContinuation: () => ({
+					kind: "observe-terminal",
+					status: "completed",
+					reason: "mission_completed",
+				}),
+				findMissionForObjective: () => "m1",
+				objectiveRuntime: objectiveHooks.runtime,
+				now: () => 123,
+			});
+
+			const [decision] = await scheduler.tick();
+			expect(decision).toMatchObject({
+				objectiveId: "objective-1",
+				kind: "complete-objective",
+				objectiveStatus: "completed",
+			});
+			expect(runtime.created).toHaveLength(0);
+			expect(objectiveHooks.statuses).toEqual(["completed"]);
+		});
+
+		test("keeps processing an in_progress objective rather than skipping it", async () => {
+			const store = createStore();
+			store.create(objective({ status: "in_progress" }));
+			const runtime = missionRuntime();
+			const objectiveHooks = hooks([{ id: "m1", state: "executing" }]);
+			const scheduler = new ObjectiveScheduler({
+				store,
+				missionRuntime: runtime.runtime,
+				classifyContinuation: () => ({ kind: "none", reason: "no_mission" }),
+				findMissionForObjective: () => "m1",
+				objectiveRuntime: objectiveHooks.runtime,
+				now: () => 123,
+			});
+
+			const [decision] = await scheduler.tick();
+			// Active mission → in_progress, no new missions, never silently skipped.
+			expect(decision).toMatchObject({ kind: "skip", objectiveStatus: "in_progress" });
+			expect(runtime.created).toHaveLength(0);
+			expect(objectiveHooks.progress).toHaveLength(1);
+		});
 	});
 });

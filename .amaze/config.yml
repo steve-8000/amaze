@@ -7,12 +7,12 @@ modelRoles:
   SRE: openai-codex/gpt-5.5:medium
   Explore: local-qwen36/Qwen3.6-35B-A3B-Claude-4.7-Opus-Reasoning-Distilled-MLX-oQ4-MTP:medium
   Designer: anthropic/claude-opus-4.8:medium
-  LocalScout: local-qwen36/Qwen3.6-35B-A3B-Claude-4.7-Opus-Reasoning-Distilled-MLX-oQ4-MTP:medium
+  MemoryWorker: local-gemma4/gemma-4-12b-it:medium
 hideThinkingBlock: true
 localLlm:
   enabled: true
   required: false
-  modelRole: LocalScout
+  modelRole: MemoryWorker
   structuredOutput: true
   disableThinking: true
   useForLogSummarizer: true
@@ -51,10 +51,12 @@ tools:
   # of hidden behind search_tool_bm25 discovery (which also does not persist built-in
   # activations across turns, so they kept disappearing).
   essentialOverride: [read, find, search, edit, write, task, todo_write, todo_read, bash, eval, recipe]
-agencyBrain:
+knowledge:
   enabled: true
-  mcpServer: gbrain
-  agencySourceId: "__all__"
+  provider: okf
+  mcpServer: memory-worker
+  registrySlug: org/agent-registry
+  okfPath: /Users/steve/roy/amaze-brain
 skills:
   enableCodexUser: false
   enableClaudeUser: false
@@ -84,3 +86,4 @@ skills:
     - sui-validater
     - destructive-mission
     - fp-validated
+    - amaze-design

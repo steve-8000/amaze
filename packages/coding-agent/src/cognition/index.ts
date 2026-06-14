@@ -16,23 +16,45 @@
  * test-covered without a model.
  */
 
-import type { KnowledgeStore } from "../memory/knowledge-store";
 import type { MissionPlan } from "../mission/core/mission";
 import type { MissionStore } from "../mission/store";
-import { heuristicsForPlanning, type LearnResult, learnFromMission, type MissionOutcomeSnapshot } from "./learner";
+import {
+	heuristicsForPlanning,
+	type LearnResult,
+	learnFromMission,
+	type MissionOutcomeSnapshot,
+	recordEpisode,
+	type ToolFailureTally,
+} from "./learner";
 import { type DecomposeOptions, decomposeGoal, type PlannerLlm, type PlanningContext } from "./planner";
+import type { RuntimeKnowledgeHandle } from "./runtime-knowledge";
 import { recordLearnedOutcome, recordPlanAction, worldModelForPlanning } from "./world-model";
 
-export type { DerivedHeuristic, MissionOutcomeSnapshot } from "./learner";
-export { deriveHeuristics, heuristicsForPlanning, learnFromMission } from "./learner";
+export type {
+	DerivedHeuristic,
+	EpisodeRecord,
+	LearnerMemory,
+	LearnerMemoryItem,
+	MissionOutcomeSnapshot,
+	ToolFailureTally,
+} from "./learner";
+export {
+	deriveEpisode,
+	deriveHeuristics,
+	episodesForObjective,
+	heuristicsForPlanning,
+	learnFromMission,
+	recordEpisode,
+} from "./learner";
 export { createRegistryPlannerLlm } from "./llm";
 export type { PlannerLlm, PlanningContext } from "./planner";
 export { buildPlannerPrompt, decomposeGoal, PLANNER_SYSTEM_PROMPT, parsePlannerOutput } from "./planner";
+export { openRuntimeKnowledge, type RuntimeKnowledgeHandle } from "./runtime-knowledge";
 export { recordLearnedOutcome, recordPlanAction, worldModelForPlanning } from "./world-model";
 
 export interface CognitionDeps {
 	missions: MissionStore;
-	knowledge: KnowledgeStore;
+	knowledge: RuntimeKnowledgeHandle["knowledge"];
 	llm: PlannerLlm;
 }
 
@@ -122,8 +144,10 @@ export async function replanMission(deps: CognitionDeps, input: ReplanMissionInp
 
 /**
  * Learn from a finished mission: derive heuristics from its checkpoints,
- * persist them at global scope (L5), and mirror each into the mission's world
- * model so the causal trail survives.
+ * persist them at global scope (L5), mirror each into the mission's world
+ * model so the causal trail survives, AND record a single durable episode at
+ * mission scope (L3) capturing what happened. Episode recording is best-effort
+ * and idempotent — it never affects the heuristic LearnResult.
  */
 export function learnFromMissionOutcome(
 	deps: Pick<CognitionDeps, "missions" | "knowledge">,
@@ -136,6 +160,15 @@ export function learnFromMissionOutcome(
 			knowledgeItemId: item.id,
 			outcomeStatus: snapshot.status === "success" ? "pass" : snapshot.status === "failure" ? "fail" : "uncertain",
 		});
+	}
+	// L3 episodic memory: a concrete what-happened record for this mission, kept at
+	// mission scope so it never pollutes the global heuristic planning context.
+	// Best-effort: episode recording must never fail the heuristic LearnResult (e.g.
+	// if a knowledge backend rejects the mission scope), so swallow any error.
+	try {
+		recordEpisode(snapshot, deps.knowledge);
+	} catch {
+		// Episodic recording is supplementary; never break the heuristic path.
 	}
 	return result;
 }
@@ -160,12 +193,15 @@ export function learnFromTerminalMission(
 ): LearnResult | undefined {
 	if (!mission.outcome) return undefined;
 	const status = normalizeOutcomeStatus(mission.outcome.status);
+	const { toolFailures, runtimeErrorCount } = harvestRuntimeFailures(deps.missions, mission.id);
 	const snapshot: MissionOutcomeSnapshot = {
 		missionId: mission.id,
 		objective: mission.objective,
 		status,
 		checkpoints: deps.missions.listTaskAttemptCheckpoints(mission.id),
 		...(mission.verification?.verdict ? { verificationVerdict: mission.verification.verdict } : {}),
+		...(toolFailures.length > 0 ? { toolFailures } : {}),
+		...(runtimeErrorCount > 0 ? { runtimeErrorCount } : {}),
 	};
 	return learnFromMissionOutcome(deps, snapshot);
 }
@@ -185,4 +221,40 @@ function normalizeOutcomeStatus(status: string): MissionOutcomeSnapshot["status"
 			// "failed", "rolled_back", and anything unknown count as failure evidence.
 			return "failure";
 	}
+}
+
+/**
+ * Harvest tool/runtime failures for a mission from the durable runtime-event log
+ * (Step-3 `tool_action.*` events plus runtime-action error/blocked events). Pure
+ * read; returns empty tallies when no failures were recorded.
+ *
+ * Tool failures: `tool_action.completed` events whose payload.status is "error".
+ * Runtime errors: any runtime event whose type ends in ".blocked" / ".failed" or
+ * ".evidence_insufficient" — the recurring runtime hazards worth learning from.
+ */
+function harvestRuntimeFailures(
+	missions: Pick<MissionStore, "listRuntimeEvents">,
+	missionId: string,
+): { toolFailures: ToolFailureTally[]; runtimeErrorCount: number } {
+	const events = missions.listRuntimeEvents(missionId);
+	const byTool = new Map<string, number>();
+	let runtimeErrorCount = 0;
+	for (const event of events) {
+		if (event.type === "tool_action.completed" && (event.payload as { status?: unknown }).status === "error") {
+			const tool = String((event.payload as { tool?: unknown }).tool ?? "unknown");
+			byTool.set(tool, (byTool.get(tool) ?? 0) + 1);
+			continue;
+		}
+		// Runtime hazards actually persisted to runtime_events: governance/research
+		// blocks and insufficient-evidence verdicts. (Failed missions/tasks flow through
+		// the in-memory MissionEventBus, not this durable ledger, so there is no `.failed`
+		// type here; tool errors are already counted above as tool failures.)
+		if (/\.(blocked|evidence_insufficient)$/.test(event.type)) {
+			runtimeErrorCount += 1;
+		}
+	}
+	const toolFailures: ToolFailureTally[] = [...byTool.entries()]
+		.map(([tool, count]) => ({ tool, count }))
+		.sort((a, b) => b.count - a.count || a.tool.localeCompare(b.tool));
+	return { toolFailures, runtimeErrorCount };
 }

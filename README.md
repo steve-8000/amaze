@@ -111,12 +111,12 @@ Settings proposals carry patches and rollback values; skill and rule proposals a
 
 ### Local/runtime model routing
 
-Routing is local configuration, not hard-coded documentation. Project defaults live in `.amaze/config.yml`; package-level provider code lives under `packages/ai`; subagent model/thinking overrides are exercised by the task agent tests. The checked-in profile currently uses a compact main context, prompt-cache prefix reuse, project-local skills/rules, and an optional local scout role.
-Amaze supports a provider-agnostic `LocalScout` role for cheap local prepasses before expensive remote reasoning. Projects configure this through `modelRoles.LocalScout` and `localLlm.*` settings; task routing resolves the role alias instead of depending on a concrete local model name. Bundled `Researcher` prompts keep using the `Researcher` role for external search work, while explicit per-agent overrides and normal fallback routing remain available.
+Routing is local configuration, not hard-coded documentation. Project defaults live in `.amaze/config.yml`; package-level provider code lives under `packages/ai`; subagent model/thinking overrides are exercised by the task agent tests. The checked-in profile currently uses a compact main context, prompt-cache prefix reuse, project-local skills/rules, and a local MemoryWorker role.
+Amaze supports a provider-agnostic `MemoryWorker` role for cheap local knowledge and memory prepasses before expensive remote reasoning. Projects configure this through `modelRoles.MemoryWorker` and `localLlm.*` settings; task routing resolves the role alias instead of depending on a concrete local model name. Bundled `Researcher` prompts keep using the `Researcher` role for external search work, while explicit per-agent overrides and normal fallback routing remain available.
 
-Durable user, project, and prior-decision context is backed by GBrain/Agency Brain via `agencyBrain.*` settings in `.amaze/config.yml`. Legacy local, Mem0, and Hermes memory backends are not supported runtime memory paths.
+Durable user, project, and prior-decision context is backed by OKF knowledge via `knowledge.*` settings in `.amaze/config.yml`. Legacy local, Mem0, and Hermes memory backends are not supported runtime memory paths.
 
-The local scout helpers live under `packages/coding-agent/src/local-llm/` and cover config resolution, conservative evidence-bundle types/validation, stable prompt construction for prefix-cache reuse, local role/config health checks, and cache/token accounting helpers. See `docs/models.md` for configuration examples.
+The local knowledge helpers live under `packages/coding-agent/src/local-llm/` and cover config resolution, conservative evidence-bundle types/validation, stable prompt construction for prefix-cache reuse, local role/config health checks, and cache/token accounting helpers. See `docs/models.md` for configuration examples.
 
 ## Commands
 

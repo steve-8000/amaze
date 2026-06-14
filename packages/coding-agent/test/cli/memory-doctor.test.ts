@@ -10,7 +10,8 @@ describe("memory doctor", () => {
 			[
 				"Memory backend: removed",
 				"- Legacy local memory backends (Hermes/mem0) have been removed.",
-				"- Supported memory: GBrain Agency Brain via MCP.",
+				"- Supported memory: OKF files with optional knowledge MCP retrieval.",
+				"- Memory worker role: Gemma-style local MemoryWorker.",
 			].join("\n"),
 		);
 	});

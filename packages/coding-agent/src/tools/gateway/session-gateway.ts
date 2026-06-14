@@ -16,14 +16,22 @@ import type { MissionControlRuntime } from "../../mission/core/mission-control-r
 import { enforceMutationScope } from "../../subagent/mutation-scope";
 import type { ToolDescriptor, ToolExecutionContext } from "../registry/tool-descriptor";
 import { ToolRegistry } from "../registry/tool-registry";
+import {
+	type ChangedArtifactRegistry,
+	changedArtifactRecordFromContext,
+	extractChangedArtifactMutation,
+} from "./changed-artifacts";
 import { MissionPolicyGate } from "./mission-policy-gate";
 import { SubagentMutationScopeGuard } from "./mutation-guard";
+import type { PendingApprovalRegistry } from "./pending-approvals";
 import {
 	AllowAllPermissionGate,
+	ApprovalPermissionGate,
 	CapabilityLeasePermissionGate,
 	type CapabilityLeasePermissionGateDeps,
 	DefaultPermissionGate,
 } from "./permission-gate";
+import { CompositePolicyGate, RuntimePolicyEngine, type RuntimePolicyEvaluator } from "./policy-engine";
 import { type GuardDecision, ToolGateway } from "./tool-gateway";
 
 export type GatewayPermissionMode = "allow-all" | "enforce" | "lease";
@@ -104,6 +112,7 @@ export class SessionToolGateway {
 	#registry = new ToolRegistry();
 	#missionControl?: MissionControlRuntime;
 	#mutationTools: ReadonlySet<string>;
+	#changedArtifacts?: ChangedArtifactRegistry;
 
 	constructor(options?: {
 		enforceMutationScopeAtSeam?: boolean;
@@ -118,16 +127,23 @@ export class SessionToolGateway {
 		 */
 		permissionMode?: GatewayPermissionMode;
 		leaseDeps?: CapabilityLeasePermissionGateDeps;
+		pendingApprovals?: PendingApprovalRegistry;
+		/** Ordered runtime policy evaluators applied before permission/scope gates. */
+		policies?: RuntimePolicyEvaluator[];
+		changedArtifacts?: ChangedArtifactRegistry;
 	}) {
 		this.#missionControl = options?.missionControl;
 		this.#mutationTools = options?.mutationToolNames ?? GATEWAY_MUTATION_TOOLS;
+		this.#changedArtifacts = options?.changedArtifacts;
 		for (const name of this.#mutationTools) {
 			this.#registry.register(seamDescriptor(name));
 		}
 		this.#gateway = new ToolGateway(this.#registry, {
-			policyGate: options?.missionControl
-				? new MissionPolicyGate({ missionControl: options.missionControl, mutationToolNames: this.#mutationTools })
-				: undefined,
+			policyGate: createPolicyGate({
+				missionControl: options?.missionControl,
+				mutationTools: this.#mutationTools,
+				policies: options?.policies,
+			}),
 			// The default seam is a transparent pass-through. "enforce" switches to
 			// approval checks for HIGH/CRITICAL tools; "lease" requires AGI capability
 			// leases for every seam-routed mutation.
@@ -135,6 +151,7 @@ export class SessionToolGateway {
 				mode: options?.permissionMode,
 				missionControl: options?.missionControl,
 				leaseDeps: options?.leaseDeps,
+				pendingApprovals: options?.pendingApprovals,
 			}),
 			// The inline tool enforcement remains authoritative by default; opt in to
 			// seam-level scope enforcement (tests / strict modes) explicitly.
@@ -171,24 +188,49 @@ export class SessionToolGateway {
 		return this.#gateway.guard(descriptor, ctx);
 	}
 
-	/** Emit `mission.tool.completed` for a call that passed {@link decide}. */
+	/** Emit `mission.tool.completed` and record changed artifacts for a call that passed {@link decide}. */
 	settle(name: string, ctx: ToolExecutionContext, status: "ok" | "error"): void {
 		const descriptor = this.#registry.get(name) ?? seamDescriptor(name);
 		this.#gateway.settle(descriptor, ctx, status);
+		if (status !== "ok" || !this.handles(descriptor.name) || !this.#changedArtifacts) return;
+		const mutation = extractChangedArtifactMutation(descriptor.name, ctx.input);
+		if (!mutation) return;
+		this.#changedArtifacts.record(changedArtifactRecordFromContext(descriptor.name, ctx, mutation));
 	}
+}
+
+function createPolicyGate(options: {
+	missionControl?: MissionControlRuntime;
+	mutationTools: ReadonlySet<string>;
+	policies?: RuntimePolicyEvaluator[];
+}) {
+	const gates = [];
+	if (options.policies?.length) gates.push(new RuntimePolicyEngine(options.policies));
+	if (options.missionControl) {
+		gates.push(
+			new MissionPolicyGate({ missionControl: options.missionControl, mutationToolNames: options.mutationTools }),
+		);
+	}
+	if (gates.length === 0) return undefined;
+	if (gates.length === 1) return gates[0];
+	return new CompositePolicyGate(gates);
 }
 
 function createPermissionGate(options: {
 	mode?: GatewayPermissionMode;
 	missionControl?: MissionControlRuntime;
 	leaseDeps?: CapabilityLeasePermissionGateDeps;
+	pendingApprovals?: PendingApprovalRegistry;
 }) {
 	if (options.mode === "lease") {
 		const deps = options.leaseDeps ?? leaseDepsFromMissionControl(options.missionControl);
 		if (!deps) throw new Error("permissionMode=lease requires leaseDeps or missionControl");
 		return new CapabilityLeasePermissionGate(deps);
 	}
-	if (options.mode === "enforce") return new DefaultPermissionGate();
+	if (options.mode === "enforce")
+		return options.pendingApprovals
+			? new ApprovalPermissionGate({ registry: options.pendingApprovals })
+			: new DefaultPermissionGate();
 	return new AllowAllPermissionGate();
 }
 

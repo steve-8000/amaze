@@ -1,7 +1,13 @@
 import { describe, expect, test } from "bun:test";
-import { CompositeAgiMemory, GbrainAgiMemory, hasPlanningAuthority, LocalAgiMemory } from "../../src/agi";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
+import { CompositeAgiMemory, hasPlanningAuthority, LocalAgiMemory, OkfAgiMemory } from "../../src/agi";
 import type { MemoryItem } from "../../src/agi/memory";
+import { openRuntimeKnowledge } from "../../src/cognition";
+import { Settings } from "../../src/config/settings";
 import { KnowledgeStore } from "../../src/memory/knowledge-store";
+import { OkfStore } from "../../src/okf/store";
 
 function sourceRef(overrides = {}) {
 	return { kind: "evidence" as const, uri: "evidence://1", contentHash: "abc", observedAt: 1, ...overrides };
@@ -51,20 +57,103 @@ describe("AGI memory backends", () => {
 		expect(hasPlanningAuthority(provider)).toBe(false);
 	});
 
-	test("gbrain memory only returns sourced results with usable provenance", async () => {
-		const memory = new GbrainAgiMemory({
-			sourceId: "project",
-			client: {
-				query: async () => [
-					{ id: "missing", text: "No source", sourceId: "project" },
-					{ id: "good", text: "Fresh", sourceId: "project", uri: "https://example.test", observedAt: 1 },
-				],
+	test("sourced-provider query results require usable provenance", async () => {
+		const sourcedProviderMemory = {
+			query: async () => [
+				{
+					id: "missing",
+					level: "L4" as const,
+					scope: { providerSourceId: "project" },
+					kind: "claim" as const,
+					content: "No source",
+					sourceRefs: [{ kind: "provider" as const, uri: "https://example.test/missing" }],
+					confidence: "medium" as const,
+					verified: true,
+					createdAt: 10,
+					updatedAt: 10,
+				},
+				{
+					id: "good",
+					level: "L4" as const,
+					scope: { providerSourceId: "project" },
+					kind: "claim" as const,
+					content: "Fresh",
+					sourceRefs: [{ kind: "provider" as const, uri: "https://example.test/good", observedAt: 1 }],
+					confidence: "medium" as const,
+					verified: true,
+					createdAt: 1,
+					updatedAt: 1,
+				},
+			],
+			record: async () => {
+				throw new Error("read-only");
 			},
-			now: () => 10,
-		});
+			linkClaims: async () => undefined,
+		};
+		const memory = new CompositeAgiMemory([sourcedProviderMemory]);
 
 		const items = await memory.query({ levels: ["L4"], scope: {}, claimLike: "Fresh", limit: 10 });
 		expect(items).toHaveLength(1);
 		expect(items[0]?.id).toBe("good");
+	});
+
+	test("okf memory records markdown documents and queries global heuristics", async () => {
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "amaze-okf-memory-"));
+		try {
+			const store = new OkfStore(root);
+			const memory = new OkfAgiMemory({ store, now: () => 10 });
+
+			const recorded = await memory.record({
+				level: "L5",
+				scope: {},
+				kind: "claim",
+				content: "Prefer narrower file scope",
+				sourceRefs: [sourceRef()],
+				confidence: "high",
+				verified: true,
+			});
+
+			expect(fs.existsSync(path.join(root, `${recorded.id}.md`))).toBe(true);
+			expect(fs.existsSync(path.join(root, "documents.json"))).toBe(false);
+
+			const items = await memory.query({ levels: ["L5"], scope: {}, claimLike: "narrower", limit: 10 });
+			expect(items).toHaveLength(1);
+			expect(items[0]?.content).toBe("Prefer narrower file scope");
+		} finally {
+			fs.rmSync(root, { recursive: true, force: true });
+		}
+	});
+
+	test("runtime knowledge selects okf markdown-directory provider and disabled no-op", () => {
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "amaze-okf-runtime-"));
+		const okf = openRuntimeKnowledge(
+			Settings.isolated({
+				"knowledge.enabled": true,
+				"knowledge.provider": "okf",
+				"knowledge.okfPath": root,
+			}),
+		);
+		try {
+			const knowledge = okf.knowledge;
+			if (!(knowledge instanceof OkfStore)) {
+				expect(knowledge).toBeInstanceOf(OkfStore);
+				return;
+			}
+			expect(knowledge.filePath).toBe(path.resolve(root));
+			expect(okf.persistLearnedHeuristics).toBe(true);
+		} finally {
+			okf.close();
+			fs.rmSync(root, { recursive: true, force: true });
+		}
+
+		const disabled = openRuntimeKnowledge(
+			Settings.isolated({
+				"knowledge.enabled": false,
+				"knowledge.provider": "okf",
+			}),
+		);
+		expect(disabled.knowledge.query({ scope: "global" })).toEqual([]);
+		expect(disabled.persistLearnedHeuristics).toBe(false);
+		disabled.close();
 	});
 });

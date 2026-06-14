@@ -211,6 +211,16 @@ export function authorizeCapabilityLease(input: LeaseAuthorizationInput): LeaseA
 	if (TOOL_RISK_ORDER[tool.riskLevel] > TOOL_RISK_ORDER[lease.allowedRisk]) {
 		return { allowed: false, code: "RISK_EXCEEDS_LEASE", reason: `${tool.riskLevel} exceeds ${lease.allowedRisk}` };
 	}
+	// Mutating tools must execute inside an isolated sandbox. Enforce this at the
+	// authorization seam (not only in the executor) so the gateway is the authoritative
+	// boundary: a mutating lease without a sandbox grant is denied before dispatch.
+	if (tool.mutatesWorkspace && !leaseGrantsSandbox(lease)) {
+		return {
+			allowed: false,
+			code: "SANDBOX_REQUIRED",
+			reason: `mutating tool ${tool.name} requires a sandbox lease (sandbox.mode is "${lease.sandbox.mode}")`,
+		};
+	}
 	if (
 		(tool.riskLevel === "HIGH" || tool.riskLevel === "CRITICAL" || tool.requiresApproval) &&
 		lease.mode !== "dry-run" &&

@@ -32,7 +32,7 @@ function createAllToolsSettings(): Settings {
 		"recipe.enabled": true,
 		"todo.enabled": true,
 		"tools.discoveryMode": "all",
-		"agencyBrain.enabled": true,
+		"knowledge.enabled": true,
 	});
 }
 

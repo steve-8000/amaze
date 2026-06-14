@@ -5,7 +5,7 @@
  * - L1 `session`  — current-session scratch facts (TTL: session end)
  * - L2 `mission`  — mission/research evidence and decisions (TTL: mission)
  * - L3 `repo`     — durable repo facts anchored to file content hashes
- * - L4 `client`   — client/agency memory (GBrain-backed, mirrored locally)
+ * - L4 `client`   — client/agency memory (OKF-backed, mirrored locally)
  * - L5 `global`   — reviewed reusable heuristics/workflows
  *
  * The local {@link KnowledgeStore} persists L1–L3 (and local mirrors of L4/L5).

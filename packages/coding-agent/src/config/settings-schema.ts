@@ -289,52 +289,31 @@ export const SETTINGS_SCHEMA = {
 	},
 	shellPath: { type: "string", default: undefined },
 
-	// GBrain-backed durable memory and agency context.
-	"agencyBrain.enabled": {
+	// Durable knowledge settings. New runtime paths MUST read `knowledge.*`.
+	"knowledge.enabled": {
 		type: "boolean",
 		default: true,
 		ui: {
 			tab: "providers",
-			label: "Agency Brain",
-			description: "Enable GBrain-backed durable memory, agency org registry, and scoped context tools",
+			label: "Knowledge",
+			description: "Enable durable knowledge and scoped context tools",
 		},
 	},
-	"agencyBrain.mcpServer": {
-		type: "string",
-		default: "gbrain",
+	"knowledge.provider": {
+		type: "enum",
+		values: ["okf", "none"] as const,
+		default: "okf",
 		ui: {
 			tab: "providers",
-			label: "Agency Brain MCP Server",
-			description: "MCP server name to use for gBrain tools",
+			label: "Knowledge Provider",
+			description: "Durable knowledge provider used for memory-backed context",
 		},
 	},
-	"agencyBrain.agencySourceId": {
-		type: "string",
-		default: "__all__",
-		ui: {
-			tab: "providers",
-			label: "Agency Brain Source",
-			description: "Source id for agency-level brain context",
-		},
-	},
-	"agencyBrain.defaultClientSourceId": {
-		type: "string",
-		default: undefined,
-		ui: {
-			tab: "providers",
-			label: "Default Client Pod Source",
-			description: "Optional default client pod source",
-		},
-	},
-	"agencyBrain.registrySlug": {
-		type: "string",
-		default: "org/agent-registry",
-		ui: {
-			tab: "providers",
-			label: "Agency Brain Registry Slug",
-			description: "Page slug for the org chart/agent registry",
-		},
-	},
+	"knowledge.mcpServer": { type: "string", default: "memory-worker" },
+	"knowledge.agencySourceId": { type: "string", default: "__all__" },
+	"knowledge.defaultClientSourceId": { type: "string", default: undefined },
+	"knowledge.registrySlug": { type: "string", default: "okf/knowledge-registry" },
+	"knowledge.okfPath": { type: "string", default: undefined },
 
 	extensions: { type: "array", default: EMPTY_STRING_ARRAY },
 
@@ -1364,7 +1343,7 @@ export const SETTINGS_SCHEMA = {
 		},
 	},
 	"localLlm.required": { type: "boolean", default: false },
-	"localLlm.modelRole": { type: "string", default: "LocalScout" },
+	"localLlm.modelRole": { type: "string", default: "MemoryWorker" },
 	"localLlm.structuredOutput": { type: "boolean", default: true },
 	"localLlm.disableThinking": { type: "boolean", default: true },
 	"localLlm.maxInputTokens": { type: "number", default: 12000 },
@@ -1372,6 +1351,9 @@ export const SETTINGS_SCHEMA = {
 	"localLlm.timeoutMs": { type: "number", default: 30000 },
 	"localLlm.useForLogSummarizer": { type: "boolean", default: true },
 	"localLlm.useForContextCompressor": { type: "boolean", default: true },
+	"localLlm.useForMemoryWorker": { type: "boolean", default: true },
+	"localLlm.requireEvidenceRefs": { type: "boolean", default: true },
+	"localLlm.completionAuthority": { type: "boolean", default: false },
 
 	"promptEnhancer.enabled": { type: "boolean", default: false },
 	"promptEnhancer.model": { type: "string", default: undefined },
@@ -2724,6 +2706,11 @@ export const SETTINGS_SCHEMA = {
 					description: "Requires PERPLEXITY_COOKIES or PERPLEXITY_API_KEY",
 				},
 				{ value: "anthropic", label: "Anthropic", description: "Uses Anthropic web search" },
+				{
+					value: "codex",
+					label: "Codex",
+					description: "Uses OpenAI Codex web search (requires `amaze /login openai-codex`)",
+				},
 				{ value: "zai", label: "Z.AI", description: "Calls Z.AI webSearchPrime MCP" },
 				{ value: "tavily", label: "Tavily", description: "Requires TAVILY_API_KEY" },
 				{ value: "kagi", label: "Kagi", description: "Requires KAGI_API_KEY and Kagi Search API beta access" },
@@ -2731,6 +2718,19 @@ export const SETTINGS_SCHEMA = {
 				{ value: "parallel", label: "Parallel", description: "Requires PARALLEL_API_KEY" },
 				{ value: "searxng", label: "SearXNG", description: "Requires SEARXNG_ENDPOINT or searxng.endpoint" },
 			],
+		},
+	},
+	"providers.webSearchCodexModel": {
+		type: "string",
+		// Model for the Codex web-search provider. Accepts an optional `provider/`
+		// prefix and an optional `:<effort>` reasoning suffix, e.g.
+		// `openai-codex/gpt-5.3-codex-spark:medium`. Overridden by the
+		// `AMAZE_CODEX_WEB_SEARCH_MODEL` env var when set.
+		default: undefined,
+		ui: {
+			tab: "providers",
+			label: "Codex Web Search Model",
+			description: "Model + reasoning effort for the Codex web-search provider (e.g. gpt-5.3-codex-spark:medium)",
 		},
 	},
 	"providers.image": {
@@ -3098,6 +3098,9 @@ export interface LocalLlmSettings {
 	timeoutMs: number;
 	useForLogSummarizer: boolean;
 	useForContextCompressor: boolean;
+	useForMemoryWorker: boolean;
+	requireEvidenceRefs: boolean;
+	completionAuthority: boolean;
 }
 
 export interface PromptEnhancerSettings {
@@ -3139,12 +3142,14 @@ export interface SttSettings {
 	modelPath: string | undefined;
 }
 
-export interface AgencyBrainSettings {
+export interface KnowledgeSettings {
 	enabled: boolean;
+	provider: "okf" | "none";
 	mcpServer: string | undefined;
 	agencySourceId: string | undefined;
 	defaultClientSourceId: string | undefined;
 	registrySlug: string | undefined;
+	okfPath: string | undefined;
 }
 
 export interface BashInterceptorRule {
@@ -3174,7 +3179,7 @@ export interface GroupTypeMap {
 	commit: CommitSettings;
 	ttsr: TtsrSettings;
 	localLlm: LocalLlmSettings;
-	agencyBrain: AgencyBrainSettings;
+	knowledge: KnowledgeSettings;
 	exa: ExaSettings;
 	statusLine: StatusLineSettings;
 	thinkingBudgets: ThinkingBudgetsSettings;

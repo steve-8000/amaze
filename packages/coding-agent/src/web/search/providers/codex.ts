@@ -10,6 +10,7 @@ import { getBundledModels } from "@amaze/ai";
 import { decodeJwt } from "@amaze/ai/utils/oauth/openai-codex";
 import { $env, getAgentDbPath, readSseJson } from "@amaze/utils";
 import packageJson from "../../../../package.json" with { type: "json" };
+import { settings } from "../../../config/settings";
 import { AgentStorage } from "../../../session/agent-storage";
 import type { SearchResponse, SearchSource } from "../../../web/search/types";
 import { SearchProviderError } from "../../../web/search/types";
@@ -31,16 +32,70 @@ const JWT_CLAIM_PATH = "https://api.openai.com/auth";
 const DEFAULT_INSTRUCTIONS =
 	"You are a helpful assistant with web search capabilities. Search the web to answer the user's question accurately and cite your sources.";
 
-function getModel(): string {
-	const configuredModel = $env.AMAZE_CODEX_WEB_SEARCH_MODEL?.trim();
-	if (configuredModel) return configuredModel;
+const CODEX_REASONING_EFFORTS = ["none", "minimal", "low", "medium", "high", "xhigh"] as const;
+type CodexReasoningEffort = (typeof CODEX_REASONING_EFFORTS)[number];
+
+function isReasoningEffort(value: string): value is CodexReasoningEffort {
+	return (CODEX_REASONING_EFFORTS as readonly string[]).includes(value);
+}
+
+interface CodexModelSpec {
+	model: string;
+	reasoningEffort?: CodexReasoningEffort;
+}
+
+/**
+ * Resolves the model id and optional reasoning effort for Codex web search.
+ *
+ * `AMAZE_CODEX_WEB_SEARCH_MODEL` accepts an optional `provider/` prefix and an
+ * optional `:<effort>` suffix, e.g. `openai-codex/gpt-5.3-codex-spark:medium`.
+ * The effort may also be set independently via `AMAZE_CODEX_WEB_SEARCH_REASONING`.
+ */
+function readConfiguredModel(): string | undefined {
+	const fromEnv = $env.AMAZE_CODEX_WEB_SEARCH_MODEL?.trim();
+	if (fromEnv) return fromEnv;
+	try {
+		const fromSettings = settings.get("providers.webSearchCodexModel")?.trim();
+		if (fromSettings) return fromSettings;
+	} catch {
+		// Settings not initialized yet (e.g. CLI/test paths) — fall through.
+	}
+	return undefined;
+}
+
+/** Parse a `provider/model:effort` spec into model id + reasoning effort. */
+function parseModelSpec(configured: string, fallbackEffort?: CodexReasoningEffort): CodexModelSpec {
+	// Strip an optional `provider/` prefix (`openai-codex/gpt-5.3-codex-spark`).
+	let spec = configured;
+	const slash = spec.lastIndexOf("/");
+	if (slash !== -1) spec = spec.slice(slash + 1);
+
+	// Strip an optional `:<effort>` suffix; an explicit suffix wins over the env override.
+	let reasoningEffort = fallbackEffort;
+	const colon = spec.lastIndexOf(":");
+	if (colon !== -1) {
+		const suffix = spec.slice(colon + 1).toLowerCase();
+		if (isReasoningEffort(suffix)) {
+			reasoningEffort = suffix;
+			spec = spec.slice(0, colon);
+		}
+	}
+	return { model: spec, reasoningEffort };
+}
+
+function getModelSpec(): CodexModelSpec {
+	const envEffort = $env.AMAZE_CODEX_WEB_SEARCH_REASONING?.trim().toLowerCase();
+	const reasoningOverride = envEffort && isReasoningEffort(envEffort) ? envEffort : undefined;
+
+	const configured = readConfiguredModel();
+	if (configured) return parseModelSpec(configured, reasoningOverride);
 
 	const bundledModels = getBundledModels("openai-codex");
 	const bundledIds = new Set(bundledModels.map(model => model.id));
 	const preferred = DEFAULT_MODEL_PREFERENCES.find(modelId => bundledIds.has(modelId));
-	if (preferred) return preferred;
+	if (preferred) return { model: preferred, reasoningEffort: reasoningOverride };
 	const nonMini = bundledModels.find(model => !model.id.includes("mini") && !model.id.includes("spark"));
-	return nonMini?.id ?? bundledModels[0]?.id ?? FALLBACK_MODEL;
+	return { model: nonMini?.id ?? bundledModels[0]?.id ?? FALLBACK_MODEL, reasoningEffort: reasoningOverride };
 }
 
 export interface CodexSearchParams {
@@ -311,7 +366,7 @@ async function callCodexSearch(
 	const url = `${CODEX_BASE_URL}${CODEX_RESPONSES_PATH}`;
 	const headers = buildCodexHeaders(auth.accessToken, auth.accountId);
 
-	const requestedModel = getModel();
+	const { model: requestedModel, reasoningEffort } = getModelSpec();
 
 	const body: Record<string, unknown> = {
 		model: requestedModel,
@@ -333,6 +388,11 @@ async function callCodexSearch(
 		tool_choice: { type: "web_search" },
 		instructions: options.systemPrompt ?? DEFAULT_INSTRUCTIONS,
 	};
+
+	// Only attach reasoning when an effort is configured; `none` disables it explicitly.
+	if (reasoningEffort && reasoningEffort !== "none") {
+		body.reasoning = { effort: reasoningEffort };
+	}
 
 	const response = await fetch(url, {
 		method: "POST",

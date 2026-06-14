@@ -564,10 +564,10 @@ export class CommandController {
 	async handleMemoryCommand(text: string): Promise<void> {
 		const action = text.slice(7).trim().split(/\s+/, 1)[0]?.toLowerCase() || "help";
 		if (action && action !== "help" && action !== "view") {
-			this.ctx.showError("Legacy /memory operations have been removed. Use GBrain Agency Brain via MCP.");
+			this.ctx.showError("Legacy /memory operations have been removed. Use OKF files with optional knowledge MCP retrieval.");
 			return;
 		}
-		this.ctx.showStatus("Legacy local memory has been removed. Use GBrain Agency Brain via MCP.");
+		this.ctx.showStatus("Legacy local memory has been removed. Use OKF files with optional knowledge MCP retrieval.");
 	}
 
 	async #runNewSessionFlow(options?: NewSessionOptions, label: string = "New session started"): Promise<void> {

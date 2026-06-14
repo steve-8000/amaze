@@ -21,13 +21,15 @@ import {
 	tryGitPrefix,
 	tryGitStatus,
 } from "../helpers";
-import { buildExperimentState } from "../state";
+import { buildExperimentState, selectNextParent } from "../state";
 import { openAutoresearchStorageIfExists } from "../storage";
-import type { AutoresearchToolFactoryOptions, RunDetails, RunExperimentProgressDetails } from "../types";
+import type { AutoresearchToolFactoryOptions, EvalStage, RunDetails, RunExperimentProgressDetails } from "../types";
 import { DEFAULT_HARNESS_COMMAND } from "./init-experiment";
 
 const runExperimentSchema = z.object({
 	timeout_seconds: z.number().describe("timeout in seconds (default 600)").optional(),
+	stage: z.enum(["full", "smoke", "staged"] as const).describe("evaluation stage (default full)").optional(),
+	smoke_command: z.string().describe("command to run before full benchmark when stage is staged").optional(),
 });
 
 interface ProcessExecutionResult {
@@ -35,6 +37,10 @@ interface ProcessExecutionResult {
 	killed: boolean;
 	logPath: string;
 	output: string;
+}
+interface RunStageExecution {
+	full: ProcessExecutionResult;
+	smoke?: ProcessExecutionResult;
 }
 
 interface ProgressSnapshot {
@@ -70,6 +76,12 @@ export function createRunExperimentTool(
 				};
 			}
 
+			const stage: EvalStage = params.stage ?? "full";
+			if (stage === "staged" && (!params.smoke_command || params.smoke_command.trim().length === 0)) {
+				return {
+					content: [{ type: "text", text: "Error: staged eval requires smoke_command." }],
+				};
+			}
 			const runtime = options.getRuntime(ctx);
 
 			const abandonedPriorRun = (() => {
@@ -80,9 +92,12 @@ export function createRunExperimentTool(
 			})();
 
 			const resolvedCommand = DEFAULT_HARNESS_COMMAND;
+			const smokeCommand = stage === "smoke" ? DEFAULT_HARNESS_COMMAND : stage === "staged" ? params.smoke_command?.trim() : undefined;
 			const preRunStatus = await tryGitStatus(ctx.cwd);
 			const workDirPrefix = await tryGitPrefix(ctx.cwd);
 			const preRunDirtyPaths = parseWorkDirDirtyPaths(preRunStatus, workDirPrefix);
+			const stateBeforeRun = buildExperimentState(session, storage.listLoggedRuns(session.id));
+			const parent = selectNextParent(stateBeforeRun.results, session.currentSegment, session.direction, session.parentSelectionStrategy);
 
 			const startedAt = Date.now();
 			const insertedRun = storage.insertRun({
@@ -92,10 +107,13 @@ export function createRunExperimentTool(
 				logPath: "", // patched after we know the run id
 				preRunDirtyPaths,
 				startedAt,
+				parentRunId: parent.runNumber,
+				selectionStrategy: parent.strategy,
 			});
 
 			const runDirectory = path.join(storage.projectDir, "runs", String(insertedRun.id).padStart(4, "0"));
 			const benchmarkLogPath = path.join(runDirectory, "benchmark.log");
+			const smokeLogPath = path.join(runDirectory, "smoke.log");
 			fs.mkdirSync(runDirectory, { recursive: true });
 			storage.updateRunLogPath(insertedRun.id, benchmarkLogPath);
 
@@ -114,12 +132,15 @@ export function createRunExperimentTool(
 			options.dashboard.requestRender();
 
 			const timeoutMs = Math.max(0, Math.floor((params.timeout_seconds ?? 600) * 1000));
-			let execution: ProcessExecutionResult;
+			let execution: RunStageExecution;
 			try {
-				execution = await executeProcess({
-					command: ["bash", "-lc", resolvedCommand],
+				execution = await executeRunStages({
+					stage,
+					smokeCommand,
+					fullCommand: resolvedCommand,
 					cwd: ctx.cwd,
-					logPath: benchmarkLogPath,
+					smokeLogPath,
+					benchmarkLogPath,
 					timeoutMs,
 					signal,
 					onProgress: details => {
@@ -140,49 +161,52 @@ export function createRunExperimentTool(
 				options.dashboard.updateWidget(ctx, runtime);
 				options.dashboard.requestRender();
 			}
+			const fullExecution = execution.full;
 
 			const completedAt = Date.now();
 			const durationMs = completedAt - startedAt;
 			const durationSeconds = durationMs / 1000;
 			runtime.lastRunDuration = durationSeconds;
 
-			const llmTruncation = truncateTail(execution.output, {
+			const llmTruncation = truncateTail(fullExecution.output, {
 				maxBytes: EXPERIMENT_MAX_BYTES,
 				maxLines: EXPERIMENT_MAX_LINES,
 			});
-			const displayTruncation = truncateTail(execution.output, {
+			const displayTruncation = truncateTail(fullExecution.output, {
 				maxBytes: DEFAULT_MAX_BYTES,
 				maxLines: DEFAULT_MAX_LINES,
 			});
 
-			const parsedMetricsMap = parseMetricLines(execution.output);
+			const parsedMetricsMap = parseMetricLines(fullExecution.output);
 			const parsedMetrics = parsedMetricsMap.size > 0 ? Object.fromEntries(parsedMetricsMap.entries()) : null;
 			const parsedPrimary = parsedMetricsMap.get(session.primaryMetric) ?? null;
-			const parsedAsi = parseAsiLines(execution.output);
+			const parsedAsi = mergeStageAsi(execution.smoke, parseAsiLines(fullExecution.output), stage);
 			runtime.lastRunAsi = parsedAsi;
 
 			storage.markRunCompleted({
 				runId: insertedRun.id,
 				completedAt,
 				durationMs,
-				exitCode: execution.exitCode,
-				timedOut: execution.killed,
+				exitCode: fullExecution.exitCode,
+				timedOut: fullExecution.killed,
 				parsedPrimary,
 				parsedMetrics,
 				parsedAsi,
 			});
 
-			const passed = execution.exitCode === 0 && !execution.killed;
+			const passed = fullExecution.exitCode === 0 && !fullExecution.killed;
+			const crashed = fullExecution.exitCode !== 0 || fullExecution.killed;
 			const resultDetails: RunDetails = {
 				runNumber: insertedRun.id,
 				runDirectory,
 				benchmarkLogPath,
+				evalStage: stage,
 				command: resolvedCommand,
-				exitCode: execution.exitCode,
+				exitCode: fullExecution.exitCode,
 				durationSeconds,
 				passed,
-				crashed: execution.exitCode !== 0 || execution.killed,
-				timedOut: execution.killed,
+				crashed,
+				timedOut: fullExecution.killed,
 				tailOutput: displayTruncation.content,
 				parsedMetrics,
 				parsedPrimary,
@@ -191,9 +215,12 @@ export function createRunExperimentTool(
 				metricUnit: session.metricUnit,
 				preRunDirtyPaths,
 				abandonedPriorRun,
+				parentRunNumber: parent.runNumber,
+				selectionStrategy: parent.strategy,
 				truncation: llmTruncation.truncated ? llmTruncation : undefined,
-				fullOutputPath: execution.logPath,
+				fullOutputPath: fullExecution.logPath,
 			};
+			await writeRunArtifacts(ctx.cwd, resultDetails, execution, smokeCommand ?? null, startedAt, completedAt);
 
 			runtime.lastRunSummary = {
 				command: resolvedCommand,
@@ -205,8 +232,8 @@ export function createRunExperimentTool(
 				preRunDirtyPaths,
 				runDirectory,
 				runNumber: insertedRun.id,
-				exitCode: execution.exitCode,
-				timedOut: execution.killed,
+				exitCode: fullExecution.exitCode,
+				timedOut: fullExecution.killed,
 			};
 			runtime.autoResumeArmed = true;
 			runtime.lastAutoResumePendingRunNumber = null;
@@ -267,6 +294,118 @@ export function createRunExperimentTool(
 		},
 	};
 }
+async function writeRunArtifacts(
+	cwd: string,
+	details: RunDetails,
+	execution: RunStageExecution,
+	smokeCommand: string | null,
+	startedAt: number,
+	completedAt: number,
+): Promise<void> {
+	const metadata = {
+		schema_version: 1,
+		run_id: details.runNumber,
+		parent_run_id: details.parentRunNumber,
+		parent_selection_strategy: details.selectionStrategy,
+		eval_stage: details.evalStage,
+		command: details.command,
+		smoke_command: smokeCommand,
+		started_at: new Date(startedAt).toISOString(),
+		completed_at: new Date(completedAt).toISOString(),
+		duration_seconds: details.durationSeconds,
+		exit_code: details.exitCode,
+		timed_out: details.timedOut,
+		passed: details.passed,
+		crashed: details.crashed,
+		logs: {
+			benchmark: path.basename(details.benchmarkLogPath),
+			smoke: execution.smoke ? "smoke.log" : null,
+		},
+	};
+	const metrics = {
+		schema_version: 1,
+		primary_metric: details.metricName,
+		primary_value: details.parsedPrimary,
+		primary_unit: details.metricUnit,
+		metrics: details.parsedMetrics ?? {},
+		asi: details.parsedAsi ?? {},
+	};
+	await fs.promises.writeFile(path.join(details.runDirectory, "metadata.json"), `${JSON.stringify(metadata, null, 2)}\n`);
+	await fs.promises.writeFile(path.join(details.runDirectory, "metrics.json"), `${JSON.stringify(metrics, null, 2)}\n`);
+	await fs.promises.writeFile(path.join(details.runDirectory, "patch.diff"), await readWorktreeDiff(cwd));
+}
+
+async function readWorktreeDiff(cwd: string): Promise<string> {
+	try {
+		return await git.diff(cwd, { allowFailure: true });
+	} catch {
+		return "";
+	}
+}
+
+async function executeRunStages(opts: {
+	stage: EvalStage;
+	smokeCommand?: string;
+	fullCommand: string;
+	cwd: string;
+	smokeLogPath: string;
+	benchmarkLogPath: string;
+	timeoutMs: number;
+	signal?: AbortSignal;
+	onProgress?(details: ProgressSnapshot): void;
+}): Promise<RunStageExecution> {
+	if (opts.stage === "full") {
+		return {
+			full: await executeProcess({
+				command: ["bash", "-lc", opts.fullCommand],
+				cwd: opts.cwd,
+				logPath: opts.benchmarkLogPath,
+				timeoutMs: opts.timeoutMs,
+				signal: opts.signal,
+				onProgress: opts.onProgress,
+			}),
+		};
+	}
+
+	const smokeCommand = opts.smokeCommand ?? opts.fullCommand;
+	const smoke = await executeProcess({
+		command: ["bash", "-lc", smokeCommand],
+		cwd: opts.cwd,
+		logPath: opts.smokeLogPath,
+		timeoutMs: opts.timeoutMs,
+		signal: opts.signal,
+		onProgress: opts.onProgress,
+	});
+	if (opts.stage === "smoke" || smoke.exitCode !== 0 || smoke.killed) {
+		return { full: smoke, smoke: opts.stage === "staged" ? smoke : undefined };
+	}
+
+	const full = await executeProcess({
+		command: ["bash", "-lc", opts.fullCommand],
+		cwd: opts.cwd,
+		logPath: opts.benchmarkLogPath,
+		timeoutMs: opts.timeoutMs,
+		signal: opts.signal,
+		onProgress: opts.onProgress,
+	});
+	return { full, smoke };
+}
+
+function mergeStageAsi(
+	smoke: ProcessExecutionResult | undefined,
+	fullAsi: ReturnType<typeof parseAsiLines>,
+	stage: EvalStage,
+): ReturnType<typeof parseAsiLines> {
+	const smokeAsi = smoke ? parseAsiLines(smoke.output) : null;
+	if (!smokeAsi && !fullAsi && stage === "full") return null;
+	return {
+		...(smokeAsi ?? {}),
+		...(fullAsi ?? {}),
+		eval_stage: stage,
+		smoke_passed: smoke ? smoke.exitCode === 0 && !smoke.killed : stage === "full" ? null : true,
+	};
+}
+
 async function executeProcess(opts: {
 	command: string[];
 	cwd: string;
@@ -413,6 +552,12 @@ async function executeProcess(opts: {
 function buildRunText(details: RunDetails, outputPreview: string, bestMetric: number | null): string {
 	const lines: string[] = [];
 	lines.push(`Run #${details.runNumber} directory: ${details.runDirectory}`);
+	lines.push(`Eval stage: ${details.evalStage}`);
+	if (details.parentRunNumber !== null) {
+		lines.push(`Parent run: #${details.parentRunNumber} (${details.selectionStrategy})`);
+	} else {
+		lines.push(`Parent run: none (${details.selectionStrategy})`);
+	}
 	if (details.timedOut) {
 		lines.push(`TIMEOUT after ${details.durationSeconds.toFixed(1)}s`);
 	} else if (details.exitCode !== 0) {

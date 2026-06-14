@@ -2,6 +2,7 @@ import { Database } from "bun:sqlite";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { getConfigRootDir } from "@amaze/utils";
+import type { RuntimeRole } from "../autonomy/types";
 
 export type AgiSessionState = "watching" | "waiting" | "blocked" | "paused" | "completed" | "error";
 export type AgiActionStatus = "pending" | "running" | "completed" | "failed";
@@ -41,6 +42,8 @@ export interface AgiCompletionState {
 export interface AgiControlState {
 	retryCount: number;
 	failureCount: number;
+	/** Number of back-to-back control stalls (priority-list/plan-only turns) observed. */
+	consecutiveStalls: number;
 	consecutiveIdleTicks: number;
 	waitReason?: string;
 	blockedReason?: string;
@@ -116,11 +119,33 @@ export interface AgiGatewayEvent {
 	processedAt?: number;
 }
 
+/**
+ * Structured control action payload. The AGI runtime path keys off `kind` to pick the
+ * concrete driver; the always-present `instruction` field on {@link AgiGatewayAction}
+ * stays as the human-readable audit/fallback string (and is what `legacy_follow_up_turn`
+ * actually executes). A missing `payload` means a legacy prompt-only action.
+ */
+export type AgiControlAction =
+	| { kind: "runtime_tick"; missionId: string; objectiveId?: string; profile: AgiRuntimeProfile }
+	| { kind: "spawn_subagents"; missionId: string; objectiveContractId?: string; planId?: string; roles: RuntimeRole[] }
+	| { kind: "verify_evidence"; missionId: string; objectiveContractId?: string; actionId: string }
+	| { kind: "request_human_approval"; missionId: string; actionId?: string; reason: string }
+	| { kind: "legacy_follow_up_turn" };
+
+export type AgiRuntimeProfile = "strict-observe" | "strict-mutation" | "strict-self-improve" | "strict-supervised";
+
+export type AgiControlActionKind = AgiControlAction["kind"];
+
 export interface AgiGatewayAction {
 	id: string;
 	sessionId: string;
 	eventId?: string;
 	actionType: string;
+	/**
+	 * Structured control action. Present on AGI-runtime actions; absent on legacy
+	 * prompt-only follow-ups. The driver dispatches on `payload.kind` when set.
+	 */
+	payload?: AgiControlAction;
 	instruction: string;
 	status: AgiActionStatus;
 	createdAt: number;
@@ -168,6 +193,7 @@ type AgiActionRow = {
 	session_id: string;
 	event_id: string | null;
 	action_type: string;
+	payload_json: string | null;
 	instruction: string;
 	status: AgiActionStatus;
 	created_at: number;
@@ -306,6 +332,7 @@ export function createInitialAgiControlState(): AgiControlState {
 	return {
 		retryCount: 0,
 		failureCount: 0,
+		consecutiveStalls: 0,
 		consecutiveIdleTicks: 0,
 	};
 }
@@ -314,6 +341,7 @@ export function buildAgiControlState(input: Partial<AgiControlState> = {}): AgiC
 	return {
 		retryCount: Math.max(0, Math.trunc(input.retryCount ?? 0)),
 		failureCount: Math.max(0, Math.trunc(input.failureCount ?? 0)),
+		consecutiveStalls: Math.max(0, Math.trunc(input.consecutiveStalls ?? 0)),
 		consecutiveIdleTicks: Math.max(0, Math.trunc(input.consecutiveIdleTicks ?? 0)),
 		...(input.waitReason ? { waitReason: input.waitReason } : {}),
 		...(input.blockedReason ? { blockedReason: input.blockedReason } : {}),
@@ -550,6 +578,7 @@ export class AgiGatewayStore {
 		eventId?: string;
 		actionType: string;
 		instruction: string;
+		payload?: AgiControlAction;
 	}): AgiGatewayAction {
 		if (!this.getSession(input.sessionId)) {
 			throw new Error(`AGI session not found: ${input.sessionId}`);
@@ -559,6 +588,7 @@ export class AgiGatewayStore {
 			sessionId: input.sessionId,
 			...(input.eventId ? { eventId: input.eventId } : {}),
 			actionType: input.actionType,
+			...(input.payload ? { payload: input.payload } : {}),
 			instruction: input.instruction,
 			status: "pending",
 			createdAt: Date.now(),
@@ -566,14 +596,15 @@ export class AgiGatewayStore {
 		this.#db
 			.query(
 				`INSERT INTO agi_actions
-					(id, session_id, event_id, action_type, instruction, status, created_at, started_at, finished_at, result_json, last_error)
-				VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL)`,
+					(id, session_id, event_id, action_type, payload_json, instruction, status, created_at, started_at, finished_at, result_json, last_error)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL)`,
 			)
 			.run(
 				action.id,
 				action.sessionId,
 				action.eventId ?? null,
 				action.actionType,
+				action.payload ? JSON.stringify(action.payload) : null,
 				action.instruction,
 				action.status,
 				action.createdAt,
@@ -683,6 +714,7 @@ export class AgiGatewayStore {
 				session_id TEXT NOT NULL,
 				event_id TEXT,
 				action_type TEXT NOT NULL,
+				payload_json TEXT CHECK (payload_json IS NULL OR json_valid(payload_json)),
 				instruction TEXT NOT NULL,
 				status TEXT NOT NULL,
 				created_at INTEGER NOT NULL,
@@ -697,6 +729,7 @@ export class AgiGatewayStore {
 			CREATE INDEX IF NOT EXISTS agi_actions_event_idx ON agi_actions(event_id);
 			CREATE INDEX IF NOT EXISTS agi_actions_status_idx ON agi_actions(status, created_at);
 		`);
+		ensureColumn(this.#db, "agi_actions", "payload_json", "TEXT");
 		ensureColumn(this.#db, "agi_sessions", "preferred_model", "TEXT");
 		ensureColumn(this.#db, "agi_sessions", "score", "INTEGER DEFAULT 20");
 		ensureColumn(this.#db, "agi_sessions", "observed_bytes", "INTEGER DEFAULT 0");
@@ -848,6 +881,7 @@ function rowToAction(row: AgiActionRow): AgiGatewayAction {
 		id: row.id,
 		sessionId: row.session_id,
 		...(row.event_id !== null ? { eventId: row.event_id } : {}),
+		...(row.payload_json !== null ? { payload: JSON.parse(row.payload_json) as AgiControlAction } : {}),
 		actionType: row.action_type,
 		instruction: row.instruction,
 		status: row.status,

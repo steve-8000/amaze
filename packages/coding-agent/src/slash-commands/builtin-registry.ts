@@ -987,9 +987,12 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 		handle: async (command, runtime) => {
 			const verb = command.args.trim().split(/\s+/, 1)[0]?.toLowerCase() || "help";
 			if (verb && verb !== "help" && verb !== "view") {
-				return usage("Legacy /memory operations have been removed. Use GBrain Agency Brain via MCP.", runtime);
+				return usage(
+					"Legacy /memory operations have been removed. Use OKF files with optional knowledge MCP retrieval.",
+					runtime,
+				);
 			}
-			await runtime.output("Legacy local memory has been removed. Use GBrain Agency Brain via MCP.");
+			await runtime.output("Legacy local memory has been removed. Use OKF files with optional knowledge MCP retrieval.");
 			return commandConsumed();
 		},
 		handleTui: async (command, runtime) => {

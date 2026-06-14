@@ -1,7 +1,7 @@
 import type { Settings } from "../config/settings";
 import type { LocalLlmRuntimeConfig, LocalLlmUseCase } from "./types";
 
-export const LOCAL_LLM_MODEL_ROLE = "LocalScout";
+export const LOCAL_LLM_MODEL_ROLE = "MemoryWorker";
 
 export function getLocalLlmConfig(settings: Settings): LocalLlmRuntimeConfig {
 	return {
@@ -15,6 +15,9 @@ export function getLocalLlmConfig(settings: Settings): LocalLlmRuntimeConfig {
 		timeoutMs: settings.get("localLlm.timeoutMs"),
 		useForLogSummarizer: settings.get("localLlm.useForLogSummarizer"),
 		useForContextCompressor: settings.get("localLlm.useForContextCompressor"),
+		useForMemoryWorker: settings.get("localLlm.useForMemoryWorker"),
+		requireEvidenceRefs: settings.get("localLlm.requireEvidenceRefs"),
+		completionAuthority: settings.get("localLlm.completionAuthority"),
 	};
 }
 
@@ -25,6 +28,8 @@ export function isLocalLlmUseCaseEnabled(config: LocalLlmRuntimeConfig, useCase:
 			return config.useForLogSummarizer;
 		case "context_compressor":
 			return config.useForContextCompressor;
+		case "memory_worker":
+			return config.useForMemoryWorker;
 	}
 }
 

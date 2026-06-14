@@ -9,11 +9,13 @@ import type { ToolExecutionContext } from "../tools/registry/tool-descriptor";
 import type { CapabilityLease } from "./capability-lease";
 import type { EvidenceRequirement, MissionEvidenceVerifier } from "./evidence-verifier";
 import type { AgiGovernance } from "./governance";
-import type { AgiMemory, MemoryItem } from "./memory";
+import type { AgiMemory, MemoryItem, MemorySourceRef } from "./memory";
 import { compileObjectiveContract, type ObjectiveCompilerModel } from "./objective-contract";
+import type { ResearchLoop } from "./research-loop";
 import type { RoleExecutor } from "./role-executor";
 import { routePlanStepToAction } from "./role-router";
 import type { SandboxManager, SandboxWorkspace } from "./sandbox-manager";
+import type { SynthesizedDecision } from "./subagent-result-synthesizer";
 
 export interface AgiRuntimeScheduler {
 	tick(): Promise<Array<{ objectiveId: string; kind: string; missionId?: string }>>;
@@ -35,7 +37,29 @@ export interface AgiRuntimeLeaseIssuer {
 	issue(input: { mission: Mission; contract: ObjectiveContract; action: RuntimeAction }): CapabilityLease;
 }
 
+export interface AgiRuntimeReplanner {
+	replan(input: {
+		mission: Mission;
+		contract: ObjectiveContract;
+		reason: string;
+		evidenceRefs: string[];
+	}): Promise<{ plan: { id: string; steps: ContractiblePlanStep[] }; summary?: string } | undefined>;
+}
+
+export interface AgiRuntimeSubagentGate {
+	/**
+	 * Expand + run the mandated subagent roles for a plan and return the synthesized decision.
+	 * Returning `accept` authorizes runtime-action execution; anything else blocks the mission.
+	 */
+	enforce(input: {
+		mission: Mission;
+		contract: ObjectiveContract;
+		plan: { id: string; steps: ContractiblePlanStep[] };
+	}): Promise<SynthesizedDecision>;
+}
+
 export interface AgiRuntimeActionStore {
+	getLatestObjectiveContractForMission?(missionId: string): { contract: ObjectiveContract } | undefined;
 	saveObjectiveContract?(missionId: string, contract: ObjectiveContract): void;
 	savePlan?(missionId: string, plan: MissionPlan): void;
 	saveTask?(input: MissionTask & { missionId: string }): MissionTask | undefined;
@@ -57,9 +81,18 @@ export interface AgiRuntimeDeps {
 	verifier?: MissionEvidenceVerifier;
 	store?: AgiRuntimeActionStore;
 	memory?: AgiMemory;
+	research?: ResearchLoop;
 	executor?: RoleExecutor;
 	governance?: Pick<AgiGovernance, "assertLeaseMayRun">;
+	replanner?: AgiRuntimeReplanner;
 	sandbox?: SandboxManager;
+	/**
+	 * Mandatory subagent gate. When configured, the runtime runs the policy-mandated subagent
+	 * roles for the plan and refuses to execute runtime actions unless the synthesized decision
+	 * is `accept`. A `blocked` / `needs_revision` decision blocks the mission — a plan is not
+	 * progress until the mandated roles have actually run and closed.
+	 */
+	subagentGate?: AgiRuntimeSubagentGate;
 	/**
 	 * Repository root the sandbox manager forks worktrees from. Defaults to the
 	 * current process cwd; the mutation harness points it at an isolated repo.
@@ -107,14 +140,33 @@ export class AgiRuntime {
 			if (!mission) continue;
 			result.missionsObserved += 1;
 
-			const contract = await compileObjectiveContract({
-				goal: mission.objective,
-				operatorCriteria: mission.acceptanceCriteria.map(criterion => criterion.description),
-				constraints: mission.constraints,
-				mode: objective.guardrails.requireHumanForApply ? "manual" : "supervised",
-				llm: this.#deps.compilerModel,
-			});
-			this.#deps.store?.saveObjectiveContract?.(mission.id, contract);
+			const existingContract = this.#deps.store?.getLatestObjectiveContractForMission?.(mission.id)?.contract;
+			const contract =
+				existingContract ??
+				(await compileObjectiveContract({
+					goal: mission.objective,
+					operatorCriteria: mission.acceptanceCriteria.map(criterion => criterion.description),
+					constraints: mission.constraints,
+					mode: objective.guardrails.requireHumanForApply ? "manual" : "supervised",
+					llm: this.#deps.compilerModel,
+				}));
+			if (!existingContract) this.#deps.store?.saveObjectiveContract?.(mission.id, contract);
+
+			const researchGate = await this.#deps.research?.satisfyFreshnessPolicy({ missionId: mission.id, contract });
+			if (researchGate && !researchGate.satisfied) {
+				this.#appendResearchEvent(mission.id, "research.blocked", [], {
+					contractId: contract.id,
+					blockers: researchGate.blockers,
+				});
+				await this.#blockMission(mission.id, researchGate.blockers.join("; "), [], result);
+				continue;
+			}
+			if (researchGate && researchGate.citations.length > 0) {
+				this.#appendResearchEvent(mission.id, "research.completed", researchGate.citations, {
+					contractId: contract.id,
+					citationCount: researchGate.citations.length,
+				});
+			}
 
 			const memory = await this.#deps.memory?.query({
 				levels: ["L1", "L2", "L3", "L4", "L5"],
@@ -133,6 +185,19 @@ export class AgiRuntime {
 			const planActionIds: string[] = [];
 			const planStatuses = new Map<string, RuntimeAction["status"]>();
 			const planEvidenceRefs = new Set<string>();
+			if (this.#deps.subagentGate) {
+				const decision = await this.#deps.subagentGate.enforce({ mission, contract, plan });
+				if (decision.kind !== "accept") {
+					const reason =
+						decision.kind === "blocked"
+							? `Mandatory subagents did not clear the plan: ${decision.reason}`
+							: `Mandatory subagents require revision by ${decision.targetRole}: ${decision.revisionRequest}`;
+					const blockedRefs = decision.kind === "blocked" ? decision.evidenceRefs : [];
+					await this.#blockMission(mission.id, reason, blockedRefs, result);
+					continue;
+				}
+				for (const ref of decision.evidenceRefs) planEvidenceRefs.add(ref);
+			}
 			for (const step of plan.steps) {
 				const action = routePlanStepToAction({
 					missionId: mission.id,
@@ -144,7 +209,8 @@ export class AgiRuntime {
 				planActionIds.push(action.id);
 				const existingAction = this.#deps.store?.getRuntimeAction?.(action.id);
 				if (existingAction) planStatuses.set(action.id, existingAction.status);
-				if (existingAction?.status === "running") {
+				if (existingAction?.status === "running" || existingAction?.status === "succeeded") {
+					const previousStatus = existingAction.status;
 					this.#markAction(action.id, "blocked", planStatuses);
 					this.#deps.store?.appendRuntimeEvent?.({
 						missionId: mission.id,
@@ -153,10 +219,10 @@ export class AgiRuntime {
 						actor: action.role,
 						payload: {
 							actionId: action.id,
-							previousStatus: "running",
+							previousStatus,
 							status: "blocked",
 						},
-						idempotencyKey: `runtime-action:${action.id}:recovered-running`,
+						idempotencyKey: `runtime-action:${action.id}:recovered-${previousStatus}`,
 					});
 					result.actionsBlocked += 1;
 					continue;
@@ -270,16 +336,40 @@ export class AgiRuntime {
 							if (verified === "pass") {
 								this.#markAction(action.id, "verified", planStatuses);
 								await this.#acceptSandbox(mission.id, action, lease, sandboxWorkspace, planEvidenceRefs);
-							} else {
-								if (verified === "fail") this.#markAction(action.id, "failed", planStatuses);
+							} else if (verified === "fail") {
+								this.#markAction(action.id, "failed", planStatuses);
 								await this.#rollbackSandbox(
 									mission.id,
 									action,
 									sandboxWorkspace?.id,
 									lease,
-									verified === "fail"
-										? "runtime action failed evidence verification"
-										: "runtime action produced insufficient evidence",
+									"runtime action failed evidence verification",
+								);
+							} else {
+								// insufficient_evidence (or a runtime without a configured verifier):
+								// never leave a succeeded action dangling. Demote to blocked so mission
+								// settlement closes the plan, roll back the sandbox, and record why.
+								this.#markAction(action.id, "blocked", planStatuses);
+								this.#deps.store?.appendRuntimeEvent?.({
+									missionId: mission.id,
+									streamId: `runtime-action:${action.id}`,
+									type: "runtime_action.evidence_insufficient",
+									actor: action.role,
+									payload: {
+										actionId: action.id,
+										leaseId: lease.leaseId,
+										previousStatus: "succeeded",
+										status: "blocked",
+										verification: verified ?? "no_verifier",
+									},
+									idempotencyKey: `runtime-action:${action.id}:evidence-insufficient`,
+								});
+								await this.#rollbackSandbox(
+									mission.id,
+									action,
+									sandboxWorkspace?.id,
+									lease,
+									"runtime action produced insufficient evidence",
 								);
 							}
 						} else if (execution.status === "failed") {
@@ -407,6 +497,7 @@ export class AgiRuntime {
 				uncertainCount: 0,
 			};
 			this.#deps.missionRuntime.recordVerification?.(mission.id, verification);
+			await this.#recordLearning(mission, "pass", verification.summary, evidenceRefs);
 			try {
 				await this.#deps.missionRuntime.complete?.(mission.id, {
 					outcome: {
@@ -428,24 +519,52 @@ export class AgiRuntime {
 			return;
 		}
 		if (statuses.some(status => status === "failed")) {
+			const summary = `AGI runtime action failed for objective contract ${objectiveContractId}.`;
 			this.#deps.missionRuntime.recordVerification?.(mission.id, {
 				status: "fail",
 				verdict: "fail",
-				summary: `AGI runtime action failed for objective contract ${objectiveContractId}.`,
+				summary,
 				failedCount: statuses.filter(status => status === "failed").length,
 				uncertainCount: 0,
 			});
+			await this.#recordLearning(mission, "fail", summary, evidenceRefs);
+			if (await this.#tryReplan(mission, objectiveContractId, summary, evidenceRefs, result)) return;
 			await this.#blockMission(mission.id, "AGI runtime action failed verification.", evidenceRefs, result);
 			return;
 		}
 		if (statuses.some(status => status === "blocked")) {
-			await this.#blockMission(
-				mission.id,
-				"AGI runtime action blocked by tool policy or executor.",
-				evidenceRefs,
-				result,
-			);
+			const reason = "AGI runtime action blocked by tool policy or executor.";
+			await this.#recordLearning(mission, "blocked", reason, evidenceRefs);
+			if (await this.#tryReplan(mission, objectiveContractId, reason, evidenceRefs, result)) return;
+			await this.#blockMission(mission.id, reason, evidenceRefs, result);
+			return;
 		}
+		// Catch-all: the plan is neither fully verified nor explicitly failed/blocked, yet some
+		// action is still non-terminal (e.g. queued or succeeded-but-unverified left over from a
+		// prior tick). A partial plan MUST NOT settle as silent success — block it so the mission
+		// carries an honest terminal state instead of dangling between completed and blocked.
+		const unsettled = actionIds
+			.map(
+				actionId =>
+					`${actionId}:${planStatuses.get(actionId) ?? this.#deps.store?.getRuntimeAction?.(actionId)?.status ?? "unknown"}`,
+			)
+			.join(", ");
+		const summary = `AGI runtime plan incomplete for objective contract ${objectiveContractId}: ${unsettled}.`;
+		this.#deps.missionRuntime.recordVerification?.(mission.id, {
+			status: "uncertain",
+			verdict: "pending",
+			summary,
+			failedCount: 0,
+			uncertainCount: statuses.filter(status => status !== "verified").length,
+		});
+		await this.#recordLearning(mission, "uncertain", summary, evidenceRefs);
+		if (await this.#tryReplan(mission, objectiveContractId, summary, evidenceRefs, result)) return;
+		await this.#blockMission(
+			mission.id,
+			`AGI runtime plan has unsettled action(s): ${unsettled}.`,
+			evidenceRefs,
+			result,
+		);
 	}
 
 	async #blockMission(
@@ -456,6 +575,96 @@ export class AgiRuntime {
 	): Promise<void> {
 		await this.#deps.missionRuntime.block?.(missionId, { reason, evidenceRefs });
 		result.missionsBlocked += 1;
+	}
+
+	#appendResearchEvent(
+		missionId: string,
+		type: "research.completed" | "research.blocked",
+		citations: MemorySourceRef[],
+		payload: Record<string, unknown>,
+	): void {
+		this.#deps.store?.appendRuntimeEvent?.({
+			missionId,
+			streamId: `research:${missionId}`,
+			type,
+			actor: "Researcher",
+			payload,
+			evidenceRefs: citations.map(citation => citation.uri),
+			idempotencyKey: `research:${missionId}:${type}`,
+		});
+	}
+
+	async #recordLearning(
+		mission: Mission,
+		outcomeStatus: "pass" | "fail" | "blocked" | "uncertain",
+		summary: string,
+		evidenceRefs: string[],
+	): Promise<void> {
+		if (!this.#deps.memory) return;
+		// A learning claim with no provenance is meaningless and is rejected by the
+		// memory backend (OkfAgiMemory requires >=1 source ref). The blocked/failed/
+		// uncertain settlement branches can legitimately carry no evidence (e.g. a
+		// tool-policy denial before any action ran), so skip recording rather than
+		// letting the backend throw and crash the tick.
+		if (evidenceRefs.length === 0) return;
+		try {
+			await this.#deps.memory.record({
+				level: outcomeStatus === "pass" ? "L3" : "L2",
+				scope: { missionId: mission.id, objectiveId: mission.projectId },
+				kind: "claim",
+				content: {
+					kind: "outcome",
+					claim: summary,
+					outcomeStatus,
+				},
+				sourceRefs: evidenceRefs.map(ref => ({ kind: "evidence", uri: ref })),
+				confidence: outcomeStatus === "pass" ? "high" : "medium",
+				verified: outcomeStatus === "pass",
+			});
+		} catch (error) {
+			// Learning is supplementary: a memory-record failure must never break the
+			// runtime tick. Surface it on the durable event stream instead of throwing.
+			this.#deps.store?.appendRuntimeEvent?.({
+				missionId: mission.id,
+				streamId: `learning:${mission.id}`,
+				type: "learning.record_failed",
+				actor: "Researcher",
+				idempotencyKey: `learning:${mission.id}:${outcomeStatus}:failed`,
+				payload: { error: error instanceof Error ? error.message : String(error), outcomeStatus },
+			});
+		}
+	}
+
+	async #tryReplan(
+		mission: Mission,
+		objectiveContractId: string,
+		reason: string,
+		evidenceRefs: string[],
+		result: AgiRuntimeTickResult,
+	): Promise<boolean> {
+		if (!this.#deps.replanner) return false;
+		const contract = this.#deps.store?.getLatestObjectiveContractForMission?.(mission.id)?.contract;
+		if (!contract || contract.id !== objectiveContractId) return false;
+		const replanned = await this.#deps.replanner.replan({ mission, contract, reason, evidenceRefs });
+		if (!replanned || replanned.plan.steps.length === 0) return false;
+		this.#persistPlan(mission.id, replanned.plan);
+		this.#deps.store?.appendRuntimeEvent?.({
+			missionId: mission.id,
+			streamId: `replan:${mission.id}`,
+			type: "replan.generated",
+			actor: "Planner",
+			payload: {
+				contractId: objectiveContractId,
+				planId: replanned.plan.id,
+				reason,
+				summary: replanned.summary,
+				stepCount: replanned.plan.steps.length,
+			},
+			evidenceRefs,
+			idempotencyKey: `replan:${mission.id}:${objectiveContractId}:${replanned.plan.id}`,
+		});
+		result.actionsQueued += replanned.plan.steps.length;
+		return true;
 	}
 
 	async #acceptSandbox(

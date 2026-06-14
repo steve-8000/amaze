@@ -33,7 +33,16 @@ export interface ObjectivePreviewArgs extends ObjectiveIdArgs {
 	proposalsDb?: string;
 }
 
-const STATUSES: ObjectiveStatus[] = ["active", "paused", "completed", "cancelled"];
+const STATUSES: ObjectiveStatus[] = [
+	"active",
+	"in_progress",
+	"needs_replan",
+	"paused",
+	"blocked",
+	"completed",
+	"cancelled",
+	"abandoned",
+];
 
 export function isObjectiveDirection(value: string | undefined): value is "up" | "down" {
 	return value === "up" || value === "down";

@@ -3165,7 +3165,7 @@ function assertRuntimeActionTransition(from: RuntimeAction["status"], to: Runtim
 		queued: ["running", "blocked", "failed"],
 		running: ["succeeded", "failed", "blocked"],
 		blocked: ["queued", "failed"],
-		succeeded: ["verified", "failed"],
+		succeeded: ["verified", "failed", "blocked"],
 		failed: [],
 		verified: [],
 	};

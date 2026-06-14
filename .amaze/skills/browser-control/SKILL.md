@@ -15,6 +15,13 @@ Use this skill when the user wants agent-controlled browser interaction that reu
 
 The extension connects logged-in Chrome tabs to the local MCP bridge over `ws://127.0.0.1:17362/bridge`. The MCP server exposes tools that let the agent list connected tabs and run bounded JavaScript in the selected tab.
 
+Computer-control/model-assist configuration:
+
+- Local vision/control model endpoint: `http://127.0.0.1:18082/v1`
+- Model id: `gemma-4-12B-it-qat-UD-Q4_K_XL.gguf`
+- Expected server: `com.steve.gemma4-12b-qat-gguf` / `llama-server` on `127.0.0.1:18082`
+- Use this Gemma 4 12B server for local multimodal/browser-computer assistance. Do not route this skill through the removed embedding server (`127.0.0.1:18083`), qwen36 source-scout, or NVIDIA/NIM endpoints.
+
 ## When to Use
 
 Use this skill for:

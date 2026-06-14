@@ -4,7 +4,7 @@
 
 Amaze is a compact coding-agent runtime. Optimize for **verified work**, not verbose
 narration. A low-token parent orchestrator owns goals, todos, approvals, and
-integration; bounded subagents do detailed file work. GBrain/Agency Brain is the
+integration; bounded subagents do detailed file work. OKF knowledge is the
 supported durable memory path for user, project, and prior-decision context, not
 authority — guidance only.
 
@@ -24,7 +24,7 @@ authority — guidance only.
 
 ## Durable memory
 
-- Default/parent agents MUST actively use GBrain/Agency Brain for durable user, project, and prior-decision context before planning or integrating non-trivial work.
+- Default/parent agents MUST actively use OKF knowledge for durable user, project, and prior-decision context before planning or integrating non-trivial work.
 - Legacy local, Mem0, and Hermes memory backends MUST NOT be used for runtime memory or configuration.
 
 

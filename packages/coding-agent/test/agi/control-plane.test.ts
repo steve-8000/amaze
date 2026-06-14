@@ -189,4 +189,30 @@ describe("AGI control plane", () => {
 			{ kind: "provider", uri: "https://example.test/fresh", contentHash: "sha256:fresh", observedAt: now },
 		]);
 	});
+
+	test("research loop invokes a research agent when memory has no fresh citation", async () => {
+		const now = 10 * 24 * 60 * 60 * 1000;
+		let researched = false;
+		const loop = new MemoryBackedResearchLoop({
+			now: () => now,
+			memory: { query: async () => [], record: async item => item as never, linkClaims: async () => undefined },
+			researchAgent: {
+				research: async ({ missionId }) => {
+					researched = missionId === "mission-1";
+					return [
+						{ kind: "provider", uri: "https://example.test/fresh", contentHash: "sha256:fresh", observedAt: now },
+					];
+				},
+			},
+		});
+
+		const result = await loop.satisfyFreshnessPolicy({
+			missionId: "mission-1",
+			contract: { ...validContract(), freshnessPolicy: { researchRequired: true, maxSourceAgeDays: 1 } },
+		});
+
+		expect(researched).toBe(true);
+		expect(result.satisfied).toBe(true);
+		expect(result.citations.map(ref => ref.uri)).toEqual(["https://example.test/fresh"]);
+	});
 });

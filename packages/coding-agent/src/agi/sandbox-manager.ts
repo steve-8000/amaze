@@ -122,23 +122,56 @@ export class GitWorktreeSandboxManager implements SandboxManager {
 
 	async applyToMain(workspaceId: string): Promise<{ appliedRef: string; rollbackRef: string }> {
 		const workspace = this.#require(workspaceId);
+		// Preflight: the main repo must still sit on the baseline the sandbox forked from,
+		// and its tracked tree must be clean, before we apply. This prevents the runtime
+		// from silently overwriting unrelated work committed/staged since sandbox creation.
 		const rollbackRef = (await git(workspace.repoCwd, ["rev-parse", "HEAD"])).trim();
+		const baselineSha = (await git(workspace.repoCwd, ["rev-parse", workspace.baselineRef])).trim();
+		if (rollbackRef !== baselineSha) {
+			throw new Error(
+				`sandbox apply preflight failed: main HEAD ${rollbackRef} drifted from baseline ${baselineSha}`,
+			);
+		}
+		if (!(await this.#workingTreeClean(workspace.repoCwd))) {
+			throw new Error("sandbox apply preflight failed: main repo working tree is not clean");
+		}
 		const diff = await git(workspace.cwd, ["diff", "--binary", workspace.baselineRef, "--"]);
+		let appliedTreeHash = baselineSha;
 		if (diff.trim()) {
 			const patchPath = path.join(this.#rootDir, `${workspace.id}-apply.patch`);
 			await fs.writeFile(patchPath, diff, "utf8");
+			// Verify the patch applies cleanly before mutating the index/working tree.
+			const check = await gitExitCode(workspace.repoCwd, ["apply", "--check", "--index", patchPath]);
+			if (check !== 0) {
+				throw new Error(`sandbox apply preflight failed: patch does not apply cleanly to main repo`);
+			}
 			await git(workspace.repoCwd, ["apply", "--index", patchPath]);
+			appliedTreeHash = (await git(workspace.repoCwd, ["write-tree"])).trim();
 		}
-		return { appliedRef: `git-worktree://${workspace.id}`, rollbackRef };
+		return { appliedRef: `git-worktree://${workspace.id}#${appliedTreeHash}`, rollbackRef };
 	}
 
 	async rollback(input: { rollbackRef: string; reason: string }): Promise<void> {
 		if (!input.rollbackRef || !input.reason) throw new Error("rollback requires rollbackRef and reason");
 		for (const workspace of this.#workspaces.values()) {
+			// Only reset when main HEAD still points at the rollback target. If HEAD has
+			// advanced past it (new commits landed after apply), a hard reset would destroy
+			// that history — refuse instead of clobbering it.
+			const head = (await git(workspace.repoCwd, ["rev-parse", "HEAD"])).trim();
+			const target = (await git(workspace.repoCwd, ["rev-parse", input.rollbackRef])).trim();
+			if (head !== target) {
+				throw new Error(`sandbox rollback refused: main HEAD ${head} advanced past rollback target ${target}`);
+			}
 			await git(workspace.repoCwd, ["reset", "--hard", input.rollbackRef]);
 			return;
 		}
 		throw new Error(`No sandbox workspace available for rollback ref: ${input.rollbackRef}`);
+	}
+
+	async #workingTreeClean(repoCwd: string): Promise<boolean> {
+		const unstaged = await gitExitCode(repoCwd, ["diff", "--quiet"]);
+		const staged = await gitExitCode(repoCwd, ["diff", "--cached", "--quiet"]);
+		return unstaged === 0 && staged === 0;
 	}
 
 	async dispose(workspaceId: string): Promise<void> {
@@ -193,4 +226,20 @@ async function gitWithInput(cwd: string, args: string[]): Promise<string> {
 	]);
 	if (exitCode !== 0) throw new Error(`git ${args.join(" ")} failed: ${stderr.trim() || stdout.trim()}`);
 	return stdout;
+}
+
+/** Runs git and returns the raw exit code without throwing — used for `--quiet`/`--check` probes. */
+async function gitExitCode(cwd: string, args: string[]): Promise<number> {
+	const proc = Bun.spawn(["git", ...args], {
+		cwd,
+		stdin: "ignore",
+		stdout: "pipe",
+		stderr: "pipe",
+	});
+	const [, , exitCode] = await Promise.all([
+		new Response(proc.stdout).text(),
+		new Response(proc.stderr).text(),
+		proc.exited,
+	]);
+	return exitCode;
 }

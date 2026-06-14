@@ -340,6 +340,8 @@ export const createAutoresearchExtension: ExtensionFactory = api => {
 				justified: Boolean(result.justification),
 				flagged: result.flagged,
 				flagged_reason: result.flaggedReason ?? "",
+				has_parent: result.parentRunNumber !== null,
+				parent_run_number: result.parentRunNumber,
 			};
 		});
 		const unjustifiedRuns = currentSegmentResults
@@ -393,6 +395,9 @@ export const createAutoresearchExtension: ExtensionFactory = api => {
 					has_best_result: bestResult !== null && bestMetric !== null,
 					best_metric_display: bestMetric !== null ? formatNum(bestMetric, state.metricUnit) : "-",
 					best_run_number: bestResult ? (bestResult.runNumber ?? state.results.indexOf(bestResult) + 1) : null,
+					selected_parent_run_number: state.selectedParentRunNumber,
+					parent_selection_strategy: state.parentSelectionStrategy,
+					parent_selection_strategy_configured: state.parentSelectionStrategyConfigured,
 					has_recent_results: recentResults.length > 0,
 					recent_results: recentResults,
 					has_unjustified_runs: unjustifiedRuns.length > 0,

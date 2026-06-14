@@ -67,12 +67,12 @@ afterEach(async () => {
 describe("memory command settings loading", () => {
 	it("loads persisted config before running memory doctor", async () => {
 		const { stdout, stderr, exitCode } = await runMemoryDoctorWithConfig(
-			`agencyBrain:\n  enabled: true\n  mcpServer: gbrain\n`,
+			`knowledge:\n  enabled: true\n  provider: okf\n  mcpServer: knowledge-catalog\n`,
 		);
 
 		expect(exitCode).toBe(0);
 		expect(stderr).toBe("");
 		expect(stdout).toContain("Memory backend: removed");
-		expect(stdout).toContain("GBrain Agency Brain via MCP");
+		expect(stdout).toContain("OKF files with optional knowledge MCP retrieval");
 	});
 });

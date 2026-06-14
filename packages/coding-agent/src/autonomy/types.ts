@@ -1,4 +1,22 @@
-export type ObjectiveStatus = "active" | "paused" | "completed" | "cancelled";
+export type ObjectiveStatus =
+	| "active"
+	| "in_progress"
+	| "needs_replan"
+	| "paused"
+	| "blocked"
+	| "completed"
+	| "cancelled"
+	| "abandoned";
+
+/** Objective statuses that are terminal — the objective runtime never resumes them. */
+export const TERMINAL_OBJECTIVE_STATUSES = ["completed", "cancelled", "abandoned"] as const;
+
+/**
+ * Objective statuses the objective runtime may schedule work from. `needs_replan` is runnable
+ * (it drives a fresh mission), `blocked`/`paused` are not (they await an external unblock), and
+ * the terminal trio is never runnable.
+ */
+export const RUNNABLE_OBJECTIVE_STATUSES = ["active", "in_progress", "needs_replan"] as const;
 
 export interface ObjectiveMetricTarget {
 	metric: string;

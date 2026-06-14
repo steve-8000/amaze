@@ -44,6 +44,9 @@ function makeResult(partial: Partial<ExperimentResult>): ExperimentResult {
 		justification: partial.justification ?? null,
 		flagged: partial.flagged ?? false,
 		flaggedReason: partial.flaggedReason ?? null,
+		parentRunNumber: partial.parentRunNumber ?? null,
+		selectionStrategy: partial.selectionStrategy ?? null,
+		validParent: partial.validParent ?? true,
 	};
 }
 

@@ -10,6 +10,7 @@ const ACTIONS = [
 	"evidence",
 	"audit-export",
 	"revoke-lease",
+	"emergency-stop",
 	"add",
 	"run",
 	"runtime",
@@ -47,7 +48,7 @@ export default class Agi extends Command {
 		}),
 		profile: Flags.string({
 			description: "AGI runtime profile (for runtime action)",
-			options: ["strict-supervised"],
+			options: ["strict-supervised", "strict-observe", "strict-mutation", "strict-self-improve"],
 		}),
 	};
 

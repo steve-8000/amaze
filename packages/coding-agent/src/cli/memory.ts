@@ -12,7 +12,8 @@ export interface MemoryDoctorReport {
 const REMOVED_MEMORY_BACKEND_MESSAGE = [
 	"Memory backend: removed",
 	"- Legacy local memory backends (Hermes/mem0) have been removed.",
-	"- Supported memory: GBrain Agency Brain via MCP.",
+	"- Supported memory: OKF files with optional knowledge MCP retrieval.",
+	"- Memory worker role: Gemma-style local MemoryWorker.",
 ].join("\n");
 
 export async function runMemoryCommand(args: MemoryCommandArgs): Promise<void> {

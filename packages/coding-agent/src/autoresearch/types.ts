@@ -6,6 +6,9 @@ import type { TruncationResult } from "../session/streaming-output";
 export type MetricDirection = "lower" | "higher";
 export type ExperimentStatus = "keep" | "discard" | "crash" | "checks_failed";
 
+export type ParentSelectionStrategy = "latest" | "best" | "random" | "score_prop" | "score_child_prop";
+export type EvalStage = "full" | "smoke" | "staged";
+
 export type ASIValue = string | number | boolean | null | ASIValue[] | { [key: string]: ASIValue };
 
 export interface ASIData {
@@ -37,6 +40,9 @@ export interface ExperimentResult {
 	justification: string | null;
 	flagged: boolean;
 	flaggedReason: string | null;
+	parentRunNumber: number | null;
+	selectionStrategy: ParentSelectionStrategy | null;
+	validParent: boolean;
 }
 
 export interface ExperimentState {
@@ -58,6 +64,9 @@ export interface ExperimentState {
 	branch: string | null;
 	baselineCommit: string | null;
 	sessionId: number | null;
+	selectedParentRunNumber: number | null;
+	parentSelectionStrategy: ParentSelectionStrategy;
+	parentSelectionStrategyConfigured: ParentSelectionStrategy;
 }
 
 export interface RunExperimentProgressDetails {
@@ -72,6 +81,7 @@ export interface RunDetails {
 	runNumber: number;
 	runDirectory: string;
 	benchmarkLogPath: string;
+	evalStage: EvalStage;
 	command: string;
 	exitCode: number | null;
 	durationSeconds: number;
@@ -86,6 +96,8 @@ export interface RunDetails {
 	metricUnit: string;
 	preRunDirtyPaths: string[];
 	abandonedPriorRun: number | null;
+	parentRunNumber: number | null;
+	selectionStrategy: ParentSelectionStrategy;
 	truncation?: TruncationResult;
 	fullOutputPath?: string;
 }

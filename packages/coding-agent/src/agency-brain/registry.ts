@@ -1,28 +1,29 @@
+import { YAML } from "bun";
 import { parseFrontmatter } from "@amaze/utils";
 
-export type AgencyAgentRegistryEntryStatus = "draft" | "active" | "inactive" | "archived";
+export type KnowledgeRegistryEntryStatus = "draft" | "active" | "inactive" | "archived";
 
-export interface AgencyAgentRegistryEntry {
+export interface KnowledgeRegistryEntry {
 	name: string;
 	description: string;
 	vertical?: string;
-	brain?: {
+	knowledge?: {
 		agencySourceId?: string;
 		clientSourceId?: string;
 	};
 	tools: string[];
 	approvals: string[];
-	status: AgencyAgentRegistryEntryStatus;
+	status: KnowledgeRegistryEntryStatus;
 }
 
-export interface AgencyAgentRegistry {
+export interface KnowledgeRegistry {
 	type?: string;
 	version?: number;
-	agents: AgencyAgentRegistryEntry[];
+	entries: KnowledgeRegistryEntry[];
 	warnings: string[];
 }
 
-const VALID_STATUSES = new Set<AgencyAgentRegistryEntryStatus>(["draft", "active", "inactive", "archived"]);
+const VALID_STATUSES = new Set<KnowledgeRegistryEntryStatus>(["draft", "active", "inactive", "archived"]);
 
 function normalizeStringArray(value: unknown): string[] {
 	if (Array.isArray(value)) {
@@ -37,28 +38,28 @@ function normalizeStringArray(value: unknown): string[] {
 	return [];
 }
 
-function normalizeBrain(value: unknown): AgencyAgentRegistryEntry["brain"] | undefined {
+function normalizeKnowledge(value: unknown): KnowledgeRegistryEntry["knowledge"] | undefined {
 	if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
 	const record = value as Record<string, unknown>;
-	const brain: NonNullable<AgencyAgentRegistryEntry["brain"]> = {};
+	const knowledge: NonNullable<KnowledgeRegistryEntry["knowledge"]> = {};
 	if (typeof record.agencySourceId === "string" && record.agencySourceId.trim()) {
-		brain.agencySourceId = record.agencySourceId.trim();
+		knowledge.agencySourceId = record.agencySourceId.trim();
 	}
 	if (typeof record.clientSourceId === "string" && record.clientSourceId.trim()) {
-		brain.clientSourceId = record.clientSourceId.trim();
+		knowledge.clientSourceId = record.clientSourceId.trim();
 	}
-	return Object.keys(brain).length > 0 ? brain : undefined;
+	return Object.keys(knowledge).length > 0 ? knowledge : undefined;
 }
 
-function describeEntry(entry: unknown, index: number): string {
+function describeEntry(entry: unknown, index: number, label = "entry"): string {
 	if (entry && typeof entry === "object" && !Array.isArray(entry)) {
 		const name = (entry as Record<string, unknown>).name;
-		if (typeof name === "string" && name.trim()) return `agent ${name.trim()}`;
+		if (typeof name === "string" && name.trim()) return `${label} ${name.trim()}`;
 	}
-	return `agent at index ${index}`;
+	return `${label} at index ${index}`;
 }
 
-function normalizeEntry(entry: unknown, index: number, warnings: string[]): AgencyAgentRegistryEntry | undefined {
+function normalizeEntry(entry: unknown, index: number, warnings: string[]): KnowledgeRegistryEntry | undefined {
 	if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
 		warnings.push(`Dropped ${describeEntry(entry, index)}: entry must be an object.`);
 		return undefined;
@@ -78,9 +79,9 @@ function normalizeEntry(entry: unknown, index: number, warnings: string[]): Agen
 		return undefined;
 	}
 
-	let status: AgencyAgentRegistryEntryStatus = "draft";
+	let status: KnowledgeRegistryEntryStatus = "draft";
 	if (typeof record.status === "string" && record.status.trim()) {
-		const normalizedStatus = record.status.trim() as AgencyAgentRegistryEntryStatus;
+		const normalizedStatus = record.status.trim() as KnowledgeRegistryEntryStatus;
 		if (VALID_STATUSES.has(normalizedStatus)) {
 			status = normalizedStatus;
 		} else {
@@ -92,28 +93,59 @@ function normalizeEntry(entry: unknown, index: number, warnings: string[]): Agen
 		name,
 		description,
 		vertical: typeof record.vertical === "string" && record.vertical.trim() ? record.vertical.trim() : undefined,
-		brain: normalizeBrain(record.brain),
+		knowledge: normalizeKnowledge(record.knowledge ?? record.brain),
 		tools: normalizeStringArray(record.tools),
 		approvals: normalizeStringArray(record.approvals),
 		status,
 	};
 }
 
-export function parseAgencyAgentRegistryPage(markdown: string): AgencyAgentRegistry {
-	const { frontmatter } = parseFrontmatter(markdown, { source: "agency-agent-registry", level: "off" });
+export function parseKnowledgeRegistryPage(markdown: string): KnowledgeRegistry {
+	const { frontmatter } = parseFrontmatter(markdown, { source: "knowledge-registry", level: "off" });
 	const warnings: string[] = [];
-	const rawAgents = Array.isArray(frontmatter.agents) ? frontmatter.agents : [];
+	const rawEntries = Array.isArray(frontmatter.entries) ? frontmatter.entries : [];
 
-	if (frontmatter.agents !== undefined && !Array.isArray(frontmatter.agents)) {
-		warnings.push("Ignored agents: expected an array.");
+	if (frontmatter.entries !== undefined && !Array.isArray(frontmatter.entries)) {
+		warnings.push("Ignored entries: expected an array.");
 	}
 
 	return {
 		type: typeof frontmatter.type === "string" ? frontmatter.type : undefined,
 		version: typeof frontmatter.version === "number" ? frontmatter.version : undefined,
-		agents: rawAgents
+		entries: rawEntries
 			.map((entry, index) => normalizeEntry(entry, index, warnings))
-			.filter((entry): entry is AgencyAgentRegistryEntry => Boolean(entry)),
+			.filter((entry): entry is KnowledgeRegistryEntry => Boolean(entry)),
 		warnings,
+	};
+}
+
+export type AgencyAgentRegistryEntryStatus = KnowledgeRegistryEntryStatus;
+export type AgencyAgentRegistryEntry = Omit<KnowledgeRegistryEntry, "knowledge"> & {
+	brain?: KnowledgeRegistryEntry["knowledge"];
+};
+export interface AgencyAgentRegistry extends Omit<KnowledgeRegistry, "entries"> {
+	agents: AgencyAgentRegistryEntry[];
+}
+
+function toAgencyWarning(warning: string): string {
+	return warning
+		.replace("Ignored entries:", "Ignored agents:")
+		.replace("Dropped entry ", "Dropped agent ")
+		.replace("Defaulted entry ", "Defaulted agent ");
+}
+
+export function parseAgencyAgentRegistryPage(markdown: string): AgencyAgentRegistry {
+	const { frontmatter } = parseFrontmatter(markdown, { source: "agency-agent-registry", level: "off" });
+	const adaptedFrontmatter = {
+		...frontmatter,
+		entries: frontmatter.agents,
+		agents: undefined,
+	};
+	const registry = parseKnowledgeRegistryPage(`---\n${YAML.stringify(adaptedFrontmatter)}---\n`);
+	return {
+		type: registry.type,
+		version: registry.version,
+		agents: registry.entries.map(({ knowledge, ...entry }) => ({ ...entry, brain: knowledge })),
+		warnings: registry.warnings.map(toAgencyWarning),
 	};
 }

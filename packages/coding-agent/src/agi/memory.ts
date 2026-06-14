@@ -32,7 +32,7 @@ export interface WorldClaim {
 	outcomeStatus?: "pass" | "fail" | "blocked" | "uncertain";
 	confidence: "low" | "medium" | "high";
 	sourceRefs: MemorySourceRef[];
-	provider?: { name: "mission-store" | "gbrain" | "web" | "manual"; sourceId?: string };
+	provider?: { name: "mission-store" | "okf" | "web" | "manual"; sourceId?: string };
 	createdAt: number;
 	verifiedAt?: number;
 	expiresAt?: number;

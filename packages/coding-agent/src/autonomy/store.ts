@@ -9,7 +9,16 @@ import type { NewObjective, Objective, ObjectiveEvent, ObjectiveStatus } from ".
 const DEFAULT_DB_PATH = path.join(os.homedir(), ".amaze", "autonomy", "autonomy.db");
 const LEGACY_DB_PATH = path.join(os.homedir(), ".amaze", "autonomy", "objectives.db");
 
-const VALID_STATUSES = new Set<ObjectiveStatus>(["active", "paused", "completed", "cancelled"]);
+const VALID_STATUSES = new Set<ObjectiveStatus>([
+	"active",
+	"in_progress",
+	"needs_replan",
+	"paused",
+	"blocked",
+	"completed",
+	"cancelled",
+	"abandoned",
+]);
 
 type ObjectiveRow = {
 	id: string;
@@ -113,6 +122,28 @@ export class ObjectiveStore {
 		const updated = this.get(id);
 		if (!updated) {
 			throw new Error(`Objective disappeared after status update: ${id}`);
+		}
+		return updated;
+	}
+
+	/**
+	 * Persist an objective's observable progress snapshot. Used by the objective
+	 * runtime after every mission re-evaluation so `progress` is no longer a
+	 * write-only schema field.
+	 */
+	updateProgress(id: string, progress: NonNullable<Objective["progress"]>): Objective {
+		const current = this.get(id);
+		if (!current) {
+			throw new Error(`Objective not found: ${id}`);
+		}
+		const now = Date.now();
+		this.#db
+			.query("UPDATE objectives SET progress = ?, updated_at = ? WHERE id = ?")
+			.run(JSON.stringify(progress), now, id);
+		this.recordEvent(id, "progress", { score: progress.score, measuredAt: progress.lastMeasuredAt });
+		const updated = this.get(id);
+		if (!updated) {
+			throw new Error(`Objective disappeared after progress update: ${id}`);
 		}
 		return updated;
 	}

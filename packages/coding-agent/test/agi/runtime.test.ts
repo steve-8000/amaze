@@ -172,6 +172,50 @@ describe("AgiRuntime", () => {
 		expect(completedOutcome).toMatchObject({ status: "success", evidenceRefs: ["test-output"] });
 	});
 
+	test("reuses the mission's persisted objective contract instead of recompiling", async () => {
+		let compilerCalled = false;
+		let plannerContract: ObjectiveContract | undefined;
+		let savedContract = false;
+		const persistedContract = { ...validContract(), id: "persisted-contract" };
+		const runtime = new AgiRuntime({
+			scheduler: {
+				tick: async () => [{ objectiveId: "objective-1", kind: "schedule-mission", missionId: "mission-1" }],
+			},
+			objectives: { get: () => objective },
+			missionRuntime: { tryGet: () => mission } as never,
+			compilerModel: {
+				compile: async () => {
+					compilerCalled = true;
+					return validContract();
+				},
+			},
+			planner: {
+				planMission: async input => {
+					plannerContract = input.contract;
+					return { id: "plan-1", steps: [] };
+				},
+			},
+			leaseIssuer: { issue: ({ action }) => leaseFor(action) },
+			toolGateway: { decide: async () => ({ allowed: true, riskLevel: "HIGH", timeoutMs: 30_000 }) },
+			store: {
+				getLatestObjectiveContractForMission: missionId => {
+					expect(missionId).toBe("mission-1");
+					return { contract: persistedContract };
+				},
+				saveObjectiveContract: () => {
+					savedContract = true;
+				},
+			},
+		});
+
+		const result = await runtime.tick();
+
+		expect(result.missionsObserved).toBe(1);
+		expect(compilerCalled).toBe(false);
+		expect(savedContract).toBe(false);
+		expect(plannerContract?.id).toBe("persisted-contract");
+	});
+
 	test("skips already advanced actions on repeated strict ticks", async () => {
 		const statuses: RuntimeAction["status"][] = [];
 		const savedTaskIds: string[] = [];
@@ -443,5 +487,269 @@ describe("AgiRuntime", () => {
 		expect(result.missionsBlocked).toBe(1);
 		expect(statuses).toEqual(["blocked"]);
 		expect(events).toContain("runtime_action.recovered_non_terminal");
+	});
+	test("blocks succeeded actions with insufficient evidence instead of leaving them dangling", async () => {
+		const statuses: RuntimeAction["status"][] = [];
+		const events: string[] = [];
+		const rollbacks: string[] = [];
+		let blockedReason: string | undefined;
+		const runtime = new AgiRuntime({
+			scheduler: {
+				tick: async () => [{ objectiveId: "objective-1", kind: "schedule-mission", missionId: "mission-1" }],
+			},
+			objectives: { get: () => objective },
+			missionRuntime: {
+				tryGet: () => mission,
+				block: async (_missionId: string, options: { reason: string }) => {
+					blockedReason = options.reason;
+					return mission;
+				},
+			} as never,
+			compilerModel: { compile: async () => validContract() },
+			planner: {
+				planMission: async () => ({
+					id: "plan-1",
+					steps: [
+						{
+							id: "step-1",
+							kind: "implementation",
+							description: "Edit the scheduler.",
+							touches: ["packages/coding-agent/src/autonomy/scheduler.ts"],
+							requiresWrite: true,
+						},
+					],
+				}),
+			},
+			leaseIssuer: {
+				issue: ({ action }) => ({
+					...leaseFor(action),
+					sandbox: { mode: "isolated-worktree", baselineRef: "HEAD", rollbackRefs: ["rollback-1"] },
+				}),
+			},
+			toolGateway: { decide: async () => ({ allowed: true, riskLevel: "HIGH", timeoutMs: 30_000 }) },
+			executor: {
+				execute: async ({ action }) => ({
+					actionId: action.id,
+					status: "succeeded",
+					evidenceRefs: ["test-output"],
+				}),
+			},
+			sandbox: {
+				create: async ({ missionId, actionId }) => ({
+					id: "sandbox-1",
+					missionId,
+					actionId,
+					mode: "isolated-worktree",
+					cwd: "/tmp/sandbox",
+					baselineRef: "HEAD",
+					createdAt: 1,
+				}),
+				captureDiff: async () => ({ diffRef: "sandbox-diff://sandbox-1", contentHash: "hash-1" }),
+				applyToMain: async () => {
+					throw new Error("must not apply when evidence is insufficient");
+				},
+				rollback: async ({ rollbackRef }) => {
+					rollbacks.push(rollbackRef);
+				},
+				dispose: async () => undefined,
+			},
+			verifier: {
+				verifyMission: async input => ({
+					missionId: input.missionId,
+					objectiveContractId: input.objectiveContractId,
+					status: "insufficient_evidence",
+					criteria: [],
+					checkedAt: 1,
+				}),
+			},
+			store: {
+				markRuntimeAction: (_actionId, status) => {
+					statuses.push(status);
+				},
+				appendRuntimeEvent: event => {
+					events.push(event.type);
+				},
+			},
+		});
+
+		const result = await runtime.tick();
+
+		expect(statuses).toEqual(["running", "succeeded", "blocked"]);
+		expect(events).toContain("runtime_action.evidence_insufficient");
+		expect(rollbacks).toEqual(["rollback-1"]);
+		expect(result.missionsBlocked).toBe(1);
+		expect(result.missionsCompleted).toBe(0);
+		expect(blockedReason).toContain("blocked");
+	});
+	test("recovers dangling succeeded actions to blocked instead of skipping forever", async () => {
+		const statuses: RuntimeAction["status"][] = [];
+		const events: { type: string; previousStatus?: string }[] = [];
+		const runtime = new AgiRuntime({
+			scheduler: {
+				tick: async () => [{ objectiveId: "objective-1", kind: "schedule-mission", missionId: "mission-1" }],
+			},
+			objectives: { get: () => objective },
+			missionRuntime: { tryGet: () => mission, block: async () => mission } as never,
+			compilerModel: { compile: async () => validContract() },
+			planner: {
+				planMission: async () => ({
+					id: "plan-1",
+					steps: [
+						{
+							id: "step-1",
+							kind: "implementation",
+							description: "Edit the scheduler.",
+							touches: ["packages/coding-agent/src/autonomy/scheduler.ts"],
+							requiresWrite: true,
+						},
+					],
+				}),
+			},
+			leaseIssuer: { issue: ({ action }) => leaseFor(action) },
+			toolGateway: {
+				decide: async () => {
+					throw new Error("succeeded recovery must not dispatch");
+				},
+			},
+			store: {
+				getRuntimeAction: () => ({ status: "succeeded" }),
+				markRuntimeAction: (_actionId, status) => {
+					statuses.push(status);
+				},
+				appendRuntimeEvent: event => {
+					events.push({
+						type: event.type,
+						previousStatus: (event.payload as { previousStatus?: string })?.previousStatus,
+					});
+				},
+			},
+		});
+
+		const result = await runtime.tick();
+
+		expect(result.actionsBlocked).toBe(1);
+		expect(result.missionsBlocked).toBe(1);
+		expect(result.missionsCompleted).toBe(0);
+		expect(statuses).toEqual(["blocked"]);
+		const recovered = events.find(event => event.type === "runtime_action.recovered_non_terminal");
+		expect(recovered?.previousStatus).toBe("succeeded");
+	});
+	test("blocks a partial plan whose actions never reach a terminal status", async () => {
+		const statuses: RuntimeAction["status"][] = [];
+		let blockedReason: string | undefined;
+		let recordedVerdict: string | undefined;
+		const runtime = new AgiRuntime({
+			scheduler: {
+				tick: async () => [{ objectiveId: "objective-1", kind: "schedule-mission", missionId: "mission-1" }],
+			},
+			objectives: { get: () => objective },
+			missionRuntime: {
+				tryGet: () => mission,
+				recordVerification: (_missionId: string, verification: { verdict: string }) => {
+					recordedVerdict = verification.verdict;
+					return mission;
+				},
+				block: async (_missionId: string, options: { reason: string }) => {
+					blockedReason = options.reason;
+					return mission;
+				},
+				complete: async () => {
+					throw new Error("partial plan must not complete");
+				},
+			} as never,
+			compilerModel: { compile: async () => validContract() },
+			planner: {
+				planMission: async () => ({
+					id: "plan-1",
+					steps: [
+						{
+							id: "step-1",
+							kind: "implementation",
+							description: "Edit the scheduler.",
+							touches: ["packages/coding-agent/src/autonomy/scheduler.ts"],
+							requiresWrite: true,
+						},
+					],
+				}),
+			},
+			leaseIssuer: { issue: ({ action }) => leaseFor(action) },
+			toolGateway: { decide: async () => ({ allowed: true, riskLevel: "HIGH", timeoutMs: 30_000 }) },
+			// No executor: the action is marked `running` and then left non-terminal. The plan is
+			// neither fully verified nor failed/blocked, so it must block rather than silently no-op.
+			store: {
+				markRuntimeAction: (_actionId, status) => {
+					statuses.push(status);
+				},
+				appendRuntimeEvent: () => {},
+			},
+		});
+
+		const result = await runtime.tick();
+
+		expect(statuses).toEqual(["running"]);
+		expect(result.missionsCompleted).toBe(0);
+		expect(result.missionsBlocked).toBe(1);
+		expect(recordedVerdict).toBe("pending");
+		expect(blockedReason).toContain("unsettled");
+	});
+
+	test("replans a partial runtime plan instead of blocking when a replanner is configured", async () => {
+		const savedPlans: string[] = [];
+		const events: string[] = [];
+		const runtime = new AgiRuntime({
+			scheduler: {
+				tick: async () => [{ objectiveId: "objective-1", kind: "schedule-mission", missionId: "mission-1" }],
+			},
+			objectives: { get: () => objective },
+			missionRuntime: {
+				tryGet: () => mission,
+				recordVerification: () => mission,
+				block: async () => {
+					throw new Error("replanned mission must not block");
+				},
+			} as never,
+			compilerModel: { compile: async () => validContract() },
+			planner: {
+				planMission: async () => ({
+					id: "plan-1",
+					steps: [
+						{
+							id: "step-1",
+							kind: "implementation",
+							description: "Edit the scheduler.",
+							requiresWrite: true,
+						},
+					],
+				}),
+			},
+			leaseIssuer: { issue: ({ action }) => leaseFor(action) },
+			toolGateway: { decide: async () => ({ allowed: true, riskLevel: "HIGH", timeoutMs: 30_000 }) },
+			replanner: {
+				replan: async () => ({
+					summary: "replanned",
+					plan: {
+						id: "replan-1",
+						steps: [{ id: "recover", kind: "replan", description: "Recover", requiresWrite: false }],
+					},
+				}),
+			},
+			store: {
+				getLatestObjectiveContractForMission: () => ({ contract: validContract() }),
+				markRuntimeAction: () => {},
+				savePlan: (_missionId, plan) => {
+					savedPlans.push(plan.steps.map(step => step.id).join(","));
+				},
+				appendRuntimeEvent: event => {
+					events.push(event.type);
+				},
+			},
+		});
+
+		const result = await runtime.tick();
+
+		expect(result.missionsBlocked).toBe(0);
+		expect(result.actionsQueued).toBe(2);
+		expect(savedPlans).toEqual(["step-1", "recover"]);
+		expect(events).toContain("replan.generated");
 	});
 });
