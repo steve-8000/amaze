@@ -74,6 +74,21 @@ describe("path execution contract", () => {
 		assert.equal(denied.allowed, false);
 	});
 
+	it("lets explicit write allow paths override broad deny-all guards", () => {
+		const scoped = parsePathContract({
+			contract_id: "scoped",
+			write_allowed_paths: ["src/**"],
+			write_denied_paths: ["**/*"],
+		});
+
+		assert.equal(evaluateToolBoundary(scoped, "apply_patch", {
+			input: "*** Begin Patch\n*** Add File: src/live-result.json\n+{}\n*** End Patch\n",
+		}, "/repo").allowed, true);
+		assert.equal(evaluateToolBoundary(scoped, "apply_patch", {
+			input: "*** Begin Patch\n*** Add File: other/live-result.json\n+{}\n*** End Patch\n",
+		}, "/repo").allowed, false);
+	});
+
 	it("enforces activity budgets before tool execution", () => {
 		const budgetContract = parsePathContract({
 			contract_id: "runtime-state-model",

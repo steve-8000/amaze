@@ -152,9 +152,12 @@ function matchesGlob(relativePath: string, glob: string): boolean {
 
 function isPathAllowed(cwd: string, candidate: string, contract: PathContract): boolean {
 	const relative = normalizeRelativePath(cwd, candidate);
-	const denied = contract.write_denied_paths?.some((glob) => matchesGlob(relative, glob)) ?? false;
+	const allowed = (contract.write_allowed_paths ?? []).some((glob) => matchesGlob(relative, glob));
+	const deniedBy = (contract.write_denied_paths ?? []).filter((glob) => matchesGlob(relative, glob));
+	if (allowed && deniedBy.every((glob) => glob === "**/*" || glob === "**")) return true;
+	const denied = deniedBy.length > 0;
 	if (denied) return false;
-	return (contract.write_allowed_paths ?? []).some((glob) => matchesGlob(relative, glob));
+	return false;
 }
 
 function stringFromKeys(input: Record<string, unknown>, keys: string[]): string | undefined {

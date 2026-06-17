@@ -74,6 +74,18 @@ import { acceptanceFailureMessage, evaluateAcceptance, formatAcceptancePrompt, r
 const artifactOutputByResult = new WeakMap<SingleResult, string>();
 const acceptanceOutputByResult = new WeakMap<SingleResult, string>();
 
+function structuredAcceptanceOutput(structuredOutput: unknown): string | undefined {
+	if (!structuredOutput || typeof structuredOutput !== "object" || Array.isArray(structuredOutput)) return undefined;
+	const value = (structuredOutput as Record<string, unknown>).acceptance_report;
+	return typeof value === "string" && value.trim() ? value : undefined;
+}
+
+function acceptanceOutputForResult(result: SingleResult): string {
+	const output = acceptanceOutputByResult.get(result) ?? result.finalOutput ?? "";
+	const structured = structuredAcceptanceOutput(result.structuredOutput);
+	return structured ? `${output}\n${structured}` : output;
+}
+
 function emptyUsage(): Usage {
 	return { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0, turns: 0 };
 }
@@ -1057,7 +1069,7 @@ async function runSyncUnlocked(
 
 		result.acceptance = await evaluateAcceptance({
 			acceptance: effectiveAcceptance,
-			output: acceptanceOutputByResult.get(result) ?? result.finalOutput ?? "",
+			output: acceptanceOutputForResult(result),
 			cwd: options.cwd ?? runtimeCwd,
 		});
 		const acceptanceFailure = acceptanceFailureMessage(result.acceptance);
@@ -1072,7 +1084,7 @@ async function runSyncUnlocked(
 	}
 
 	if (!acceptanceFailure && result.exitCode === 0 && !result.detached && !result.interrupted) {
-		const updates = extractMemoryUpdates(result.structuredOutput, acceptanceOutputByResult.get(result) ?? result.finalOutput);
+		const updates = extractMemoryUpdates(result.structuredOutput, acceptanceOutputForResult(result));
 		const memoryPacket = options.bootContract ? freshBootContractToPathMemoryPacket(options.bootContract) : options.memoryPacket;
 		const pathContract = options.bootContract ? freshBootContractToPathContract(options.bootContract) : options.pathContract;
 		const appendResult = appendPathMemoryUpdates(memoryPacket, updates, options.cwd ?? runtimeCwd, Date.now, { pathContract });
