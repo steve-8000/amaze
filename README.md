@@ -74,7 +74,3 @@ Models and provider endpoints are configured in `~/.amaze/agent/models.json`; pe
 ## Status
 
 amaze is under active development. Interfaces may change.
-
-## License
-
-See `LICENSE`.
