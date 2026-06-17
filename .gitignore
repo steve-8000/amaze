@@ -1,0 +1,51 @@
+# dependencies & build output
+node_modules/
+dist/
+build/
+target/
+*.tsbuildinfo
+
+# python
+.venv/
+__pycache__/
+*.pyc
+
+# logs & os
+*.log
+.DS_Store
+
+# local runtime state / secrets (ship *.example instead)
+.amaze/
+amaze.toml
+**/models.json
+**/settings.json
+*.local.*
+
+# internal notes (origin-revealing / status docs)
+README.amaze.md
+AMAZE_*.md
+
+# vendored third-party installs (source kept, installs ignored)
+vendor/**/node_modules/
+vendor/**/dist/
+
+# non-essential / origin-revealing tooling & docs (not part of the product)
+.factory/
+.omo/
+.senpi/
+.github/
+.husky/
+.gitattributes
+bench/
+CONTRIBUTING.md
+SECURITY.md
+pi-test.*
+test.sh
+package-lock.json
+
+**/bench/
+**/.github/
+**/.husky/
+**/.changeset/
+examples/**/package-lock.json
+**/package-lock.json

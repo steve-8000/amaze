@@ -1,0 +1,14 @@
+{
+  "_comment": "Copy to ~/.amaze/agent/models.json and edit. Defines provider endpoints + models.",
+  "providers": {
+    "rocky": {
+      "baseUrl": "http://127.0.0.1:7777/v1",
+      "api": "openai-completions",
+      "apiKey": "${ROCKY_API_KEY}",
+      "compat": { "supportsDeveloperRole": false, "supportsReasoningEffort": false },
+      "models": [
+        { "id": "your-local-model", "name": "local", "contextWindow": 65536 }
+      ]
+    }
+  }
+}

@@ -1,0 +1,21 @@
+import { createAgent, type FlueContext, type WorkflowRouteHandler } from '@flue/runtime';
+import { local } from '@flue/runtime/node';
+import * as v from 'valibot';
+
+export const route: WorkflowRouteHandler = async (_c, next) => next();
+
+const agent = createAgent(() => ({ sandbox: local(), model: 'anthropic/claude-sonnet-4-6' }));
+
+export async function run({ init, payload }: FlueContext<{ name?: string }>) {
+	const harness = await init(agent);
+	const session = await harness.session();
+
+	// Test: invoke a named skill with structured result
+	const { data } = await session.skill('greet', {
+		args: { name: payload.name ?? 'World' },
+		result: v.object({ greeting: v.string() }),
+	});
+	console.log('[with-skill] greeting:', data.greeting);
+
+	return data;
+}

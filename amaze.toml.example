@@ -1,0 +1,125 @@
+# ══════════════════════════════════════════════════════════════════
+# amaze.toml — single unified configuration for the amaze agent
+#
+# Resolution order (first existing file wins):
+#   $AMAZE_CONFIG  ->  ./amaze.toml  ->  ~/.config/amaze/amaze.toml
+#   ->  ~/.amaze/amaze.toml
+#
+# Every feature is toggled here. Values like ${VAR} are read from the
+# environment at load time.
+# ══════════════════════════════════════════════════════════════════
+
+# ── Core tools (always available, ship with amaze) ────────────────
+[tools.file]
+enabled = true
+
+[tools.shell]
+enabled = true
+
+[tools.web]
+enabled = true
+
+# ── AST structural search/replace  (vendor/pi-ast-grep)  -> code_* ─
+[tools.code]
+enabled = true
+
+# ── Language server tools  (vendor/pi-lsp-client)  -> lang_* ───────
+[tools.lang]
+enabled = true
+
+# ── Semantic search + code graph  (vendor/socraticode)  -> search_*/graph_*/index_*/ctx_*
+# Requires Qdrant + an embedding provider (Ollama/OpenAI). Disabled
+# until that infrastructure is configured. See README "Semantic search".
+[tools.search]
+enabled = false
+
+[tools.search.store.qdrant]
+mode      = "managed"
+host      = "localhost"
+port      = 16333
+grpc_port = 16334
+
+[tools.search.embed]
+provider   = "ollama"
+model      = "nomic-embed-text"
+dimensions = 768
+
+[tools.search.embed.ollama]
+mode = "auto"
+
+# ── Durable memory  (Xenonite service) -> mem_*
+# Requires the Xenonite service (see [services.xenonite]).
+[tools.mem]
+enabled = false
+
+[tools.mem.provider]
+active = "embedded"   # embedded | honcho | none
+
+[tools.mem.provider.honcho]
+api_key  = "${HONCHO_API_KEY}"
+base_url = "https://api.honcho.dev"
+
+# ── Subagents  (vendor/pi-subagents)  -> agent_run ─────────────────
+[agents]
+enabled      = true
+max_parallel = 4
+
+# ── Skill self-improvement  (Xenonite /v1/review) -> skill_*
+# Requires the Xenonite service.
+[skills]
+enabled      = false
+auto_improve = false   # when true, amaze-memory asks Xenonite to self-review each turn
+
+# ── Desktop control  (vendor/pi-cua-integration)  -> desk_* ────────
+# Opt-in: drives a sandbox/VM (or, in localhost mode, the real desktop).
+# Requires the `cua` Python package. Tools register at session start.
+[desk]
+enabled = false
+
+[desk.mode]
+default = "local"   # local | localhost | cloud
+
+# ── Code-execution sandbox  (vendor/flue)  -> sandbox_* ────────────
+# Requires a provider account (E2B / Daytona / Modal / Vercel).
+[sandbox]
+enabled  = false
+provider = "local"
+
+[sandbox.e2b]
+api_key = "${E2B_API_KEY}"
+
+# ── Channel ingress  (vendor/flue)  ────────────────────────────────
+# Run amaze as a service that receives messages from chat platforms.
+[channels]
+enabled = false
+port    = 8650
+
+[channels.slack]
+enabled        = false
+signing_secret = "${SLACK_SIGNING_SECRET}"
+bot_token      = "${SLACK_BOT_TOKEN}"
+
+[channels.github]
+enabled        = false
+webhook_secret = "${GITHUB_WEBHOOK_SECRET}"
+
+[channels.discord]
+enabled    = false
+public_key = "${DISCORD_PUBLIC_KEY}"
+
+# ── Comment-checker hook  (vendor/pi-comment-checker) ──────────────
+[hooks]
+enabled = true
+
+# ── Context compaction ─────────────────────────────────────────────
+# "senpi" = the built-in advanced compaction (speculative, restoration
+# tracking, circuit breaker). "flue" = the simpler flue algorithm.
+[session.compression]
+enabled = true
+engine  = "senpi"
+
+# ── Xenonite service (memory + code engine; talks to rocky LLM/embeddings) ───
+[services.xenonite]
+enabled    = false
+port       = 8700
+auto_start = false

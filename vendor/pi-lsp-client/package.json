@@ -1,0 +1,55 @@
+{
+	"name": "pi-lsp-client",
+	"version": "0.1.0",
+	"description": "Language Server Protocol integration for pi-mono coding-agent. Ports omo's LSP tool stack as a pi extension with shared server pool, refCount lifecycle, idle/init reaping, typed crash retry, and a /lsp inspector.",
+	"type": "module",
+	"license": "MIT",
+	"homepage": "https://github.com/code-yeongyu/pi-lsp-client",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/code-yeongyu/pi-lsp-client.git"
+	},
+	"keywords": [
+		"pi",
+		"pi-mono",
+		"pi-coding-agent",
+		"extension",
+		"lsp",
+		"language-server-protocol",
+		"diagnostics",
+		"code-intelligence"
+	],
+	"pi": {
+		"extensions": [
+			"./src/index.ts"
+		]
+	},
+	"scripts": {
+		"test": "vitest --run",
+		"test:integration": "vitest --run test/integration",
+		"test:watch": "vitest",
+		"typecheck": "tsgo --noEmit",
+		"lint": "biome check .",
+		"lint:fix": "biome check --write .",
+		"check": "tsgo --noEmit && biome check ."
+	},
+	"peerDependencies": {
+		"@earendil-works/pi-ai": "*",
+		"@earendil-works/pi-coding-agent": "*",
+		"@earendil-works/pi-tui": "*",
+		"typebox": "*"
+	},
+	"dependencies": {
+		"vscode-jsonrpc": "^8.2.1"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "2.3.5",
+		"@types/node": "^22.10.5",
+		"@typescript/native-preview": "^7.0.0-dev.20260120.1",
+		"typescript": "^5.9.2",
+		"vitest": "^4.1.5"
+	},
+	"engines": {
+		"node": ">=20.0.0"
+	}
+}

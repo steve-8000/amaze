@@ -1,0 +1,15 @@
+{
+  "_comment": "Copy to ~/.amaze/agent/settings.json. Controls tool permissions and per-role subagent models.",
+  "permission": { "*": "ask" },
+  "subagents": {
+    "agentOverrides": {
+      "oracle": { "model": "your-strongest-model" },
+      "planner": { "model": "your-strongest-model" },
+      "reviewer": { "model": "your-balanced-model" },
+      "context-builder": { "model": "your-balanced-model" },
+      "worker": { "model": "your-coding-model" },
+      "researcher": { "model": "your-fast-model" },
+      "scout": { "model": "your-local-model" }
+    }
+  }
+}

@@ -1,0 +1,13 @@
+import { createExtensionModuleImporter } from "../packages/coding-agent/dist/core/extensions/loader.js";
+import { resolve } from "node:path";
+const importer = createExtensionModuleImporter();
+const mod = await importer.import(resolve("vendor/flue/packages/runtime/src/compaction.ts"), { default: false });
+const { shouldCompact, calculateContextTokens, deriveCompactionDefaults, DEFAULT_COMPACTION_SETTINGS } = mod;
+const usage = { input: 1000, output: 500, cacheRead: 0, cacheWrite: 0, totalTokens: 0 };
+const tokens = calculateContextTokens(usage);
+const settings = { ...DEFAULT_COMPACTION_SETTINGS, enabled: true, reserveTokens: 2000 };
+console.log("calculateContextTokens:", tokens);
+console.log("shouldCompact(1500 ctx, 200000 window):", shouldCompact(1500, 200000, settings));
+console.log("shouldCompact(199000 ctx, 200000 window):", shouldCompact(199000, 200000, settings));
+console.log("deriveCompactionDefaults present:", typeof deriveCompactionDefaults === "function");
+console.log("PASS: flue compaction module runs in amaze tree");
