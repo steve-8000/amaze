@@ -61,6 +61,7 @@ import type { PathMemoryPacketInput } from "../../harness/path-memory.ts";
 import type { PathContract } from "../../harness/path-contract.ts";
 import { parseFreshBootContract, type FreshBootContract } from "../../harness/fresh-boot-contract.ts";
 import { validateHarnessValidatorContract } from "../../harness/validator-contract.ts";
+import { compileMissionPolicy, startMission } from "../../harness/orchestrator/mission-orchestrator.ts";
 import {
 	cleanupWorktrees,
 	createWorktrees,
@@ -2449,6 +2450,30 @@ export function createSubagentExecutor(deps: ExecutorDeps): {
 						}, null, 2),
 					}],
 					isError: report.status === "invalid" ? true : undefined,
+					details: { mode: "management" as const, results: [] },
+				};
+			}
+			if (action === "harness_compile_mission" || action === "harness_start_mission") {
+				const rawRequest = (typeof paramsWithResolvedCwd.task === "string" && paramsWithResolvedCwd.task.trim())
+					? paramsWithResolvedCwd.task.trim()
+					: (typeof paramsWithResolvedCwd.message === "string" && paramsWithResolvedCwd.message.trim())
+						? paramsWithResolvedCwd.message.trim()
+						: "";
+				if (!rawRequest) {
+					return {
+						content: [{ type: "text", text: `${action} requires task or message as the raw mission request.` }],
+						isError: true,
+						details: { mode: "management" as const, results: [] },
+					};
+				}
+				const missionId = typeof paramsWithResolvedCwd.id === "string" && paramsWithResolvedCwd.id.trim()
+					? paramsWithResolvedCwd.id.trim()
+					: undefined;
+				const result = action === "harness_start_mission"
+					? startMission(rawRequest, { missionId, cwd: requestCwd })
+					: compileMissionPolicy(rawRequest, missionId);
+				return {
+					content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
 					details: { mode: "management" as const, results: [] },
 				};
 			}

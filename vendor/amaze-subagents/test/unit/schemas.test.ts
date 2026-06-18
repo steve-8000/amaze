@@ -210,6 +210,8 @@ describe("SubagentParams schema", { skip: !schemasAvailable ? "typebox not avail
 			"interrupt",
 			"resume",
 			"doctor",
+			"harness_compile_mission",
+			"harness_start_mission",
 			"harness_run_contract",
 			"harness_validate_contract",
 			"harness_status",

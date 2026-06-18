@@ -41,9 +41,9 @@ function createExecutor() {
 	});
 }
 
-function ctx() {
+function ctx(cwd = process.cwd()) {
 	return {
-		cwd: process.cwd(),
+		cwd,
 		hasUI: false,
 		sessionManager: { getSessionId() { return "session"; }, getSessionFile() { return null; } },
 		modelRegistry: { getAvailable() { return []; } },
@@ -154,5 +154,45 @@ describe("harness actions", () => {
 
 		assert.equal(result.isError, true);
 		assert.match(text(result), /requires bootContract/);
+	});
+
+	it("compiles mission profiles through the executor harness action", async () => {
+		const result = await createExecutor().execute("run-1", {
+			action: "harness_compile_mission",
+			id: "mission-docs",
+			task: "README 오타 한 줄만 수정해줘",
+		}, new AbortController().signal, undefined, ctx());
+
+		assert.equal(result.isError, undefined);
+		const parsed = JSON.parse(text(result)) as {
+			missionId: string;
+			route: { baseRuntime: string; validatorPack: string };
+			policy: { runtime: string; validatorPack: string };
+		};
+		assert.equal(parsed.missionId, "mission-docs");
+		assert.equal(parsed.route.baseRuntime, "micro-direct");
+		assert.equal(parsed.route.validatorPack, "basic-diff");
+		assert.equal(parsed.policy.runtime, "micro-direct");
+	});
+
+	it("starts mission profiles and persists mission state", async () => {
+		const tempDir = path.join(os.tmpdir(), `amaze-harness-mission-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+		const result = await createExecutor().execute("run-1", {
+			action: "harness_start_mission",
+			id: "mission-helm",
+			task: "Helm chart에 prod-safe resource policy 넣어줘",
+			cwd: tempDir,
+		}, new AbortController().signal, undefined, ctx(tempDir));
+
+		assert.equal(result.isError, undefined);
+		const parsed = JSON.parse(text(result)) as {
+			missionId: string;
+			record: { status: string; final_route?: { baseRuntime: string; validatorPack: string } };
+			policy: { runtime: string; validatorPack: string };
+		};
+		assert.equal(parsed.missionId, "mission-helm");
+		assert.equal(parsed.record.status, "POLICY_COMPILED");
+		assert.equal(parsed.record.final_route?.baseRuntime, "infra-k8s");
+		assert.equal(parsed.policy.validatorPack, "infra-k8s");
 	});
 });
