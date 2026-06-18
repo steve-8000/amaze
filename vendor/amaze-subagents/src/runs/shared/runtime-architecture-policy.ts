@@ -136,7 +136,7 @@ function writePathContract(task: RuntimeArchitectureTask, assignedPath: string):
 		assigned_worker: task.agent,
 		assigned_path: normalized,
 		owned_paths: [glob],
-		read_allowed_paths: [glob],
+		read_allowed_paths: ["**/*"],
 		write_allowed_paths: [glob],
 		write_denied_paths: [],
 		activity_budget: { ...DEFAULT_WRITE_BUDGET },

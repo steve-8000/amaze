@@ -24,6 +24,7 @@ export interface PathMemoryBudget {
 export interface PathMemoryAttachment {
 	attachment_id?: string;
 	path_id: string;
+	agent_id?: string;
 	memory_path: string;
 	xenonite_namespace?: string;
 	include?: PathMemoryInclude;
@@ -34,6 +35,7 @@ export interface PathMemoryAttachment {
 export interface PathMemoryScope {
 	type: "path";
 	path_id: string;
+	agent_id?: string;
 	memory_path: string;
 	xenonite_namespace?: string;
 }
@@ -75,6 +77,7 @@ export interface PathMemoryAppendResult {
 export interface PathMemoryHistoryRecord extends PathMemoryUpdate {
 	history_type: "decision" | "known_failure" | "incident" | "contract" | "summary";
 	path_id: string;
+	agent_id?: string;
 }
 
 const DEFAULT_INCLUDE: Required<PathMemoryInclude> = {
@@ -112,6 +115,7 @@ function normalizeAttachments(input: PathMemoryPacketInput, scope: PathMemorySco
 	if (attachments?.length) {
 		return attachments.map((attachment) => ({
 			...attachment,
+			agent_id: attachment.agent_id ?? scope?.agent_id,
 			xenonite_namespace: attachment.xenonite_namespace ?? scope?.xenonite_namespace,
 			mode: "read_only",
 		}));
@@ -120,6 +124,7 @@ function normalizeAttachments(input: PathMemoryPacketInput, scope: PathMemorySco
 	return [{
 		attachment_id: `${scope.path_id}:default`,
 		path_id: scope.path_id,
+		agent_id: scope.agent_id,
 		memory_path: scope.memory_path,
 		xenonite_namespace: scope.xenonite_namespace,
 		mode: "read_only",
@@ -342,6 +347,7 @@ export function appendPathMemoryUpdates(
 			...update,
 			history_type: updateHistoryType(update.type),
 			path_id: scope.path_id,
+			agent_id: scope.agent_id,
 		};
 		fs.appendFileSync(path.join(memoryRoot, "history.jsonl"), `${JSON.stringify(history)}\n`, { mode: 0o600 });
 		files.add(filePath);

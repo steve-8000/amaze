@@ -121,6 +121,35 @@ describe("acceptance gates", () => {
 		}
 	});
 
+	it("checked mode accepts a structured report object without prose output", async () => {
+		const cwd = tempRepo();
+		try {
+			const acceptance = resolveEffectiveAcceptance({
+				agentName: "worker",
+				task: "Implement a fix",
+				explicit: { level: "checked", criteria: [{ id: "artifact", must: "Artifact exists" }] },
+			});
+			const ledger = await evaluateAcceptance({
+				acceptance,
+				output: "",
+				cwd,
+				report: {
+					criteriaSatisfied: [{ id: "artifact", status: "satisfied", evidence: "src/live-result.json exists" }],
+					changedFiles: ["src/live-result.json"],
+					testsAddedOrUpdated: ["test/live-result.test.ts"],
+					commandsRun: [{ command: "node test", result: "passed", summary: "passed" }],
+					validationOutput: ["json ok"],
+					residualRisks: [],
+					noStagedFiles: true,
+				},
+			});
+
+			assert.equal(ledger.status, "checked");
+		} finally {
+			fs.rmSync(cwd, { recursive: true, force: true });
+		}
+	});
+
 	it("checked mode rejects not-satisfied required criteria", async () => {
 		const cwd = tempRepo();
 		try {

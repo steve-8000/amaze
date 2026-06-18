@@ -97,6 +97,10 @@ const RESULTS_DIR = typesMod?.RESULTS_DIR;
 const TEMP_ROOT_DIR = typesMod?.TEMP_ROOT_DIR;
 const createSubagentExecutor = executorMod?.createSubagentExecutor;
 
+function hiddenOutputPath(outputPath: string): string {
+	return path.join(path.dirname(outputPath), ".subagent-outputs", path.basename(outputPath));
+}
+
 function git(cwd: string, args: string[]): string {
 	const result = spawnSync("git", ["-C", cwd, ...args], { encoding: "utf-8" });
 	if (result.status !== 0) {
@@ -317,21 +321,22 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 			assert.equal(status.sessionId, "session-123");
 			assert.equal(status.steps?.[0]?.acceptance?.status, "checked");
 		const outputPath = path.join(tempDir, "async-top-output.md");
+		const savedOutputPath = hiddenOutputPath(outputPath);
 		const outputDeadline = Date.now() + 5_000;
-		while (!fs.existsSync(outputPath)) {
+		while (!fs.existsSync(savedOutputPath)) {
 			if (Date.now() > outputDeadline) {
-				assert.fail(`Timed out waiting for saved output file: ${outputPath}`);
+				assert.fail(`Timed out waiting for saved output file: ${savedOutputPath}`);
 			}
 			await new Promise((resolve) => setTimeout(resolve, 50));
 		}
-		assert.equal(fs.readFileSync(outputPath, "utf-8"), "Async top-level report");
+		assert.equal(fs.readFileSync(savedOutputPath, "utf-8"), "Async top-level report");
 		const callFile = fs.readdirSync(mockPi.dir).find((name) => name.startsWith("call-"));
 		assert.ok(callFile, "expected a recorded mock pi call");
 		const args = JSON.parse(fs.readFileSync(path.join(mockPi.dir, callFile), "utf-8")).args as string[];
 		const taskArg = args.at(-1) ?? "";
 		assert.ok(taskArg.includes(`[Read from: ${path.join(tempDir, "input.md")}]`));
 		assert.ok(taskArg.includes(`Update progress at: ${path.join(tempDir, "progress.md")}`));
-		assert.ok(taskArg.includes(`Write your findings to: ${outputPath}`));
+		assert.ok(taskArg.includes(`parent runtime persists that response at the hidden output file: ${savedOutputPath}`));
 		assert.equal(fs.existsSync(path.join(tempDir, "progress.md")), true);
 	});
 
@@ -726,7 +731,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 			const args = JSON.parse(fs.readFileSync(path.join(mockPi.dir, callFile), "utf-8")).args as string[];
 			const taskArg = args.at(-1) ?? "";
 			assert.ok(taskArg.includes(`[Read from: ${path.join(worktreeCwd, "input.md")}]`));
-			assert.ok(taskArg.includes(`Write your findings to: ${path.join(worktreeCwd, "report.md")}`));
+			assert.ok(taskArg.includes(`parent runtime persists that response at the hidden output file: ${path.join(worktreeCwd, ".subagent-outputs", "report.md")}`));
 		} finally {
 			removeTempDir(repoDir);
 		}
@@ -1013,7 +1018,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 		assert.doesNotMatch(payload.summary ?? "", /async full output/);
 		assert.match(payload.results[0]?.output ?? "", /Output saved to:/);
 		assert.doesNotMatch(payload.results[0]?.output ?? "", /async full output/);
-		assert.equal(fs.readFileSync(outputPath, "utf-8"), "async full output\nwith details");
+		assert.equal(fs.readFileSync(hiddenOutputPath(outputPath), "utf-8"), "async full output\nwith details");
 	});
 
 	it("background single runs treat string false as disabled output", { skip: !isAsyncAvailable() ? "jiti not available" : undefined }, async () => {

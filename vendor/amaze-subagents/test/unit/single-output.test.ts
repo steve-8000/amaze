@@ -51,32 +51,39 @@ describe("resolveSingleOutputPath", () => {
 		assert.equal(resolveSingleOutputPath("true", "/repo"), undefined);
 	});
 
-	it("keeps absolute paths unchanged", () => {
+	it("moves absolute output paths into a hidden sibling output folder", () => {
 		const absolutePath = path.join(os.tmpdir(), "amaze-subagents-abs", "report.md");
 		const resolved = resolveSingleOutputPath(absolutePath, "/repo", "/override");
-		assert.equal(resolved, absolutePath);
+		assert.equal(resolved, path.join(path.dirname(absolutePath), ".subagent-outputs", "report.md"));
 	});
 
 	it("resolves relative paths against requested cwd", () => {
 		const resolved = resolveSingleOutputPath("reviews/report.md", "/runtime", "/requested");
-		assert.equal(resolved, path.resolve("/requested", "reviews/report.md"));
+		assert.equal(resolved, path.resolve("/requested", "reviews", ".subagent-outputs", "report.md"));
 	});
 
 	it("resolves relative paths against runtime cwd when requested cwd is absent", () => {
 		const resolved = resolveSingleOutputPath("reviews/report.md", "/runtime");
-		assert.equal(resolved, path.resolve("/runtime", "reviews/report.md"));
+		assert.equal(resolved, path.resolve("/runtime", "reviews", ".subagent-outputs", "report.md"));
 	});
 
 	it("resolves relative requested cwd from runtime cwd before resolving output", () => {
 		const resolved = resolveSingleOutputPath("reviews/report.md", "/runtime", "nested/work");
-		assert.equal(resolved, path.resolve("/runtime", "nested/work", "reviews/report.md"));
+		assert.equal(resolved, path.resolve("/runtime", "nested/work", "reviews", ".subagent-outputs", "report.md"));
+	});
+
+	it("keeps paths already inside the hidden output folder unchanged", () => {
+		const resolved = resolveSingleOutputPath(".subagent-outputs/report.md", "/runtime");
+		assert.equal(resolved, path.resolve("/runtime", ".subagent-outputs", "report.md"));
 	});
 });
 
 describe("injectSingleOutputInstruction", () => {
 	it("appends output instruction with resolved path", () => {
 		const output = injectSingleOutputInstruction("Analyze this", "/tmp/report.md");
-		assert.match(output, /Write your findings to: \/tmp\/report.md/);
+		assert.match(output, /parent runtime persists that response/);
+		assert.match(output, /No filesystem action is required/);
+		assert.doesNotMatch(output, /\b(?:write|edit|modify|create)\b/i);
 	});
 });
 

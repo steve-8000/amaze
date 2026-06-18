@@ -14,6 +14,48 @@ const DEFAULT_FIELD_SCHEMAS: Record<HarnessOutputRequired, JsonSchemaObject> = {
 	memory_updates: { type: "array", items: { type: "object", additionalProperties: true } },
 };
 
+const ACCEPTANCE_REPORT_SCHEMA: JsonSchemaObject = {
+	type: "object",
+	properties: {
+		criteriaSatisfied: {
+			type: "array",
+			items: {
+				type: "object",
+				properties: {
+					id: { type: "string" },
+					status: { enum: ["satisfied", "not-satisfied", "not-applicable"] },
+					evidence: { type: "string", minLength: 1 },
+				},
+				required: ["status", "evidence"],
+				additionalProperties: true,
+			},
+		},
+		changedFiles: { type: "array", items: { type: "string" } },
+		testsAddedOrUpdated: { type: "array", items: { type: "string" } },
+		commandsRun: {
+			type: "array",
+			items: {
+				type: "object",
+				properties: {
+					command: { type: "string" },
+					result: { enum: ["passed", "failed", "not-run"] },
+					summary: { type: "string" },
+				},
+				required: ["command", "result", "summary"],
+				additionalProperties: true,
+			},
+		},
+		validationOutput: { type: "array", items: { type: "string" } },
+		residualRisks: { type: "array", items: { type: "string" } },
+		noStagedFiles: { type: "boolean" },
+		diffSummary: { type: "string" },
+		reviewFindings: { type: "array", items: { type: "string" } },
+		manualNotes: { type: "string" },
+		notes: { type: "string" },
+	},
+	additionalProperties: true,
+};
+
 function asObject(value: unknown): Record<string, unknown> | undefined {
 	return value && typeof value === "object" && !Array.isArray(value)
 		? value as Record<string, unknown>
@@ -39,7 +81,10 @@ export function outputSchemaForRequiredFields(
 		...requiredFields,
 	])];
 	const baseProperties = propertiesOf(baseSchema);
-	const properties: Record<string, unknown> = { ...baseProperties };
+	const properties: Record<string, unknown> = {
+		...baseProperties,
+		acceptance_report: baseProperties.acceptance_report ?? ACCEPTANCE_REPORT_SCHEMA,
+	};
 	for (const field of requiredFields) {
 		if (properties[field] === undefined) properties[field] = DEFAULT_FIELD_SCHEMAS[field];
 	}

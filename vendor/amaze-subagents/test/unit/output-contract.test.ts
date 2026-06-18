@@ -69,6 +69,15 @@ describe("fresh boot output contract", () => {
 			risks: [],
 			change_requests: [],
 			memory_updates: [],
+			acceptance_report: {
+				criteriaSatisfied: [{ id: "contract-output", status: "satisfied", evidence: "validated" }],
+				changedFiles: ["packages/coding-agent/src/runtime/state.ts"],
+				testsAddedOrUpdated: [],
+				commandsRun: [{ command: "npm run test:unit", result: "passed", summary: "passed" }],
+				validationOutput: ["passed"],
+				residualRisks: [],
+				noStagedFiles: true,
+			},
 		}).status, "valid");
 		const invalid = validateStructuredOutputValue(schema, {
 			summary: "Missing fields",
@@ -100,6 +109,12 @@ describe("fresh boot output contract", () => {
 			risks: [],
 			change_requests: [],
 			memory_updates: [],
+			acceptance_report: {
+				criteriaSatisfied: [{ id: "extra", status: "satisfied", evidence: "validated" }],
+				commandsRun: [],
+				residualRisks: [],
+				noStagedFiles: true,
+			},
 		}).status, "valid");
 	});
 

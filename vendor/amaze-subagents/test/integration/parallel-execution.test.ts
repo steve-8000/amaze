@@ -34,6 +34,10 @@ const runSync = execution?.runSync;
 const mapConcurrent = utils?.mapConcurrent;
 const createSubagentExecutor = executorMod?.createSubagentExecutor;
 
+function hiddenOutputPath(outputPath: string): string {
+	return path.join(path.dirname(outputPath), ".subagent-outputs", path.basename(outputPath));
+}
+
 // ---------------------------------------------------------------------------
 // mapConcurrent — always runs (pure logic, no pi deps beyond utils.ts)
 // ---------------------------------------------------------------------------
@@ -201,9 +205,10 @@ describe("parallel agent execution", { skip: !piAvailable ? "pi packages not ava
 		);
 
 		const outputPath = path.join(tempDir, "parallel-output.md");
+		const savedPath = hiddenOutputPath(outputPath);
 		assert.equal(result.isError, undefined);
-		assert.equal(fs.readFileSync(outputPath, "utf-8"), "Saved report");
-		assert.equal(result.details?.results?.[0]?.savedOutputPath, outputPath);
+		assert.equal(fs.readFileSync(savedPath, "utf-8"), "Saved report");
+		assert.equal(result.details?.results?.[0]?.savedOutputPath, savedPath);
 	});
 
 	it("top-level parallel file-only output aggregates concise file references", { skip: !createSubagentExecutor ? "executor not importable" : undefined }, async () => {
@@ -219,6 +224,7 @@ describe("parallel agent execution", { skip: !piAvailable ? "pi packages not ava
 		);
 
 		const outputPath = path.join(tempDir, "parallel-file-only.md");
+		const savedPath = hiddenOutputPath(outputPath);
 		const text = result.content[0]?.text ?? "";
 		assert.equal(result.isError, undefined);
 		assert.match(text, /Output saved to:/);
@@ -226,7 +232,7 @@ describe("parallel agent execution", { skip: !piAvailable ? "pi packages not ava
 		assert.doesNotMatch(text, /Parallel full report/);
 		assert.match(result.details?.results?.[0]?.finalOutput ?? "", /Output saved to:/);
 		assert.doesNotMatch(result.details?.results?.[0]?.finalOutput ?? "", /Parallel full report/);
-		assert.equal(fs.readFileSync(outputPath, "utf-8"), "Parallel full report\nwith details");
+		assert.equal(fs.readFileSync(savedPath, "utf-8"), "Parallel full report\nwith details");
 	});
 
 	it("rejects top-level parallel file-only output without an output path", { skip: !createSubagentExecutor ? "executor not importable" : undefined }, async () => {

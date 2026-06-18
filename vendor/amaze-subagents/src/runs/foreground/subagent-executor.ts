@@ -949,8 +949,7 @@ function freshBootTaskText(contract: FreshBootContract): string {
 		`Required output fields: ${contract.execution_contract.output_required.join(", ")}`,
 		"",
 		"Terminal validation requires structured evidence; prose alone is not accepted.",
-		"End the final response with a fenced JSON block tagged `acceptance-report` in this shape:",
-		"```acceptance-report",
+		"Put an `acceptance_report` object in the structured output with this shape:",
 		JSON.stringify({
 			criteriaSatisfied: [{ id: "contract-output", status: "satisfied", evidence: "specific proof" }],
 			changedFiles: [],
@@ -961,7 +960,7 @@ function freshBootTaskText(contract: FreshBootContract): string {
 			noStagedFiles: true,
 			notes: "include summary, files_changed, tests_run, risks, change_requests, and memory_updates when required",
 		}, null, 2),
-		"```",
+		"If structured output is unavailable, end the final response with the same JSON in a fenced block tagged `acceptance-report`.",
 		"",
 		"Use only the FreshBootContract, context packet reference, and attached path memory as authority.",
 	].join("\n");

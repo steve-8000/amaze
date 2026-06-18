@@ -66,7 +66,7 @@ describe("contract-first execution normalization", () => {
 		assert.equal(normalized.params.context, "fresh");
 		assert.match(String(normalized.params.task), /Add durable runtime task state model/);
 		assert.match(String(normalized.params.task), /Required output fields: summary, files_changed, tests_run, risks, change_requests, memory_updates/);
-		assert.match(String(normalized.params.task), /```acceptance-report/);
+		assert.match(String(normalized.params.task), /acceptance_report/);
 		assert.equal(normalized.agents.length, 1);
 		assert.equal(normalized.agents[0]?.name, "folder.packages_coding_agent.src.runtime");
 		assert.equal(normalized.agents[0]?.defaultContext, "fresh");

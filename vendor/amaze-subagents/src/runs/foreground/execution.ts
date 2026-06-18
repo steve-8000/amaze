@@ -20,6 +20,7 @@ import {
 import {
 	type AgentProgress,
 	type ArtifactPaths,
+	type AcceptanceReport,
 	type ControlEvent,
 	type ModelAttempt,
 	type RunSyncOptions,
@@ -73,6 +74,16 @@ import { acceptanceFailureMessage, evaluateAcceptance, formatAcceptancePrompt, r
 
 const artifactOutputByResult = new WeakMap<SingleResult, string>();
 const acceptanceOutputByResult = new WeakMap<SingleResult, string>();
+
+function isObject(value: unknown): value is Record<string, unknown> {
+	return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function structuredAcceptanceReport(structuredOutput: unknown): AcceptanceReport | undefined {
+	if (!isObject(structuredOutput)) return undefined;
+	const value = structuredOutput.acceptance_report ?? structuredOutput.acceptance;
+	return isObject(value) ? value as AcceptanceReport : undefined;
+}
 
 function structuredAcceptanceOutput(structuredOutput: unknown): string | undefined {
 	if (!structuredOutput || typeof structuredOutput !== "object" || Array.isArray(structuredOutput)) return undefined;
@@ -1071,6 +1082,7 @@ async function runSyncUnlocked(
 			acceptance: effectiveAcceptance,
 			output: acceptanceOutputForResult(result),
 			cwd: options.cwd ?? runtimeCwd,
+			report: structuredAcceptanceReport(result.structuredOutput),
 		});
 		const acceptanceFailure = acceptanceFailureMessage(result.acceptance);
 		stripAcceptanceReportsFromMessages(resultMessages);

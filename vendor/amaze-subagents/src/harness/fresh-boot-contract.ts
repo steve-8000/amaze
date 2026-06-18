@@ -289,6 +289,7 @@ export function freshBootContractToPathMemoryPacket(contract: FreshBootContract)
 	const memoryScope: PathMemoryScope = {
 		type: "path",
 		path_id: contract.specialist.path_id,
+		agent_id: contract.execution_contract.assigned_specialist,
 		memory_path: contract.specialist.memory_path,
 		xenonite_namespace: xenoniteNamespaceFromPath(contract.execution_contract.assigned_path),
 	};

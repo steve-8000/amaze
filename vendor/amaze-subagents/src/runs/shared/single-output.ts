@@ -24,16 +24,18 @@ export function resolveSingleOutputPath(
 	requestedCwd?: string,
 ): string | undefined {
 	if (typeof output !== "string" || !output || output === "false" || output === "true") return undefined;
-	if (path.isAbsolute(output)) return output;
 	const baseCwd = requestedCwd
 		? (path.isAbsolute(requestedCwd) ? requestedCwd : path.resolve(runtimeCwd, requestedCwd))
 		: runtimeCwd;
-	return path.resolve(baseCwd, output);
+	const requestedOutput = path.isAbsolute(output) ? output : path.resolve(baseCwd, output);
+	const parentDir = path.dirname(requestedOutput);
+	if (path.basename(parentDir) === ".subagent-outputs") return requestedOutput;
+	return path.join(parentDir, ".subagent-outputs", path.basename(requestedOutput));
 }
 
 export function injectSingleOutputInstruction(task: string, outputPath: string | undefined): string {
 	if (!outputPath) return task;
-	return `${task}\n\n---\n**Output:** Write your findings to: ${outputPath}`;
+	return `${task}\n\n---\n**Output:** Return your findings in the final response only. The parent runtime persists that response at the hidden output file: ${outputPath}. No filesystem action is required for this output artifact.`;
 }
 
 function countLines(text: string): number {

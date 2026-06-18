@@ -30,6 +30,7 @@ test("runtime policy attaches path contract, budget, and mandatory acceptance fo
 	const result = applyRuntimeArchitecturePolicy<any>({ agent: "worker", task: "Fix src/runtime/foo.ts", acceptance: false }, agents);
 	assert.equal(result.error, undefined);
 	assert.equal(result.params?.pathContract?.assigned_path, "src/runtime/foo.ts");
+	assert.deepEqual(result.params?.pathContract?.read_allowed_paths, ["**/*"]);
 	assert.deepEqual(result.params?.pathContract?.write_allowed_paths, ["src/runtime/foo.ts"]);
 	assert.equal(result.params?.pathContract?.activity_budget?.max_tool_uses, 40);
 	assert.notEqual(result.params?.acceptance, false);
@@ -51,6 +52,19 @@ test("runtime policy gives read-only roles deny-all write contracts and blocks r
 		},
 	}, agents);
 	assert.match(drift.error ?? "", /blocks read-only role/);
+});
+
+test("runtime policy keeps parent-managed output artifacts read-only for scouts", () => {
+	const result = applyRuntimeArchitecturePolicy<any>({
+		agent: "scout",
+		task: "Scan the active config.\n\n---\n**Output:** Return your findings in the final response only. The parent runtime persists that response at the hidden output file: /Users/steve/.subagent-outputs/context.md. No filesystem action is required for this output artifact.",
+		output: "/Users/steve/.subagent-outputs/context.md",
+	}, agents);
+
+	assert.equal(result.error, undefined);
+	assert.notEqual(result.params?.acceptance?.level, "checked");
+	assert.deepEqual(result.params?.pathContract?.write_allowed_paths, []);
+	assert.deepEqual(result.params?.pathContract?.write_denied_paths, ["**/*"]);
 });
 
 test("contract DAG leases recover expired running work and complete durable queue state", () => {
@@ -110,6 +124,7 @@ test("path memory stores summaries separately and appends unified path-local his
 		memory_scope: {
 			type: "path",
 			path_id: "folder.src",
+			agent_id: "agent.src",
 			memory_path: memoryPath,
 			xenonite_namespace: "path:src",
 		},
@@ -121,4 +136,5 @@ test("path memory stores summaries separately and appends unified path-local his
 	const history = fs.readFileSync(path.join(memoryPath, "history.jsonl"), "utf-8");
 	assert.match(history, /"history_type":"summary"/);
 	assert.match(history, /"path_id":"folder.src"/);
+	assert.match(history, /"agent_id":"agent.src"/);
 });
