@@ -85,6 +85,34 @@ function structuredAcceptanceReport(structuredOutput: unknown): AcceptanceReport
 	return isObject(value) ? value as AcceptanceReport : undefined;
 }
 
+function pathMemoryAudit(options: RunSyncOptions): Record<string, unknown> {
+	const packet = options.bootContract ? freshBootContractToPathMemoryPacket(options.bootContract) : options.memoryPacket;
+	const scope = packet?.memory_scope;
+	const attachments = Array.isArray(packet?.memory_attachments) ? packet.memory_attachments : [];
+	return {
+		attached: Boolean(packet),
+		packet_id: packet?.packet_id,
+		contract_id: packet?.contract_id,
+		apply_updates_after_validation_pass: packet?.apply_updates_after_validation_pass ?? (packet ? true : undefined),
+		scope: scope ? {
+			path_id: scope.path_id,
+			agent_id: scope.agent_id,
+			memory_path: scope.memory_path,
+			xenonite_namespace: scope.xenonite_namespace,
+		} : undefined,
+		attachments: attachments.map((attachment) => ({
+			attachment_id: attachment.attachment_id,
+			path_id: attachment.path_id,
+			agent_id: attachment.agent_id,
+			memory_path: attachment.memory_path,
+			xenonite_namespace: attachment.xenonite_namespace,
+			mode: attachment.mode,
+			include: attachment.include,
+			budget: attachment.budget,
+		})),
+	};
+}
+
 function structuredAcceptanceOutput(structuredOutput: unknown): string | undefined {
 	if (!structuredOutput || typeof structuredOutput !== "object" || Array.isArray(structuredOutput)) return undefined;
 	const value = (structuredOutput as Record<string, unknown>).acceptance_report;
@@ -1055,6 +1083,7 @@ async function runSyncUnlocked(
 				error: result.error,
 				skills: result.skills,
 				skillsWarning: result.skillsWarning,
+				pathMemory: pathMemoryAudit(options),
 				timestamp: Date.now(),
 			});
 		}

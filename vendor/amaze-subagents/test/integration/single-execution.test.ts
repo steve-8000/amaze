@@ -729,6 +729,17 @@ describe("single sync execution", { skip: !available ? "pi packages not availabl
 		const result = await runSync(tempDir, agents, "echo", "Task", {
 			runId: "live-progress",
 			artifactsDir,
+			memoryPacket: {
+				packet_id: "audit-packet",
+				memory_scope: {
+					type: "path",
+					path_id: "folder.project",
+					agent_id: "echo",
+					memory_path: ".harness/memory/paths/project",
+					xenonite_namespace: "path:project",
+				},
+				apply_updates_after_validation_pass: true,
+			},
 			artifactConfig: { enabled: true, includeInput: true, includeOutput: true, includeMetadata: true },
 			onUpdate: (update: { details?: { results?: Array<{ artifactPaths?: ArtifactPaths }>; progress?: ProgressSummary[] } }) => {
 				updates.push(update);
@@ -746,6 +757,12 @@ describe("single sync execution", { skip: !available ? "pi packages not availabl
 		assert.equal(typeof runningToolUpdate?.details?.progress?.[0]?.currentToolStartedAt, "number");
 		assert.equal(typeof result.progress.lastActivityAt, "number");
 		assert.equal(result.progress.currentToolStartedAt, undefined);
+		const metadata = JSON.parse(fs.readFileSync(result.artifactPaths!.metadataPath, "utf-8")) as { pathMemory?: { attached?: boolean; packet_id?: string; scope?: { path_id?: string; agent_id?: string; xenonite_namespace?: string } } };
+		assert.equal(metadata.pathMemory?.attached, true);
+		assert.equal(metadata.pathMemory?.packet_id, "audit-packet");
+		assert.equal(metadata.pathMemory?.scope?.path_id, "folder.project");
+		assert.equal(metadata.pathMemory?.scope?.agent_id, "echo");
+		assert.equal(metadata.pathMemory?.scope?.xenonite_namespace, "path:project");
 	});
 
 	it("sets progress.status to failed on non-zero exit", async () => {
