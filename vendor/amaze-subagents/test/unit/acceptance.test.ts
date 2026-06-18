@@ -100,13 +100,33 @@ describe("acceptance gates", () => {
 		assert.deepEqual(acceptance.evidence, []);
 	});
 
-	it("checked mode rejects missing required evidence", async () => {
+	it("checked mode does not require test changes for non-test contracts", async () => {
 		const cwd = tempRepo();
 		try {
 			const acceptance = resolveEffectiveAcceptance({
 				agentName: "worker",
 				task: "Implement a fix",
 				explicit: { level: "checked" },
+			});
+			const ledger = await evaluateAcceptance({
+				acceptance,
+				output: report({ testsAddedOrUpdated: [] }),
+				cwd,
+			});
+
+			assert.equal(ledger.status, "checked");
+		} finally {
+			fs.rmSync(cwd, { recursive: true, force: true });
+		}
+	});
+
+	it("verified mode still rejects missing test evidence", async () => {
+		const cwd = tempRepo();
+		try {
+			const acceptance = resolveEffectiveAcceptance({
+				agentName: "worker",
+				task: "Implement a fix",
+				explicit: { level: "verified" },
 			});
 			const ledger = await evaluateAcceptance({
 				acceptance,

@@ -294,7 +294,7 @@ describe("chain execution — sequential", { skip: !available ? "pi packages not
 
 		const failed = await executeChain(
 			makeChainParams(
-				[{ agent: "worker", task: "Implement fix", acceptance: { level: "checked" } }],
+				[{ agent: "worker", task: "Implement fix", acceptance: { level: "checked", evidence: ["tests-added"] } }],
 				agents,
 			),
 		);
