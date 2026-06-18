@@ -36,7 +36,8 @@ export async function writeGoal(ref: GoalStoreRef, goal: Goal | null): Promise<v
 }
 
 export async function createGoal(ref: GoalStoreRef, objective: string): Promise<Goal> {
-	if ((await readGoal(ref)) !== null) {
+	const current = await readGoal(ref);
+	if (current !== null && current.status !== "complete") {
 		throw new GoalAlreadyExistsError("cannot create a new goal because this thread already has a goal");
 	}
 

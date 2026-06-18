@@ -15,7 +15,7 @@ import type { GoalStoreRef } from "../../src/core/extensions/builtin/goal/types.
 const tempDirs: string[] = [];
 
 async function tempStore(threadId = "thread-test"): Promise<GoalStoreRef> {
-	const dir = await mkdtemp(join(tmpdir(), "senpi-goal-"));
+	const dir = await mkdtemp(join(tmpdir(), "amaze-goal-"));
 	tempDirs.push(dir);
 	return { baseDir: join(dir, "extensions", "goal"), threadId };
 }
@@ -141,5 +141,22 @@ describe("goal store (budget-free)", () => {
 		expect(await clearGoal(ref)).toBe(true);
 		expect(await readGoal(ref)).toBeNull();
 		expect(await readFile(goalFilePath(ref), "utf8")).toContain('"version": 1');
+	});
+
+	it("allows a new goal after the existing goal is complete", async () => {
+		const ref = await tempStore();
+		const first = await createGoal(ref, "Finish first objective");
+		await updateGoal(ref, { status: "complete" });
+
+		const second = await createGoal(ref, "Start second objective");
+
+		expect(second.id).not.toBe(first.id);
+		expect(second.objective).toBe("Start second objective");
+		expect(second.status).toBe("active");
+		expect(second.tokensUsed).toBe(0);
+		expect(second.timeUsedSeconds).toBe(0);
+		expect(second.lastStartedAt).toBe(second.createdAt);
+		expect(second.completedAt).toBeUndefined();
+		expect(await readGoal(ref)).toMatchObject({ id: second.id, objective: "Start second objective" });
 	});
 });

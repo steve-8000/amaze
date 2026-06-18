@@ -41,21 +41,22 @@ export default function goalExtension(pi: ExtensionAPI): void {
 		name: "create_goal",
 		label: "Create Goal",
 		description:
-			"Create a goal only when explicitly requested by the user or system/developer instructions; do not infer goals from ordinary tasks.\nFails if a goal already exists; use update_goal only for status.",
+			"Create a goal only when explicitly requested by the user or system/developer instructions; do not infer goals from ordinary tasks.\nFails if an active or paused goal already exists; replaces a completed goal with the new active objective.",
 		parameters: Type.Object(
 			{
 				objective: Type.String({
 					description:
-						"Required. The concrete objective to start pursuing. This starts a new active goal only when no goal is currently defined; if a goal already exists, this tool fails.",
+						"Required. The concrete objective to start pursuing. This starts a new active goal when no active/paused goal is defined, or replaces the existing completed goal.",
 				}),
 			},
 			{ additionalProperties: false },
 		),
 		async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
 			const ref = goalStoreRef(ctx);
-			if ((await readGoal(ref)) !== null) {
+			const current = await readGoal(ref);
+			if (current !== null && current.status !== "complete") {
 				throw new Error(
-					"cannot create a new goal because this thread already has a goal; use update_goal only when the existing goal is complete",
+					"cannot create a new goal because this thread already has an active or paused goal",
 				);
 			}
 			const goal = await createGoal(ref, params.objective);

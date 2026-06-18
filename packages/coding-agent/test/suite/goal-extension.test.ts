@@ -40,7 +40,7 @@ function createGoalHarness(): GoalHarness {
 const tempDirs: string[] = [];
 
 async function makeCtx(threadId = "thread-test"): Promise<ExtensionContext> {
-	const dir = await mkdtemp(join(tmpdir(), "senpi-goal-ext-"));
+	const dir = await mkdtemp(join(tmpdir(), "amaze-goal-ext-"));
 	tempDirs.push(dir);
 	return {
 		hasUI: false,
@@ -130,7 +130,24 @@ describe("goal extension contract (budget-free)", () => {
 		await tools.get("create_goal")?.execute("c1", { objective: "First" }, undefined, undefined, ctx);
 		await expect(
 			tools.get("create_goal")?.execute("c2", { objective: "Second" }, undefined, undefined, ctx),
-		).rejects.toThrow("already has a goal");
+		).rejects.toThrow("active or paused goal");
+	});
+
+	it("allows create_goal to replace a completed goal", async () => {
+		const { tools } = createGoalHarness();
+		const ctx = await makeCtx();
+		const ref = storeRefFor(ctx);
+
+		await tools.get("create_goal")?.execute("c1", { objective: "First" }, undefined, undefined, ctx);
+		await tools.get("update_goal")?.execute("u1", { status: "complete" }, undefined, undefined, ctx);
+		const second = await tools.get("create_goal")?.execute("c2", { objective: "Second" }, undefined, undefined, ctx);
+
+		const secondGoal = JSON.parse(textOf(second)).goal;
+		expect(secondGoal.objective).toBe("Second");
+		expect(secondGoal.status).toBe("active");
+		expect(secondGoal.tokensUsed).toBe(0);
+		expect(secondGoal.timeUsedSeconds).toBe(0);
+		expect(await readGoal(ref)).toMatchObject({ objective: "Second", status: "active", tokensUsed: 0, timeUsedSeconds: 0 });
 	});
 
 	it("queues a hidden continuation prompt after agent_end while a goal is active", async () => {
