@@ -7,14 +7,12 @@ import type { ChainStep, DynamicParallelStep, ParallelTaskItem, SequentialStep }
 import { isDynamicParallelStep, isParallelStep } from "../../shared/settings.ts";
 
 const DEFAULT_WRITE_BUDGET = {
-	max_tool_uses: 40,
-	max_tokens: 80_000,
+	max_tokens: 270_000,
 	max_elapsed_ms: 180_000,
 } as const;
 
 const DEFAULT_READ_ONLY_BUDGET = {
-	max_tool_uses: 60,
-	max_tokens: 120_000,
+	max_tokens: 270_000,
 	max_elapsed_ms: 240_000,
 } as const;
 
@@ -80,7 +78,7 @@ function pathGlob(candidate: string): string {
 }
 
 function inferMentionedPath(task: string | undefined, cwd: string | undefined, output: string | boolean | undefined): string | undefined {
-	if (typeof output === "string" && output.trim()) return normalizePath(output);
+	if (typeof output === "string" && output.trim() && output.trim().toLowerCase() !== "false") return normalizePath(output);
 	const raw = [task, cwd].filter((value): value is string => Boolean(value?.trim())).join(" ");
 	for (const match of raw.matchAll(PATH_PATTERN)) {
 		const candidate = match[1]?.trim().replace(/^`|`$/g, "");

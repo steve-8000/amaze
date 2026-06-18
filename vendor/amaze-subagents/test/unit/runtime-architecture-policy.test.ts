@@ -36,7 +36,7 @@ test("runtime policy attaches path contract, budget, and mandatory acceptance fo
 	assert.equal(result.params?.memoryPacket?.memory_scope.agent_id, "worker");
 	assert.equal(result.params?.memoryPacket?.memory_scope.xenonite_namespace, "path:src/runtime/foo.ts");
 	assert.equal(result.params?.memoryPacket?.memory_attachments?.[0]?.budget?.max_bytes, 12_000);
-	assert.equal(result.params?.pathContract?.activity_budget?.max_tool_uses, 40);
+	assert.equal(result.params?.pathContract?.activity_budget?.max_tokens, 270_000);
 	assert.notEqual(result.params?.acceptance, false);
 });
 
@@ -59,6 +59,18 @@ test("runtime policy gives read-only roles deny-all write contracts and blocks r
 		},
 	}, agents);
 	assert.match(drift.error ?? "", /blocks read-only role/);
+});
+
+test("runtime policy does not treat string false output as a memory path", () => {
+	const result = applyRuntimeArchitecturePolicy<any>({
+		agent: "scout",
+		task: "Scan the repo",
+		output: "false",
+	}, agents);
+	assert.equal(result.error, undefined);
+	assert.equal(result.params?.memoryPacket?.memory_scope.path_id, "folder.project");
+	assert.equal(result.params?.memoryPacket?.memory_scope.xenonite_namespace, "path:project");
+	assert.notEqual(result.params?.memoryPacket?.memory_scope.path_id, "folder.false");
 });
 
 test("runtime policy preserves explicit path memory packets", () => {
