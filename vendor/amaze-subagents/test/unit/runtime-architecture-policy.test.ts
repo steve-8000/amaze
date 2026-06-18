@@ -32,6 +32,10 @@ test("runtime policy attaches path contract, budget, and mandatory acceptance fo
 	assert.equal(result.params?.pathContract?.assigned_path, "src/runtime/foo.ts");
 	assert.deepEqual(result.params?.pathContract?.read_allowed_paths, ["**/*"]);
 	assert.deepEqual(result.params?.pathContract?.write_allowed_paths, ["src/runtime/foo.ts"]);
+	assert.equal(result.params?.memoryPacket?.memory_scope.path_id, "folder.src.runtime.foo.ts");
+	assert.equal(result.params?.memoryPacket?.memory_scope.agent_id, "worker");
+	assert.equal(result.params?.memoryPacket?.memory_scope.xenonite_namespace, "path:src/runtime/foo.ts");
+	assert.equal(result.params?.memoryPacket?.memory_attachments?.[0]?.budget?.max_bytes, 12_000);
 	assert.equal(result.params?.pathContract?.activity_budget?.max_tool_uses, 40);
 	assert.notEqual(result.params?.acceptance, false);
 });
@@ -41,6 +45,9 @@ test("runtime policy gives read-only roles deny-all write contracts and blocks r
 	assert.equal(readOnly.error, undefined);
 	assert.deepEqual(readOnly.params?.pathContract?.write_allowed_paths, []);
 	assert.deepEqual(readOnly.params?.pathContract?.write_denied_paths, ["**/*"]);
+	assert.equal(readOnly.params?.memoryPacket?.memory_scope.path_id, "folder.project");
+	assert.equal(readOnly.params?.memoryPacket?.memory_scope.agent_id, "scout");
+	assert.equal(readOnly.params?.memoryPacket?.memory_scope.xenonite_namespace, "path:project");
 
 	const drift = applyRuntimeArchitecturePolicy({
 		agent: "researcher",
@@ -52,6 +59,26 @@ test("runtime policy gives read-only roles deny-all write contracts and blocks r
 		},
 	}, agents);
 	assert.match(drift.error ?? "", /blocks read-only role/);
+});
+
+test("runtime policy preserves explicit path memory packets", () => {
+	const explicit = {
+		packet_id: "explicit",
+		memory_scope: {
+			type: "path" as const,
+			path_id: "folder.explicit",
+			agent_id: "worker",
+			memory_path: ".harness/memory/paths/explicit",
+		},
+		apply_updates_after_validation_pass: true,
+	};
+	const result = applyRuntimeArchitecturePolicy<any>({
+		agent: "worker",
+		task: "Modify src/runtime/foo.ts",
+		memoryPacket: explicit,
+	}, agents);
+	assert.equal(result.error, undefined);
+	assert.equal(result.params?.memoryPacket, explicit);
 });
 
 test("runtime policy keeps parent-managed output artifacts read-only for scouts", () => {

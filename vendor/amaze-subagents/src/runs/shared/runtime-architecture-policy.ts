@@ -1,7 +1,7 @@
 import type { AgentConfig } from "../../agents/agents.ts";
 import type { FreshBootContract } from "../../harness/fresh-boot-contract.ts";
 import type { PathContract } from "../../harness/path-contract.ts";
-import type { PathMemoryPacketInput } from "../../harness/path-memory.ts";
+import { pathIdFromFolder, xenoniteNamespaceFromPath, type PathMemoryPacketInput } from "../../harness/path-memory.ts";
 import type { AcceptanceInput } from "../../shared/types.ts";
 import type { ChainStep, DynamicParallelStep, ParallelTaskItem, SequentialStep } from "../../shared/settings.ts";
 import { isDynamicParallelStep, isParallelStep } from "../../shared/settings.ts";
@@ -143,6 +143,54 @@ function writePathContract(task: RuntimeArchitectureTask, assignedPath: string):
 	};
 }
 
+function memoryPathSegment(assignedPath: string | undefined): string {
+	const normalized = normalizePath(assignedPath || "project")
+		.replace(/^\.\//, "")
+		.replace(/^\/+/, "")
+		.replace(/\/+$/, "");
+	return normalized || "project";
+}
+
+function defaultPathMemoryPacket(task: RuntimeArchitectureTask, assignedPath: string | undefined): PathMemoryPacketInput {
+	const segment = memoryPathSegment(assignedPath);
+	const pathId = pathIdFromFolder(segment);
+	const include = {
+		profile: true,
+		conventions: true,
+		recent_decisions: 5,
+		known_failures: 3,
+		incidents: 3,
+		contract_summaries: 5,
+	};
+	return {
+		packet_id: `runtime-${safeId(task.agent)}-${safeId(segment)}`,
+		contract_id: `memory-${safeId(task.agent)}-${safeId(segment)}`,
+		memory_scope: {
+			type: "path",
+			path_id: pathId,
+			agent_id: task.agent,
+			memory_path: `.harness/memory/paths/${segment}`,
+			xenonite_namespace: xenoniteNamespaceFromPath(segment),
+		},
+		memory_attachments: [{
+			attachment_id: `memory-${safeId(task.agent)}-${safeId(segment)}`,
+			path_id: pathId,
+			agent_id: task.agent,
+			memory_path: `.harness/memory/paths/${segment}`,
+			xenonite_namespace: xenoniteNamespaceFromPath(segment),
+			mode: "read_only",
+			include,
+			budget: { max_bytes: 12_000 },
+		}],
+		apply_updates_after_validation_pass: true,
+	};
+}
+
+function withDefaultMemory<T extends RuntimeArchitectureTask>(task: T, assignedPath: string | undefined): T {
+	if (task.memoryPacket || task.bootContract) return task;
+	return { ...task, memoryPacket: defaultPathMemoryPacket(task, assignedPath) } as T;
+}
+
 function requiredAcceptance(write: boolean): AcceptanceInput {
 	return write
 		? {
@@ -189,7 +237,12 @@ function normalizeTask<T extends RuntimeArchitectureTask>(
 		if (isReadOnlyAgent(task.agent) && hasWriteAuthority(task.pathContract)) {
 			return { error: `Runtime architecture policy blocks read-only role '${task.agent}' from receiving a write-capable pathContract.` };
 		}
-		return { task: { ...task, acceptance: mandatoryAcceptance(task.acceptance, hasWriteAuthority(task.pathContract)) } };
+		return {
+			task: {
+				...withDefaultMemory(task, task.pathContract.assigned_path),
+				acceptance: mandatoryAcceptance(task.acceptance, hasWriteAuthority(task.pathContract)),
+			},
+		};
 	}
 	const agent = agentsByName.get(task.agent);
 	const write = expectsWrite(task, agent);
@@ -200,7 +253,7 @@ function normalizeTask<T extends RuntimeArchitectureTask>(
 		warnings.push(`Runtime architecture policy attached read-only contract to ${task.agent}.`);
 		return {
 			task: {
-				...task,
+				...withDefaultMemory(task, inferMentionedPath(task.task, task.cwd, task.output)),
 				pathContract: readOnlyPathContract(task),
 				acceptance: mandatoryAcceptance(task.acceptance, false),
 			} as T,
@@ -215,7 +268,7 @@ function normalizeTask<T extends RuntimeArchitectureTask>(
 	warnings.push(`Runtime architecture policy attached write contract for ${task.agent} at ${assignedPath}.`);
 	return {
 		task: {
-			...task,
+			...withDefaultMemory(task, assignedPath),
 			pathContract: writePathContract(task, assignedPath),
 			acceptance: mandatoryAcceptance(task.acceptance, true),
 		} as T,
@@ -292,6 +345,7 @@ export function applyRuntimeArchitecturePolicy<T extends RuntimeArchitecturePara
 		return {
 			params: {
 				...params,
+				memoryPacket: normalized.task?.memoryPacket,
 				pathContract: normalized.task?.pathContract,
 				bootContract: normalized.task?.bootContract,
 				acceptance: normalized.task?.acceptance,

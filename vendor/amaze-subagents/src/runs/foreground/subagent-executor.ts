@@ -1022,7 +1022,7 @@ function resolveAgentExecutionContext(agent: AgentConfig | undefined, explicitCo
 function resolveTopLevelParallelTaskContexts(params: SubagentParamsLike, agents: AgentConfig[]): SubagentExecutionContext[] | undefined {
 	if (!params.tasks) return undefined;
 	const byName = new Map(agents.map((agent) => [agent.name, agent]));
-	return params.tasks.map((task) => task.memoryPacket || task.bootContract ? "fresh" : resolveAgentExecutionContext(byName.get(task.agent), params.context));
+	return params.tasks.map((task) => task.bootContract ? "fresh" : resolveAgentExecutionContext(byName.get(task.agent), params.context));
 }
 
 function resolveChainTaskContexts(params: SubagentParamsLike, agents: AgentConfig[]): SubagentExecutionContext[] | undefined {
@@ -1031,16 +1031,16 @@ function resolveChainTaskContexts(params: SubagentParamsLike, agents: AgentConfi
 	const contexts: SubagentExecutionContext[] = [];
 	for (const step of params.chain) {
 		if (isParallelStep(step)) {
-			for (const task of step.parallel) contexts.push(task.memoryPacket || task.bootContract ? "fresh" : resolveAgentExecutionContext(byName.get(task.agent), params.context));
+			for (const task of step.parallel) contexts.push(task.bootContract ? "fresh" : resolveAgentExecutionContext(byName.get(task.agent), params.context));
 			continue;
 		}
 		const dynamic = step as DynamicParallelStep;
 		if (dynamic.expand && dynamic.parallel) {
-			contexts.push(dynamic.parallel.memoryPacket || dynamic.parallel.bootContract ? "fresh" : resolveAgentExecutionContext(byName.get(dynamic.parallel.agent), params.context));
+			contexts.push(dynamic.parallel.bootContract ? "fresh" : resolveAgentExecutionContext(byName.get(dynamic.parallel.agent), params.context));
 			continue;
 		}
 		const sequential = step as SequentialStep;
-		contexts.push(sequential.memoryPacket || sequential.bootContract ? "fresh" : resolveAgentExecutionContext(byName.get(sequential.agent), params.context));
+		contexts.push(sequential.bootContract ? "fresh" : resolveAgentExecutionContext(byName.get(sequential.agent), params.context));
 	}
 	return contexts;
 }
@@ -2647,7 +2647,7 @@ export function createSubagentExecutor(deps: ExecutorDeps): {
 		if (architecturePolicy.error) return toExecutionErrorResult(effectiveParams, new Error(architecturePolicy.error));
 		effectiveParams = architecturePolicy.params ?? effectiveParams;
 		effectiveParams = applyAgentDefaultContext(effectiveParams, discoveredAgents);
-		if ((effectiveParams.memoryPacket || effectiveParams.bootContract) && effectiveParams.context === "fork") {
+		if (effectiveParams.bootContract && effectiveParams.context === "fork") {
 			effectiveParams = { ...effectiveParams, context: "fresh" };
 		}
 		const chainTaskContexts = resolveChainTaskContexts(effectiveParams, discoveredAgents);
