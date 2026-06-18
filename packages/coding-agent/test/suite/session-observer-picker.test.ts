@@ -1,4 +1,4 @@
-import { setKeybindings, visibleWidth } from "@earendil-works/pi-tui";
+import { setKeybindings, visibleWidth } from "@steve-8000/amaze-tui";
 import { describe, expect, it } from "vitest";
 import { SessionHudOverlay } from "../../src/core/extensions/builtin/session-observer/overlay.ts";
 import type { SessionHudEntry } from "../../src/core/extensions/builtin/session-observer/types.ts";
@@ -10,7 +10,7 @@ const BASE_SESSION: SessionHudEntry = {
 	id: "session-alpha",
 	shortId: "session-",
 	path: "/tmp/session-alpha.jsonl",
-	cwd: "/Users/yeongyu/local-workspaces/senpi/packages/coding-agent",
+	cwd: "/Users/yeongyu/local-workspaces/amaze/packages/coding-agent",
 	createdAt: Date.UTC(2026, 4, 26, 8, 0, 0),
 	modifiedAt: Date.UTC(2026, 4, 26, 8, 9, 0),
 	messageCount: 2,
@@ -69,7 +69,7 @@ describe("SessionHudOverlay picker", () => {
 				...BASE_SESSION,
 				lastUserText:
 					"Summarize every changed TypeScript file in the coding agent package and keep the answer extremely concise",
-				cwd: "/Users/yeongyu/local-workspaces/senpi/packages/coding-agent/src/core/extensions/builtin/session-observer",
+				cwd: "/Users/yeongyu/local-workspaces/amaze/packages/coding-agent/src/core/extensions/builtin/session-observer",
 			},
 		]);
 

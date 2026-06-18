@@ -27,7 +27,7 @@ describe("extension load diagnostics", () => {
 	});
 
 	function createTempDir(): string {
-		const dir = mkdtempSync(join(tmpdir(), "senpi-extension-diagnostics-"));
+		const dir = mkdtempSync(join(tmpdir(), "amaze-extension-diagnostics-"));
 		tempDirs.push(dir);
 		return dir;
 	}

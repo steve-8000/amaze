@@ -5,11 +5,11 @@
  * Delegates to pi-ai's built-in Anthropic and OpenAI streaming implementations.
  *
  * Usage:
- *   senpi -e ./packages/coding-agent/examples/extensions/custom-provider-gitlab-duo
+ *   amaze -e ./packages/coding-agent/examples/extensions/custom-provider-gitlab-duo
  *   # Then /login gitlab-duo, or set GITLAB_TOKEN=glpat-...
  */
 
-import type { ExtensionAPI } from "@code-yeongyu/senpi";
+import type { ExtensionAPI } from "amaze";
 import {
 	type Api,
 	type AssistantMessageEventStream,
@@ -22,7 +22,7 @@ import {
 	streamSimpleAnthropic,
 	streamSimpleOpenAIResponses,
 	type ThinkingLevelMap,
-} from "@earendil-works/pi-ai";
+} from "@steve-8000/amaze-ai";
 
 // =============================================================================
 // Constants

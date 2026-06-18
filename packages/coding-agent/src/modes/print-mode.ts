@@ -3,10 +3,10 @@
  *
  * Used for:
  * - `pi -p "prompt"` - text output
- * - `senpi --mode json "prompt"` - JSON event stream
+ * - `amaze --mode json "prompt"` - JSON event stream
  */
 
-import type { ImageContent } from "@earendil-works/pi-ai";
+import type { ImageContent } from "@steve-8000/amaze-ai";
 import type { AgentSessionRuntime } from "../core/agent-session-runtime.ts";
 import { flushRawStdout, writeRawStdout } from "../core/output-guard.ts";
 import { killTrackedDetachedChildren } from "../utils/shell.ts";

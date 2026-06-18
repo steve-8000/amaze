@@ -1,5 +1,5 @@
-import type { AgentTool, AgentToolResult } from '@earendil-works/pi-agent-core';
-import { type Static, Type } from '@earendil-works/pi-ai';
+import type { AgentTool, AgentToolResult } from '@steve-8000/amaze-agent-core';
+import { type Static, Type } from '@steve-8000/amaze-ai';
 import { composeTimeoutSignal } from './abort.ts';
 import type { AgentProfile, PackagedSkillDirectory, SessionEnv } from './types.ts';
 

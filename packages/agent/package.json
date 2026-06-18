@@ -1,5 +1,5 @@
 {
-	"name": "@earendil-works/pi-agent-core",
+	"name": "@steve-8000/amaze-agent-core",
 	"private": true,
 	"version": "2026.6.16-2",
 	"description": "General-purpose agent with transport abstraction, state management, and attachment support",
@@ -30,7 +30,7 @@
 		"prepublishOnly": "npm run clean && npm run build"
 	},
 	"dependencies": {
-		"@earendil-works/pi-ai": "^2026.6.16-2",
+		"@steve-8000/amaze-ai": "^2026.6.16-2",
 		"ignore": "7.0.5",
 		"typebox": "1.1.38",
 		"yaml": "2.9.0"
@@ -46,7 +46,7 @@
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/earendil-works/pi.git",
+		"url": "git+https://github.com/steve-8000/amaze.git",
 		"directory": "packages/agent"
 	},
 	"engines": {

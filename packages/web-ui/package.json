@@ -1,8 +1,8 @@
 {
-	"name": "@earendil-works/pi-web-ui",
+	"name": "@steve-8000/amaze-web-ui",
 	"private": true,
 	"version": "2026.6.16-2",
-	"description": "Reusable web UI components for AI chat interfaces powered by @earendil-works/pi-ai",
+	"description": "Reusable web UI components for AI chat interfaces powered by @steve-8000/amaze-ai",
 	"type": "module",
 	"main": "dist/index.js",
 	"types": "dist/index.d.ts",
@@ -21,8 +21,8 @@
 		"check": "biome check --write --error-on-warnings . && tsc --noEmit && npm run check --prefix example"
 	},
 	"dependencies": {
-		"@earendil-works/pi-agent-core": "^2026.6.16-2",
-		"@earendil-works/pi-ai": "^2026.6.16-2",
+		"@steve-8000/amaze-agent-core": "^2026.6.16-2",
+		"@steve-8000/amaze-ai": "^2026.6.16-2",
 		"@lmstudio/sdk": "1.5.0",
 		"docx-preview": "0.3.7",
 		"highlight.js": "11.11.1",

@@ -1,4 +1,4 @@
-import type { Message, TextContent } from "@earendil-works/pi-ai";
+import type { Message, TextContent } from "@steve-8000/amaze-ai";
 
 export const TOOL_RESULT_PLACEHOLDER = "Tool output unavailable (context compacted)";
 

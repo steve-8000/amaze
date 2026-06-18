@@ -1,4 +1,4 @@
-> senpi can create prompt templates. Ask it to build one for your workflow.
+> amaze can create prompt templates. Ask it to build one for your workflow.
 
 # Prompt Templates
 
@@ -6,10 +6,10 @@ Prompt templates are Markdown snippets that expand into full prompts. Type `/nam
 
 ## Locations
 
-Senpi loads prompt templates from:
+amaze loads prompt templates from:
 
-- Global: `~/.senpi/agent/prompts/*.md`
-- Project: `.senpi/prompts/*.md` (only after the project is trusted)
+- Global: `~/.amaze/agent/prompts/*.md`
+- Project: `.amaze/prompts/*.md` (only after the project is trusted)
 - Packages: `prompts/` directories or `pi.prompts` entries in `package.json`
 - Settings: `prompts` array with files or directories
 - CLI: `--prompt-template <path>` (repeatable)

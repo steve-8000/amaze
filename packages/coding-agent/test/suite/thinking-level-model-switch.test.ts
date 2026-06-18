@@ -1,4 +1,4 @@
-import { getModel } from "@earendil-works/pi-ai";
+import { getModel } from "@steve-8000/amaze-ai";
 import { describe, expect, it } from "vitest";
 import { clampThinkingLevelToModel } from "../../src/core/sdk.ts";
 

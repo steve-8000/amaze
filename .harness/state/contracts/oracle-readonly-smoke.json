@@ -1,0 +1,21 @@
+{
+  "contract_id": "oracle-readonly-smoke",
+  "status": "completed",
+  "created_at": "2026-06-18T03:57:26.020Z",
+  "updated_at": "2026-06-18T03:58:23.453Z",
+  "run_id": "e877dfb8",
+  "agent": "oracle",
+  "task": "Live smoke test only. Audit this policy in three bullets: shared Xenonite tools include index_status, search_query, graph_status, graph_*; role-specific acceptance; explicit write permissions. Do not modify files.",
+  "path_contract": {
+    "read_allowed_paths": [
+      "**/*"
+    ],
+    "write_allowed_paths": [],
+    "write_denied_paths": [
+      "**/*"
+    ],
+    "contract_id": "oracle-readonly-smoke"
+  },
+  "locks": [],
+  "exit_code": 0
+}

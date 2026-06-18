@@ -23,15 +23,15 @@ import type {
 	AgentState,
 	AgentTool,
 	ThinkingLevel,
-} from "@earendil-works/pi-agent-core";
-import type { AssistantMessage, ImageContent, Message, Model, TextContent } from "@earendil-works/pi-ai";
+} from "@steve-8000/amaze-agent-core";
+import type { AssistantMessage, ImageContent, Message, Model, TextContent } from "@steve-8000/amaze-ai";
 import {
 	cleanupSessionResources,
 	isContextOverflow,
 	modelsAreEqual,
 	resetApiProviders,
 	streamSimple,
-} from "@earendil-works/pi-ai";
+} from "@steve-8000/amaze-ai";
 import { getThemeByName, theme } from "../modes/interactive/theme/theme.ts";
 import { stripFrontmatter } from "../utils/frontmatter.ts";
 import { resolvePath } from "../utils/paths.ts";

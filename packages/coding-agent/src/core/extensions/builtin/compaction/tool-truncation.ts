@@ -1,5 +1,5 @@
-import type { AgentToolResult } from "@earendil-works/pi-agent-core";
-import type { ImageContent, TextContent } from "@earendil-works/pi-ai";
+import type { AgentToolResult } from "@steve-8000/amaze-agent-core";
+import type { ImageContent, TextContent } from "@steve-8000/amaze-ai";
 
 const PER_RESULT_TRUNCATE_THRESHOLD_BYTES = 4096;
 const TRUNCATION_HEAD_CHARS = 800;

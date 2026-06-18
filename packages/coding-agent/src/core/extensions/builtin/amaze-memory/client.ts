@@ -1,5 +1,54 @@
-// Client for the Xenonite service (unified memory + code engine). amaze itself
-// holds no memory/skill logic or Python dependency; it calls Xenonite over HTTP.
+// Client for the Xenonite MCP service. amaze itself holds no durable memory
+// engine; it calls Xenonite through the same HTTP MCP JSON-RPC contract used by
+// external clients.
+export interface MemoryItem {
+	id?: string;
+	text: string;
+	score?: number;
+	source?: "semantic" | "recent" | "sync" | "manual" | string;
+	ts?: number;
+	meta?: Record<string, unknown>;
+}
+
+export interface MemoryRecallResult {
+	ok?: boolean;
+	query?: string;
+	context?: string;
+	items?: MemoryItem[];
+	totalCandidates?: number;
+	semanticCount?: number;
+	recentCount?: number;
+}
+
+export interface MemoryStoreResult {
+	ok?: boolean;
+	added?: number;
+	items?: MemoryItem[];
+	context?: string;
+	skipped?: string[];
+	error?: string;
+	action?: "added" | "updated" | "rejected" | string;
+	reason?: string;
+	topicKey?: string;
+}
+
+export interface MemoryNamespaceOptions {
+	namespace?: string;
+	pathId?: string;
+	memoryPath?: string;
+}
+
+function memoryPayloadScope(sessionId: string, options: MemoryNamespaceOptions = {}): Record<string, unknown> {
+	if (!options.namespace) return { session_id: sessionId };
+	return {
+		session_id: options.namespace,
+		namespace: options.namespace,
+		memory_scope: "path",
+		path_id: options.pathId,
+		memory_path: options.memoryPath,
+	};
+}
+
 export class XenoniteClient {
 	private readonly base: string;
 
@@ -13,7 +62,7 @@ export class XenoniteClient {
 			headers: { "content-type": "application/json" },
 			body: JSON.stringify(body),
 		});
-		if (!res.ok) throw new Error(`hermes-bridge ${path} -> ${res.status}`);
+		if (!res.ok) throw new Error(`xenonite-mcp ${path} -> ${res.status}`);
 		return res.json();
 	}
 
@@ -32,26 +81,38 @@ export class XenoniteClient {
 		}
 	}
 
-	async syncTurn(userContent: string, assistantContent: string, sessionId: string): Promise<void> {
-		await this.post("/v1/memory/sync", { user_content: userContent, assistant_content: assistantContent, session_id: sessionId });
+	private async mcpTool<T>(name: string, args: Record<string, unknown>): Promise<T> {
+		const data = (await this.post("/v1/mcp", {
+			jsonrpc: "2.0",
+			id: `amaze-memory-${Date.now()}`,
+			method: "tools/call",
+			params: { name, arguments: args },
+		})) as {
+			result?: { content?: Array<{ type?: string; text?: string }> };
+			error?: { message?: string };
+		};
+		if (data.error) throw new Error(data.error.message ?? "Xenonite MCP error");
+		const text = data.result?.content?.find((item) => item.type === "text")?.text ?? "{}";
+		return JSON.parse(text) as T;
 	}
 
-	async prefetch(query: string, _sessionId: string): Promise<string> {
-		const data = (await this.post("/v1/memory/recall", { query })) as { context?: string };
-		return data.context ?? "";
+	async syncTurn(_userContent: string, _assistantContent: string, _sessionId: string, _options: MemoryNamespaceOptions = {}): Promise<MemoryStoreResult> {
+		return { ok: true, added: 0, items: [], skipped: [], reason: "auto_sync_disabled" };
+	}
+
+	async prefetch(query: string, sessionId: string, options: { topK?: number } & MemoryNamespaceOptions = {}): Promise<MemoryRecallResult> {
+		return await this.mcpTool<MemoryRecallResult>("xenonite_memory_recall", {
+			query,
+			...memoryPayloadScope(sessionId, options),
+			top_k: options.topK,
+		});
+	}
+
+	async store(text: string, sessionId: string, options: MemoryNamespaceOptions & { source?: string } = {}): Promise<MemoryStoreResult> {
+		return await this.mcpTool<MemoryStoreResult>("xenonite_memory_store", { text, source: options.source, ...memoryPayloadScope(sessionId, options) });
 	}
 
 	async systemPromptBlock(): Promise<string> {
-		const data = (await this.get("/v1/memory/system-prompt")) as { block?: string };
-		return data.block ?? "";
-	}
-
-	async skillManage(args: Record<string, unknown>): Promise<string> {
-		const data = (await this.post("/v1/skills/manage", args)) as { result?: string };
-		return data.result ?? "";
-	}
-
-	async backgroundReview(messagesSnapshot: unknown[]): Promise<{ suggestion?: string }> {
-		return (await this.post("/v1/review", { messages_snapshot: messagesSnapshot })) as { suggestion?: string };
+		return "";
 	}
 }

@@ -98,7 +98,7 @@
 
 ### Fixed
 
-- Fixed late tool progress callbacks after tool settlement to be ignored instead of emitting stale `tool_execution_update` events ([#5573](https://github.com/earendil-works/pi/issues/5573)).
+- Fixed late tool progress callbacks after tool settlement to be ignored instead of emitting stale `tool_execution_update` events ([#5573](https://github.com/steve-8000/pi/issues/5573)).
 
 ### Removed
 
@@ -150,7 +150,7 @@
 
 ### Fixed
 
-- Fixed the compaction summarization system prompt to use neutral AI assistant wording for non-coding agents ([#5401](https://github.com/earendil-works/pi/issues/5401)).
+- Fixed the compaction summarization system prompt to use neutral AI assistant wording for non-coding agents ([#5401](https://github.com/steve-8000/pi/issues/5401)).
 
 ### Removed
 
@@ -244,7 +244,7 @@
 
 ### Fixed
 
-- Fixed context token estimates to count user image attachments consistently with tool result images ([#4983](https://github.com/earendil-works/pi/issues/4983)).
+- Fixed context token estimates to count user image attachments consistently with tool result images ([#4983](https://github.com/steve-8000/pi/issues/4983)).
 
 ### Removed
 
@@ -356,9 +356,9 @@
 ### Fixed
 
 - Fixed idle provider streams to fail the current turn instead of leaving the agent loop running indefinitely.
-- Fixed tool-call preflight to stop preparing sibling tool calls after the run is aborted ([#4276](https://github.com/earendil-works/pi/issues/4276)).
-- Fixed tail truncation for oversized single-line output that ends with a trailing newline ([#4715](https://github.com/earendil-works/pi/issues/4715)).
-- Fixed Windows Node execution environment command spawns to hide helper console windows from background processes ([#4699](https://github.com/earendil-works/pi/issues/4699)).
+- Fixed tool-call preflight to stop preparing sibling tool calls after the run is aborted ([#4276](https://github.com/steve-8000/pi/issues/4276)).
+- Fixed tail truncation for oversized single-line output that ends with a trailing newline ([#4715](https://github.com/steve-8000/pi/issues/4715)).
+- Fixed Windows Node execution environment command spawns to hide helper console windows from background processes ([#4699](https://github.com/steve-8000/pi/issues/4699)).
 
 ## [2026.5.19] - 2026-05-19
 
@@ -830,7 +830,7 @@
 
 - **`UserMessageWithAttachments` and `Attachment` types removed**: Attachment handling is now the responsibility of the `convertToLlm` function.
 
-- **Agent loop moved from `@mariozechner/pi-ai`**: The `agentLoop`, `agentLoopContinue`, and related types have moved to this package. Import from `@mariozechner/pi-agent-core` instead.
+- **Agent loop moved from `@steve-8000/amaze-ai`**: The `agentLoop`, `agentLoopContinue`, and related types have moved to this package. Import from `@steve-8000/amaze-agent-core` instead.
 
 ### Added
 

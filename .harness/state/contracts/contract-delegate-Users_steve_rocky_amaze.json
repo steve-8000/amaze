@@ -1,0 +1,41 @@
+{
+  "contract_id": "contract-delegate-Users_steve_rocky_amaze",
+  "status": "failed",
+  "created_at": "2026-06-18T03:32:25.019Z",
+  "updated_at": "2026-06-18T03:32:38.037Z",
+  "run_id": "ba5d9416",
+  "agent": "delegate",
+  "task": "Live smoke test only. Answer this in one sentence: role controls acceptance burden, tools remain shared. Do not inspect or modify files.",
+  "path_contract": {
+    "contract_id": "contract-delegate-Users_steve_rocky_amaze",
+    "assigned_worker": "delegate",
+    "assigned_path": "Users/steve/rocky/amaze",
+    "owned_paths": [
+      "Users/steve/rocky/amaze/**"
+    ],
+    "read_allowed_paths": [
+      "**/*"
+    ],
+    "write_allowed_paths": [
+      "Users/steve/rocky/amaze/**"
+    ],
+    "write_denied_paths": [],
+    "activity_budget": {
+      "max_tokens": 270000,
+      "max_elapsed_ms": 180000
+    }
+  },
+  "locks": [
+    {
+      "lock_id": "contract-delegate-Users_steve_rocky_amaze-Users_steve_rocky_amaze",
+      "contract_id": "contract-delegate-Users_steve_rocky_amaze",
+      "lock_path": "Users/steve/rocky/amaze",
+      "created_at": "2026-06-18T03:32:25.019Z",
+      "pid": 22924,
+      "run_id": "ba5d9416",
+      "agent": "delegate"
+    }
+  ],
+  "exit_code": 1,
+  "error": "Subagent completed without making edits for an implementation task.\nIt appears to have returned planning or scratchpad output instead of applying changes."
+}

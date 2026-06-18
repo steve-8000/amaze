@@ -41,7 +41,7 @@ has no file (in-memory / print mode). One goal per thread.
 
 ## ERRORS
 
-Tool error results are signaled by **throwing** from `execute()` — senpi's
+Tool error results are signaled by **throwing** from `execute()` — amaze's
 `AgentToolResult` has no `isError` field and the agent loop only marks a result
 as an error when the tool throws (`agent-loop.ts` `executePreparedToolCall`).
 Do not return an `isError` property; it is ignored.

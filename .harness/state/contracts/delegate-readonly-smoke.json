@@ -1,0 +1,21 @@
+{
+  "contract_id": "delegate-readonly-smoke",
+  "status": "completed",
+  "created_at": "2026-06-18T03:53:07.681Z",
+  "updated_at": "2026-06-18T03:53:14.520Z",
+  "run_id": "fdce2fa4",
+  "agent": "delegate",
+  "task": "Live smoke test only. Answer this in one sentence: role controls acceptance burden, tools remain shared. Do not modify files.",
+  "path_contract": {
+    "read_allowed_paths": [
+      "**/*"
+    ],
+    "write_allowed_paths": [],
+    "write_denied_paths": [
+      "**/*"
+    ],
+    "contract_id": "delegate-readonly-smoke"
+  },
+  "locks": [],
+  "exit_code": 0
+}

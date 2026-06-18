@@ -1,4 +1,5 @@
-import { Box, Container, Markdown, type MarkdownTheme } from "@earendil-works/pi-tui";
+import { Box, Container, Markdown, type MarkdownTheme } from "@steve-8000/amaze-tui";
+import { renderOutputBlock, trimBlankEdges } from "../../../tui/output-block.ts";
 import { getMarkdownTheme, theme } from "../theme/theme.ts";
 
 const OSC133_ZONE_START = "\x1b]133;A\x07";
@@ -13,7 +14,7 @@ export class UserMessageComponent extends Container {
 
 	constructor(text: string, markdownTheme: MarkdownTheme = getMarkdownTheme()) {
 		super();
-		this.contentBox = new Box(1, 1, (content: string) => theme.bg("userMessageBg", content));
+		this.contentBox = new Box(0, 1, (content: string) => theme.bg("userMessageBg", content));
 		this.contentBox.addChild(
 			new Markdown(
 				text,
@@ -30,11 +31,22 @@ export class UserMessageComponent extends Container {
 	}
 
 	override render(width: number): string[] {
-		const lines = super.render(width);
-		if (lines.length === 0) {
-			return lines;
+		const content = trimBlankEdges(super.render(Math.max(1, width - 2)));
+		if (content.length === 0) {
+			return content;
 		}
-
+		// User prompt rendered as an accent-bordered card.
+		const lines = renderOutputBlock(
+			{
+				header: "📢 User Prompt",
+				state: "success",
+				borderColor: "warning",
+				applyBg: false,
+				sections: [{ lines: content }],
+				width,
+			},
+			theme,
+		);
 		lines[0] = OSC133_ZONE_START + lines[0];
 		lines[lines.length - 1] = OSC133_ZONE_END + OSC133_ZONE_FINAL + lines[lines.length - 1];
 		return lines;

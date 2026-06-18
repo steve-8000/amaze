@@ -1,6 +1,6 @@
 # builtin/compaction
 
-Builtin extension #23 (last). Owns senpi's compaction pipeline: speculative compaction running in parallel with the next turn, blocking compaction at the hard context limit, proactive compaction near the soft limit, degradation monitoring, circuit breaker, per-turn cap, todo bridging, checkpoint state, restoration tracker, and tool-result truncation. Policy-rich; touch with policy tests in lock-step. See `changes.md` for the restoration tracker rationale.
+Builtin extension #23 (last). Owns amaze's compaction pipeline: speculative compaction running in parallel with the next turn, blocking compaction at the hard context limit, proactive compaction near the soft limit, degradation monitoring, circuit breaker, per-turn cap, todo bridging, checkpoint state, restoration tracker, and tool-result truncation. Policy-rich; touch with policy tests in lock-step. See `changes.md` for the restoration tracker rationale.
 
 ## FILES
 
@@ -11,7 +11,7 @@ compaction/
 ├── policy.ts                 # Adaptive threshold + decision matrix
 ├── speculative.ts            # Parallel speculative compaction during next turn
 ├── context-reduction.ts      # Deterministic no-LLM reductions (collapse tool-result runs, shrink old answers, clear old tool results)
-├── openai-remote.ts          # OpenAI Responses remote-compaction route (`senpi.compaction.openai-remote.v1` schema)
+├── openai-remote.ts          # OpenAI Responses remote-compaction route (`amaze.compaction.openai-remote.v1` schema)
 ├── repair-tool-pairs.ts      # Replaces orphaned tool-call/result pairs left by pruning with placeholders
 ├── circuit-breaker.ts        # N consecutive failures → halt automatic compaction
 ├── per-turn-cap.ts           # Max compactions per turn rate-limiter
@@ -60,6 +60,6 @@ compaction/
 
 ## NOTES
 
-- The fork's compaction differs significantly from upstream pi (speculative + restoration + degradation are all senpi additions). Upstream has a much simpler `core/compaction/` policy.
+- The fork's compaction differs significantly from upstream pi (speculative + restoration + degradation are all amaze additions). Upstream has a much simpler `core/compaction/` policy.
 - The 12 per-feature fixtures (under `test/fixtures/compaction/`) are documented in their own `README.md` — each isolates one subsystem to avoid spooky-action regressions.
 - `restoration-tracker.ts` is the marquee feature: post-compact, the agent re-reads its prior file/skill context so summarization doesn't lose tool grounding.

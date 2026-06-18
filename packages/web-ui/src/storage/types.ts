@@ -1,5 +1,5 @@
-import type { AgentMessage, ThinkingLevel } from "@earendil-works/pi-agent-core";
-import type { Model } from "@earendil-works/pi-ai";
+import type { AgentMessage, ThinkingLevel } from "@steve-8000/amaze-agent-core";
+import type { Model } from "@steve-8000/amaze-ai";
 
 /**
  * Transaction interface for atomic operations across stores.

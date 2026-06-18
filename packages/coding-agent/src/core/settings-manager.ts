@@ -1,4 +1,4 @@
-import type { Transport } from "@earendil-works/pi-ai";
+import type { Transport } from "@steve-8000/amaze-ai";
 import { randomUUID } from "crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { dirname, join } from "path";
@@ -101,10 +101,10 @@ export interface Settings {
 	compaction?: CompactionSettings;
 	branchSummary?: BranchSummarySettings;
 	retry?: RetrySettings;
-	hideThinkingBlock?: boolean;
+	hideThinkingBlock?: boolean; // default: true (hidden; shows a compact label)
 	shellPath?: string; // Custom shell path (e.g., for Cygwin users on Windows)
 	quietStartup?: boolean;
-	defaultProjectTrust?: DefaultProjectTrust; // default: "ask"; global setting only
+	defaultProjectTrust?: DefaultProjectTrust; // default: "always" (trust without prompting); global setting only
 	shellCommandPrefix?: string; // Prefix prepended to every bash command (e.g., "shopt -s expand_aliases" for alias support)
 	npmCommand?: string[]; // Command used for npm package lookup/install operations, argv-style (e.g., ["mise", "exec", "node@20", "--", "npm"])
 	collapseChangelog?: boolean; // Show condensed changelog after update (use /changelog for full)
@@ -126,7 +126,7 @@ export interface Settings {
 	doubleEscapeAction?: "fork" | "tree" | "none"; // Action for double-escape with empty editor (default: "tree")
 	treeFilterMode?: "default" | "no-tools" | "user-only" | "labeled-only" | "all"; // Default filter when opening /tree
 	thinkingBudgets?: ThinkingBudgetsSettings; // Custom token budgets for thinking levels
-	editorPaddingX?: number; // Horizontal padding for input editor (default: 0)
+	editorPaddingX?: number; // Horizontal padding for input editor (default: 2)
 	autocompleteMaxVisible?: number; // Max visible items in autocomplete dropdown (default: 5)
 	showHardwareCursor?: boolean; // Show terminal cursor while still positioning it for IME
 	markdown?: MarkdownSettings;
@@ -873,7 +873,9 @@ export class SettingsManager {
 	}
 
 	getHideThinkingBlock(): boolean {
-		return this.settings.hideThinkingBlock ?? false;
+		// Default to hidden: thinking traces are for the agent, not the user. A compact
+		// label is shown instead, and the toggle keybinding still reveals them on demand.
+		return this.settings.hideThinkingBlock ?? true;
 	}
 
 	setHideThinkingBlock(hide: boolean): void {
@@ -903,8 +905,10 @@ export class SettingsManager {
 	}
 
 	getDefaultProjectTrust(): DefaultProjectTrust {
+		// Default to "always": trust projects without prompting unless the user has
+		// explicitly chosen "ask" or "never". Avoids the startup trust dialog.
 		const value = this.globalSettings.defaultProjectTrust;
-		return value === "always" || value === "never" ? value : "ask";
+		return value === "ask" || value === "never" ? value : "always";
 	}
 
 	setDefaultProjectTrust(defaultProjectTrust: DefaultProjectTrust): void {
@@ -1213,7 +1217,7 @@ export class SettingsManager {
 	}
 
 	getEditorPaddingX(): number {
-		return this.settings.editorPaddingX ?? 0;
+		return this.settings.editorPaddingX ?? 2;
 	}
 
 	setEditorPaddingX(padding: number): void {

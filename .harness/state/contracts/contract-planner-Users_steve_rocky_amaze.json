@@ -1,0 +1,41 @@
+{
+  "contract_id": "contract-planner-Users_steve_rocky_amaze",
+  "status": "failed",
+  "created_at": "2026-06-18T03:30:42.806Z",
+  "updated_at": "2026-06-18T03:31:05.580Z",
+  "run_id": "83c3d559",
+  "agent": "planner",
+  "task": "Live smoke test only. Create a minimal 3-step plan for validating role-based subagent acceptance contracts. Do not inspect or modify files. Return only the plan and one risk.\n\n---\n**Output:** Return your findings in the final response only. The parent runtime persists that response at the hidden output file: /Users/steve/rocky/amaze/.subagent-outputs/plan.md. No filesystem action is required for this output artifact.",
+  "path_contract": {
+    "contract_id": "contract-planner-Users_steve_rocky_amaze",
+    "assigned_worker": "planner",
+    "assigned_path": "Users/steve/rocky/amaze",
+    "owned_paths": [
+      "Users/steve/rocky/amaze/**"
+    ],
+    "read_allowed_paths": [
+      "**/*"
+    ],
+    "write_allowed_paths": [
+      "Users/steve/rocky/amaze/**"
+    ],
+    "write_denied_paths": [],
+    "activity_budget": {
+      "max_tokens": 270000,
+      "max_elapsed_ms": 180000
+    }
+  },
+  "locks": [
+    {
+      "lock_id": "contract-planner-Users_steve_rocky_amaze-Users_steve_rocky_amaze",
+      "contract_id": "contract-planner-Users_steve_rocky_amaze",
+      "lock_path": "Users/steve/rocky/amaze",
+      "created_at": "2026-06-18T03:30:42.806Z",
+      "pid": 22924,
+      "run_id": "83c3d559",
+      "agent": "planner"
+    }
+  ],
+  "exit_code": 1,
+  "error": "Subagent completed without making edits for an implementation task.\nIt appears to have returned planning or scratchpad output instead of applying changes."
+}

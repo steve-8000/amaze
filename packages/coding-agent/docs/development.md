@@ -5,8 +5,8 @@ See [AGENTS.md](../../../AGENTS.md) at the monorepo root for fork-specific guide
 ## Setup
 
 ```bash
-git clone https://github.com/code-yeongyu/senpi
-cd senpi
+git clone https://github.com/code-yeongyu/amaze
+cd amaze
 npm install
 npm run build
 ```
@@ -14,20 +14,20 @@ npm run build
 Run from source:
 
 ```bash
-/path/to/senpi/pi-test.sh
+/path/to/amaze/pi-test.sh
 ```
 
-The script can be run from any directory. Senpi keeps the caller's current working directory.
+The script can be run from any directory. amaze keeps the caller's current working directory.
 
 ## Forking / Rebranding
 
-This repo is itself a rebrand of upstream `pi-mono` to `senpi`. The runtime identity (CLI name, config dir, env var prefix) is configured via `package.json`:
+This repo is itself a rebrand of upstream `pi-mono` to `amaze`. The runtime identity (CLI name, config dir, env var prefix) is configured via `package.json`:
 
 ```json
 {
-  "piConfig": {
-    "name": "senpi",
-    "configDir": ".senpi"
+  "amazeConfig": {
+    "name": "amaze",
+    "configDir": ".amaze"
   }
 }
 ```
@@ -48,7 +48,7 @@ Never use `__dirname` directly for package assets.
 
 ## Debug Command
 
-`/debug` (hidden) writes to `~/.senpi/agent/senpi-debug.log`:
+`/debug` (hidden) writes to `~/.amaze/agent/amaze-debug.log`:
 - Rendered TUI lines with ANSI codes
 - Last messages sent to the LLM
 
@@ -65,18 +65,18 @@ Live-API tests are env-gated vitest tests. Set `PI_ENABLE_LIVE_API_TESTS=1` (or 
 Run a specific test:
 
 ```bash
-npm test --workspace @code-yeongyu/senpi -- test/specific.test.ts
+npm test --workspace amaze -- test/specific.test.ts
 ```
 
 ## Project Structure
 
 ```
 packages/
-  ai/           # @earendil-works/pi-ai — LLM provider abstraction
-  agent/        # @earendil-works/pi-agent-core — Agent loop and message types
-  tui/          # @earendil-works/pi-tui — Terminal UI components
-  coding-agent/ # @code-yeongyu/senpi — CLI and interactive mode (this package)
-  web-ui/       # @earendil-works/pi-web-ui — Lit chat components
+  ai/           # @steve-8000/amaze-ai — LLM provider abstraction
+  agent/        # @steve-8000/amaze-agent-core — Agent loop and message types
+  tui/          # @steve-8000/amaze-tui — Terminal UI components
+  coding-agent/ # amaze — CLI and interactive mode (this package)
+  web-ui/       # @steve-8000/amaze-web-ui — Lit chat components
 ```
 
 See the monorepo root [AGENTS.md](../../../AGENTS.md) for the full task → location map.

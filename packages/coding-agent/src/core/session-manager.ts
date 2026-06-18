@@ -1,5 +1,5 @@
-import type { AgentMessage } from "@earendil-works/pi-agent-core";
-import type { ImageContent, Message, TextContent } from "@earendil-works/pi-ai";
+import type { AgentMessage } from "@steve-8000/amaze-agent-core";
+import type { ImageContent, Message, TextContent } from "@steve-8000/amaze-ai";
 import { randomBytes, randomUUID } from "crypto";
 import {
 	appendFileSync,
@@ -19,6 +19,7 @@ import { createInterface } from "readline";
 import { StringDecoder } from "string_decoder";
 import { getAgentDir as getDefaultAgentDir, getSessionsDir } from "../config.ts";
 import { normalizePath, resolvePath } from "../utils/paths.ts";
+import { isPaseoPiCompatEnabled, mapMessageForPaseoPiCompat } from "./paseo-pi-compat.ts";
 import { type ResidentStoreStats, ResidentStringStore } from "./session-resident-store.ts";
 
 // Fork change: inlined UUIDv7 (upstream uses the `uuid` npm package). Keeps this
@@ -463,7 +464,7 @@ export function buildSessionContext(
 
 /**
  * Compute the default session directory for a cwd.
- * Encodes cwd into a safe directory name under ~/.senpi/agent/sessions/.
+ * Encodes cwd into a safe directory name under ~/.amaze/agent/sessions/.
  */
 function getDefaultSessionDirPath(cwd: string, agentDir: string = getDefaultAgentDir()): string {
 	const resolvedCwd = resolvePath(cwd);
@@ -946,7 +947,7 @@ export class SessionManager {
 
 	_persist(entry: SessionEntry): void {
 		if (!this.persist || !this.sessionFile) return;
-		const persistedEntry = this.residentStore.materialize(entry);
+		const persistedEntry = this._materializeForPersistence(entry);
 
 		const hasAssistant = this.fileEntries.some((e) => e.type === "message" && e.message.role === "assistant");
 		if (!hasAssistant) {
@@ -963,7 +964,7 @@ export class SessionManager {
 			const fd = openSync(this.sessionFile, "wx");
 			try {
 				for (const e of this.fileEntries) {
-					writeFileSync(fd, `${JSON.stringify(this.residentStore.materialize(e))}\n`);
+					writeFileSync(fd, `${JSON.stringify(this._materializeForPersistence(e as SessionEntry))}\n`);
 				}
 			} finally {
 				closeSync(fd);
@@ -980,6 +981,15 @@ export class SessionManager {
 		this.byId.set(residentEntry.id, residentEntry);
 		this.leafId = residentEntry.id;
 		this._persist(residentEntry);
+	}
+
+	private _materializeForPersistence(entry: SessionEntry): SessionEntry {
+		const materialized = this.residentStore.materialize(entry);
+		if (!isPaseoPiCompatEnabled() || materialized.type !== "message") return materialized;
+		return {
+			...materialized,
+			message: mapMessageForPaseoPiCompat(materialized.message as Message),
+		};
 	}
 
 	/** Append a message as child of current leaf, then advance leaf. Returns entry id.
@@ -1439,7 +1449,7 @@ export class SessionManager {
 	/**
 	 * Create a new session.
 	 * @param cwd Working directory (stored in session header)
-	 * @param sessionDir Optional session directory. If omitted, uses default (~/.senpi/agent/sessions/<encoded-cwd>/).
+	 * @param sessionDir Optional session directory. If omitted, uses default (~/.amaze/agent/sessions/<encoded-cwd>/).
 	 */
 	static create(cwd: string, sessionDir?: string, options?: NewSessionOptions): SessionManager {
 		const dir = sessionDir ? normalizePath(sessionDir) : getDefaultSessionDir(cwd);
@@ -1466,7 +1476,7 @@ export class SessionManager {
 	/**
 	 * Continue the most recent session, or create new if none.
 	 * @param cwd Working directory
-	 * @param sessionDir Optional session directory. If omitted, uses default (~/.senpi/agent/sessions/<encoded-cwd>/).
+	 * @param sessionDir Optional session directory. If omitted, uses default (~/.amaze/agent/sessions/<encoded-cwd>/).
 	 */
 	static continueRecent(cwd: string, sessionDir?: string): SessionManager {
 		const dir = sessionDir ? normalizePath(sessionDir) : getDefaultSessionDir(cwd);
@@ -1546,7 +1556,7 @@ export class SessionManager {
 	/**
 	 * List all sessions for a directory.
 	 * @param cwd Working directory (used to compute default session directory)
-	 * @param sessionDir Optional session directory. If omitted, uses default (~/.senpi/agent/sessions/<encoded-cwd>/).
+	 * @param sessionDir Optional session directory. If omitted, uses default (~/.amaze/agent/sessions/<encoded-cwd>/).
 	 * @param onProgress Optional callback for progress updates (loaded, total)
 	 */
 	static async list(cwd: string, sessionDir?: string, onProgress?: SessionListProgress): Promise<SessionInfo[]> {

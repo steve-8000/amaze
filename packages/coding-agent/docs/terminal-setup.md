@@ -30,7 +30,7 @@ That mapping sends a raw linefeed byte. Inside pi, that is indistinguishable fro
 
 If Claude Code 2.x or newer is the only reason you added that mapping, you can remove it, unless you want to use Claude Code in tmux, where it still requires that Ghostty mapping.
 
-If you want `Shift+Enter` to keep working in tmux via that remap, add `ctrl+j` to your senpi `newLine` keybinding in `~/.senpi/agent/keybindings.json`:
+If you want `Shift+Enter` to keep working in tmux via that remap, add `ctrl+j` to your amaze `newLine` keybinding in `~/.amaze/agent/keybindings.json`:
 
 ```json
 {
@@ -66,7 +66,7 @@ return config
 
 If you already have a `config.keys` table, add the entry to it.
 
-On WSL, WezTerm may require a visible hardware cursor for IME candidate window positioning. If CJK IME candidates do not follow the text cursor, set `PI_HARDWARE_CURSOR=1` before running senpi or set `showHardwareCursor` to `true` in settings.
+On WSL, WezTerm may require a visible hardware cursor for IME candidate window positioning. If CJK IME candidates do not follow the text cursor, set `PI_HARDWARE_CURSOR=1` before running amaze or set `showHardwareCursor` to `true` in settings.
 
 ## Alacritty
 
@@ -143,6 +143,6 @@ For the best experience, use a terminal that supports the Kitty keyboard protoco
 
 The built-in terminal has limited escape sequence support. Shift+Enter cannot be distinguished from Enter in IntelliJ's terminal.
 
-If you want the hardware cursor visible, set `PI_HARDWARE_CURSOR=1` before running senpi (disabled by default for compatibility).
+If you want the hardware cursor visible, set `PI_HARDWARE_CURSOR=1` before running amaze (disabled by default for compatibility).
 
 Consider using a dedicated terminal emulator for the best experience.

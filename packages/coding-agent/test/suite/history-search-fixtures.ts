@@ -69,7 +69,7 @@ export function createTempRootRegistry(): { make: () => Promise<string>; cleanup
 	const roots: string[] = [];
 	return {
 		make: async () => {
-			const root = await mkdtemp(join(tmpdir(), "senpi-history-search-"));
+			const root = await mkdtemp(join(tmpdir(), "amaze-history-search-"));
 			roots.push(root);
 			return root;
 		},

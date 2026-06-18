@@ -1,11 +1,11 @@
-import type { AgentMessage } from "@earendil-works/pi-agent-core";
+import type { AgentMessage } from "@steve-8000/amaze-agent-core";
 import {
 	type AssistantMessage,
 	fauxAssistantMessage,
 	registerFauxProvider,
 	type ToolResultMessage,
 	type UserMessage,
-} from "@earendil-works/pi-ai";
+} from "@steve-8000/amaze-ai";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { estimateContextTokens } from "../../src/core/compaction/index.ts";
 import compactionExtension from "../../src/core/extensions/builtin/compaction/index.ts";

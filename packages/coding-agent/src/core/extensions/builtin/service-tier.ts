@@ -1,4 +1,4 @@
-import type { Api } from "@earendil-works/pi-ai";
+import type { Api } from "@steve-8000/amaze-ai";
 import { SettingsManager } from "../../settings-manager.ts";
 import type { ExtensionAPI, ServiceTier } from "../types.ts";
 

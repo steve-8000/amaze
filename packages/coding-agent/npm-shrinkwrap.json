@@ -11,9 +11,9 @@
 			"dependencies": {
 				"@anthropic-ai/sdk": "0.91.1",
 				"@aws-sdk/client-bedrock-runtime": "3.1048.0",
-				"@earendil-works/pi-agent-core": "^2026.6.16-2",
-				"@earendil-works/pi-ai": "^2026.6.16-2",
-				"@earendil-works/pi-tui": "^2026.6.16-2",
+				"@steve-8000/pi-agent-core": "^2026.6.16-2",
+				"@steve-8000/pi-ai": "^2026.6.16-2",
+				"@steve-8000/pi-tui": "^2026.6.16-2",
 				"@mistralai/mistralai": "2.2.1",
 				"@silvia-odwyer/photon-node": "0.3.4",
 				"@smithy/node-http-handler": "4.7.3",
@@ -487,12 +487,12 @@
 				"node": ">=6.9.0"
 			}
 		},
-		"node_modules/@earendil-works/pi-agent-core": {
+		"node_modules/@steve-8000/pi-agent-core": {
 			"version": "2026.6.16-2",
 			"inBundle": true,
 			"license": "MIT",
 			"dependencies": {
-				"@earendil-works/pi-ai": "^2026.6.16-2",
+				"@steve-8000/pi-ai": "^2026.6.16-2",
 				"ignore": "7.0.5",
 				"typebox": "1.1.38",
 				"yaml": "2.9.0"
@@ -501,7 +501,7 @@
 				"node": ">=24.0.0"
 			}
 		},
-		"node_modules/@earendil-works/pi-ai": {
+		"node_modules/@steve-8000/pi-ai": {
 			"version": "2026.6.16-2",
 			"inBundle": true,
 			"license": "MIT",
@@ -528,7 +528,7 @@
 				"node": ">=24.0.0"
 			}
 		},
-		"node_modules/@earendil-works/pi-tui": {
+		"node_modules/@steve-8000/pi-tui": {
 			"version": "2026.6.16-2",
 			"inBundle": true,
 			"license": "MIT",

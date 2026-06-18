@@ -1,7 +1,7 @@
 import { basename } from "node:path";
-import type { Focusable, TUI } from "@earendil-works/pi-tui";
-import { Container, getKeybindings, Input, type SelectItem, SelectList, Text } from "@earendil-works/pi-tui";
-import { DynamicBorder } from "../../../../modes/interactive/components/dynamic-border.ts";
+import type { Focusable, TUI } from "@steve-8000/amaze-tui";
+import { Container, getKeybindings, Input, type SelectItem, SelectList, Text } from "@steve-8000/amaze-tui";
+import { bottomBorder, row, topBorder } from "../../../../modes/interactive/components/overlay-box.ts";
 import type { Theme } from "../../../../modes/interactive/theme/theme.ts";
 import { filterHistory } from "./filter.ts";
 import type { HistoryEntry } from "./types.ts";
@@ -54,6 +54,7 @@ export class HistorySearchOverlay extends Container implements Focusable {
 	private readonly options: HistorySearchOverlayOptions;
 	private list: SelectList | undefined;
 	private filteredEntries: readonly HistoryEntry[] = [];
+	private matchCount = 0;
 	private _focused = false;
 
 	constructor(options: HistorySearchOverlayOptions) {
@@ -97,6 +98,16 @@ export class HistorySearchOverlay extends Container implements Focusable {
 		return this.filteredEntries;
 	}
 
+	override render(width: number): string[] {
+		const title = `Search prompt history ${this.matchCount}/${this.options.entries.length} prompts`;
+		const content = super.render(Math.max(1, width - 4));
+		return [
+			topBorder(this.options.theme, width, title),
+			...content.map((line) => row(this.options.theme, line, width)),
+			bottomBorder(this.options.theme, width),
+		];
+	}
+
 	private rebuild(): void {
 		this.entriesByValue.clear();
 		this.filteredEntries = filterHistory(this.options.entries, this.searchInput.getValue());
@@ -126,16 +137,12 @@ export class HistorySearchOverlay extends Container implements Focusable {
 	}
 
 	private renderContainer(list: SelectList, matchCount: number): void {
-		const title = this.options.theme.fg("accent", this.options.theme.bold(" Search prompt history"));
-		const count = this.options.theme.fg("dim", ` ${matchCount}/${this.options.entries.length} prompts`);
+		this.matchCount = matchCount;
 		this.clear();
-		this.addChild(new DynamicBorder((text: string) => this.options.theme.fg("accent", text)));
-		this.addChild(new Text(`${title}${count}`, 0, 0));
 		this.addChild(this.searchInput);
 		this.addChild(list);
 		this.addChild(
 			new Text(this.options.theme.fg("dim", " Type to filter • ↑↓ navigate • enter select • esc close"), 0, 0),
 		);
-		this.addChild(new DynamicBorder((text: string) => this.options.theme.fg("accent", text)));
 	}
 }

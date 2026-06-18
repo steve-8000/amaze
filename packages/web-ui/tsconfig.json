@@ -4,8 +4,8 @@
 		"lib": ["ES2022", "DOM", "DOM.Iterable"],
 		"noEmit": true,
 		"paths": {
-			"@earendil-works/pi-agent-core": ["../agent/src/index.ts"],
-			"@earendil-works/pi-ai": ["../ai/src/index.ts"]
+			"@steve-8000/amaze-agent-core": ["../agent/src/index.ts"],
+			"@steve-8000/amaze-ai": ["../ai/src/index.ts"]
 		}
 	},
 	"include": ["src/**/*"]

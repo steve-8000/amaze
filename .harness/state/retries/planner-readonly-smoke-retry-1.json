@@ -1,0 +1,20 @@
+{
+  "type": "return_to_same_worker",
+  "created_at": "2026-06-18T03:52:27.377Z",
+  "source_contract_id": "planner-readonly-smoke",
+  "retry_contract_id": "planner-readonly-smoke-retry-1",
+  "reason": "Acceptance rejected: changed-files evidence missing from child report.",
+  "path_contract": {
+    "read_allowed_paths": [
+      "**/*"
+    ],
+    "write_allowed_paths": [],
+    "write_denied_paths": [
+      "**/*"
+    ],
+    "contract_id": "planner-readonly-smoke-retry-1",
+    "depends_on": [
+      "planner-readonly-smoke"
+    ]
+  }
+}

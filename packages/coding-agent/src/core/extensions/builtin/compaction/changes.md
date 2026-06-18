@@ -28,7 +28,7 @@ Expected upstream conflict zones: `builtin/compaction/openai-remote.ts` around r
   `/v1/responses/compact` endpoint remains the fallback for non-WebSocket models or failed WebSocket compaction attempts.
 - The extension stores the returned native compacted input on `CompactionResult.details`, then rewrites later OpenAI
   Responses provider payloads so the compacted session can continue from the provider-native history.
-- The extension emits `senpi:compaction` events for remote start, completion, fallback, and payload rewrite points so other
+- The extension emits `amaze:compaction` events for remote start, completion, fallback, and payload rewrite points so other
   extensions can observe which compaction route was used.
 - This remains in the builtin extension because provider compatibility, endpoint selection, fallback, and provider-payload
   rewriting are all extension-hookable. Core only needs to carry opaque compaction details to the renderer.
@@ -45,15 +45,15 @@ remote compaction protocol, or provider request events.
 
 Expected upstream conflict zones: `builtin/compaction/index.ts` around `applyBlockingCompaction()` and `core/agent-session.ts` around extension compaction context actions.
 
-## 2026-05-12 - Local tool-pair repair for packaged senpi
+## 2026-05-12 - Local tool-pair repair for packaged amaze
 
 ### What changed
 - Added `repair-tool-pairs.ts` to keep compaction's tool-call/tool-result repair logic inside the coding-agent package.
-- Switched `builtin/compaction/index.ts` and the compaction repair tests to use the local helper instead of importing `repairOrphanedToolResults` from `@earendil-works/pi-ai`.
+- Switched `builtin/compaction/index.ts` and the compaction repair tests to use the local helper instead of importing `repairOrphanedToolResults` from `@steve-8000/amaze-ai`.
 
 ### Why
-- The published `@code-yeongyu/senpi` package depends on the registry `@earendil-works/pi-ai@^0.74.0`, but the fork-only `repairOrphanedToolResults` export is not present in that published dependency.
-- That mismatch makes `senpi` crash during module loading with `SyntaxError: The requested module '@earendil-works/pi-ai' does not provide an export named 'repairOrphanedToolResults'` before any command can run.
+- The published `amaze` package depends on the registry `@steve-8000/amaze-ai@^0.74.0`, but the fork-only `repairOrphanedToolResults` export is not present in that published dependency.
+- That mismatch makes `amaze` crash during module loading with `SyntaxError: The requested module '@steve-8000/amaze-ai' does not provide an export named 'repairOrphanedToolResults'` before any command can run.
 
 ### Why extension system couldn't handle this
 - The failure happens at ESM module evaluation time while loading a builtin extension, before runtime hooks or settings can intervene.

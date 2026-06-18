@@ -5,9 +5,9 @@
 import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { Agent } from "@earendil-works/pi-agent-core";
-import { getModel, type OAuthCredentials, type OAuthProvider } from "@earendil-works/pi-ai";
-import { getOAuthApiKey } from "@earendil-works/pi-ai/oauth";
+import { Agent } from "@steve-8000/amaze-agent-core";
+import { getModel, type OAuthCredentials, type OAuthProvider } from "@steve-8000/amaze-ai";
+import { getOAuthApiKey } from "@steve-8000/amaze-ai/oauth";
 import { AgentSession } from "../src/core/agent-session.ts";
 import { AuthStorage } from "../src/core/auth-storage.ts";
 import { createEventBus } from "../src/core/event-bus.ts";
@@ -114,7 +114,7 @@ export function hasAuthForProvider(provider: string): boolean {
 }
 
 /** Path to the real pi agent config directory */
-export const PI_AGENT_DIR = join(homedir(), ".pi", "agent");
+export const AMAZE_AGENT_DIR = join(homedir(), ".amaze", "agent");
 
 /**
  * Get an AuthStorage instance backed by ~/.pi/agent/auth.json

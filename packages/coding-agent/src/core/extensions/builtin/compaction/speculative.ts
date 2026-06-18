@@ -1,4 +1,4 @@
-import type { AgentMessage } from "@earendil-works/pi-agent-core";
+import type { AgentMessage } from "@steve-8000/amaze-agent-core";
 import {
 	type AssistantMessage,
 	isContextOverflow,
@@ -6,7 +6,7 @@ import {
 	type Model,
 	stream,
 	type TextContent,
-} from "@earendil-works/pi-ai";
+} from "@steve-8000/amaze-ai";
 import {
 	type CompactionPreparation,
 	type CompactionResult,
@@ -28,7 +28,7 @@ const DEFAULT_CONTEXT_WINDOW = 200_000;
 const COMPACTION_BUDGET_RATIO = 0.6;
 const EMERGENCY_CONTEXT_TARGET_RATIO = 0.95;
 const MAX_SUMMARY_TOKENS = 8192;
-const SUMMARY_SCHEMA = "senpi.compaction.summary.v1";
+const SUMMARY_SCHEMA = "amaze.compaction.summary.v1";
 type CompactionProgressCallback = (delta: string) => void;
 type PruneStep = { messages: AgentMessage[]; removedTokens: number };
 

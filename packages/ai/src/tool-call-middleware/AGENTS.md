@@ -36,7 +36,7 @@ tool-call-middleware/
 1. Implement `Protocol` interface in `protocols/<name>.ts` (parse, format, stream).
 2. Add system-prompt rendering for tools to `context-transformer.ts`.
 3. Export from `index.ts` and register in the protocol registry.
-4. Add `"<name>"` to the `ToolCallFormat` union in `types.ts` (this dir), the literal whitelist in `getToolCallFormat()` in `index.ts`, and the `toolCallFormat` TypeBox union in `packages/coding-agent/src/core/model-registry.ts` (validates `~/.senpi/agent/models.json`).
+4. Add `"<name>"` to the `ToolCallFormat` union in `types.ts` (this dir), the literal whitelist in `getToolCallFormat()` in `index.ts`, and the `toolCallFormat` TypeBox union in `packages/coding-agent/src/core/model-registry.ts` (validates `~/.amaze/agent/models.json`).
 5. Add manual test command to `TESTING.md` and an automated test under `packages/ai/test/tool-call-middleware/<name>*.test.ts`.
 
 ## CONVENTIONS
@@ -57,4 +57,4 @@ tool-call-middleware/
 
 - `TESTING.md` documents the canonical live-API test commands per protocol (Qwen for Hermes, Gemini for MorphXML, Gemma 4 for delimiter). Update it when adding new protocols.
 - This package's middleware is fork-modified — see `changes.md` for the architectural rewrite toward `minpeter/ai-sdk-tool-call-middleware` style.
-- `compat.toolCallFormat` on a custom model in `~/.senpi/agent/models.json` is what activates middleware for that model.
+- `compat.toolCallFormat` on a custom model in `~/.amaze/agent/models.json` is what activates middleware for that model.

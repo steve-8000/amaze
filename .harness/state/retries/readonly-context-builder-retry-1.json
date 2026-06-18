@@ -1,0 +1,26 @@
+{
+  "type": "return_to_same_worker",
+  "created_at": "2026-06-18T03:57:10.316Z",
+  "source_contract_id": "readonly-context-builder",
+  "retry_contract_id": "readonly-context-builder-retry-1",
+  "assigned_worker": "context-builder",
+  "reason": "Path contract readonly-context-builder exceeded activity budget max_elapsed_ms=240000",
+  "path_contract": {
+    "contract_id": "readonly-context-builder-retry-1",
+    "assigned_worker": "context-builder",
+    "read_allowed_paths": [
+      "**/*"
+    ],
+    "write_allowed_paths": [],
+    "write_denied_paths": [
+      "**/*"
+    ],
+    "activity_budget": {
+      "max_tokens": 270000,
+      "max_elapsed_ms": 240000
+    },
+    "depends_on": [
+      "readonly-context-builder"
+    ]
+  }
+}

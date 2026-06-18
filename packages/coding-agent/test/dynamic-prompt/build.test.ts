@@ -16,10 +16,10 @@ describe("buildDynamicSystemPrompt", () => {
 		skills: [],
 	};
 
-	test("includes senpi identity", () => {
+	test("includes amaze identity", () => {
 		const prompt = buildDynamicSystemPrompt(baseOptions);
 
-		expect(prompt).toContain("You are senpi");
+		expect(prompt).toContain("You are amaze");
 	});
 
 	test("includes intent gate section with mandatory verbalization", () => {

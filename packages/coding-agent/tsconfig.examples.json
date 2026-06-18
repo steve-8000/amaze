@@ -3,9 +3,9 @@
 	"compilerOptions": {
 		"noEmit": true,
 		"paths": {
-			"@code-yeongyu/senpi": ["./src/index.ts"],
-			"@earendil-works/pi-tui": ["../tui/src/index.ts"],
-			"@earendil-works/pi-ai": ["../ai/src/index.ts"],
+			"amaze": ["./src/index.ts"],
+			"@steve-8000/amaze-tui": ["../tui/src/index.ts"],
+			"@steve-8000/amaze-ai": ["../ai/src/index.ts"],
 			"typebox": ["../../node_modules/typebox"]
 		},
 		"skipLibCheck": true

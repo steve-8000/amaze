@@ -11,12 +11,12 @@
  * - Minimal: Shows only tool call, no output (this extension's collapsed mode)
  *
  * Usage:
- *   senpi -e ./minimal-mode.ts
+ *   amaze -e ./minimal-mode.ts
  *
  * Then use ctrl+o to toggle between minimal (collapsed) and full (expanded) views.
  */
 
-import type { ExtensionAPI } from "@code-yeongyu/senpi";
+import type { ExtensionAPI } from "amaze";
 import {
 	createBashTool,
 	createEditTool,
@@ -25,8 +25,8 @@ import {
 	createLsTool,
 	createReadTool,
 	createWriteTool,
-} from "@code-yeongyu/senpi";
-import { Text } from "@earendil-works/pi-tui";
+} from "amaze";
+import { Text } from "@steve-8000/amaze-tui";
 import { homedir } from "os";
 
 /**

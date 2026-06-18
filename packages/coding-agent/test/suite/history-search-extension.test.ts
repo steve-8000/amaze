@@ -66,7 +66,7 @@ describe("HistorySearchOverlay", () => {
 });
 
 describe("resolveSearchRoot", () => {
-	const defaultRoot = "/home/user/.senpi/agent/sessions";
+	const defaultRoot = "/home/user/.amaze/agent/sessions";
 
 	it("returns default root when sessionDir is empty (in-memory mode)", () => {
 		expect(resolveSearchRoot("", defaultRoot)).toBe(defaultRoot);
@@ -87,7 +87,7 @@ describe("resolveSearchRoot", () => {
 	});
 
 	it("treats cwd-subdirs as descendants on Windows path semantics", () => {
-		const winRoot = "C:\\Users\\u\\.senpi\\agent\\sessions";
+		const winRoot = "C:\\Users\\u\\.amaze\\agent\\sessions";
 		expect(resolveSearchRoot(`${winRoot}\\encoded-cwd`, winRoot, path.win32)).toBe(path.win32.resolve(winRoot));
 		expect(resolveSearchRoot("D:\\other\\sessions", winRoot, path.win32)).toBe(
 			path.win32.resolve("D:\\other\\sessions"),
@@ -98,8 +98,8 @@ describe("resolveSearchRoot", () => {
 describe("historySearchExtension", () => {
 	it("registers /history and handles no-UI command execution", async () => {
 		const root = await tempRoots.make();
-		const previousDir = process.env.SENPI_CODING_AGENT_DIR;
-		process.env.SENPI_CODING_AGENT_DIR = root;
+		const previousDir = process.env.AMAZE_CODING_AGENT_DIR;
+		process.env.AMAZE_CODING_AGENT_DIR = root;
 		try {
 			const harness = await createHarness({ extensionFactories: [historySearchExtension] });
 			harnesses.push(harness);
@@ -111,8 +111,8 @@ describe("historySearchExtension", () => {
 			await harness.session.prompt("/history");
 			expect(harness.session.messages).toEqual([]);
 		} finally {
-			if (previousDir === undefined) delete process.env.SENPI_CODING_AGENT_DIR;
-			else process.env.SENPI_CODING_AGENT_DIR = previousDir;
+			if (previousDir === undefined) delete process.env.AMAZE_CODING_AGENT_DIR;
+			else process.env.AMAZE_CODING_AGENT_DIR = previousDir;
 		}
 	});
 });

@@ -4,7 +4,7 @@ import {
 	fauxText,
 	fauxToolCall,
 	registerFauxProvider,
-} from '@earendil-works/pi-ai';
+} from '@steve-8000/amaze-ai';
 import * as v from 'valibot';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createAgent, ResultUnavailableError } from '../src/index.ts';

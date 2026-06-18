@@ -367,7 +367,7 @@ function addCustomHeadersMiddleware(client: BedrockRuntimeClient, headers: Recor
 			}
 			return next(args);
 		},
-		{ step: "build", name: "pi-ai-custom-headers", priority: "low" },
+		{ step: "build", name: "amaze-ai-custom-headers", priority: "low" },
 	);
 }
 

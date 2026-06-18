@@ -30,7 +30,7 @@ describe("neo flag removal", () => {
 
 		// Then: the removed neo flag and binary name are absent from the public surface.
 		expect(help, "help output must not advertise the removed --neo flag").not.toContain("--neo");
-		expect(help, "help output must not advertise the removed neo TUI binary").not.toContain("senpi-neo-tui");
+		expect(help, "help output must not advertise the removed neo TUI binary").not.toContain("amaze-neo-tui");
 	});
 
 	test("--neo is rejected as unknown option", () => {
@@ -68,6 +68,6 @@ describe("neo flag removal", () => {
 		expect(rootPackageJson, "workspace metadata must not expose packages/neo-tui as a package").not.toContain(
 			"neo-tui",
 		);
-		expect(ciWorkflow, "CI must not run Rust neo-tui binary checks").not.toContain("senpi-neo-tui");
+		expect(ciWorkflow, "CI must not run Rust neo-tui binary checks").not.toContain("amaze-neo-tui");
 	});
 });

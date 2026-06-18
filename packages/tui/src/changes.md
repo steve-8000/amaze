@@ -5,7 +5,7 @@
 ### What changed
 
 - `packages/tui/src/components/loader.ts` supports `messageFormatter` with an independent message animation interval.
-- Senpi's normal TUI depends on this for `Working (Xs • esc to interrupt)` shimmer; a loader that only animates the
+- amaze's normal TUI depends on this for `Working (Xs • esc to interrupt)` shimmer; a loader that only animates the
   indicator frame is not compatible with the forked CLI.
 
 ### Why this cannot be expressed externally
@@ -17,8 +17,8 @@ globally installed CLI must ship a TUI runtime whose `Loader` honors `messageFor
 
 - HIGH: `packages/tui/src/components/loader.ts` around `LoaderIndicatorOptions`, `setIndicator()`,
   `restartAnimation()`, and `updateDisplay()`.
-- HIGH: package/release wiring that decides whether `@code-yeongyu/senpi` bundles this forked TUI runtime or installs
-  upstream npm `@earendil-works/pi-tui`.
+- HIGH: package/release wiring that decides whether `amaze` bundles this forked TUI runtime or installs
+  upstream npm `@steve-8000/amaze-tui`.
 
 ## 2026-05-18: flicker-free scrollback replay for offscreen expansion
 

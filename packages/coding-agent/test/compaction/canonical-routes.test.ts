@@ -1,4 +1,4 @@
-import type { AssistantMessage, Model } from "@earendil-works/pi-ai";
+import type { AssistantMessage, Model } from "@steve-8000/amaze-ai";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { type CompactionResult, DEFAULT_COMPACTION_SETTINGS } from "../../src/core/compaction/index.ts";
 import { createEventBus } from "../../src/core/event-bus.ts";
@@ -115,7 +115,7 @@ describe("builtin compaction canonical routes", () => {
 			{
 				type: "before_agent_start",
 				prompt: "incoming prompt ".repeat(1_500),
-				systemPrompt: "You are senpi.",
+				systemPrompt: "You are amaze.",
 				systemPromptOptions: { cwd: process.cwd() },
 			},
 			{
@@ -136,7 +136,7 @@ describe("builtin compaction canonical routes", () => {
 					reserveTokens: 2_000,
 				}),
 				getMessageRevision: () => 1,
-				getSystemPrompt: () => "You are senpi.",
+				getSystemPrompt: () => "You are amaze.",
 				beginCompaction: () => new AbortController().signal,
 				endCompaction: () => {},
 				applyCompaction: async (compaction: CompactionResult) => {
@@ -150,7 +150,7 @@ describe("builtin compaction canonical routes", () => {
 		expect(fetchMock).toHaveBeenCalledTimes(1);
 		expect(appliedCompactions).toHaveLength(1);
 		expect(appliedCompactions[0]?.details).toMatchObject({
-			schema: "senpi.compaction.openai-remote.v1",
+			schema: "amaze.compaction.openai-remote.v1",
 			mode: "openai-remote",
 			transport: "compact-endpoint",
 		});

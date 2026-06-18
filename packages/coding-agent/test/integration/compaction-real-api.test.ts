@@ -1,19 +1,19 @@
 /**
  * Integration tests for compaction using real LLM APIs.
  *
- * These tests are gated behind PI_RUN_INTEGRATION env var because they:
+ * These tests are gated behind AMAZE_RUN_INTEGRATION env var because they:
  * - Make real LLM calls (cost money)
  * - Can flake due to network/provider issues
  * - Take 60-180s each
  *
- * Run with: PI_RUN_INTEGRATION=1 npx vitest run test/integration/compaction-real-api.test.ts
+ * Run with: AMAZE_RUN_INTEGRATION=1 npx vitest run test/integration/compaction-real-api.test.ts
  */
 
 import { existsSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Agent, type ThinkingLevel } from "@earendil-works/pi-agent-core";
-import { getModel, type Model } from "@earendil-works/pi-ai";
+import { Agent, type ThinkingLevel } from "@steve-8000/amaze-agent-core";
+import { getModel, type Model } from "@steve-8000/amaze-ai";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { AgentSession, type AgentSessionEvent } from "../../src/core/agent-session.ts";
 import { AuthStorage } from "../../src/core/auth-storage.ts";
@@ -30,7 +30,7 @@ import { createSyntheticSourceInfo } from "../../src/core/source-info.ts";
 import { createCodingTools } from "../../src/index.ts";
 import { API_KEY, createTestResourceLoader, getRealAuthStorage } from "../utilities.ts";
 
-describe.skipIf(!process.env.PI_RUN_INTEGRATION)("Compaction extensions (real API)", () => {
+describe.skipIf(!process.env.AMAZE_RUN_INTEGRATION)("Compaction extensions (real API)", () => {
 	let session: AgentSession;
 	let tempDir: string;
 	let capturedEvents: Array<SessionBeforeCompactEvent | SessionCompactEvent>;
@@ -431,7 +431,7 @@ function loadLargeSessionEntries() {
 	return entries.filter((e): e is Exclude<typeof e, { type: "session" }> => e.type !== "session");
 }
 
-describe.skipIf(!process.env.PI_RUN_INTEGRATION)("LLM summarization", () => {
+describe.skipIf(!process.env.AMAZE_RUN_INTEGRATION)("LLM summarization", () => {
 	it("should generate a compaction result for the large session", async () => {
 		const entries = loadLargeSessionEntries();
 		const model = getModel("anthropic", "claude-sonnet-4-5")!;
@@ -483,7 +483,7 @@ describe.skipIf(!process.env.PI_RUN_INTEGRATION)("LLM summarization", () => {
 	}, 60000);
 });
 
-describe.skipIf(!process.env.PI_RUN_INTEGRATION)("Compaction with thinking models (Anthropic)", () => {
+describe.skipIf(!process.env.AMAZE_RUN_INTEGRATION)("Compaction with thinking models (Anthropic)", () => {
 	let session: AgentSession;
 	let tempDir: string;
 
@@ -557,7 +557,7 @@ describe.skipIf(!process.env.PI_RUN_INTEGRATION)("Compaction with thinking model
 	}, 180000);
 });
 
-describe.skipIf(!process.env.PI_RUN_INTEGRATION)("AgentSession compaction e2e", () => {
+describe.skipIf(!process.env.AMAZE_RUN_INTEGRATION)("AgentSession compaction e2e", () => {
 	let session: AgentSession;
 	let tempDir: string;
 	let sessionManager: SessionManager;

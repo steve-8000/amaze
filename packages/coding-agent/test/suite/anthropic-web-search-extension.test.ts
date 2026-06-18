@@ -6,9 +6,9 @@ import anthropicWebSearchExtension, {
 } from "../../src/core/extensions/builtin/anthropic-web-search/index.ts";
 import type { ExtensionAPI } from "../../src/core/extensions/types.ts";
 
-const ENABLE_ENV = "PI_ANTHROPIC_WEB_SEARCH";
-const ALLOWED_DOMAINS_ENV = "PI_ANTHROPIC_WEB_SEARCH_ALLOWED_DOMAINS";
-const BLOCKED_DOMAINS_ENV = "PI_ANTHROPIC_WEB_SEARCH_BLOCKED_DOMAINS";
+const ENABLE_ENV = "AMAZE_ANTHROPIC_WEB_SEARCH";
+const ALLOWED_DOMAINS_ENV = "AMAZE_ANTHROPIC_WEB_SEARCH_ALLOWED_DOMAINS";
+const BLOCKED_DOMAINS_ENV = "AMAZE_ANTHROPIC_WEB_SEARCH_BLOCKED_DOMAINS";
 
 type TestUi = {
 	setStatus: (key: string, value: string | undefined) => void;

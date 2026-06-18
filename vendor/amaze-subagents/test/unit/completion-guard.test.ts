@@ -105,6 +105,20 @@ test("review-only, research, and framework output instructions do not expect mut
 	);
 });
 
+test("planning and audit agents do not require mutation for plan or audit wording", () => {
+	for (const agent of ["planner", "context-builder", "delegate", "oracle"]) {
+		const result = evaluateCompletionMutationGuard({
+			agent,
+			task: "Live smoke test only. Build or audit a concise plan. Do not modify files.",
+			messages: [assistantText("Plan only")],
+			tools: ["read", "grep", "find", "ls", "bash", "write"],
+		});
+
+		assert.equal(result.expectedMutation, false, `${agent} should not expect mutation`);
+		assert.equal(result.triggered, false, `${agent} should not trigger completion guard`);
+	}
+});
+
 test("worker implementation verbs win over investigative wording", () => {
 	assert.equal(expectsImplementationMutation("worker", "Investigate why the worker did not edit files and fix it"), true);
 	assert.equal(expectsImplementationMutation("worker", "Research the current code path and patch the bug"), true);

@@ -40,6 +40,19 @@ const VALID_EVIDENCE = new Set<AcceptanceEvidenceKind>([
 	"manual-notes",
 ]);
 
+const WRITE_ACCEPTANCE_EVIDENCE: AcceptanceEvidenceKind[] = [
+	"changed-files",
+	"tests-added",
+	"commands-run",
+	"validation-output",
+	"residual-risks",
+	"no-staged-files",
+];
+
+function isReviewGate(value: ResolvedAcceptanceConfig["review"]): value is Exclude<ResolvedAcceptanceConfig["review"], false | undefined> {
+	return typeof value === "object" && value !== null;
+}
+
 function normalizeLevel(level: AcceptanceLevel | undefined): Exclude<AcceptanceLevel, "auto"> | "auto" {
 	return level ?? "auto";
 }
@@ -73,8 +86,11 @@ function inferLevel(input: {
 	const agent = input.agentName.toLowerCase();
 	const task = input.task?.toLowerCase() ?? "";
 	const reasons: string[] = [];
-	const readOnlyAgent = /\b(?:reviewer|scout|context-builder|researcher|analyst)\b/.test(agent);
-	const readOnlyTask = /\b(?:read[- ]only|review[- ]only|do not edit|don't edit|no edits|without edits|inspect|summari[sz]e)\b/.test(task);
+	const scoutAgent = /\bscout\b/.test(agent);
+	const reviewerAgent = /\breviewer\b/.test(agent);
+	const planningAgent = /\b(?:context-builder|planner|delegate|oracle)\b/.test(agent);
+	const readOnlyAgent = /\b(?:reviewer|scout|context-builder|planner|delegate|oracle|researcher|analyst)\b/.test(agent);
+	const readOnlyTask = /\b(?:read[- ]only|review[- ]only|do not edit|don't edit|do not modify|don't modify|do not change files|no edits|without edits|inspect|summari[sz]e)\b/.test(task);
 	const writeTask = /\b(?:fix|implement|update|write|edit|modify|migrate|release|security|delete|remove|refactor|commit)\b/.test(task)
 		|| /\bworker\b/.test(agent);
 	const risky = Boolean(input.async && writeTask)
@@ -93,13 +109,40 @@ function inferLevel(input: {
 			review: { agent: "reviewer", required: true },
 		};
 	}
+	if (scoutAgent || (readOnlyTask && /\b(?:find|locate|discover|map|scout)\b/.test(task))) {
+		reasons.push(scoutAgent ? "read-only scout agent" : "read-only scouting task");
+		return {
+			level: "none",
+			reasons,
+			criteria: ["Return scoped file, symbol, and fact findings only"],
+			evidence: [],
+		};
+	}
+	if (reviewerAgent) {
+		reasons.push("read-only reviewer agent");
+		return {
+			level: "attested",
+			reasons,
+			criteria: ["Return review findings, blockers, and residual risks without modifying files"],
+			evidence: ["review-findings", "residual-risks"],
+		};
+	}
+	if (planningAgent && (readOnlyTask || !writeTask)) {
+		reasons.push("read-only planning/audit agent");
+		return {
+			level: "attested",
+			reasons,
+			criteria: ["Return the requested plan, context, audit, or handoff without modifying files"],
+			evidence: ["manual-notes", "residual-risks"],
+		};
+	}
 	if (writeTask && !readOnlyTask) {
 		reasons.push("write-capable worker/task");
 		return {
 			level: "checked",
 			reasons,
 			criteria: ["Implement the requested change without widening scope"],
-			evidence: requiredEvidenceForLevel("checked"),
+			evidence: WRITE_ACCEPTANCE_EVIDENCE,
 		};
 	}
 	if (readOnlyAgent || readOnlyTask) {
@@ -181,14 +224,16 @@ export function validateAcceptanceInput(input: unknown, pathLabel = "acceptance"
 function normalizeCriteria(criteria: Array<string | { id?: string; must?: string; evidence?: AcceptanceEvidenceKind[]; severity?: "required" | "recommended" }> | undefined, evidence: AcceptanceEvidenceKind[]): ResolvedAcceptanceGate[] {
 	return (criteria ?? []).map((criterion, index) => {
 		if (typeof criterion === "string") {
-			return { id: `criterion-${index + 1}`, must: criterion, evidence, severity: "required" };
+			const resolved: ResolvedAcceptanceGate = { id: `criterion-${index + 1}`, must: criterion, evidence, severity: "required" };
+			return resolved;
 		}
-		return {
+		const resolved: ResolvedAcceptanceGate = {
 			id: criterion.id?.trim() || `criterion-${index + 1}`,
 			must: criterion.must ?? "",
 			evidence: criterion.evidence?.filter((item) => VALID_EVIDENCE.has(item)) ?? evidence,
 			severity: criterion.severity ?? "required",
 		};
+		return resolved;
 	}).filter((criterion) => criterion.must.trim());
 }
 
@@ -215,7 +260,7 @@ export function resolveEffectiveAcceptance(input: {
 		evidence,
 	);
 	let review = explicit.review !== undefined ? explicit.review : inferred.review;
-	if (level === "reviewed" && explicitLevel !== "auto" && explicitLevel !== "reviewed" && explicit.review === undefined && review && review !== false) {
+	if (level === "reviewed" && explicitLevel !== "auto" && explicitLevel !== "reviewed" && explicit.review === undefined && isReviewGate(review)) {
 		review = { ...review, required: false };
 	}
 	return {
@@ -248,7 +293,7 @@ export function formatAcceptancePrompt(acceptance: ResolvedAcceptanceConfig): st
 		lines.push("", "Runtime verification commands configured by parent:");
 		for (const command of acceptance.verify) lines.push(`- ${command.id}: ${command.command}`);
 	}
-	if (acceptance.review && acceptance.review !== false) {
+	if (isReviewGate(acceptance.review)) {
 		lines.push("", `Review gate: ${acceptance.review.required === false ? "optional" : "required"}${acceptance.review.agent ? ` by ${acceptance.review.agent}` : ""}.`);
 		if (acceptance.review.focus) lines.push(`Review focus: ${acceptance.review.focus}`);
 	}
@@ -440,7 +485,7 @@ export function aggregateAcceptanceReport(input: {
 			{ id: "criterion-2", status: successfulChildren ? "satisfied" : "not-satisfied", evidence: successfulChildren ? "Collected child acceptance evidence for aggregate review." : "Dynamic fanout produced no aggregate review evidence." },
 			...input.results.map((result, index) => ({
 				id: `child-${index + 1}`,
-				status: result.exitCode === 0 && result.acceptance?.status !== "rejected" ? "satisfied" : "not-satisfied",
+				status: (result.exitCode === 0 && result.acceptance?.status !== "rejected" ? "satisfied" : "not-satisfied") as "satisfied" | "not-satisfied",
 				evidence: `${result.agent}: acceptance ${result.acceptance?.status ?? "unreported"}${result.error ? ` (${result.error})` : ""}`,
 			})),
 		],
@@ -577,7 +622,7 @@ export async function evaluateAcceptance(input: {
 			ledger.reviewResult = input.reviewResult;
 			ledger.status = input.reviewResult.status === "no-blockers" ? "reviewed" : "rejected";
 		} else {
-			const optionalReview = acceptance.review && acceptance.review !== false && acceptance.review.required === false;
+			const optionalReview = isReviewGate(acceptance.review) && acceptance.review.required === false;
 			ledger.reviewResult = {
 				status: "needs-parent-decision",
 				findings: [{

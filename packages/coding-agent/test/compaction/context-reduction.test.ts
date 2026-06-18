@@ -1,5 +1,5 @@
-import type { AgentMessage } from "@earendil-works/pi-agent-core";
-import type { AssistantMessage, ToolResultMessage, Usage, UserMessage } from "@earendil-works/pi-ai";
+import type { AgentMessage } from "@steve-8000/amaze-agent-core";
+import type { AssistantMessage, ToolResultMessage, Usage, UserMessage } from "@steve-8000/amaze-ai";
 import { describe, expect, it } from "vitest";
 import {
 	clearOldToolResults,
@@ -282,10 +282,10 @@ describe("compaction context reduction behavior", () => {
 
 	describe("Given various usage / context-window / provider-native states", () => {
 		describe("When shouldApplyContextReduction is consulted", () => {
-			it("Then it returns false below 50% usage, true at or above 50% usage, false on the provider-native path, and false when usage is unknown or contextWindow is zero", () => {
+			it("Then it returns false below 60% usage, true at or above 60% usage, false on the provider-native path, and false when usage is unknown or contextWindow is zero", () => {
 				// Given / When / Then
-				expect(shouldApplyContextReduction({ usageTokens: 49_000, contextWindow: 100_000 })).toBe(false);
-				expect(shouldApplyContextReduction({ usageTokens: 50_000, contextWindow: 100_000 })).toBe(true);
+				expect(shouldApplyContextReduction({ usageTokens: 59_000, contextWindow: 100_000 })).toBe(false);
+				expect(shouldApplyContextReduction({ usageTokens: 60_000, contextWindow: 100_000 })).toBe(true);
 				expect(shouldApplyContextReduction({ usageTokens: 80_000, contextWindow: 100_000 })).toBe(true);
 				expect(
 					shouldApplyContextReduction({
@@ -295,7 +295,7 @@ describe("compaction context reduction behavior", () => {
 					}),
 				).toBe(false);
 				expect(shouldApplyContextReduction({ usageTokens: null, contextWindow: 100_000 })).toBe(false);
-				expect(shouldApplyContextReduction({ usageTokens: 50_000, contextWindow: 0 })).toBe(false);
+				expect(shouldApplyContextReduction({ usageTokens: 60_000, contextWindow: 0 })).toBe(false);
 			});
 		});
 	});

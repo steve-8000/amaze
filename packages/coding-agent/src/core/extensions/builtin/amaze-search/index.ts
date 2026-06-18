@@ -1,6 +1,14 @@
+import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { dirname, join } from "node:path";
+import { promisify } from "node:util";
 import { type TSchema, Type } from "typebox";
 import { loadAmazeConfig } from "../../../../amaze/config.ts";
 import type { ExtensionAPI, ToolDefinition } from "../../types.ts";
+
+const execFileAsync = promisify(execFile);
 
 type HandlerKey = "Index" | "Query" | "Graph" | "Context" | "Manage";
 
@@ -11,6 +19,26 @@ interface SearchToolSpec {
 	description: string;
 	params: Record<string, TSchema>;
 }
+
+interface CodeCallResult {
+	result?: string;
+	error?: string;
+}
+
+interface CodeEngineSyncSnapshot {
+	version: 1;
+	projectPath: string;
+	gitRoot?: string;
+	head?: string;
+	branch?: string;
+	remote?: string;
+	status: string;
+	recentCommits: string[];
+	fingerprint: string;
+	updatedAt: string;
+}
+
+const XENONITE_FULL_MODE_HINT = "Start Xenonite with full tools: cd ~/rocky/xenonite && XENONITE_MCP_TOOL_MODE=full npm start";
 
 const pp = Type.Optional(Type.String({ description: "Absolute project directory path. Defaults to the current working directory." }));
 const ppReq = Type.String({ description: "Absolute project directory path." });
@@ -45,12 +73,177 @@ const SPECS: SearchToolSpec[] = [
 	{ name: "ctx_drop", origName: "codebase_context_remove", handler: "Context", description: "Remove a project's context artifacts.", params: { projectPath: ppReq } },
 ];
 
-// Code-engine tools forward to the Xenonite service over HTTP. amaze holds no
+async function callCodeEngine(base: string, op: string, args: Record<string, unknown>, timeoutMs = 30_000): Promise<CodeCallResult> {
+	const res = await fetch(`${base}/v1/mcp`, {
+		method: "POST",
+		headers: { "content-type": "application/json" },
+		body: JSON.stringify({
+			jsonrpc: "2.0",
+			id: `amaze-code-${Date.now()}`,
+			method: "tools/call",
+			params: {
+				name: "xenonite_code_op",
+				arguments: { op, args },
+			},
+		}),
+		signal: AbortSignal.timeout(timeoutMs),
+	});
+	const data = await res.json() as {
+		result?: { content?: Array<{ type?: string; text?: string }> };
+		error?: { message?: string };
+	};
+	if (data.error) {
+		const message = data.error.message ?? "Xenonite MCP error";
+		return {
+			error: message.includes("xenonite_code_op")
+				? `Xenonite error: ${message}. ${XENONITE_FULL_MODE_HINT}`
+				: `Xenonite error: ${message}`,
+		};
+	}
+	return { result: data.result?.content?.find((item) => item.type === "text")?.text ?? "" };
+}
+
+async function gitOutput(cwd: string, args: string[]): Promise<string | undefined> {
+	try {
+		const { stdout } = await execFileAsync("git", args, {
+			cwd,
+			timeout: 3_000,
+			maxBuffer: 1024 * 1024,
+		});
+		return stdout.trim();
+	} catch {
+		return undefined;
+	}
+}
+
+function snapshotStateFile(projectPath: string): string {
+	const hash = createHash("sha256").update(projectPath).digest("hex").slice(0, 24);
+	return join(homedir(), ".local", "state", "amaze", "code-engine-sync", `${hash}.json`);
+}
+
+function readStoredSnapshot(projectPath: string): CodeEngineSyncSnapshot | undefined {
+	const file = snapshotStateFile(projectPath);
+	if (!existsSync(file)) return undefined;
+	try {
+		return JSON.parse(readFileSync(file, "utf-8")) as CodeEngineSyncSnapshot;
+	} catch {
+		return undefined;
+	}
+}
+
+function writeStoredSnapshot(snapshot: CodeEngineSyncSnapshot): void {
+	const file = snapshotStateFile(snapshot.projectPath);
+	mkdirSync(dirname(file), { recursive: true });
+	writeFileSync(file, `${JSON.stringify(snapshot, null, 2)}\n`);
+}
+
+async function buildGitSnapshot(projectPath: string): Promise<CodeEngineSyncSnapshot> {
+	const gitRoot = await gitOutput(projectPath, ["rev-parse", "--show-toplevel"]);
+	const cwd = gitRoot || projectPath;
+	const [head, branch, remote, status, recentCommits] = gitRoot
+		? await Promise.all([
+			gitOutput(cwd, ["rev-parse", "HEAD"]),
+			gitOutput(cwd, ["rev-parse", "--abbrev-ref", "HEAD"]),
+			gitOutput(cwd, ["config", "--get", "remote.origin.url"]),
+			gitOutput(cwd, ["status", "--porcelain=v1"]),
+			gitOutput(cwd, ["log", "-n", "20", "--pretty=format:%H%x09%ct%x09%s"]),
+		])
+		: [];
+	const commitLines = recentCommits?.split("\n").filter(Boolean) ?? [];
+	const fingerprintSource = JSON.stringify({
+		projectPath,
+		gitRoot,
+		head,
+		branch,
+		remote,
+		status: status ?? "",
+		recentCommits: commitLines,
+	});
+	return {
+		version: 1,
+		projectPath,
+		gitRoot,
+		head,
+		branch,
+		remote,
+		status: status ?? "",
+		recentCommits: commitLines,
+		fingerprint: createHash("sha256").update(fingerprintSource).digest("hex"),
+		updatedAt: new Date().toISOString(),
+	};
+}
+
+function hasUsableIndex(text: string): boolean {
+	const chunkMatch = text.match(/Indexed chunks:\s*(\d+)/i);
+	if (!chunkMatch) return false;
+	return Number(chunkMatch[1]) > 0;
+}
+
+async function sleep(ms: number): Promise<void> {
+	await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function waitForUsableIndex(base: string, projectPath: string, timeoutMs: number): Promise<void> {
+	const deadline = Date.now() + timeoutMs;
+	while (Date.now() < deadline) {
+		const status = await callCodeEngine(base, "codebase_status", { projectPath }, 5_000);
+		if (status.result && !status.error && hasUsableIndex(status.result)) return;
+		await sleep(500);
+	}
+}
+
+async function autoPrepareCodeEngine(base: string, projectPath: string, autoWatch: boolean): Promise<void> {
+	try {
+		const snapshot = await buildGitSnapshot(projectPath);
+		const previous = readStoredSnapshot(projectPath);
+		const changedSinceLastSync = previous?.fingerprint !== snapshot.fingerprint;
+		const status = await callCodeEngine(base, "codebase_status", { projectPath }, 5_000);
+		const statusText = status.result ?? "";
+		const hasIndex = Boolean(status.result && !status.error && hasUsableIndex(statusText));
+
+		if (!hasIndex) {
+			const result = previous
+				? await callCodeEngine(base, "codebase_update", { projectPath }, 10_000)
+				: await callCodeEngine(base, "codebase_index", { projectPath }, 10_000);
+			if (result.result && !result.error) {
+				await waitForUsableIndex(base, projectPath, 30_000);
+				if (autoWatch) {
+					await callCodeEngine(base, "codebase_watch", { projectPath, action: "start" }, 10_000);
+				}
+				writeStoredSnapshot(snapshot);
+			}
+			return;
+		}
+
+		if (changedSinceLastSync) {
+			const update = await callCodeEngine(base, "codebase_update", { projectPath }, 10_000);
+			if (update.result && !update.error) {
+				await waitForUsableIndex(base, projectPath, 30_000);
+				writeStoredSnapshot(snapshot);
+			}
+		}
+
+		if (autoWatch) {
+			await callCodeEngine(base, "codebase_watch", { projectPath, action: "start" }, 10_000);
+		}
+		if (!changedSinceLastSync) writeStoredSnapshot(snapshot);
+	} catch {
+		// Auto-indexing is opportunistic. Explicit index_* tools still surface errors.
+	}
+}
+
+// Code-engine tools forward to Xenonite over HTTP MCP JSON-RPC. amaze holds no
 // vector store, embeddings, or socraticode code in-process.
 export default function amazeSearchExtension(pi: ExtensionAPI): void {
 	const config = loadAmazeConfig();
 	if (!config.tools.search.enabled) return;
 	const base = `http://127.0.0.1:${config.services.xenonite.port}`;
+
+	if (config.services.xenonite.autoIndex) {
+		pi.on("session_start", async (_event, ctx) => {
+			await autoPrepareCodeEngine(base, ctx.cwd, config.services.xenonite.autoWatch);
+		});
+	}
 
 	for (const spec of SPECS) {
 		const tool: ToolDefinition = {
@@ -60,16 +253,11 @@ export default function amazeSearchExtension(pi: ExtensionAPI): void {
 			parameters: Type.Object(spec.params),
 			async execute(_id, params) {
 				try {
-					const res = await fetch(`${base}/v1/code/call`, {
-						method: "POST",
-						headers: { "content-type": "application/json" },
-						body: JSON.stringify({ op: spec.origName, args: params }),
-					});
-					const data = (await res.json()) as { result?: string; error?: string };
+					const data = await callCodeEngine(base, spec.origName, params as Record<string, unknown>);
 					return { content: [{ type: "text", text: data.result ?? data.error ?? "" }], details: undefined };
 				} catch {
 					return {
-						content: [{ type: "text", text: `Xenonite service not reachable at ${base}. Start it: cd ~/rocky/xenonite && node src/server.mjs` }],
+						content: [{ type: "text", text: `Xenonite MCP service not reachable at ${base}. ${XENONITE_FULL_MODE_HINT}` }],
 						details: undefined,
 					};
 				}

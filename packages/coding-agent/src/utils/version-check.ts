@@ -1,11 +1,11 @@
 import { compare, valid } from "semver";
 import { PACKAGE_NAME } from "../config.ts";
-import { getPiUserAgent } from "./pi-user-agent.ts";
+import { getAmazeUserAgent } from "./amaze-user-agent.ts";
 
 const LATEST_VERSION_URL = `https://registry.npmjs.org/${encodeURIComponent(PACKAGE_NAME)}/latest`;
 const DEFAULT_VERSION_CHECK_TIMEOUT_MS = 10000;
 
-export interface LatestPiRelease {
+export interface LatestAmazeRelease {
 	version: string;
 	packageName?: string;
 	note?: string;
@@ -28,15 +28,15 @@ export function isNewerPackageVersion(candidateVersion: string, currentVersion: 
 	return candidateVersion.trim() !== currentVersion.trim();
 }
 
-export async function getLatestPiRelease(
+export async function getLatestAmazeRelease(
 	currentVersion: string,
 	options: { timeoutMs?: number } = {},
-): Promise<LatestPiRelease | undefined> {
-	if (process.env.PI_SKIP_VERSION_CHECK || process.env.PI_OFFLINE) return undefined;
+): Promise<LatestAmazeRelease | undefined> {
+	if (process.env.AMAZE_SKIP_VERSION_CHECK || process.env.AMAZE_OFFLINE) return undefined;
 
 	const response = await fetch(LATEST_VERSION_URL, {
 		headers: {
-			"User-Agent": getPiUserAgent(currentVersion),
+			"User-Agent": getAmazeUserAgent(currentVersion),
 			accept: "application/json",
 		},
 		signal: AbortSignal.timeout(options.timeoutMs ?? DEFAULT_VERSION_CHECK_TIMEOUT_MS),
@@ -53,16 +53,16 @@ export async function getLatestPiRelease(
 	return { version: data.version.trim(), packageName, note };
 }
 
-export async function getLatestPiVersion(
+export async function getLatestAmazeVersion(
 	currentVersion: string,
 	options: { timeoutMs?: number } = {},
 ): Promise<string | undefined> {
-	return (await getLatestPiRelease(currentVersion, options))?.version;
+	return (await getLatestAmazeRelease(currentVersion, options))?.version;
 }
 
-export async function checkForNewPiVersion(currentVersion: string): Promise<LatestPiRelease | undefined> {
+export async function checkForNewAmazeVersion(currentVersion: string): Promise<LatestAmazeRelease | undefined> {
 	try {
-		const latestRelease = await getLatestPiRelease(currentVersion);
+		const latestRelease = await getLatestAmazeRelease(currentVersion);
 		if (latestRelease && isNewerPackageVersion(latestRelease.version, currentVersion)) {
 			return latestRelease;
 		}

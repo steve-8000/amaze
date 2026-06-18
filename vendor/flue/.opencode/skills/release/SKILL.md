@@ -23,7 +23,7 @@ Before editing, inspect all workspace `package.json` files. Change versions only
 
 1. Before any release work, run `git status --short --branch` and confirm the working directory is clean. If it is not clean, stop and ask before proceeding.
 2. Read `CHANGELOG.md` and review the unreleased changes against the commits since the prior release. Ensure the selected release has an accurate dated changelog section; include its update in the release changes.
-3. Check the installed versions of `@earendil-works/pi-ai` and `@earendil-works/pi-agent-core` against their latest npm versions. If either is outdated, warn the user and ask whether to update before continuing the release. If the user declines, continue without updating. If the user approves, review the upstream changelog for every intervening version and confirm the update is safe before running `pnpm update --recursive --latest @earendil-works/pi-ai @earendil-works/pi-agent-core`.
+3. Check the installed versions of `@steve-8000/amaze-ai` and `@steve-8000/amaze-agent-core` against their latest npm versions. If either is outdated, warn the user and ask whether to update before continuing the release. If the user declines, continue without updating. If the user approves, review the upstream changelog for every intervening version and confirm the update is safe before running `pnpm update --recursive --latest @steve-8000/amaze-ai @steve-8000/amaze-agent-core`.
 4. Confirm the repository is on the intended current branch and determine the selected release version.
 5. Inspect all workspace package manifests and update the `version` field in each public package `package.json` to the selected release version.
 6. Run `pnpm install --lockfile-only` if necessary to update version-related lockfile metadata.

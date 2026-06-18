@@ -1,40 +1,40 @@
-# Senpi Documentation
+# amaze Documentation
 
-Senpi is a minimal terminal coding harness. It is designed to stay small at the core while being extended through TypeScript extensions, skills, prompt templates, themes, and senpi packages. It is an opinionated fork of [badlogic/pi-mono](https://github.com/badlogic/pi-mono).
+amaze is a minimal terminal coding harness. It is designed to stay small at the core while being extended through TypeScript extensions, skills, prompt templates, themes, and amaze packages. It is an opinionated fork of [badlogic/pi-mono](https://github.com/badlogic/pi-mono).
 
 ## Quick start
 
 Install with npm:
 
 ```bash
-npm install -g @code-yeongyu/senpi
+npm install -g amaze
 ```
 
-To uninstall senpi itself, use the package manager that installed it:
+To uninstall amaze itself, use the package manager that installed it:
 
 ```bash
-npm uninstall -g @code-yeongyu/senpi
+npm uninstall -g amaze
 ```
 
-For pnpm, Yarn, or Bun installs, use the matching global remove command: `pnpm remove -g @code-yeongyu/senpi`, `yarn global remove @code-yeongyu/senpi`, or `bun uninstall -g @code-yeongyu/senpi`.
+For pnpm, Yarn, or Bun installs, use the matching global remove command: `pnpm remove -g amaze`, `yarn global remove amaze`, or `bun uninstall -g amaze`.
 
 Then run it in a project directory:
 
 ```bash
-senpi
+amaze
 ```
 
-Authenticate with `/login` for subscription providers, or set an API key such as `ANTHROPIC_API_KEY` before starting senpi.
+Authenticate with `/login` for subscription providers, or set an API key such as `ANTHROPIC_API_KEY` before starting amaze.
 
 For the full first-run flow, see [Quickstart](quickstart.md).
 
 ## Start here
 
 - [Quickstart](quickstart.md) - install, authenticate, and run a first session.
-- [Using Senpi](usage.md) - interactive mode, slash commands, context files, and CLI reference.
+- [Using amaze](usage.md) - interactive mode, slash commands, context files, and CLI reference.
 - [Providers](providers.md) - subscription and API-key setup for built-in providers.
 - [Security](security.md) - project trust, sandbox boundaries, and vulnerability reporting.
-- [Containerization](containerization.md) - sandbox senpi with Gondolin, Docker, or OpenShell.
+- [Containerization](containerization.md) - sandbox amaze with Gondolin, Docker, or OpenShell.
 - [Settings](settings.md) - global and project settings.
 - [Keybindings](keybindings.md) - default shortcuts and custom keybindings.
 - [Sessions](sessions.md) - session management, branching, and tree navigation.
@@ -47,13 +47,13 @@ For the full first-run flow, see [Quickstart](quickstart.md).
 - [Skills](skills.md) - Agent Skills for reusable on-demand capabilities.
 - [Prompt templates](prompt-templates.md) - reusable prompts that expand from slash commands.
 - [Themes](themes.md) - built-in and custom terminal themes.
-- [Senpi packages](packages.md) - bundle and share extensions, skills, prompts, and themes.
+- [amaze packages](packages.md) - bundle and share extensions, skills, prompts, and themes.
 - [Custom models](models.md) - add model entries for supported provider APIs.
 - [Custom providers](custom-provider.md) - implement custom APIs and OAuth flows.
 
 ## Programmatic usage
 
-- [SDK](sdk.md) - embed senpi in Node.js applications.
+- [SDK](sdk.md) - embed amaze in Node.js applications.
 - [RPC mode](rpc.md) - integrate over stdin/stdout JSONL.
 - [JSON event stream mode](json.md) - print mode with structured events.
 - [TUI components](tui.md) - build custom terminal UI for extensions.

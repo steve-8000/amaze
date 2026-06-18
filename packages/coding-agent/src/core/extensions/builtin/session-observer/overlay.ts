@@ -5,16 +5,15 @@ import {
 	type SelectItem,
 	SelectList,
 	Spacer,
-	Text,
 	TruncatedText,
-} from "@earendil-works/pi-tui";
-import { DynamicBorder } from "../../../../modes/interactive/components/dynamic-border.ts";
+} from "@steve-8000/amaze-tui";
 import { keyHint } from "../../../../modes/interactive/components/keybinding-hints.ts";
+import { bottomBorder, divider, row, topBorder } from "../../../../modes/interactive/components/overlay-box.ts";
 import { getMarkdownTheme, theme } from "../../../../modes/interactive/theme/theme.ts";
 import { shortenPath } from "../../../../utils/paths.ts";
 import type {} from "../../../keybindings.ts";
 import { loadTranscriptSnapshot } from "./loader.ts";
-import { describeSession, pickerLabel, renderLine, sessionAge, viewerFooter } from "./overlay-format.ts";
+import { describeSession, pickerLabel, sessionAge, viewerFooter } from "./overlay-format.ts";
 import { sanitizeLine } from "./text.ts";
 import { renderTranscript } from "./transcript.ts";
 import type { SessionHudEntry, TranscriptSnapshot, ViewerEntryRange } from "./types.ts";
@@ -40,9 +39,6 @@ interface SessionHudOverlayOptions {
 export class SessionHudOverlay extends Container implements Focusable {
 	private readonly options: SessionHudOverlayOptions;
 	private readonly sessionsByValue = new Map<string, SessionHudEntry>();
-	private readonly topBorder = new DynamicBorder((text) => theme.fg("accent", text));
-	private readonly middleBorder = new DynamicBorder((text) => theme.fg("accent", text));
-	private readonly bottomBorder = new DynamicBorder((text) => theme.fg("accent", text));
 	private list: SelectList | undefined;
 	private mode: Mode = "picker";
 	private selectedSession: SessionHudEntry | undefined;
@@ -80,7 +76,15 @@ export class SessionHudOverlay extends Container implements Focusable {
 	}
 
 	override render(width: number): string[] {
-		if (this.mode === "picker") return super.render(width);
+		if (this.mode === "picker") {
+			const title = `Sessions ${this.options.sessions.length} sessions`;
+			const content = super.render(Math.max(1, width - 4));
+			return [
+				topBorder(theme, width, title),
+				...content.map((line) => row(theme, line, width)),
+				bottomBorder(theme, width),
+			];
+		}
 		return this.renderViewer(width);
 	}
 
@@ -120,14 +124,6 @@ export class SessionHudOverlay extends Container implements Focusable {
 		list.onCancel = () => this.options.done();
 		this.list = list;
 		this.clear();
-		this.addChild(
-			new Text(
-				`${theme.bold(theme.fg("accent", " Sessions"))}${theme.fg("dim", ` ${this.options.sessions.length} sessions`)}`,
-				0,
-				0,
-			),
-		);
-		this.addChild(new Spacer(1));
 		this.addChild(list);
 		this.addChild(new Spacer(1));
 		this.addChild(
@@ -187,7 +183,8 @@ export class SessionHudOverlay extends Container implements Focusable {
 
 	private renderViewer(width: number): string[] {
 		this.viewportHeight = Math.max(5, (process.stdout.rows || 32) - 8);
-		this.rebuildTranscript(width);
+		const contentWidth = Math.max(1, width - 4);
+		this.rebuildTranscript(contentWidth);
 		const session = this.selectedSession;
 		const title = session ? `Sessions > ${shortenPath(session.cwd) || "unknown"} · ${session.shortId}` : "Sessions";
 		const status = session
@@ -198,18 +195,17 @@ export class SessionHudOverlay extends Container implements Focusable {
 		const content = this.loadingText ? [theme.fg("dim", this.loadingText)] : this.renderedLines;
 		const visible = content.slice(this.scrollOffset, this.scrollOffset + this.viewportHeight);
 		const lines: string[] = [];
-		lines.push(...this.topBorder.render(width));
-		lines.push(renderLine(` ${theme.bold(theme.fg("accent", title))}`, width));
-		if (status) lines.push(renderLine(` ${theme.fg("dim", status)}`, width));
-		lines.push(...this.middleBorder.render(width));
-		for (const line of visible) lines.push(` ${sanitizeLine(line, width - 2)}`);
-		for (let index = visible.length; index < this.viewportHeight; index += 1) lines.push("");
+		lines.push(topBorder(theme, width, title));
+		if (status) lines.push(row(theme, theme.fg("dim", status), width));
+		lines.push(divider(theme, width));
+		for (const line of visible) lines.push(row(theme, sanitizeLine(line, contentWidth), width));
+		for (let index = visible.length; index < this.viewportHeight; index += 1) lines.push(row(theme, "", width));
 		const scroll =
 			content.length > this.viewportHeight
 				? ` [${this.scrollOffset + 1}-${Math.min(this.scrollOffset + this.viewportHeight, content.length)}/${content.length}]`
 				: "";
-		lines.push(renderLine(` ${viewerFooter(scroll)}`, width));
-		lines.push(...this.bottomBorder.render(width));
+		lines.push(row(theme, viewerFooter(scroll), width));
+		lines.push(bottomBorder(theme, width));
 		return lines;
 	}
 

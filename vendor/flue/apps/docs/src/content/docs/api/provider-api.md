@@ -90,7 +90,7 @@ Registering a non-catalog provider ID without `api` and `baseUrl` throws a `Prov
 ## `registerApiProvider()`
 
 ```ts
-const registerApiProvider: typeof import('@earendil-works/pi-ai').registerApiProvider;
+const registerApiProvider: typeof import('@steve-8000/amaze-ai').registerApiProvider;
 ```
 
 Registers a wire-protocol handler for an API slug not shipped by Pi. Register the protocol first, then pass its `api` slug to `registerProvider()`.

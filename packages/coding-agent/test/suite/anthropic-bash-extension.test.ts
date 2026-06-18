@@ -5,7 +5,7 @@ import {
 	isAnthropicBashEnabled,
 } from "../../src/core/extensions/builtin/anthropic-bash/index.ts";
 
-const ANTHROPIC_BASH_ENV = "PI_ANTHROPIC_BASH";
+const ANTHROPIC_BASH_ENV = "AMAZE_ANTHROPIC_BASH";
 
 afterEach(() => {
 	delete process.env[ANTHROPIC_BASH_ENV];

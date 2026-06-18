@@ -1,5 +1,5 @@
 import { isAbsolute, relative, resolve, sep } from "node:path";
-import { type Component, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
+import { type Component, truncateToWidth, visibleWidth } from "@steve-8000/amaze-tui";
 import type { AgentSession } from "../../../core/agent-session.ts";
 import type { ReadonlyFooterDataProvider } from "../../../core/footer-data-provider.ts";
 import { theme } from "../theme/theme.ts";
@@ -155,7 +155,12 @@ export class FooterComponent implements Component {
 			plainSegments.push(text);
 		}
 		if (totalCacheRead || totalCacheWrite) {
-			const text = `cache ${formatTokens(totalCacheRead)}/${formatTokens(totalCacheWrite)}`;
+			// Some providers (e.g. OpenAI/codex) report cache reads but not cache-write
+			// tokens, so only show the "/write" part when it's actually reported.
+			const text =
+				totalCacheWrite > 0
+					? `cache ${formatTokens(totalCacheRead)}/${formatTokens(totalCacheWrite)}`
+					: `cache ${formatTokens(totalCacheRead)}`;
 			coloredSegments.push(theme.fg("dim", text));
 			plainSegments.push(text);
 		}

@@ -1,0 +1,27 @@
+{
+  "type": "return_to_same_worker",
+  "created_at": "2026-06-17T23:41:42.336Z",
+  "source_contract_id": "readonly-reviewer",
+  "retry_contract_id": "readonly-reviewer-retry-1",
+  "assigned_worker": "reviewer",
+  "reason": "Path contract readonly-reviewer exceeded activity budget max_tool_uses=60",
+  "path_contract": {
+    "contract_id": "readonly-reviewer-retry-1",
+    "assigned_worker": "reviewer",
+    "read_allowed_paths": [
+      "**/*"
+    ],
+    "write_allowed_paths": [],
+    "write_denied_paths": [
+      "**/*"
+    ],
+    "activity_budget": {
+      "max_tool_uses": 60,
+      "max_tokens": 120000,
+      "max_elapsed_ms": 240000
+    },
+    "depends_on": [
+      "readonly-reviewer"
+    ]
+  }
+}

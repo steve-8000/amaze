@@ -106,7 +106,7 @@ afterEach(async () => {
 });
 
 describe("resolveSessionHudRoot", () => {
-	const defaultRoot = "/home/user/.senpi/agent/sessions";
+	const defaultRoot = "/home/user/.amaze/agent/sessions";
 
 	it("returns the cross-cwd sessions root for default session subdirectories", () => {
 		expect(resolveSessionHudRoot("", defaultRoot)).toBe(defaultRoot);
@@ -196,8 +196,8 @@ describe("sessionObserverExtension", () => {
 			sessionLine("valid-session", "/repo-valid", BASE_TIME),
 			userLine(["valid prompt"], BASE_TIME + 1_000),
 		]);
-		const previousDir = process.env.SENPI_CODING_AGENT_DIR;
-		process.env.SENPI_CODING_AGENT_DIR = root;
+		const previousDir = process.env.AMAZE_CODING_AGENT_DIR;
+		process.env.AMAZE_CODING_AGENT_DIR = root;
 		try {
 			const harness = await createHarness({ extensionFactories: [sessionObserverExtension] });
 			harnesses.push(harness);
@@ -210,15 +210,15 @@ describe("sessionObserverExtension", () => {
 			expect(recording.getCustomCallCount()).toBe(1);
 			expect(recording.notifications).toEqual([]);
 		} finally {
-			if (previousDir === undefined) delete process.env.SENPI_CODING_AGENT_DIR;
-			else process.env.SENPI_CODING_AGENT_DIR = previousDir;
+			if (previousDir === undefined) delete process.env.AMAZE_CODING_AGENT_DIR;
+			else process.env.AMAZE_CODING_AGENT_DIR = previousDir;
 		}
 	});
 
 	it("shows empty state when no sessions exist", async () => {
 		const root = await tempRoots.make();
-		const previousDir = process.env.SENPI_CODING_AGENT_DIR;
-		process.env.SENPI_CODING_AGENT_DIR = root;
+		const previousDir = process.env.AMAZE_CODING_AGENT_DIR;
+		process.env.AMAZE_CODING_AGENT_DIR = root;
 		try {
 			const harness = await createHarness({ extensionFactories: [sessionObserverExtension] });
 			harnesses.push(harness);
@@ -231,8 +231,8 @@ describe("sessionObserverExtension", () => {
 			expect(recording.notifications).toEqual(["No sessions found"]);
 			expect(recording.getCustomCallCount()).toBe(0);
 		} finally {
-			if (previousDir === undefined) delete process.env.SENPI_CODING_AGENT_DIR;
-			else process.env.SENPI_CODING_AGENT_DIR = previousDir;
+			if (previousDir === undefined) delete process.env.AMAZE_CODING_AGENT_DIR;
+			else process.env.AMAZE_CODING_AGENT_DIR = previousDir;
 		}
 	});
 

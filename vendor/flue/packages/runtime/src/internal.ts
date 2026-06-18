@@ -8,7 +8,7 @@
  *
  * User agent code should never import from here.
  */
-import { type Api, getModel, type KnownProvider, type Model } from '@earendil-works/pi-ai';
+import { type Api, getModel, type KnownProvider, type Model } from '@steve-8000/amaze-ai';
 
 export { Bash, InMemoryFs } from 'just-bash';
 
@@ -142,7 +142,7 @@ export function resolveModel(model: ModelConfig | undefined): Model<Api> | undef
 		throw new Error(
 			`[flue] Unknown model specifier "${modelSpecifier}". ` +
 				`Provider ID "${providerId}" / model ID "${modelId}" ` +
-				`is not registered with @earendil-works/pi-ai or via registerProvider().`,
+				`is not registered with @steve-8000/amaze-ai or via registerProvider().`,
 		);
 	}
 	return resolved;

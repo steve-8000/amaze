@@ -1,12 +1,13 @@
 import { constants } from "node:fs";
 import { access as fsAccess } from "node:fs/promises";
-import type { AgentTool } from "@earendil-works/pi-agent-core";
-import { Container, Text, truncateToWidth } from "@earendil-works/pi-tui";
+import type { AgentTool } from "@steve-8000/amaze-agent-core";
+import { Container, Text, truncateToWidth } from "@steve-8000/amaze-tui";
 import { spawn } from "child_process";
 import { type Static, Type } from "typebox";
 import { keyHint } from "../../modes/interactive/components/keybinding-hints.ts";
 import { truncateToVisualLines } from "../../modes/interactive/components/visual-truncate.ts";
 import { highlightCode, theme } from "../../modes/interactive/theme/theme.ts";
+import { BoxWrapper } from "../../tui/box-wrapper.ts";
 import { waitForChildProcess } from "../../utils/child-process.ts";
 import {
 	getShellConfig,
@@ -17,7 +18,14 @@ import {
 } from "../../utils/shell.ts";
 import type { ToolDefinition, ToolRenderResultOptions } from "../extensions/types.ts";
 import { OutputAccumulator } from "./output-accumulator.ts";
-import { getTextOutput, invalidArgText, normalizeDisplayText, replaceTabs, str } from "./render-utils.ts";
+import {
+	getTextOutput,
+	invalidArgText,
+	normalizeDisplayText,
+	replaceTabs,
+	str,
+	toolCallStatusPrefix,
+} from "./render-utils.ts";
 import { wrapToolDefinition } from "./tool-definition-wrapper.ts";
 import { DEFAULT_MAX_BYTES, DEFAULT_MAX_LINES, formatSize, type TruncationResult } from "./truncate.ts";
 
@@ -431,14 +439,14 @@ export function createBashToolDefinition(
 				clearUpdateTimer();
 			}
 		},
-		renderCall(args, _theme, context) {
+		renderCall(args, theme, context) {
 			const state = context.state;
 			if (context.executionStarted && state.startedAt === undefined) {
 				state.startedAt = Date.now();
 				state.endedAt = undefined;
 			}
 			const text = (context.lastComponent as Text | undefined) ?? new Text("", 0, 0);
-			text.setText(formatBashCall(args));
+			text.setText(toolCallStatusPrefix(context, theme) + formatBashCall(args));
 			return text;
 		},
 		renderResult(result, options, _theme, context) {
@@ -453,8 +461,38 @@ export function createBashToolDefinition(
 					state.interval = undefined;
 				}
 			}
-			const component =
-				(context.lastComponent as BashResultRenderComponent | undefined) ?? new BashResultRenderComponent();
+			// Image output (terminal image escapes) must not be wrapped in a box: the
+			// border's width math would corrupt the escape sequences. Fall back to the
+			// raw component in that case; otherwise wrap the output in a bordered box.
+			const hasImage = context.showImages && (result.content?.some((c) => c.type === "image") ?? false);
+			if (hasImage) {
+				const component =
+					(context.lastComponent as BashResultRenderComponent | undefined) ?? new BashResultRenderComponent();
+				rebuildBashResultRenderComponent(
+					component,
+					result,
+					options,
+					context.showImages,
+					state.startedAt,
+					state.endedAt,
+				);
+				component.invalidate();
+				return component;
+			}
+			// Successful/streaming command output is for the agent; the user sees the
+			// `$ command` call line (with its status icon). Only surface output on error.
+			if (!context.isError) {
+				const text = (context.lastComponent as Text | undefined) ?? new Text("", 0, 0);
+				if (text instanceof Text) {
+					text.setText("");
+				}
+				return text;
+			}
+			const wrapper =
+				context.lastComponent instanceof BoxWrapper
+					? context.lastComponent
+					: new BoxWrapper(new BashResultRenderComponent(), theme);
+			const component = wrapper.inner as BashResultRenderComponent;
 			rebuildBashResultRenderComponent(
 				component,
 				result,
@@ -463,8 +501,9 @@ export function createBashToolDefinition(
 				state.startedAt,
 				state.endedAt,
 			);
-			component.invalidate();
-			return component;
+			wrapper.setState(context.isError ? "error" : "success");
+			wrapper.invalidate();
+			return wrapper;
 		},
 	};
 }

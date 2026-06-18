@@ -229,18 +229,16 @@ describe("gpt-apply-patch builtin extension", () => {
 			expanded: false,
 			showImages: true,
 			isError: false,
+			hasResult: true,
 		} satisfies ToolRenderContext<Record<string, never>, { input: string }>;
 
-		const callComponent = tool.renderCall?.({ input: patch }, theme, renderContext);
 		const component = tool.renderResult?.(
 			{ content: pendingUpdate.content, details: pendingUpdate.details },
 			{ expanded: false, isPartial: true },
 			theme,
 			renderContext,
 		);
-		const renderedCall = stripAnsi(callComponent?.render(120).join("\n") ?? "");
 		const rendered = stripAnsi(component?.render(120).join("\n") ?? "");
-		expect(renderedCall).toContain("apply_patch");
 		expect(rendered).toContain("Applying patch");
 		expect(rendered).toContain("• Edited 2 files (+2 -1)");
 		expect(rendered).toContain("sample.txt (+1 -1)");

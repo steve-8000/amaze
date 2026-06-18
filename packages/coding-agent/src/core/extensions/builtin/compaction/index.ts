@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { AgentMessage } from "@earendil-works/pi-agent-core";
+import type { AgentMessage } from "@steve-8000/amaze-agent-core";
 import type { CompactionResult } from "../../../compaction/index.ts";
 import { convertToLlm } from "../../../messages.ts";
 import type { CompactionEntry } from "../../../session-manager.ts";
@@ -21,7 +21,7 @@ import {
 import {
 	rewriteOpenAiPayloadWithRemoteCompaction,
 	runOpenAiRemoteCompaction,
-	SENPI_COMPACTION_EVENT,
+	AMAZE_COMPACTION_EVENT,
 } from "./openai-remote.ts";
 import * as cap from "./per-turn-cap.ts";
 import * as policy from "./policy.ts";
@@ -208,7 +208,7 @@ export default function compactionExtension(pi: ExtensionAPI): void {
 					const remoteCompaction = await runOpenAiRemoteCompaction(
 						ctx,
 						createBlockingRemoteCompactionEvent(ctx, remoteSnapshot, customInstructions, remoteSignal),
-						(data) => pi.events.emit(SENPI_COMPACTION_EVENT, data),
+						(data) => pi.events.emit(AMAZE_COMPACTION_EVENT, data),
 					);
 					if (remoteCompaction) {
 						if (speculativeGeneration !== remoteGeneration - 1) {
@@ -292,7 +292,7 @@ export default function compactionExtension(pi: ExtensionAPI): void {
 		const model = ctx.model;
 		if (!model) return undefined;
 		const remoteCompaction = await runOpenAiRemoteCompaction(ctx, event, (data) =>
-			pi.events.emit(SENPI_COMPACTION_EVENT, data),
+			pi.events.emit(AMAZE_COMPACTION_EVENT, data),
 		);
 		if (remoteCompaction) {
 			return { compaction: remoteCompaction };
@@ -411,7 +411,7 @@ export default function compactionExtension(pi: ExtensionAPI): void {
 		return rewriteOpenAiPayloadWithRemoteCompaction(
 			event.payload,
 			{ model: ctx.model, branchEntries: ctx.sessionManager.getBranch() },
-			(data) => pi.events.emit(SENPI_COMPACTION_EVENT, data),
+			(data) => pi.events.emit(AMAZE_COMPACTION_EVENT, data),
 		);
 	});
 

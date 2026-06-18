@@ -1,4 +1,4 @@
-import { fuzzyMatch } from "@earendil-works/pi-tui";
+import { fuzzyMatch } from "@steve-8000/amaze-tui";
 import type { HistoryEntry } from "./types.ts";
 
 const RECENCY_WEIGHT = 0.01;

@@ -1,4 +1,4 @@
-import { type Api, getModels, getProviders, type Model } from "@earendil-works/pi-ai";
+import { type Api, getModels, getProviders, type Model } from "@steve-8000/amaze-ai";
 import { describe, expect, it } from "vitest";
 import { buildDynamicSystemPrompt } from "../../src/core/dynamic-prompt/build.ts";
 import {

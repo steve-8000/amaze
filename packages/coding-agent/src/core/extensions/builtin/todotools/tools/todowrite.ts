@@ -1,13 +1,7 @@
-import { Text } from "@earendil-works/pi-tui";
+import { Text } from "@steve-8000/amaze-tui";
 import { Type } from "typebox";
 import type { ExtensionAPI, ExtensionContext } from "../../../types.ts";
-import {
-	getTodoResultLines,
-	TODO_STATE_ENTRY_TYPE,
-	type TodoItem,
-	type TodoStateEntry,
-	type TodoWriteDetails,
-} from "../state.ts";
+import { TODO_STATE_ENTRY_TYPE, type TodoItem, type TodoStateEntry, type TodoWriteDetails } from "../state.ts";
 
 const DESCRIPTION = `Use this tool to create and manage a structured task list for tracking progress on multi-step work.
 
@@ -99,7 +93,10 @@ export function registerTodoWriteTool(pi: ExtensionAPI, accessors: TodoAccessors
 				details: { todos: currentTodos } satisfies TodoWriteDetails,
 			};
 		},
-		renderCall(args, theme) {
+		renderCall(args, theme, context) {
+			if (context.hasResult) {
+				return new Text("");
+			}
 			return new Text(
 				theme.fg("toolTitle", theme.bold("todowrite ")) + theme.fg("muted", `${args.todos.length} item(s)`),
 				0,
@@ -107,13 +104,25 @@ export function registerTodoWriteTool(pi: ExtensionAPI, accessors: TodoAccessors
 			);
 		},
 		renderResult(result, _options, theme) {
+			// Compact summary only — the full list is shown live in the bottom Todo
+			// widget, so echoing every item here just pollutes the transcript.
 			const details = result.details as TodoWriteDetails | undefined;
 			const todos = details?.todos ?? accessors.getCurrentTodos();
-			const lines = getTodoResultLines(todos);
-			const title = lines[0] ?? "0 todos";
-			const items = lines.slice(1);
-			const body = items.length > 0 ? `\n${items.join("\n")}` : "";
-			return new Text(`${theme.fg("muted", title)}${body}`, 0, 0);
+			const total = todos.length;
+			if (total === 0) {
+				return new Text(theme.fg("muted", "0 todos"), 0, 0);
+			}
+			const completed = todos.filter((t) => t.status === "completed").length;
+			const cancelled = todos.filter((t) => t.status === "cancelled").length;
+			const remaining = total - completed - cancelled;
+			const summary =
+				`${total} todos \u00b7 ${completed} done \u00b7 ${remaining} left` +
+				(cancelled > 0 ? ` \u00b7 ${cancelled} cancelled` : "");
+			return new Text(
+				`${theme.fg("success", "✔")} ${theme.fg("toolTitle", theme.bold("todowrite "))}${theme.fg("muted", summary)}`,
+				0,
+				0,
+			);
 		},
 	});
 }

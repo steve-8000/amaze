@@ -8,11 +8,11 @@
  * are currently active, respecting whatever the user has configured.
  *
  * Usage:
- * 1. Copy this file to ~/.senpi/agent/extensions/ or your project's .senpi/extensions/
+ * 1. Copy this file to ~/.amaze/agent/extensions/ or your project's .amaze/extensions/
  * 2. Use the extension — it automatically adapts to your active tools and skills
  */
 
-import type { BuildSystemPromptOptions, ExtensionAPI } from "@code-yeongyu/senpi";
+import type { BuildSystemPromptOptions, ExtensionAPI } from "amaze";
 
 /**
  * Adds tool-specific guidance that adapts to the active tool set.

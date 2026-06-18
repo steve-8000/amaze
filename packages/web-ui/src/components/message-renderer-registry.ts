@@ -1,4 +1,4 @@
-import type { AgentMessage } from "@earendil-works/pi-agent-core";
+import type { AgentMessage } from "@steve-8000/amaze-agent-core";
 import type { TemplateResult } from "lit";
 
 // Extract role type from AppMessage union

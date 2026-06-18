@@ -1,5 +1,5 @@
-import type { AgentMessage, AgentTool, ThinkingLevel } from '@earendil-works/pi-agent-core';
-import type { ImageContent, Model } from '@earendil-works/pi-ai';
+import type { AgentMessage, AgentTool, ThinkingLevel } from '@steve-8000/amaze-agent-core';
+import type { ImageContent, Model } from '@steve-8000/amaze-ai';
 
 export interface SignalMessage {
 	role: 'signal';
@@ -10,7 +10,7 @@ export interface SignalMessage {
 	timestamp: number;
 }
 
-declare module '@earendil-works/pi-agent-core' {
+declare module '@steve-8000/amaze-agent-core' {
 	interface CustomAgentMessages {
 		signal: SignalMessage;
 	}

@@ -1,4 +1,4 @@
-import type { Component } from "@earendil-works/pi-tui";
+import type { Component } from "@steve-8000/amaze-tui";
 
 export class DynamicBorder implements Component {
 	private readonly color: (str: string) => string;

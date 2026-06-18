@@ -1,5 +1,5 @@
-import type { AgentToolResult } from "@earendil-works/pi-agent-core";
-import { Box, type Component, Container, getCapabilities, Image, Spacer, Text, type TUI } from "@earendil-works/pi-tui";
+import type { AgentToolResult } from "@steve-8000/amaze-agent-core";
+import { Box, type Component, Container, getCapabilities, Image, Spacer, Text, type TUI } from "@steve-8000/amaze-tui";
 import type { ToolDefinition, ToolRenderContext } from "../../../core/extensions/types.ts";
 import { createAllToolDefinitions, type ToolName } from "../../../core/tools/index.ts";
 import { getTextOutput as getRenderedTextOutput } from "../../../core/tools/render-utils.ts";
@@ -90,7 +90,9 @@ export class ToolExecutionComponent extends Container {
 		this.ui = ui;
 		this.cwd = cwd;
 
-		this.addChild(new Spacer(1));
+		// No leading blank line: tool-call lines stack tightly so read-only calls
+		// (read/grep/find/ls/bash) read as a compact list. Boxed tools provide their
+		// own visual separation via the border.
 
 		// Always create all shell variants. contentBox is used for default renderer-based composition.
 		// selfRenderContainer is used when the tool renders its own framing.
@@ -160,6 +162,7 @@ export class ToolExecutionComponent extends Container {
 			expanded: this.expanded,
 			showImages: this.showImages,
 			isError: this.result?.isError ?? false,
+			hasResult: this.result !== undefined,
 			spinnerFrame: this.spinnerFrame,
 		};
 	}
@@ -260,7 +263,7 @@ export class ToolExecutionComponent extends Container {
 		if (this.hideComponent) {
 			return [];
 		}
-		const signature = this.createRenderSignature();
+		const signature = this.createRenderCacheKey();
 		if (this.cachedLines && this.cachedWidth === width && this.cachedSignature === signature) {
 			return [...this.cachedLines];
 		}
@@ -298,6 +301,7 @@ export class ToolExecutionComponent extends Container {
 	}
 
 	private lastDisplaySignature?: string;
+	private displayVersion = 0;
 
 	private updateDisplay(): void {
 		const displaySignature = this.createRenderSignature();
@@ -305,6 +309,10 @@ export class ToolExecutionComponent extends Container {
 			return;
 		}
 		this.lastDisplaySignature = displaySignature;
+		// Bump a cheap monotonic version whenever the (expensive) display signature
+		// actually changes. render() keys its per-frame cache off this instead of
+		// re-running JSON.stringify(result) on every frame.
+		this.displayVersion++;
 		this.invalidateRenderCache();
 
 		const bgFn = this.isPartial
@@ -437,6 +445,15 @@ export class ToolExecutionComponent extends Container {
 			text += `\n${sanitizeFallbackString(output, FALLBACK_JSON_MAX_LENGTH)}`;
 		}
 		return text;
+	}
+
+	/**
+	 * Cheap per-frame render-cache key. The full {@link createRenderSignature}
+	 * (JSON.stringify of args/result) only runs on actual state changes via
+	 * updateDisplay(); render() must not pay that cost every frame.
+	 */
+	private createRenderCacheKey(): string {
+		return `${this.displayVersion}|${this.spinnerFrame ?? -1}`;
 	}
 
 	private createRenderSignature(): string {

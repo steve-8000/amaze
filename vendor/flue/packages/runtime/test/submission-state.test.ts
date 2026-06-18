@@ -1,4 +1,4 @@
-import type { AssistantMessage } from '@earendil-works/pi-ai';
+import type { AssistantMessage } from '@steve-8000/amaze-ai';
 import { describe, expect, it } from 'vitest';
 import { classifySubmissionState } from '../src/submission-state.ts';
 import type { SessionEntry } from '../src/types.ts';

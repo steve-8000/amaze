@@ -1,0 +1,65 @@
+{
+	"name": "amaze-comment-checker",
+	"version": "0.1.0",
+	"description": "Comment checker hook extension for pi/amaze. Runs @code-yeongyu/comment-checker after write, edit, multiedit, and apply_patch, then surfaces warnings in the TUI.",
+	"type": "module",
+	"license": "MIT",
+	"homepage": "https://github.com/code-yeongyu/amaze-comment-checker",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/code-yeongyu/amaze-comment-checker.git"
+	},
+	"bugs": {
+		"url": "https://github.com/code-yeongyu/amaze-comment-checker/issues"
+	},
+	"keywords": [
+		"pi",
+		"amaze",
+		"amaze",
+		"amaze",
+		"amaze-extension",
+		"coding-agent",
+		"comment-checker",
+		"comments",
+		"hooks",
+		"typescript"
+	],
+	"amaze": {
+		"extensions": [
+			"./src/index.ts"
+		]
+	},
+	"files": [
+		"src",
+		"LICENSE",
+		"NOTICE",
+		"README.md",
+		"CHANGELOG.md"
+	],
+	"scripts": {
+		"test": "vitest --run",
+		"test:watch": "vitest",
+		"typecheck": "tsgo --noEmit",
+		"lint": "biome check .",
+		"lint:fix": "biome check --write .",
+		"check": "tsgo --noEmit && biome check ."
+	},
+	"peerDependencies": {
+		"@steve-8000/amaze-ai": "*",
+		"amaze": "*",
+		"@steve-8000/amaze-tui": "*"
+	},
+	"dependencies": {
+		"@code-yeongyu/comment-checker": "^0.8.0"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "2.4.16",
+		"@types/node": "^25.9.1",
+		"@typescript/native-preview": "^7.0.0-dev.20260604.1",
+		"typescript": "^6.0.3",
+		"vitest": "^4.1.8"
+	},
+	"engines": {
+		"node": ">=20.0.0"
+	}
+}

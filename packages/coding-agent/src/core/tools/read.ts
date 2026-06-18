@@ -1,7 +1,7 @@
 import { basename, dirname, isAbsolute, relative, resolve as resolvePath, sep } from "node:path";
-import type { AgentTool } from "@earendil-works/pi-agent-core";
-import type { Api, ImageContent, Model, TextContent } from "@earendil-works/pi-ai";
-import { Text } from "@earendil-works/pi-tui";
+import type { AgentTool } from "@steve-8000/amaze-agent-core";
+import type { Api, ImageContent, Model, TextContent } from "@steve-8000/amaze-ai";
+import { Text } from "@steve-8000/amaze-tui";
 import { constants } from "fs";
 import { access as fsAccess, readFile as fsReadFile } from "fs/promises";
 import { type Static, Type } from "typebox";
@@ -13,7 +13,7 @@ import { detectSupportedImageMimeTypeFromFile } from "../../utils/mime.ts";
 import { formatPathRelativeToCwdOrAbsolute } from "../../utils/paths.ts";
 import type { ToolDefinition, ToolRenderResultOptions } from "../extensions/types.ts";
 import { resolveReadPathAsync, resolveToCwd } from "./path-utils.ts";
-import { getTextOutput, renderToolPath, replaceTabs, str } from "./render-utils.ts";
+import { getTextOutput, renderToolPath, replaceTabs, str, toolCallStatusPrefix } from "./render-utils.ts";
 import { wrapToolDefinition } from "./tool-definition-wrapper.ts";
 import { DEFAULT_MAX_BYTES, DEFAULT_MAX_LINES, formatSize, type TruncationResult, truncateHead } from "./truncate.ts";
 
@@ -341,17 +341,26 @@ export function createReadToolDefinition(
 			const text = (context.lastComponent as Text | undefined) ?? new Text("", 0, 0);
 			const classification = !context.expanded ? getCompactReadClassification(args, context.cwd) : undefined;
 			text.setText(
-				classification
-					? formatCompactReadCall(classification, args, theme)
-					: formatReadCall(args, theme, context.cwd),
+				toolCallStatusPrefix(context, theme) +
+					(classification
+						? formatCompactReadCall(classification, args, theme)
+						: formatReadCall(args, theme, context.cwd)),
 			);
 			return text;
 		},
 		renderResult(result, options, theme, context) {
+			// Read content is for the agent, not the user: the `read <path>:start-end`
+			// call line already conveys what was read, so the body is intentionally not
+			// rendered. Only images (explicitly requested) and errors are surfaced.
+			const hasImage = result.content?.some((c) => c.type === "image") ?? false;
 			const text = (context.lastComponent as Text | undefined) ?? new Text("", 0, 0);
-			text.setText(
-				formatReadResult(context.args, result, options, theme, context.showImages, context.cwd, context.isError),
-			);
+			if (hasImage || context.isError) {
+				text.setText(
+					formatReadResult(context.args, result, options, theme, context.showImages, context.cwd, context.isError),
+				);
+			} else {
+				text.setText("");
+			}
 			return text;
 		},
 	};

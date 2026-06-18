@@ -1,4 +1,4 @@
-import { type AssistantMessage, createAssistantMessageEventStream, fauxAssistantMessage } from "@earendil-works/pi-ai";
+import { type AssistantMessage, createAssistantMessageEventStream, fauxAssistantMessage } from "@steve-8000/amaze-ai";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ExtensionAPI } from "../../src/core/extensions/index.ts";
 import { createHarness, type Harness } from "./harness.ts";

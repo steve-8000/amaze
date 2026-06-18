@@ -6,9 +6,9 @@ import { describe, expect, test } from "vitest";
 const WORKSPACE_ROOT = fileURLToPath(new URL("../../..", import.meta.url));
 
 const WORKSPACE_DEPENDENCIES = [
-	{ name: "@earendil-works/pi-agent-core", packageJsonPath: "packages/agent/package.json" },
-	{ name: "@earendil-works/pi-ai", packageJsonPath: "packages/ai/package.json" },
-	{ name: "@earendil-works/pi-tui", packageJsonPath: "packages/tui/package.json" },
+	{ name: "@steve-8000/amaze-agent-core", packageJsonPath: "packages/agent/package.json" },
+	{ name: "@steve-8000/amaze-ai", packageJsonPath: "packages/ai/package.json" },
+	{ name: "@steve-8000/amaze-tui", packageJsonPath: "packages/tui/package.json" },
 ] as const;
 
 const GLOBAL_INSTALL_EXCLUDED_DEPENDENCIES = new Set(["@google/genai"]);
@@ -109,7 +109,7 @@ describe("coding-agent workspace dependencies", () => {
 
 		// When
 		const nestedRegistryPackagePattern =
-			/"packages\/coding-agent\/node_modules\/@earendil-works\/pi-(?:agent-core|ai|tui)"/;
+			/"packages\/coding-agent\/node_modules\/@steve-8000\/pi-(?:agent-core|ai|tui)"/;
 
 		// Then
 		expect(lockfile).not.toMatch(nestedRegistryPackagePattern);
@@ -143,8 +143,8 @@ describe("coding-agent workspace dependencies", () => {
 		}
 
 		// Then
-		expect(publishScript).toContain("scripts/prepare-senpi-bundled-workspaces.mjs");
-		expect(dryRunScript).toContain("scripts/prepare-senpi-bundled-workspaces.mjs");
+		expect(publishScript).toContain("scripts/prepare-amaze-bundled-workspaces.mjs");
+		expect(dryRunScript).toContain("scripts/prepare-amaze-bundled-workspaces.mjs");
 	});
 
 	test("declares external dependencies required by bundled workspaces", () => {

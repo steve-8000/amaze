@@ -1,7 +1,7 @@
 import { Buffer } from "buffer";
 
 const RESIDENT_STRING_MIN_BYTES = 32 * 1024;
-const RESIDENT_STRING_PREFIX = "\u0000senpi-resident-string:v1:";
+const RESIDENT_STRING_PREFIX = "\u0000amaze-resident-string:v1:";
 
 export interface ResidentStoreStats {
 	blobCount: number;
@@ -46,12 +46,11 @@ export class ResidentStringStore {
 	}
 
 	private materializeString(text: string): string {
-		if (!text.startsWith(RESIDENT_STRING_PREFIX)) {
-			return text;
+		if (text.startsWith(RESIDENT_STRING_PREFIX)) {
+			const id = text.slice(RESIDENT_STRING_PREFIX.length);
+			return this.strings.get(id) ?? text;
 		}
-
-		const id = text.slice(RESIDENT_STRING_PREFIX.length);
-		return this.strings.get(id) ?? text;
+		return text;
 	}
 }
 

@@ -6,7 +6,7 @@ import {
 	resetCapabilitiesCache,
 	setCapabilities,
 	setKeybindings,
-} from "@earendil-works/pi-tui";
+} from "@steve-8000/amaze-tui";
 import { beforeAll, describe, expect, test, vi } from "vitest";
 import { type Component, Container, type Focusable, TUI } from "../../tui/src/tui.ts";
 import { VirtualTerminal } from "../../tui/test/virtual-terminal.ts";
@@ -227,7 +227,7 @@ describe("InteractiveMode terminal title state", () => {
 			extensionTerminalTitle: undefined,
 			hookStatusContainer: new Container(),
 			sessionManager: {
-				getCwd: () => "/tmp/senpi-project",
+				getCwd: () => "/tmp/amaze-project",
 				getSessionName: () => "Visible Session",
 			},
 			startToolHookStatusTimer: vi.fn(),
@@ -274,7 +274,7 @@ describe("InteractiveMode terminal title state", () => {
 		});
 
 		// Then
-		expect(setTitle).toHaveBeenLastCalledWith(`${APP_TITLE} - Visible Session - senpi-project`);
+		expect(setTitle).toHaveBeenLastCalledWith(`${APP_TITLE} - Visible Session - amaze-project`);
 	});
 
 	test("sanitizes active tool hook terminal title", () => {
@@ -287,7 +287,7 @@ describe("InteractiveMode terminal title state", () => {
 			extensionTerminalTitle: undefined,
 			hookStatusContainer: new Container(),
 			sessionManager: {
-				getCwd: () => "/tmp/senpi-project",
+				getCwd: () => "/tmp/amaze-project",
 				getSessionName: () => "Visible Session",
 			},
 			startToolHookStatusTimer: vi.fn(),
@@ -355,7 +355,7 @@ describe("InteractiveMode terminal title state", () => {
 			requestStreamingRender: vi.fn(),
 			session: { isStreaming: true },
 			sessionManager: {
-				getCwd: () => "/tmp/senpi-project",
+				getCwd: () => "/tmp/amaze-project",
 				getSessionName: () => "Visible Session",
 			},
 			settingsManager: {
@@ -403,7 +403,7 @@ describe("InteractiveMode terminal title state", () => {
 		// Then
 		expect(fakeThis.workingMessage).toBe("Thinking");
 		expect(setMessage).toHaveBeenLastCalledWith("Thinking");
-		expect(setTitle).toHaveBeenLastCalledWith(`${APP_TITLE} - Visible Session - senpi-project`);
+		expect(setTitle).toHaveBeenLastCalledWith(`${APP_TITLE} - Visible Session - amaze-project`);
 	});
 });
 
@@ -1387,13 +1387,13 @@ describe("InteractiveMode.showLoadedResources", () => {
 				{ path: "<builtin:todowrite>" },
 				{ path: "<builtin:redraws>" },
 				{
-					path: `${home}/.senpi/agent/extensions/diff.js`,
+					path: `${home}/.amaze/agent/extensions/diff.js`,
 					sourceInfo: {
-						path: `${home}/.senpi/agent/extensions/diff.js`,
+						path: `${home}/.amaze/agent/extensions/diff.js`,
 						source: "local",
 						scope: "user",
 						origin: "top-level",
-						baseDir: `${home}/.senpi/agent/extensions`,
+						baseDir: `${home}/.amaze/agent/extensions`,
 					},
 				},
 			],
@@ -1406,7 +1406,7 @@ describe("InteractiveMode.showLoadedResources", () => {
 		expect(output).toContain("redraws");
 		expect(output).toContain("todo");
 		expect(output).toContain("user");
-		expect(output).toContain("~/.senpi/agent/extensions/diff.js");
+		expect(output).toContain("~/.amaze/agent/extensions/diff.js");
 		expect(output).not.toContain("todowrite");
 	});
 });

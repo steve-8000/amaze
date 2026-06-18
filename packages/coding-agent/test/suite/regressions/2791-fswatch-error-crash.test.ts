@@ -8,7 +8,7 @@ import { ENV_AGENT_DIR } from "../../../src/config.ts";
 const CHILD_TIMEOUT_MS = 60_000;
 
 /**
- * Regression test for https://github.com/earendil-works/pi-mono/issues/2791
+ * Regression test for https://github.com/steve-8000/pi-mono/issues/2791
  *
  * fs.watch() returns an FSWatcher (EventEmitter). If the watcher emits an
  * 'error' event after creation and no error handler is attached, Node.js

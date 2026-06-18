@@ -1,4 +1,4 @@
-import type { Model } from "@earendil-works/pi-ai";
+import type { Model } from "@steve-8000/amaze-ai";
 import { icon } from "@mariozechner/mini-lit";
 import { Button } from "@mariozechner/mini-lit/dist/Button.js";
 import { Select, type SelectOption } from "@mariozechner/mini-lit/dist/Select.js";
@@ -9,7 +9,7 @@ import { Brain, Loader2, Paperclip, Send, Sparkles, Square } from "lucide";
 import { type Attachment, loadAttachment } from "../utils/attachment-utils.ts";
 import { i18n } from "../utils/i18n.ts";
 import "./AttachmentTile.ts";
-import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
+import type { ThinkingLevel } from "@steve-8000/amaze-agent-core";
 
 @customElement("message-editor")
 export class MessageEditor extends LitElement {

@@ -5,7 +5,7 @@
  * the selected file in VS Code's diff view.
  */
 
-import { Container, Key, matchesKey, type SelectItem, SelectList, Text } from "@earendil-works/pi-tui";
+import { Container, Key, matchesKey, type SelectItem, SelectList, Text } from "@steve-8000/amaze-tui";
 import { DynamicBorder } from "../../../modes/interactive/components/dynamic-border.ts";
 import type { ExtensionAPI } from "../types.ts";
 

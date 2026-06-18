@@ -22,12 +22,12 @@
  *   toggled the tool output open (via ctrl+e or clicking)
  *
  * Usage:
- *   senpi -e ./built-in-tool-renderer.ts
+ *   amaze -e ./built-in-tool-renderer.ts
  */
 
-import type { BashToolDetails, EditToolDetails, ExtensionAPI, ReadToolDetails } from "@code-yeongyu/senpi";
-import { createBashTool, createEditTool, createReadTool, createWriteTool } from "@code-yeongyu/senpi";
-import { Text } from "@earendil-works/pi-tui";
+import type { BashToolDetails, EditToolDetails, ExtensionAPI, ReadToolDetails } from "amaze";
+import { createBashTool, createEditTool, createReadTool, createWriteTool } from "amaze";
+import { Text } from "@steve-8000/amaze-tui";
 
 export default function (pi: ExtensionAPI) {
 	const cwd = process.cwd();

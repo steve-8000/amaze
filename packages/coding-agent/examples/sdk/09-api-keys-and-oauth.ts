@@ -4,10 +4,10 @@
  * Configure API key resolution via AuthStorage and ModelRegistry.
  */
 
-import { AuthStorage, createAgentSession, ModelRegistry, SessionManager } from "@code-yeongyu/senpi";
+import { AuthStorage, createAgentSession, ModelRegistry, SessionManager } from "amaze";
 
-// Default: AuthStorage uses ~/.senpi/agent/auth.json
-// ModelRegistry loads built-in + custom models from ~/.senpi/agent/models.json
+// Default: AuthStorage uses ~/.amaze/agent/auth.json
+// ModelRegistry loads built-in + custom models from ~/.amaze/agent/models.json
 const authStorage = AuthStorage.create();
 const modelRegistry = ModelRegistry.create(authStorage);
 

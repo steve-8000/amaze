@@ -1,5 +1,6 @@
-import type { AssistantMessage } from "@earendil-works/pi-ai";
-import { Container, Markdown, type MarkdownTheme, Spacer, Text } from "@earendil-works/pi-tui";
+import type { AssistantMessage } from "@steve-8000/amaze-ai";
+import { Container, Markdown, type MarkdownTheme, Spacer, Text } from "@steve-8000/amaze-tui";
+import { renderOutputBlock, trimBlankEdges } from "../../../tui/output-block.ts";
 import { formatProviderNativeBody, formatProviderNativeSummary } from "../../provider-native-rendering.ts";
 import { getMarkdownTheme, theme } from "../theme/theme.ts";
 
@@ -88,14 +89,30 @@ export class AssistantMessageComponent extends Container {
 			return [...this.cachedLines];
 		}
 
-		const lines = super.render(width);
-		if (this.hasToolCalls || lines.length === 0) {
-			this.cacheRender(width, signature, lines);
-			return lines;
+		// The assistant component holds only the model's text/thinking (tool calls are
+		// separate components), so the text answer is always shown as an accent card.
+		// Tool-call turns with no visible text collapse to nothing (no empty box).
+		const content = trimBlankEdges(super.render(Math.max(1, width - 2)));
+		if (content.length === 0) {
+			const raw = super.render(width);
+			this.cacheRender(width, signature, raw);
+			return raw;
 		}
-
-		lines[0] = OSC133_ZONE_START + lines[0];
-		lines[lines.length - 1] = OSC133_ZONE_END + OSC133_ZONE_FINAL + lines[lines.length - 1];
+		const lines = renderOutputBlock(
+			{
+				header: "💬 AMAZE",
+				state: "success",
+				borderColor: "borderAccent",
+				applyBg: false,
+				sections: [{ lines: content }],
+				width,
+			},
+			theme,
+		);
+		if (!this.hasToolCalls) {
+			lines[0] = OSC133_ZONE_START + lines[0];
+			lines[lines.length - 1] = OSC133_ZONE_END + OSC133_ZONE_FINAL + lines[lines.length - 1];
+		}
 		this.cacheRender(width, signature, lines);
 		return lines;
 	}

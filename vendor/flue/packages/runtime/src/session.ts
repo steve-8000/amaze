@@ -9,8 +9,8 @@ import type {
 	AgentTool,
 	AgentToolResult,
 	StreamFn,
-} from '@earendil-works/pi-agent-core';
-import { Agent } from '@earendil-works/pi-agent-core';
+} from '@steve-8000/amaze-agent-core';
+import { Agent } from '@steve-8000/amaze-agent-core';
 import type {
 	AssistantMessage,
 	ImageContent,
@@ -18,8 +18,8 @@ import type {
 	Model,
 	ToolResultMessage,
 	UserMessage,
-} from '@earendil-works/pi-ai';
-import { streamSimple } from '@earendil-works/pi-ai';
+} from '@steve-8000/amaze-ai';
+import { streamSimple } from '@steve-8000/amaze-ai';
 import type * as v from 'valibot';
 import { abortErrorFor, createCallHandle } from './abort.ts';
 import {

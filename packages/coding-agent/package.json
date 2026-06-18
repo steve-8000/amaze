@@ -3,7 +3,7 @@
 	"version": "0.1.0",
 	"description": "amaze - unified AI coding agent (code intelligence, semantic search, memory, skills, channels, desktop & sandbox control)",
 	"type": "module",
-	"piConfig": {
+	"amazeConfig": {
 		"name": "amaze",
 		"configDir": ".amaze"
 	},
@@ -30,7 +30,7 @@
 		"clean": "shx rm -rf dist",
 		"dev": "tsgo -p tsconfig.build.json --watch --preserveWatchOutput",
 		"build": "tsgo -p tsconfig.build.json && npm run copy-assets && shx chmod +x dist/cli.js",
-		"build:binary": "npm --prefix ../tui run build && npm --prefix ../ai run build && npm --prefix ../agent run build && npm run build && bun build --compile --no-compile-autoload-dotenv --minify --keep-names ./dist/bun/cli.js ./src/utils/image-resize-worker.ts --outfile dist/pi && npm run copy-binary-assets",
+		"build:binary": "npm --prefix ../tui run build && npm --prefix ../ai run build && npm --prefix ../agent run build && npm run build && bun build --compile --no-compile-autoload-dotenv --minify --keep-names ./dist/bun/cli.js ./src/utils/image-resize-worker.ts --outfile dist/amaze && npm run copy-binary-assets",
 		"copy-assets": "shx mkdir -p dist/modes/interactive/theme/defaults && shx cp src/modes/interactive/theme/*.json dist/modes/interactive/theme/ && shx cp src/modes/interactive/theme/defaults/*.json dist/modes/interactive/theme/defaults/ && shx mkdir -p dist/modes/interactive/assets && shx cp src/modes/interactive/assets/*.png dist/modes/interactive/assets/ && shx mkdir -p dist/core/export-html/vendor && shx cp src/core/export-html/template.html src/core/export-html/template.css src/core/export-html/template.js dist/core/export-html/ && shx cp src/core/export-html/vendor/*.js dist/core/export-html/vendor/",
 		"copy-binary-assets": "shx cp package.json dist/ && shx cp README.md dist/ && shx cp CHANGELOG.md dist/ && shx mkdir -p dist/theme && shx cp src/modes/interactive/theme/*.json dist/theme/ && shx mkdir -p dist/assets && shx cp src/modes/interactive/assets/*.png dist/assets/ && shx mkdir -p dist/export-html/vendor && shx cp src/core/export-html/template.html dist/export-html/ && shx cp src/core/export-html/vendor/*.js dist/export-html/vendor/ && shx cp -r docs dist/ && shx cp -r examples dist/ && shx cp ../../node_modules/@silvia-odwyer/photon-node/photon_rs_bg.wasm dist/",
 		"test": "vitest --run",
@@ -40,9 +40,9 @@
 	"dependencies": {
 		"@anthropic-ai/sdk": "0.91.1",
 		"@aws-sdk/client-bedrock-runtime": "3.1048.0",
-		"@earendil-works/pi-agent-core": "^2026.6.16-2",
-		"@earendil-works/pi-ai": "^2026.6.16-2",
-		"@earendil-works/pi-tui": "^2026.6.16-2",
+		"@steve-8000/amaze-agent-core": "^2026.6.16-2",
+		"@steve-8000/amaze-ai": "^2026.6.16-2",
+		"@steve-8000/amaze-tui": "^2026.6.16-2",
 		"@mistralai/mistralai": "2.2.1",
 		"@silvia-odwyer/photon-node": "0.3.4",
 		"@smithy/node-http-handler": "4.7.3",
@@ -73,9 +73,9 @@
 		"yaml": "2.9.0"
 	},
 	"bundledDependencies": [
-		"@earendil-works/pi-agent-core",
-		"@earendil-works/pi-ai",
-		"@earendil-works/pi-tui"
+		"@steve-8000/amaze-agent-core",
+		"@steve-8000/amaze-ai",
+		"@steve-8000/amaze-tui"
 	],
 	"overrides": {
 		"rimraf": "6.1.2",
@@ -112,15 +112,15 @@
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/code-yeongyu/senpi.git",
+		"url": "git+https://github.com/steve-8000/amaze.git",
 		"directory": "packages/coding-agent"
 	},
 	"engines": {
 		"node": ">=24.0.0"
 	},
 	"bundleDependencies": [
-		"@earendil-works/pi-agent-core",
-		"@earendil-works/pi-ai",
-		"@earendil-works/pi-tui"
+		"@steve-8000/amaze-agent-core",
+		"@steve-8000/amaze-ai",
+		"@steve-8000/amaze-tui"
 	]
 }

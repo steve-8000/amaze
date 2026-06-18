@@ -51,6 +51,10 @@ mode = "auto"
 # Requires the Xenonite service (see [services.xenonite]).
 [tools.mem]
 enabled = false
+# Keep durable memory conservative by default. Manual mem_* tools remain
+# available when enabled; automatic prompt prefetch and turn sync are opt-in.
+auto_recall = false
+auto_sync   = false
 
 [tools.mem.provider]
 active = "embedded"   # embedded | honcho | none

@@ -1,4 +1,4 @@
-import type { AssistantMessage, ImageContent, Message, ToolResultMessage } from "@earendil-works/pi-ai";
+import type { AssistantMessage, ImageContent, Message, ToolResultMessage } from "@steve-8000/amaze-ai";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { SessionShutdownEvent } from "../src/index.ts";
 import { runPrintMode } from "../src/modes/print-mode.ts";

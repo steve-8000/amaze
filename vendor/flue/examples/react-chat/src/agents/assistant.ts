@@ -1,4 +1,4 @@
-import { fauxAssistantMessage, fauxText, registerFauxProvider } from '@earendil-works/pi-ai';
+import { fauxAssistantMessage, fauxText, registerFauxProvider } from '@steve-8000/amaze-ai';
 import { createAgent } from '@flue/runtime';
 
 export default createAgent(() => {

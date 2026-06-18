@@ -1,13 +1,13 @@
 /**
- * Syncs senpi theme with macOS system appearance (dark/light mode).
+ * Syncs amaze theme with macOS system appearance (dark/light mode).
  *
  * Usage:
- *   senpi -e examples/extensions/mac-system-theme.ts
+ *   amaze -e examples/extensions/mac-system-theme.ts
  */
 
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
-import type { ExtensionAPI } from "@code-yeongyu/senpi";
+import type { ExtensionAPI } from "amaze";
 
 const execAsync = promisify(exec);
 

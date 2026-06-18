@@ -18,7 +18,7 @@ afterEach(() => {
 describe("local-release command runner", () => {
 	it("captures large npm pack JSON output", () => {
 		// Given
-		tempDir = mkdtempSync(join(tmpdir(), "senpi-local-release-pack-"));
+		tempDir = mkdtempSync(join(tmpdir(), "amaze-local-release-pack-"));
 		const scriptPath = join(tempDir, "large-pack-output.mjs");
 		writeFileSync(
 			scriptPath,

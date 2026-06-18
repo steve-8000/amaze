@@ -5,7 +5,7 @@ import openaiWebSearchExtension, {
 } from "../../src/core/extensions/builtin/openai-web-search/index.ts";
 import type { ExtensionAPI } from "../../src/core/extensions/types.ts";
 
-const ENABLE_ENV = "PI_OPENAI_WEB_SEARCH";
+const ENABLE_ENV = "AMAZE_OPENAI_WEB_SEARCH";
 const OPENAI_RESPONSES_MODEL = {
 	api: "openai-responses",
 	baseUrl: "https://api.openai.com/v1",

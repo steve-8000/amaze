@@ -1,8 +1,8 @@
-> senpi can help you use the SDK. Ask it to build an integration for your use case.
+> amaze can help you use the SDK. Ask it to build an integration for your use case.
 
 # SDK
 
-The SDK provides programmatic access to senpi's agent capabilities. Use it to embed senpi in other applications, build custom interfaces, or integrate with automated workflows.
+The SDK provides programmatic access to amaze's agent capabilities. Use it to embed amaze in other applications, build custom interfaces, or integrate with automated workflows.
 
 **Example use cases:**
 - Build a custom UI (web, desktop, mobile)
@@ -15,7 +15,7 @@ See [examples/sdk/](../examples/sdk/) for working examples from minimal to full 
 ## Quick Start
 
 ```typescript
-import { AuthStorage, createAgentSession, ModelRegistry, SessionManager } from "@code-yeongyu/senpi";
+import { AuthStorage, createAgentSession, ModelRegistry, SessionManager } from "amaze";
 
 // Set up credential storage and model registry
 const authStorage = AuthStorage.create();
@@ -39,7 +39,7 @@ await session.prompt("What files are in the current directory?");
 ## Installation
 
 ```bash
-npm install @code-yeongyu/senpi
+npm install amaze
 ```
 
 The SDK is included in the main package. No separate installation needed.
@@ -53,7 +53,7 @@ The main factory function for a single `AgentSession`.
 `createAgentSession()` uses a `ResourceLoader` to supply extensions, skills, prompt templates, themes, and context files. If you do not provide one, it uses `DefaultResourceLoader` with standard discovery.
 
 ```typescript
-import { createAgentSession, SessionManager } from "@code-yeongyu/senpi";
+import { createAgentSession, SessionManager } from "amaze";
 
 // Minimal: defaults with DefaultResourceLoader
 const { session } = await createAgentSession();
@@ -131,7 +131,7 @@ import {
   createAgentSessionServices,
   getAgentDir,
   SessionManager,
-} from "@code-yeongyu/senpi";
+} from "amaze";
 
 const createRuntime: CreateAgentSessionRuntimeFactory = async ({ cwd, sessionManager, sessionStartEvent }) => {
   const services = await createAgentSessionServices({ cwd });
@@ -238,7 +238,7 @@ Both `steer()` and `followUp()` expand file-based prompt templates but error on 
 
 ### Agent and AgentState
 
-The `Agent` class (from `@earendil-works/pi-agent-core`) handles the core LLM interaction. Access it via `session.agent`.
+The `Agent` class (from `@steve-8000/amaze-agent-core`) handles the core LLM interaction. Access it via `session.agent`.
 
 ```typescript
 // Access current state
@@ -337,23 +337,23 @@ const { session } = await createAgentSession({
   cwd: process.cwd(), // default
   
   // Global config directory
-  agentDir: "~/.senpi/agent", // default (expands ~)
+  agentDir: "~/.amaze/agent", // default (expands ~)
 });
 ```
 
 `cwd` is used by `DefaultResourceLoader` for:
-- Project extensions (`.senpi/extensions/`)
+- Project extensions (`.amaze/extensions/`)
 - Project skills:
-  - `.senpi/skills/`
+  - `.amaze/skills/`
   - `.agents/skills/` in `cwd` and ancestor directories (up to git repo root, or filesystem root when not in a repo)
-- Project prompts (`.senpi/prompts/`)
+- Project prompts (`.amaze/prompts/`)
 - Context files (`AGENTS.md` walking up from cwd)
 - Session directory naming
 
 `agentDir` is used by `DefaultResourceLoader` for:
 - Global extensions (`extensions/`)
 - Global skills:
-  - `skills/` under `agentDir` (for example `~/.senpi/agent/skills/`)
+  - `skills/` under `agentDir` (for example `~/.amaze/agent/skills/`)
   - `~/.agents/skills/`
 - Global prompts (`prompts/`)
 - Global context file (`AGENTS.md`)
@@ -367,8 +367,8 @@ When you pass a custom `ResourceLoader`, `cwd` and `agentDir` no longer control 
 ### Model
 
 ```typescript
-import { getModel } from "@earendil-works/pi-ai";
-import { AuthStorage, ModelRegistry } from "@code-yeongyu/senpi";
+import { getModel } from "@steve-8000/amaze-ai";
+import { AuthStorage, ModelRegistry } from "amaze";
 
 const authStorage = AuthStorage.create();
 const modelRegistry = ModelRegistry.create(authStorage);
@@ -415,9 +415,9 @@ API key resolution priority (handled by AuthStorage):
 4. Fallback resolver (for custom provider keys from `models.json`)
 
 ```typescript
-import { AuthStorage, ModelRegistry } from "@code-yeongyu/senpi";
+import { AuthStorage, ModelRegistry } from "amaze";
 
-// Default: uses ~/.senpi/agent/auth.json and ~/.senpi/agent/models.json
+// Default: uses ~/.amaze/agent/auth.json and ~/.amaze/agent/models.json
 const authStorage = AuthStorage.create();
 const modelRegistry = ModelRegistry.create(authStorage);
 
@@ -451,7 +451,7 @@ const simpleRegistry = ModelRegistry.inMemory(authStorage);
 Use a `ResourceLoader` to override the system prompt:
 
 ```typescript
-import { createAgentSession, DefaultResourceLoader } from "@code-yeongyu/senpi";
+import { createAgentSession, DefaultResourceLoader } from "amaze";
 
 const loader = new DefaultResourceLoader({
   systemPromptOverride: () => "You are a helpful assistant.",
@@ -473,10 +473,10 @@ Specify which built-in tools to enable:
 - `noTools: "builtin"` disables default built-ins while keeping extension and custom tools enabled
 - `excludeTools` disables specific built-in, extension, or custom tool names after any `tools` allowlist is applied
 
-The `edit` tool returns `details.diff` for senpi's TUI display and `details.patch` as a standard unified patch for SDK consumers.
+The `edit` tool returns `details.diff` for amaze's TUI display and `details.patch` as a standard unified patch for SDK consumers.
 
 ```typescript
-import { createAgentSession } from "@code-yeongyu/senpi";
+import { createAgentSession } from "amaze";
 
 // Read-only mode
 const { session } = await createAgentSession({
@@ -499,7 +499,7 @@ const { session } = await createAgentSession({
 When you pass a custom `cwd`, `createAgentSession()` builds selected built-in tools for that cwd.
 
 ```typescript
-import { createAgentSession, SessionManager } from "@code-yeongyu/senpi";
+import { createAgentSession, SessionManager } from "amaze";
 
 const cwd = "/path/to/project";
 
@@ -525,7 +525,7 @@ const { session } = await createAgentSession({
 
 ```typescript
 import { Type } from "typebox";
-import { createAgentSession, defineTool } from "@code-yeongyu/senpi";
+import { createAgentSession, defineTool } from "amaze";
 
 // Inline custom tool
 const myTool = defineTool({
@@ -557,10 +557,10 @@ If you pass `tools`, include each custom or extension tool name you want enabled
 
 ### Extensions
 
-Extensions are loaded by the `ResourceLoader`. `DefaultResourceLoader` discovers extensions from `~/.senpi/agent/extensions/`, `.senpi/extensions/`, and settings.json extension sources.
+Extensions are loaded by the `ResourceLoader`. `DefaultResourceLoader` discovers extensions from `~/.amaze/agent/extensions/`, `.amaze/extensions/`, and settings.json extension sources.
 
 ```typescript
-import { createAgentSession, DefaultResourceLoader } from "@code-yeongyu/senpi";
+import { createAgentSession, DefaultResourceLoader } from "amaze";
 
 const loader = new DefaultResourceLoader({
   additionalExtensionPaths: ["/path/to/my-extension.ts"],
@@ -582,7 +582,7 @@ Extensions can register tools, subscribe to events, add commands, and more. See 
 **Event Bus:** Extensions can communicate via `pi.events`. Pass a shared `eventBus` to `DefaultResourceLoader` if you need to emit or listen from outside:
 
 ```typescript
-import { createEventBus, DefaultResourceLoader } from "@code-yeongyu/senpi";
+import { createEventBus, DefaultResourceLoader } from "amaze";
 
 const eventBus = createEventBus();
 const loader = new DefaultResourceLoader({
@@ -603,7 +603,7 @@ import {
   createSyntheticSourceInfo,
   DefaultResourceLoader,
   type Skill,
-} from "@code-yeongyu/senpi";
+} from "amaze";
 
 const customSkill: Skill = {
   name: "my-skill",
@@ -630,7 +630,7 @@ const { session } = await createAgentSession({ resourceLoader: loader });
 ### Context Files
 
 ```typescript
-import { createAgentSession, DefaultResourceLoader } from "@code-yeongyu/senpi";
+import { createAgentSession, DefaultResourceLoader } from "amaze";
 
 const loader = new DefaultResourceLoader({
   agentsFilesOverride: (current) => ({
@@ -655,7 +655,7 @@ import {
   createSyntheticSourceInfo,
   DefaultResourceLoader,
   type PromptTemplate,
-} from "@code-yeongyu/senpi";
+} from "amaze";
 
 const customCommand: PromptTemplate = {
   name: "deploy",
@@ -691,7 +691,7 @@ import {
   createAgentSessionServices,
   getAgentDir,
   SessionManager,
-} from "@code-yeongyu/senpi";
+} from "amaze";
 
 // In-memory (no persistence)
 const { session } = await createAgentSession({
@@ -785,7 +785,7 @@ sm.createBranchedSession(leafId);       // Extract path to new file
 ### Settings Management
 
 ```typescript
-import { createAgentSession, SettingsManager, SessionManager } from "@code-yeongyu/senpi";
+import { createAgentSession, SettingsManager, SessionManager } from "amaze";
 
 // Default: loads from files (global + project merged)
 const { session } = await createAgentSession({
@@ -819,8 +819,8 @@ const { session } = await createAgentSession({
 **Project-specific settings:**
 
 Settings load from two locations and merge:
-1. Global: `~/.senpi/agent/settings.json`
-2. Project: `<cwd>/.senpi/settings.json`
+1. Global: `~/.amaze/agent/settings.json`
+2. Project: `<cwd>/.amaze/settings.json`
 
 Project overrides global. Nested objects merge keys. Setters modify global settings by default.
 
@@ -841,7 +841,7 @@ Use `DefaultResourceLoader` to discover extensions, skills, prompts, themes, and
 import {
   DefaultResourceLoader,
   getAgentDir,
-} from "@code-yeongyu/senpi";
+} from "amaze";
 
 const loader = new DefaultResourceLoader({
   cwd,
@@ -882,7 +882,7 @@ interface LoadExtensionsResult {
 ## Complete Example
 
 ```typescript
-import { getModel } from "@earendil-works/pi-ai";
+import { getModel } from "@steve-8000/amaze-ai";
 import { Type } from "typebox";
 import {
   AuthStorage,
@@ -892,7 +892,7 @@ import {
   ModelRegistry,
   SessionManager,
   SettingsManager,
-} from "@code-yeongyu/senpi";
+} from "amaze";
 
 // Set up auth storage (custom location)
 const authStorage = AuthStorage.create("/custom/agent/auth.json");
@@ -977,7 +977,7 @@ import {
   getAgentDir,
   InteractiveMode,
   SessionManager,
-} from "@code-yeongyu/senpi";
+} from "amaze";
 
 const createRuntime: CreateAgentSessionRuntimeFactory = async ({ cwd, sessionManager, sessionStartEvent }) => {
   const services = await createAgentSessionServices({ cwd });
@@ -1017,7 +1017,7 @@ import {
   getAgentDir,
   runPrintMode,
   SessionManager,
-} from "@code-yeongyu/senpi";
+} from "amaze";
 
 const createRuntime: CreateAgentSessionRuntimeFactory = async ({ cwd, sessionManager, sessionStartEvent }) => {
   const services = await createAgentSessionServices({ cwd });
@@ -1054,7 +1054,7 @@ import {
   getAgentDir,
   runRpcMode,
   SessionManager,
-} from "@code-yeongyu/senpi";
+} from "amaze";
 
 const createRuntime: CreateAgentSessionRuntimeFactory = async ({ cwd, sessionManager, sessionStartEvent }) => {
   const services = await createAgentSessionServices({ cwd });
@@ -1080,7 +1080,7 @@ See [RPC documentation](rpc.md) for the JSON protocol.
 For subprocess-based integration without building with the SDK, use the CLI directly:
 
 ```bash
-senpi --mode rpc --no-session
+amaze --mode rpc --no-session
 ```
 
 See [RPC documentation](rpc.md) for the JSON protocol.

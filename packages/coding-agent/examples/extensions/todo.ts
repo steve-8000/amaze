@@ -10,9 +10,9 @@
  * correct for that point in history.
  */
 
-import type { ExtensionAPI, ExtensionContext, Theme } from "@code-yeongyu/senpi";
-import { StringEnum } from "@earendil-works/pi-ai";
-import { matchesKey, Text, truncateToWidth } from "@earendil-works/pi-tui";
+import type { ExtensionAPI, ExtensionContext, Theme } from "amaze";
+import { StringEnum } from "@steve-8000/amaze-ai";
+import { matchesKey, Text, truncateToWidth } from "@steve-8000/amaze-tui";
 import { Type } from "typebox";
 
 interface Todo {

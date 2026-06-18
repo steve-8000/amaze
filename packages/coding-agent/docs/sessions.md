@@ -1,18 +1,18 @@
 # Sessions
 
-Senpi saves conversations as sessions so you can continue work, branch from earlier turns, and revisit previous paths.
+amaze saves conversations as sessions so you can continue work, branch from earlier turns, and revisit previous paths.
 
 ## Session Storage
 
-Sessions auto-save to `~/.senpi/agent/sessions/`, organized by working directory. Each session is a JSONL file with a tree structure.
+Sessions auto-save to `~/.amaze/agent/sessions/`, organized by working directory. Each session is a JSONL file with a tree structure.
 
 ```bash
-senpi -c                  # Continue most recent session
-senpi -r                  # Browse and select from past sessions
-senpi --no-session        # Ephemeral mode; do not save
-senpi --name "my task"    # Set session display name at startup
-senpi --session <path|id> # Use a specific session file or partial session ID
-senpi --fork <path|id>    # Fork a session file or partial session ID into a new session
+amaze -c                  # Continue most recent session
+amaze -r                  # Browse and select from past sessions
+amaze --no-session        # Ephemeral mode; do not save
+amaze --name "my task"    # Set session display name at startup
+amaze --session <path|id> # Use a specific session file or partial session ID
+amaze --fork <path|id>    # Fork a session file or partial session ID into a new session
 ```
 
 Use `/session` in interactive mode to see the current session file, session ID, message count, tokens, and cost.
@@ -36,7 +36,7 @@ For the JSONL file format and SessionManager API, see [Session Format](session-f
 
 ## Resuming and Deleting Sessions
 
-`/resume` opens an interactive session picker for the current project. `senpi -r` opens the same picker at startup.
+`/resume` opens an interactive session picker for the current project. `amaze -r` opens the same picker at startup.
 
 In the picker you can:
 
@@ -47,7 +47,7 @@ In the picker you can:
 - rename with Ctrl+R
 - delete with Ctrl+D, then confirm
 
-When available, senpi uses the `trash` CLI for deletion instead of permanently removing files.
+When available, amaze uses the `trash` CLI for deletion instead of permanently removing files.
 
 ## Naming Sessions
 
@@ -60,11 +60,11 @@ Use `/name <name>` to set a human-readable session name:
 Set the name at startup with `--name` or `-n`:
 
 ```bash
-senpi --name "Refactor auth module"
-senpi --name "CI audit" -p "Review this build failure"
+amaze --name "Refactor auth module"
+amaze --name "CI audit" -p "Review this build failure"
 ```
 
-Named sessions are easier to find in `/resume` and `senpi -r`.
+Named sessions are easier to find in `/resume` and `amaze -r`.
 
 ## Branching with `/tree`
 
@@ -128,7 +128,7 @@ Use `/tree` when you want to keep alternatives together. Use `/fork` or `/clone`
 
 ## Branch Summaries
 
-When `/tree` switches away from one branch to another, senpi can summarize the abandoned branch and attach that summary at the new position. This preserves important context from the path you left without replaying the whole branch.
+When `/tree` switches away from one branch to another, amaze can summarize the abandoned branch and attach that summary at the new position. This preserves important context from the path you left without replaying the whole branch.
 
 When prompted, choose one of:
 

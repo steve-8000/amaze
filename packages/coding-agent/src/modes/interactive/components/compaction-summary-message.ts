@@ -1,4 +1,4 @@
-import { Box, Markdown, type MarkdownTheme, Spacer, Text } from "@earendil-works/pi-tui";
+import { Box, Markdown, type MarkdownTheme, Spacer, Text } from "@steve-8000/amaze-tui";
 import type { CompactionSummaryMessage } from "../../../core/messages.ts";
 import { getMarkdownTheme, theme } from "../theme/theme.ts";
 import { keyText } from "./keybinding-hints.ts";
@@ -9,7 +9,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function formatCompactionDetails(details: unknown): string | undefined {
 	if (!isRecord(details)) return undefined;
-	if (details.schema !== "senpi.compaction.openai-remote.v1") return undefined;
+	if (details.schema !== "amaze.compaction.openai-remote.v1") return undefined;
 	const retained = typeof details.retainedInputItemCount === "number" ? details.retainedInputItemCount : undefined;
 	const requested = typeof details.requestInputItemCount === "number" ? details.requestInputItemCount : undefined;
 	const retainedText = retained === undefined ? "native replay active" : `${retained.toLocaleString()} retained items`;

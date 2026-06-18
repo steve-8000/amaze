@@ -129,7 +129,7 @@
 
 ### Why
 
-- Rate-limit and overload responses can include an explicit wait period. Ignoring that hint caused senpi to retry too early with the local exponential base delay, often hitting the same provider throttle again.
+- Rate-limit and overload responses can include an explicit wait period. Ignoring that hint caused amaze to retry too early with the local exponential base delay, often hitting the same provider throttle again.
 
 ### Why extension system couldn't handle this
 
@@ -147,7 +147,7 @@
 
 ### Why
 
-- `@earendil-works/pi-agent-core` now declares the shared harness compaction summary message type. Keeping a second
+- `@steve-8000/amaze-agent-core` now declares the shared harness compaction summary message type. Keeping a second
   coding-agent declaration for the same `compactionSummary` slot made `tsgo` reject the package build because the two
   declarations used distinct local interface symbols.
 
@@ -222,7 +222,7 @@
 
 ### What changed
 
-- `src/core/resource-loader.ts`: Extension paths are deduped by nearest `package.json` package name plus relative extension entry before loading, so the same package installed from both a git package checkout and `~/.senpi/agent/extensions/` loads once without dropping multi-extension packages.
+- `src/core/resource-loader.ts`: Extension paths are deduped by nearest `package.json` package name plus relative extension entry before loading, so the same package installed from both a git package checkout and `~/.amaze/agent/extensions/` loads once without dropping multi-extension packages.
 - Builtin extensions now precede disk-loaded extensions in the runtime array, and builtin-vs-external tool/flag name collisions no longer surface as startup errors.
 - Extension flag defaults and CLI flag validation now follow that final builtin-first order, so an external duplicate flag cannot override builtin metadata by registering earlier during disk discovery.
 
@@ -261,12 +261,12 @@
 ## Packaged thinking-tier helpers stay local (2026-05-12)
 
 ### What changed
-- Added `src/core/thinking-levels.ts` so coding-agent owns the senpi-specific `xhigh` / `max` tier detection and supported-level expansion.
-- Updated `src/core/agent-session.ts` and `src/core/sdk.ts` to import these helpers locally instead of from `@earendil-works/pi-ai`.
+- Added `src/core/thinking-levels.ts` so coding-agent owns the amaze-specific `xhigh` / `max` tier detection and supported-level expansion.
+- Updated `src/core/agent-session.ts` and `src/core/sdk.ts` to import these helpers locally instead of from `@steve-8000/amaze-ai`.
 
 ### Why
-- The published `@code-yeongyu/senpi` package currently installs the registry `@earendil-works/pi-ai@0.74.0`, whose public exports do not include the fork-only `supportsXhigh` / `supportsMax` helpers.
-- Importing those names directly from `pi-ai` makes packaged senpi fail during module loading before any CLI command runs.
+- The published `amaze` package currently installs the registry `@steve-8000/amaze-ai@0.74.0`, whose public exports do not include the fork-only `supportsXhigh` / `supportsMax` helpers.
+- Importing those names directly from `pi-ai` makes packaged amaze fail during module loading before any CLI command runs.
 
 ### Why extension system couldn't handle this
 - Thinking-tier availability is consumed by core session/model logic (`AgentSession`, SDK helpers) during startup and model switching, before extensions can replace those imports.
@@ -316,7 +316,7 @@
 
 ### What changed
 
-- `src/core/resource-loader.ts`: Default generated global extension shims now point at `dist` files when senpi itself is running from `dist`, even in a linked workspace that also has `src`.
+- `src/core/resource-loader.ts`: Default generated global extension shims now point at `dist` files when amaze itself is running from `dist`, even in a linked workspace that also has `src`.
 
 ### Why
 
@@ -401,7 +401,7 @@
 
 ### Why
 
-- `senpi update` previously returned early for current git packages. If an extension checkout's `node_modules` was damaged or incomplete, the update command reported success but left runtime imports broken.
+- `amaze update` previously returned early for current git packages. If an extension checkout's `node_modules` was damaged or incomplete, the update command reported success but left runtime imports broken.
 
 ### Why extension system couldn't handle this
 
@@ -559,7 +559,7 @@ If upstream modifies any compaction route (manual, threshold, overflow, pre-prom
 
 - Changed `src/core/extensions/builtin/index.ts`, `src/core/resource-loader.ts`, and `src/core/settings-manager.ts` so builtin extensions can be allowlisted with `enabledBuiltinExtensions` while preserving `disabledBuiltinExtensions` as an override.
 - Added `src/core/extensions/builtin/webfetch/` as a builtin extension synced from `../pi-extensions/pi-webfetch`, and moved `bash-timeout` and `openai-api-parallel-tool-calls` to synced `../pi-extensions` layouts.
-- Added `scripts/sync-builtin-extensions.mjs`, wired into the package build, so local builds refresh the vendored builtin snapshots from `SENPI_BUILTIN_EXTENSIONS_SOURCE` or `../pi-extensions` when that source checkout exists. `external-versions.json` records the source package names and versions included in the snapshot.
+- Added `scripts/sync-builtin-extensions.mjs`, wired into the package build, so local builds refresh the vendored builtin snapshots from `AMAZE_BUILTIN_EXTENSIONS_SOURCE` or `../pi-extensions` when that source checkout exists. `external-versions.json` records the source package names and versions included in the snapshot.
 - This had to be done in core because builtin extension registration and builtin settings filtering happen before any user extension can affect resource discovery.
 - Expected merge-conflict zone on upstream sync: builtin extension registration in `src/core/extensions/builtin/index.ts`, builtin factory filtering in `src/core/resource-loader.ts`, and settings schema/getters in `src/core/settings-manager.ts`.
 
@@ -567,5 +567,5 @@ If upstream modifies any compaction route (manual, threshold, overflow, pre-prom
 
 - Widened the `"max"` thinking level through the coding agent surface: CLI `--thinking max`, `/settings` selector, Shift+Tab cycle, `settings.json` `defaultThinkingLevel`, thinking border color mapping.
 - Extended `packages/coding-agent/src/core/model-registry.ts` so `models.json` (and `pi.registerProvider()`) accepts `extraBody` at both provider and per-model level. `getApiKeyAndHeaders` now resolves `extraBody`, and `sdk.ts` merges provider/model extraBody with any call-site `extraBody` before invoking `streamSimple`.
-- This had to be done in core because `ThinkingLevel` is exported from `@mariozechner/pi-agent-core` and every UI/CLI/settings surface needed to be widened, and because `getApiKeyAndHeaders` + stream option composition live in core `ModelRegistry`/`sdk.ts`.
+- This had to be done in core because `ThinkingLevel` is exported from `@steve-8000/amaze-agent-core` and every UI/CLI/settings surface needed to be widened, and because `getApiKeyAndHeaders` + stream option composition live in core `ModelRegistry`/`sdk.ts`.
 - Expected merge-conflict zone on upstream sync: `model-registry.ts` schemas + `getApiKeyAndHeaders`, `sdk.ts` stream option composition, `cli/args.ts` validator, `settings-manager.ts` thinking level type, `agent-session.ts` thinking cycle list, interactive TUI thinking selector and border color map.

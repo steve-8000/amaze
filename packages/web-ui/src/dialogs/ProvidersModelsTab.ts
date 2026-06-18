@@ -1,4 +1,4 @@
-import { getProviders } from "@earendil-works/pi-ai";
+import { getProviders } from "@steve-8000/amaze-ai";
 import { i18n } from "@mariozechner/mini-lit";
 import { Select } from "@mariozechner/mini-lit/dist/Select.js";
 import { html, type TemplateResult } from "lit";

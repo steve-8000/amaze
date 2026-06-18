@@ -4,7 +4,7 @@
  * Escape in editor returns to options, Escape in options cancels
  */
 
-import type { ExtensionAPI } from "@code-yeongyu/senpi";
+import type { ExtensionAPI } from "amaze";
 import {
 	Editor,
 	type EditorTheme,
@@ -13,7 +13,7 @@ import {
 	Text,
 	visibleWidth,
 	wrapTextWithAnsi,
-} from "@earendil-works/pi-tui";
+} from "@steve-8000/amaze-tui";
 import { Type } from "typebox";
 
 interface OptionWithDesc {

@@ -1,4 +1,4 @@
-import type { AssistantMessage, AssistantMessageEvent } from '@earendil-works/pi-ai';
+import type { AssistantMessage, AssistantMessageEvent } from '@steve-8000/amaze-ai';
 import type { AgentSubmissionStore } from '../agent-execution-store.ts';
 import type { SignalMessage } from '../types.ts';
 

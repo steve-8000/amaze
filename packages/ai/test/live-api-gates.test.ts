@@ -15,7 +15,7 @@ describe("live API test gates", () => {
 		// given
 		vi.stubEnv("OPENROUTER_API_KEY", "sk-or-stale");
 		vi.stubEnv(OPENROUTER_LIVE_TEST_FLAG, "");
-		vi.stubEnv("PI_ENABLE_LIVE_API_TESTS", "");
+		vi.stubEnv("AMAZE_ENABLE_LIVE_API_TESTS", "");
 
 		// when
 		const apiKey = getLiveEnvApiKey("OPENROUTER_API_KEY", OPENROUTER_LIVE_TEST_FLAG);
@@ -28,7 +28,7 @@ describe("live API test gates", () => {
 		// given
 		vi.stubEnv("OPENROUTER_API_KEY", "sk-or-live");
 		vi.stubEnv(OPENROUTER_LIVE_TEST_FLAG, "1");
-		vi.stubEnv("PI_ENABLE_LIVE_API_TESTS", "");
+		vi.stubEnv("AMAZE_ENABLE_LIVE_API_TESTS", "");
 
 		// when
 		const apiKey = getLiveEnvApiKey("OPENROUTER_API_KEY", OPENROUTER_LIVE_TEST_FLAG);
@@ -41,7 +41,7 @@ describe("live API test gates", () => {
 		// given
 		vi.stubEnv("OPENROUTER_API_KEY", "sk-or-global");
 		vi.stubEnv(OPENROUTER_LIVE_TEST_FLAG, "");
-		vi.stubEnv("PI_ENABLE_LIVE_API_TESTS", "1");
+		vi.stubEnv("AMAZE_ENABLE_LIVE_API_TESTS", "1");
 
 		// when
 		const apiKey = getLiveEnvApiKey("OPENROUTER_API_KEY", OPENROUTER_LIVE_TEST_FLAG);
@@ -53,7 +53,7 @@ describe("live API test gates", () => {
 	it("given local LLM server without opt-in when checking live tests then disables local probing", () => {
 		// given
 		vi.stubEnv(LOCAL_LLM_LIVE_TEST_FLAG, "");
-		vi.stubEnv("PI_ENABLE_LIVE_API_TESTS", "");
+		vi.stubEnv("AMAZE_ENABLE_LIVE_API_TESTS", "");
 
 		// when
 		const enabled = isLiveApiTestEnabled(LOCAL_LLM_LIVE_TEST_FLAG);

@@ -1,4 +1,4 @@
-import { Box, Container, Spacer, Text } from "@earendil-works/pi-tui";
+import { Box, Container, Spacer, Text } from "@steve-8000/amaze-tui";
 import { normalizeApplyPatchArguments } from "./params.ts";
 import { renderPatchLine } from "./preview-format.ts";
 import { StreamingPatchParser } from "./streaming-parser.ts";

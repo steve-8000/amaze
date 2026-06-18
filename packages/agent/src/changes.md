@@ -108,7 +108,7 @@
 
 ### Why the extension system could not handle this
 
-- The scheduling and final result collection logic lives in `@mariozechner/pi-agent-core`, specifically `executeToolCallsParallel()`.
+- The scheduling and final result collection logic lives in `@steve-8000/amaze-agent-core`, specifically `executeToolCallsParallel()`.
 - Coding-agent extensions can observe and mutate tool inputs/results, but they cannot replace the agent loop's internal await/collection strategy or `toolExecution` scheduling behavior.
 - The existing builtin `parallel-tool-calls` extension only changes provider payloads (`parallel_tool_calls: true`) and does not control runtime result finalization.
 
@@ -123,7 +123,7 @@
 ### What changed and why
 
 - Replaced upstream harness imports of `uuid/v7` with a local UUIDv7 generator backed by Node's `crypto.randomBytes`.
-- This keeps clean package-manager builds working without adding a new direct `uuid` dependency to `@earendil-works/pi-agent-core`.
+- This keeps clean package-manager builds working without adding a new direct `uuid` dependency to `@steve-8000/amaze-agent-core`.
 
 ### Files modified
 

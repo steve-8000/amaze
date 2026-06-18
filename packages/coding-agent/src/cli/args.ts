@@ -2,7 +2,7 @@
  * CLI argument parsing and help display
  */
 
-import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
+import type { ThinkingLevel } from "@steve-8000/amaze-agent-core";
 import chalk from "chalk";
 import { APP_NAME, CONFIG_DIR_NAME, ENV_AGENT_DIR, ENV_SESSION_DIR } from "../config.ts";
 import type { ExtensionFlag } from "../core/extensions/types.ts";
@@ -31,6 +31,7 @@ export interface Args {
 	tools?: string[];
 	excludeTools?: string[];
 	noTools?: boolean;
+	paseoPiCompat?: boolean;
 	noBuiltinTools?: boolean;
 	extensions?: string[];
 	noExtensions?: boolean;
@@ -127,6 +128,8 @@ export function parseArgs(args: string[]): Args {
 				.split(",")
 				.map((s) => s.trim())
 				.filter((name) => name.length > 0);
+		} else if (arg === "--paseo-pi-compat") {
+			result.paseoPiCompat = true;
 		} else if (arg === "--thinking" && i + 1 < args.length) {
 			const level = args[++i];
 			if (isValidThinkingLevel(level)) {
@@ -236,6 +239,7 @@ ${chalk.bold("Commands:")}
                                  List installed extensions from settings
   ${APP_NAME} config [--no-approve]
                                  Open TUI to enable/disable package resources
+  ${APP_NAME} mcp-dev                Start the experimental local stdio MCP adapter
   ${APP_NAME} <command> --help          Show help for install/remove/uninstall/update/list
 
 ${chalk.bold("Options:")}
@@ -277,7 +281,7 @@ ${chalk.bold("Options:")}
   --verbose                      Force verbose startup (overrides quietStartup setting)
   --approve, -a                  Trust project-local files for this run
   --no-approve, -na              Ignore project-local files for this run
-  --offline                      Disable startup network operations (same as PI_OFFLINE=1)
+  --offline                      Disable startup network operations (same as AMAZE_OFFLINE=1)
   --help, -h                     Show this help
   --version, -v                  Show version number
 
@@ -377,10 +381,10 @@ ${chalk.bold("Environment Variables:")}
   AWS_REGION                       - AWS region for Amazon Bedrock (e.g., us-east-1)
   ${ENV_AGENT_DIR.padEnd(32)} - Config directory (default: ~/${CONFIG_DIR_NAME}/agent)
   ${ENV_SESSION_DIR.padEnd(32)} - Session storage directory (overridden by --session-dir)
-  PI_PACKAGE_DIR                   - Override package directory (for Nix/Guix store paths)
-  PI_OFFLINE                       - Disable startup network operations when set to 1/true/yes
-  PI_TELEMETRY                     - Override install telemetry when set to 1/true/yes or 0/false/no
-  PI_SHARE_VIEWER_URL              - Base URL for /share command (default: https://pi.dev/session/)
+  AMAZE_PACKAGE_DIR                   - Override package directory (for Nix/Guix store paths)
+  AMAZE_OFFLINE                       - Disable startup network operations when set to 1/true/yes
+  AMAZE_TELEMETRY                     - Override install telemetry when set to 1/true/yes or 0/false/no
+  AMAZE_SHARE_VIEWER_URL           - Base URL for /share command (default: https://amaze.dev/session/)
 
 ${chalk.bold("Built-in Tool Names:")}
   read   - Read file contents

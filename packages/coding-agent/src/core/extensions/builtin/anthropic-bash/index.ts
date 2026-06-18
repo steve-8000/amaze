@@ -1,9 +1,9 @@
-import type { Api } from "@earendil-works/pi-ai";
+import type { Api } from "@steve-8000/amaze-ai";
 import type { ExtensionAPI } from "../../types.ts";
 
 type ToolDefinition = Record<string, unknown>;
 
-const ANTHROPIC_BASH_ENV = "PI_ANTHROPIC_BASH";
+const ANTHROPIC_BASH_ENV = "AMAZE_ANTHROPIC_BASH";
 const ANTHROPIC_NATIVE_BASH_TOOL = {
 	type: "bash_20250124",
 	name: "bash",
@@ -74,7 +74,7 @@ export const ANTHROPIC_BASH_SECTION = `
 The native bash tool is available in this session. The model has direct
 shell access via the bash_20250124 tool. The session is stateless — each
 command runs independently. The 'restart' parameter is accepted but has
-no effect (no persistent shell session). Standard senpi safety
+no effect (no persistent shell session). Standard amaze safety
 guardrails still apply.
 `;
 

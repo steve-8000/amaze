@@ -1,5 +1,5 @@
-import type { AgentMessage } from "@earendil-works/pi-agent-core";
-import type { AssistantMessage, Context, Model, StreamOptions, Usage } from "@earendil-works/pi-ai";
+import type { AgentMessage } from "@steve-8000/amaze-agent-core";
+import type { AssistantMessage, Context, Model, StreamOptions, Usage } from "@steve-8000/amaze-ai";
 import { readFileSync } from "fs";
 import { join } from "path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -8,8 +8,8 @@ const { completeMock } = vi.hoisted(() => ({
 	completeMock: vi.fn(),
 }));
 
-vi.mock("@earendil-works/pi-ai", async (importOriginal) => {
-	const actual = await importOriginal<typeof import("@earendil-works/pi-ai")>();
+vi.mock("@steve-8000/amaze-ai", async (importOriginal) => {
+	const actual = await importOriginal<typeof import("@steve-8000/amaze-ai")>();
 	return {
 		...actual,
 		complete: completeMock,
@@ -697,7 +697,7 @@ describe("prepareCompaction with previous compaction", () => {
 });
 
 describe("prepareCompaction guards against empty summarization", () => {
-	it("returns undefined for a tiny senpi-style hello session whose entire history fits in keepRecentTokens", () => {
+	it("returns undefined for a tiny amaze-style hello session whose entire history fits in keepRecentTokens", () => {
 		// given
 		const modelChange = createModelChangeEntry("apitopia", "kimi-k2p6-turbo");
 		const thinkingChange = createThinkingLevelEntry("minimal");

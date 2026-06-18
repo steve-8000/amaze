@@ -1,4 +1,4 @@
-import type { ToolCall, ToolResultMessage } from "@earendil-works/pi-ai";
+import type { ToolCall, ToolResultMessage } from "@steve-8000/amaze-ai";
 import { getMarkdownTheme, theme } from "../../../../modes/interactive/theme/theme.ts";
 import { compactWhitespace, INDENT, sanitizeLine } from "./text.ts";
 import {

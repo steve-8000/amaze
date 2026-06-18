@@ -1,8 +1,8 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { AgentToolResult } from "@earendil-works/pi-agent-core";
-import type { Message, ToolResultMessage } from "@earendil-works/pi-ai";
+import type { AgentToolResult } from "@steve-8000/amaze-agent-core";
+import type { Message, ToolResultMessage } from "@steve-8000/amaze-ai";
 import { describe, expect, it } from "vitest";
 import { prePruneToolOutputsToBudget } from "../../src/core/extensions/builtin/compaction/tool-truncation.ts";
 import {

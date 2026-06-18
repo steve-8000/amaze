@@ -1,10 +1,10 @@
 # changes
 
-## Senpi package command wording (2026-05-02)
+## amaze package command wording (2026-05-02)
 
 ### What changed
 
-- `args.ts`: Top-level help now documents `senpi update` as updating senpi instead of pi.
+- `args.ts`: Top-level help now documents `amaze update` as updating amaze instead of pi.
 
 ### Why
 

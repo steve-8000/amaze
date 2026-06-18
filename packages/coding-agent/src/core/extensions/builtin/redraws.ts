@@ -4,7 +4,7 @@
  * Exposes /tui to show TUI redraw stats.
  */
 
-import { Text } from "@earendil-works/pi-tui";
+import { Text } from "@steve-8000/amaze-tui";
 import type { ExtensionAPI } from "../types.ts";
 
 export default function (pi: ExtensionAPI) {

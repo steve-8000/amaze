@@ -6,7 +6,7 @@
  * two surfaces.
  */
 
-import type { AgentToolResult } from '@earendil-works/pi-agent-core';
+import type { AgentToolResult } from '@steve-8000/amaze-agent-core';
 import { formatBashResult } from './agent.ts';
 import type { FlueEventInput, SessionEnv, ShellOptions, ShellResult } from './types.ts';
 

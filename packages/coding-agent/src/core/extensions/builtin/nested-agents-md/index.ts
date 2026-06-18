@@ -1,4 +1,4 @@
-import type { TextContent } from "@earendil-works/pi-ai";
+import type { TextContent } from "@steve-8000/amaze-ai";
 import type { ExtensionAPI } from "../../types.ts";
 import { isReadToolResult } from "../../types.ts";
 import { injectDirectoryContext } from "./core/inject-directory-context.ts";

@@ -1,0 +1,26 @@
+{
+  "contract_id": "readonly-scout",
+  "status": "completed",
+  "created_at": "2026-06-18T06:14:58.657Z",
+  "updated_at": "2026-06-18T06:16:12.642Z",
+  "run_id": "884d65c7",
+  "agent": "scout",
+  "task": "In /Users/steve/rocky/amaze, quickly locate files that define installation docs, CLI config paths, agent/subagent defaults, and LLM model names/providers. Also check sibling /Users/steve/rocky/xenonite for README/config files relevant to installing the same system. Do not modify files. Stop after listing concrete file paths and exact model/config strings that README should mention.\n\n---\n**Output:** Return your findings in the final response only. The parent runtime persists that response at the hidden output file: /Users/steve/rocky/amaze/.subagent-outputs/context.md. No filesystem action is required for this output artifact.",
+  "path_contract": {
+    "contract_id": "readonly-scout",
+    "assigned_worker": "scout",
+    "read_allowed_paths": [
+      "**/*"
+    ],
+    "write_allowed_paths": [],
+    "write_denied_paths": [
+      "**/*"
+    ],
+    "activity_budget": {
+      "max_tokens": 270000,
+      "max_elapsed_ms": 240000
+    }
+  },
+  "locks": [],
+  "exit_code": 0
+}

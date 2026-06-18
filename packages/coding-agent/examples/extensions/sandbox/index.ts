@@ -10,10 +10,10 @@
  * via `tool_call` input mutation without replacing the tool.
  *
  * Config files (merged, project takes precedence):
- * - ~/.senpi/agent/extensions/sandbox.json (global)
- * - <cwd>/.senpi/sandbox.json (project-local)
+ * - ~/.amaze/agent/extensions/sandbox.json (global)
+ * - <cwd>/.amaze/sandbox.json (project-local)
  *
- * Example .senpi/sandbox.json:
+ * Example .amaze/sandbox.json:
  * ```json
  * {
  *   "enabled": true,
@@ -30,13 +30,13 @@
  * ```
  *
  * Usage:
- * - `senpi -e ./sandbox` - sandbox enabled with default/config settings
- * - `senpi -e ./sandbox --no-sandbox` - disable sandboxing
+ * - `amaze -e ./sandbox` - sandbox enabled with default/config settings
+ * - `amaze -e ./sandbox --no-sandbox` - disable sandboxing
  * - `/sandbox` - show current sandbox configuration
  *
  * Setup:
- * 1. Copy sandbox/ directory to ~/.senpi/agent/extensions/
- * 2. Run `npm install` in ~/.senpi/agent/extensions/sandbox/
+ * 1. Copy sandbox/ directory to ~/.amaze/agent/extensions/
+ * 2. Run `npm install` in ~/.amaze/agent/extensions/sandbox/
  *
  * Linux also requires: bubblewrap, socat, ripgrep
  */
@@ -45,8 +45,8 @@ import { spawn } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { SandboxManager, type SandboxRuntimeConfig } from "@anthropic-ai/sandbox-runtime";
-import type { ExtensionAPI } from "@code-yeongyu/senpi";
-import { type BashOperations, createBashTool, getAgentDir } from "@code-yeongyu/senpi";
+import type { ExtensionAPI } from "amaze";
+import { type BashOperations, createBashTool, getAgentDir } from "amaze";
 
 interface SandboxConfig extends SandboxRuntimeConfig {
 	enabled?: boolean;

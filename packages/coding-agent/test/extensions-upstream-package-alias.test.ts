@@ -18,18 +18,18 @@ describe("upstream package name alias for extension loader", () => {
 		fs.rmSync(tempDir, { recursive: true, force: true });
 	});
 
-	it("resolves runtime imports from @code-yeongyu/senpi", async () => {
+	it("resolves runtime imports from amaze", async () => {
 		// given a third-party extension that imports a runtime helper
 		// from the upstream package name (the case for any pi-extension
-		// authored against pi-mono and run under senpi)
+		// authored against pi-mono and run under amaze)
 		const extCode = `
-			import { defineTool } from "@code-yeongyu/senpi";
+			import { defineTool } from "amaze";
 			import { Type } from "typebox";
 
 			const upstreamTool = defineTool({
 				name: "upstream_aliased_tool",
 				label: "Upstream Aliased Tool",
-				description: "Verifies @code-yeongyu/senpi resolves under senpi",
+				description: "Verifies amaze resolves under amaze",
 				parameters: Type.Object({}),
 				execute: async () => ({ content: [{ type: "text", text: "ok" }] }),
 			});
@@ -45,7 +45,7 @@ describe("upstream package name alias for extension loader", () => {
 
 		// then it must load without "Cannot find module" errors and
 		// register the tool, proving the alias maps the upstream name
-		// to the senpi runtime
+		// to the amaze runtime
 		expect(result.errors).toHaveLength(0);
 		expect(result.extensions).toHaveLength(1);
 		expect(result.extensions[0]?.tools.has("upstream_aliased_tool")).toBe(true);
@@ -53,12 +53,12 @@ describe("upstream package name alias for extension loader", () => {
 
 	it("resolves runtime imports from the upstream @mariozechner package names", async () => {
 		// given extensions installed from upstream pi packages still import
-		// @mariozechner peer package names. Under senpi these must resolve to the
-		// already-loaded senpi runtime instead of an extension-local duplicate.
+		// @mariozechner peer package names. Under amaze these must resolve to the
+		// already-loaded amaze runtime instead of an extension-local duplicate.
 		const extCode = `
-			import { StringEnum } from "@mariozechner/pi-ai";
-			import { Text } from "@mariozechner/pi-tui";
-			import { defineTool } from "@mariozechner/pi-coding-agent";
+			import { StringEnum } from "@steve-8000/amaze-ai";
+			import { Text } from "@steve-8000/amaze-tui";
+			import { defineTool } from "amaze";
 			import { Type } from "typebox";
 
 			const rendered = new Text("ok", 0, 0);
@@ -80,17 +80,17 @@ describe("upstream package name alias for extension loader", () => {
 		const result = await discoverAndLoadExtensions([], tempDir, tempDir);
 
 		// then it must load without falling through to an extension-local
-		// @mariozechner/pi-coding-agent install.
+		// amaze install.
 		expect(result.errors).toHaveLength(0);
 		expect(result.extensions).toHaveLength(1);
 		expect(result.extensions[0]?.tools.has("mario_aliased_tool")).toBe(true);
 	});
 
-	it("resolves runtime imports from the upstream @earendil-works coding agent package", async () => {
-		// given a project extension migrated from .pi to .senpi still imports
+	it("resolves runtime imports from the upstream @steve-8000 coding agent package", async () => {
+		// given a project extension migrated from .pi to .amaze still imports
 		// the upstream coding-agent package name used by pi-mono
 		const extCode = `
-			import { DynamicBorder, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
+			import { DynamicBorder, type ExtensionAPI } from "amaze";
 
 			export default function (pi: ExtensionAPI) {
 				pi.registerMessageRenderer("earendil_alias_renderer", () => new DynamicBorder((value) => value));
@@ -108,13 +108,13 @@ describe("upstream package name alias for extension loader", () => {
 		expect(result.extensions[0]?.messageRenderers.has("earendil_alias_renderer")).toBe(true);
 	});
 
-	it("resolves type-only imports from @code-yeongyu/senpi", async () => {
+	it("resolves type-only imports from amaze", async () => {
 		// given a third-party extension that uses a type-only import
 		// (the most common shape for upstream-named imports). Type-only
 		// imports erase at runtime but a missing alias still surfaces
 		// when the bundler/transpiler eagerly resolves the specifier
 		const extCode = `
-			import type { ExtensionAPI } from "@code-yeongyu/senpi";
+			import type { ExtensionAPI } from "amaze";
 			import { Type } from "typebox";
 
 			export default function (pi: ExtensionAPI) {

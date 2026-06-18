@@ -1,11 +1,11 @@
 # changes.md — nested-agents-md (vendored)
 
-Vendored from [`code-yeongyu/pi-nested-agents-md`](https://github.com/code-yeongyu/pi-nested-agents-md) (see `external-versions.json`).
+Vendored from [`code-yeongyu/amaze-nested-agents-md`](https://github.com/code-yeongyu/amaze-nested-agents-md) (see `external-versions.json`).
 
-## Senpi adaptations vs upstream
+## amaze adaptations vs upstream
 
-- Imports rewritten by `scripts/vendor-transform.mjs`: `@earendil-works/pi-coding-agent` symbols -> `../../types.ts`; relative `.js` import suffixes -> `.ts`. (This package already used `@earendil-works/pi-*` upstream, so only the coding-agent symbols and suffixes moved.)
-- `core/errors.ts`: `InjectionFileReadError` constructor parameter property (`public readonly path`) -> explicit field + constructor assignment (senpi's root tsconfig is `erasableSyntaxOnly`; parameter properties are disallowed).
+- Imports rewritten by `scripts/vendor-transform.mjs`: `amaze` symbols -> `../../types.ts`; relative `.js` import suffixes -> `.ts`. (This package already used `@steve-8000/amaze-*` upstream, so only the coding-agent symbols and suffixes moved.)
+- `core/errors.ts`: `InjectionFileReadError` constructor parameter property (`public readonly path`) -> explicit field + constructor assignment (amaze's root tsconfig is `erasableSyntaxOnly`; parameter properties are disallowed).
 - No behavior changes. Registers the `/nested-agents` command and injects nearby `AGENTS.md` on nested reads.
 
 ## Conflict zones

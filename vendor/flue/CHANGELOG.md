@@ -43,7 +43,7 @@
 - Cloudflare attempt markers are now Flue-owned rather than querying private Agents SDK tables.
 - `flue logs` treats `--since` as an opaque Durable Streams offset, supports `--format ndjson`, and uses public run metadata.
 - Many bug fixes landed across Node and Cloudflare execution, SDK stream iteration, CLI shutdown and reload, Workers AI streaming, sandbox filesystem behavior, skill parsing, docs, and test coverage.
-- Updated `@earendil-works/pi-ai` and `@earendil-works/pi-agent-core` to 0.79.4, and aligned the documented Node.js minimum with their `>=22.19.0` requirement.
+- Updated `@steve-8000/amaze-ai` and `@steve-8000/amaze-agent-core` to 0.79.4, and aligned the documented Node.js minimum with their `>=22.19.0` requirement.
 - Skills can now be imported from npm and workspace packages through Vite resolution; package-manager symlinks are supported, and packaged skill identity is derived from deployed content.
 - Added a same-origin React chat example with agent conversation and workflow log views.
 
@@ -67,7 +67,7 @@
 ### Fixes & Other Changes
 
 - Runtime events no longer carry raw image bytes (#221). Image content blocks in session events (`message_*`, `turn_request`, `turn_end`, `agent_end`, `tool_call`) keep their `mimeType` but have `data` replaced with the exported `IMAGE_DATA_OMITTED` sentinel before events reach observers and persisted run history. Model context and persisted session history retain the real bytes. Events persisted before this change are unaffected.
-- Updated `@earendil-works/pi-ai` and `@earendil-works/pi-agent-core` to 0.79.1.
+- Updated `@steve-8000/amaze-ai` and `@steve-8000/amaze-agent-core` to 0.79.1.
 
 ## 0.10.2 - 2026-06-09
 
@@ -101,7 +101,7 @@
 ### Fixes & Other Changes
 
 - Fixed generated Node and Cloudflare app entrypoints by avoiding collisions with application-owned `app` bindings.
-- Updated `@earendil-works/pi-ai` and `@earendil-works/pi-agent-core` to 0.79.0.
+- Updated `@steve-8000/amaze-ai` and `@steve-8000/amaze-agent-core` to 0.79.0.
 - Fixed typos in documentation: "truely", "exited", and "suitible" (#211).
 - Fixed docs search dialog throwing `InvalidStateError` when `Cmd/Ctrl+K` is pressed while already open (#214).
 - Fixed SSE parser missing frame boundaries when CRLF is split across stream chunks or when using CR-only line endings (#216).
@@ -201,7 +201,7 @@ This is a large pre-1.0 release that establishes Flue's durability model across 
 - Fixed cwd scoping for created agents using Node `local()` sandboxes.
 - Pass at most one `--env` file. `flue build`, `flue dev`, `flue run`, and `flue connect` reject repeated `--env` flags. Combine values into one file or use shell environment overrides.
 - `session.delete()` and `harness.sessions.delete()` now reject while the selected session has an active operation.
-- Testing: Import `registerFauxProvider(...)`, `fauxAssistantMessage(...)`, `fauxText(...)`, and `fauxToolCall(...)` from `@earendil-works/pi-ai` instead of `@flue/runtime`.
+- Testing: Import `registerFauxProvider(...)`, `fauxAssistantMessage(...)`, `fauxText(...)`, and `fauxToolCall(...)` from `@steve-8000/amaze-ai` instead of `@flue/runtime`.
 
 ## 0.8.1 - 2026-05-28
 
@@ -268,7 +268,7 @@ This is a large pre-1.0 release that establishes Flue's model for building persi
 
 ### Fixes & Other Changes
 
-- **Runtime dependencies now use the maintained `@earendil-works/*` package scope.** Replaced deprecated `@mariozechner/pi-ai` and `@mariozechner/pi-agent-core` dependencies and imports with `@earendil-works/pi-ai` and `@earendil-works/pi-agent-core`, and updated the website model registry endpoint to read from the new package scope. Fixes #143.
+- **Runtime dependencies now use the maintained `@steve-8000/*` package scope.** Replaced deprecated `@steve-8000/amaze-ai` and `@steve-8000/amaze-agent-core` dependencies and imports with `@steve-8000/amaze-ai` and `@steve-8000/amaze-agent-core`, and updated the website model registry endpoint to read from the new package scope. Fixes #143.
 
 ## 0.6.0 - 2026-05-13
 

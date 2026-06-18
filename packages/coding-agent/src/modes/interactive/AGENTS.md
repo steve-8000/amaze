@@ -78,7 +78,7 @@ components/
 
 - Removing the fork's non-blocking startup probe in `startup-tools.ts` — re-introduces several seconds of "fd/rg downloading…" before the first frame.
 - Re-enabling startup version checks (npm registry / package updates) — fork-disabled per `changes.md` to keep startup deterministic.
-- Collapsing the normal TUI Working row to a static bullet or publishing against upstream `@earendil-works/pi-tui` — removes the visible working animation in global installs.
+- Collapsing the normal TUI Working row to a static bullet or publishing against upstream `@steve-8000/amaze-tui` — removes the visible working animation in global installs.
 - Bypassing component memoization for streaming renderers — measurable flicker regression.
 - Embedding ANSI escapes directly — use `core/tools/render-utils.ts`.
 

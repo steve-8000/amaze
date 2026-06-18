@@ -1,8 +1,8 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { AssistantMessage, Context, Message, TextContent, ToolResultMessage } from "@earendil-works/pi-ai";
-import { complete, fauxAssistantMessage, registerFauxProvider } from "@earendil-works/pi-ai";
+import type { AssistantMessage, Context, Message, TextContent, ToolResultMessage } from "@steve-8000/amaze-ai";
+import { complete, fauxAssistantMessage, registerFauxProvider } from "@steve-8000/amaze-ai";
 import { afterEach, describe, expect, it } from "vitest";
 import {
 	repairOrphanedToolResults,

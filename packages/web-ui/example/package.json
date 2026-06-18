@@ -1,5 +1,5 @@
 {
-	"name": "pi-web-ui-example",
+	"name": "amaze-web-ui-example",
 	"version": "0.75.3",
 	"private": true,
 	"type": "module",
@@ -12,8 +12,8 @@
 	},
 	"dependencies": {
 		"@mariozechner/mini-lit": "0.2.1",
-		"@earendil-works/pi-ai": "file:../../ai",
-		"@earendil-works/pi-web-ui": "file:../",
+		"@steve-8000/amaze-ai": "file:../../ai",
+		"@steve-8000/amaze-web-ui": "file:../",
 		"lit": "3.3.3",
 		"lucide": "0.544.0"
 	},

@@ -1,4 +1,4 @@
-import type { Api, Model } from "@earendil-works/pi-ai";
+import type { Api, Model } from "@steve-8000/amaze-ai";
 import { createApplyPatchTool } from "./tool.ts";
 import type { ApplyPatchExtensionAPI, BaselineState } from "./types.ts";
 

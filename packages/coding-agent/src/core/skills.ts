@@ -372,7 +372,7 @@ function escapeXml(str: string): string {
 export interface LoadSkillsOptions {
 	/** Working directory for project-local skills. */
 	cwd: string;
-	/** Agent config directory for global skills. Default: ~/.senpi/agent */
+	/** Agent config directory for global skills. Default: ~/.amaze/agent */
 	agentDir: string;
 	/** Explicit skill paths (files or directories) */
 	skillPaths: string[];

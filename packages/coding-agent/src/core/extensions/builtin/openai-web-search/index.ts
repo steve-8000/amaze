@@ -1,4 +1,4 @@
-import type { Api, Model, OpenAIResponsesCompat } from "@earendil-works/pi-ai";
+import type { Api, Model, OpenAIResponsesCompat } from "@steve-8000/amaze-ai";
 import type { ExtensionAPI, ExtensionContext } from "../../types.ts";
 
 type ToolDefinition = Record<string, unknown>;
@@ -6,7 +6,7 @@ type OpenAiWebSearchModel = Pick<Model<Api>, "api" | "baseUrl" | "compat">;
 type OpenAiWebSearchTarget = Api | OpenAiWebSearchModel | undefined;
 
 const OPENAI_RESPONSES_APIS: ReadonlySet<Api> = new Set(["openai-responses", "azure-openai-responses"]);
-const ENABLE_ENV = "PI_OPENAI_WEB_SEARCH";
+const ENABLE_ENV = "AMAZE_OPENAI_WEB_SEARCH";
 const NATIVE_OPENAI_WEB_SEARCH_TYPE = "web_search_preview";
 const WEB_SEARCH_SOURCES_INCLUDE = "web_search_call.action.sources";
 const STATUS_KEY = "openai-web-search";

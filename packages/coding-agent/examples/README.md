@@ -1,6 +1,6 @@
 # Examples
 
-Example code for the senpi SDK and extensions.
+Example code for the amaze SDK and extensions.
 
 ## Directories
 

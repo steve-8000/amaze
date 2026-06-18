@@ -2,7 +2,7 @@ import {
 	type FauxProviderRegistration,
 	fauxAssistantMessage,
 	registerFauxProvider,
-} from '@earendil-works/pi-ai';
+} from '@steve-8000/amaze-ai';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createAgent } from '../src/agent-definition.ts';
 import { OperationFailedError } from '../src/errors.ts';

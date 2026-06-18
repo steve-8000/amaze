@@ -27,7 +27,7 @@
  *   fails the operation.
  */
 
-import type { AssistantMessage } from '@earendil-works/pi-ai';
+import type { AssistantMessage } from '@steve-8000/amaze-ai';
 import { isContextOverflow } from './compaction.ts';
 import type { MessageEntry, SessionEntry } from './types.ts';
 

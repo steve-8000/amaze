@@ -1,9 +1,11 @@
-import type { AgentTool } from "@earendil-works/pi-agent-core";
-import { Box, Container, Spacer, Text } from "@earendil-works/pi-tui";
+import type { AgentTool } from "@steve-8000/amaze-agent-core";
+import { Box, Container, Spacer, Text } from "@steve-8000/amaze-tui";
 import { constants } from "fs";
 import { access as fsAccess, readFile as fsReadFile, writeFile as fsWriteFile } from "fs/promises";
 import { type Static, Type } from "typebox";
 import type { Theme } from "../../modes/interactive/theme/theme.ts";
+import { BoxWrapper } from "../../tui/box-wrapper.ts";
+import { CachedTextBox } from "../../tui/cached-text-box.ts";
 import type { ToolDefinition } from "../extensions/types.ts";
 import { renderToolDiff } from "./diff-render.ts";
 import {
@@ -390,7 +392,14 @@ export function createEditToolDefinition(
 				});
 			}
 
-			return buildEditCallComponent(component, args, theme, context.cwd);
+			const inner = buildEditCallComponent(component, args, theme, context.cwd);
+			const wrapper =
+				context.lastComponent instanceof BoxWrapper ? context.lastComponent : new BoxWrapper(inner, theme);
+			wrapper.inner = inner;
+			wrapper.setState(component.settledError ? "error" : "success");
+			wrapper.setHeader(component.settledError ? "Edit failed" : "Edit");
+			wrapper.invalidate();
+			return wrapper;
 		},
 		renderResult(result, _options, theme, context) {
 			const callComponent = context.state.callComponent;
@@ -425,14 +434,15 @@ export function createEditToolDefinition(
 			}
 
 			const output = formatEditResult(context.args, callComponent?.preview, typedResult, theme, context.isError);
-			const component = (context.lastComponent as Container | undefined) ?? new Container();
-			component.clear();
 			if (!output) {
+				const component = (context.lastComponent as Container | undefined) ?? new Container();
+				if (component instanceof Container) {
+					component.clear();
+				}
 				return component;
 			}
-			component.addChild(new Spacer(1));
-			component.addChild(new Text(output, 1, 0));
-			return component;
+			const box = context.lastComponent instanceof CachedTextBox ? context.lastComponent : new CachedTextBox(theme);
+			return box.set({ text: output, state: context.isError ? "error" : "success" });
 		},
 	};
 }

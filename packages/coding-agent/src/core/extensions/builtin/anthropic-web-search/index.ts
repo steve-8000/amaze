@@ -1,12 +1,12 @@
-import type { Api } from "@earendil-works/pi-ai";
+import type { Api } from "@steve-8000/amaze-ai";
 import type { ExtensionAPI, ExtensionContext } from "../../types.ts";
 
 type ToolDefinition = Record<string, unknown>;
 
 const WEB_SEARCH_MAX_USES = 8;
-const ENABLE_ENV = "PI_ANTHROPIC_WEB_SEARCH";
-const ALLOWED_DOMAINS_ENV = "PI_ANTHROPIC_WEB_SEARCH_ALLOWED_DOMAINS";
-const BLOCKED_DOMAINS_ENV = "PI_ANTHROPIC_WEB_SEARCH_BLOCKED_DOMAINS";
+const ENABLE_ENV = "AMAZE_ANTHROPIC_WEB_SEARCH";
+const ALLOWED_DOMAINS_ENV = "AMAZE_ANTHROPIC_WEB_SEARCH_ALLOWED_DOMAINS";
+const BLOCKED_DOMAINS_ENV = "AMAZE_ANTHROPIC_WEB_SEARCH_BLOCKED_DOMAINS";
 const STATUS_KEY = "anthropic-web-search";
 const WIDGET_KEY = "anthropic-web-search";
 

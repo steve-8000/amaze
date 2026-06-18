@@ -15,8 +15,19 @@ import {
 import { findWordBackward, findWordForward } from "../word-navigation.ts";
 import { SelectList, type SelectListLayoutOptions, type SelectListTheme } from "./select-list.ts";
 
-const graphemeSegmenter = getGraphemeSegmenter();
-const wordSegmenter = getWordSegmenter();
+interface SegmentData {
+	segment: string;
+	index: number;
+	input: string;
+	isWordLike?: boolean;
+}
+
+interface Segmenter {
+	segment(text: string): Iterable<SegmentData>;
+}
+
+const graphemeSegmenter = getGraphemeSegmenter() as Segmenter;
+const wordSegmenter = getWordSegmenter() as Segmenter;
 
 /** Regex matching paste markers like `[paste #1 +123 lines]` or `[paste #2 1234 chars]`. */
 const PASTE_MARKER_REGEX = /\[paste #(\d+)( (\+\d+ lines|\d+ chars))?\]/g;
@@ -38,9 +49,9 @@ function isPasteMarker(segment: string): boolean {
  */
 function segmentWithMarkers(
 	text: string,
-	baseSegmenter: Intl.Segmenter,
+	baseSegmenter: Segmenter,
 	validIds: Set<number>,
-): Iterable<Intl.SegmentData> {
+): Iterable<SegmentData> {
 	// Fast path: no paste markers in the text or no valid IDs.
 	if (validIds.size === 0 || !text.includes("[paste #")) {
 		return baseSegmenter.segment(text);
@@ -59,7 +70,7 @@ function segmentWithMarkers(
 
 	// Build merged segment list.
 	const baseSegments = baseSegmenter.segment(text);
-	const result: Intl.SegmentData[] = [];
+	const result: SegmentData[] = [];
 	let markerIdx = 0;
 
 	for (const seg of baseSegments) {
@@ -166,7 +177,7 @@ function wordWrapAsciiLine(line: string, maxWidth: number): TextChunk[] {
  *                       When omitted the default Intl.Segmenter is used.
  * @returns Array of chunks with text and position information
  */
-export function wordWrapLine(line: string, maxWidth: number, preSegmented?: Intl.SegmentData[]): TextChunk[] {
+export function wordWrapLine(line: string, maxWidth: number, preSegmented?: SegmentData[]): TextChunk[] {
 	if (!line || maxWidth <= 0) {
 		return [{ text: "", startIndex: 0, endIndex: 0 }];
 	}
@@ -276,9 +287,28 @@ interface LayoutLine {
 	cursorPos?: number;
 }
 
+interface EditorBoxRoundSymbols {
+	topLeft: string;
+	topRight: string;
+	bottomLeft: string;
+	bottomRight: string;
+	horizontal: string;
+	vertical: string;
+}
+
+const DEFAULT_BOX_ROUND: EditorBoxRoundSymbols = {
+	topLeft: "╭",
+	topRight: "╮",
+	bottomLeft: "╰",
+	bottomRight: "╯",
+	horizontal: "─",
+	vertical: "│",
+};
+
 export interface EditorTheme {
 	borderColor: (str: string) => string;
 	selectList: SelectListTheme;
+	boxRound?: EditorBoxRoundSymbols;
 }
 
 export interface EditorOptions {
@@ -399,7 +429,7 @@ export class Editor implements Component, Focusable {
 	}
 
 	/** Segment text with paste-marker awareness, only merging markers with valid IDs. */
-	private segment(text: string, mode: "word" | "grapheme"): Iterable<Intl.SegmentData> {
+	private segment(text: string, mode: "word" | "grapheme"): Iterable<SegmentData> {
 		return segmentWithMarkers(text, mode === "word" ? wordSegmenter : graphemeSegmenter, this.validPasteIds());
 	}
 
@@ -548,9 +578,12 @@ export class Editor implements Component, Focusable {
 	}
 
 	render(width: number): string[] {
-		const maxPadding = Math.max(0, Math.floor((width - 1) / 2));
+		const box = this.theme.boxRound ?? DEFAULT_BOX_ROUND;
+		const borderVisible = width >= 2;
+		const innerWidth = Math.max(1, width);
+		const maxPadding = Math.max(0, Math.floor((innerWidth - 1) / 2));
 		const paddingX = Math.min(this.paddingX, maxPadding);
-		const contentWidth = Math.max(1, width - paddingX * 2);
+		const contentWidth = Math.max(1, innerWidth - paddingX * 2);
 
 		// Layout width: with padding the cursor can overflow into it,
 		// without padding we reserve 1 column for the cursor.
@@ -559,7 +592,7 @@ export class Editor implements Component, Focusable {
 		// Store for cursor navigation (must match wrapping width)
 		this.lastWidth = layoutWidth;
 
-		const horizontal = this.borderColor("─");
+		const horizontal = this.borderColor(box.horizontal);
 
 		// Layout the text
 		const layoutLines = this.layoutText(layoutWidth);
@@ -590,17 +623,25 @@ export class Editor implements Component, Focusable {
 		const leftPadding = " ".repeat(paddingX);
 		const rightPadding = leftPadding;
 
+		const renderBorder = (left: string, right: string, indicator?: string): string => {
+			if (!borderVisible) {
+				if (!indicator) return horizontal.repeat(width);
+				const truncated = truncateToWidth(indicator, width);
+				const remaining = Math.max(0, width - visibleWidth(truncated));
+				return this.borderColor(truncated + box.horizontal.repeat(remaining));
+			}
+			const borderWidth = Math.max(0, width - 2);
+			const label = indicator ? truncateToWidth(indicator, borderWidth) : "";
+			const fillWidth = Math.max(0, borderWidth - visibleWidth(label));
+			return this.borderColor(left + label + box.horizontal.repeat(fillWidth) + right);
+		};
+
 		// Render top border (with scroll indicator if scrolled down)
 		if (this.scrollOffset > 0) {
 			const indicator = `─── ↑ ${this.scrollOffset} more `;
-			const remaining = width - visibleWidth(indicator);
-			if (remaining >= 0) {
-				result.push(this.borderColor(indicator + "─".repeat(remaining)));
-			} else {
-				result.push(this.borderColor(truncateToWidth(indicator, width)));
-			}
+			result.push(renderBorder(box.topLeft, box.topRight, indicator));
 		} else {
-			result.push(horizontal.repeat(width));
+			result.push(renderBorder(box.topLeft, box.topRight));
 		}
 
 		// Render each visible layout line
@@ -647,18 +688,23 @@ export class Editor implements Component, Focusable {
 			const padding = " ".repeat(Math.max(0, contentWidth - lineVisibleWidth));
 			const lineRightPadding = cursorInPadding ? rightPadding.slice(1) : rightPadding;
 
-			// Render the line (no side borders, just horizontal lines above and below)
-			result.push(`${leftPadding}${displayText}${padding}${lineRightPadding}`);
+			if (borderVisible && paddingX > 1) {
+				const vertical = this.borderColor(box.vertical);
+				const innerLeftPadding = leftPadding.slice(1);
+				const innerRightPadding = lineRightPadding.slice(1);
+				result.push(`${vertical}${innerLeftPadding}${displayText}${padding}${innerRightPadding}${vertical}`);
+			} else {
+				result.push(`${leftPadding}${displayText}${padding}${lineRightPadding}`);
+			}
 		}
 
 		// Render bottom border (with scroll indicator if more content below)
 		const linesBelow = layoutLines.length - (this.scrollOffset + visibleLines.length);
 		if (linesBelow > 0) {
 			const indicator = `─── ↓ ${linesBelow} more `;
-			const remaining = width - visibleWidth(indicator);
-			result.push(this.borderColor(indicator + "─".repeat(Math.max(0, remaining))));
+			result.push(renderBorder(box.bottomLeft, box.bottomRight, indicator));
 		} else {
-			result.push(horizontal.repeat(width));
+			result.push(renderBorder(box.bottomLeft, box.bottomRight));
 		}
 
 		// Add autocomplete list if active
@@ -667,7 +713,14 @@ export class Editor implements Component, Focusable {
 			for (const line of autocompleteResult) {
 				const lineWidth = visibleWidth(line);
 				const linePadding = " ".repeat(Math.max(0, contentWidth - lineWidth));
-				result.push(`${leftPadding}${line}${linePadding}${rightPadding}`);
+				if (borderVisible && paddingX > 1) {
+					const vertical = this.borderColor(box.vertical);
+					const innerLeftPadding = leftPadding.slice(1);
+					const innerRightPadding = rightPadding.slice(1);
+					result.push(`${vertical}${innerLeftPadding}${line}${linePadding}${innerRightPadding}${vertical}`);
+				} else {
+					result.push(`${leftPadding}${line}${linePadding}${rightPadding}`);
+				}
 			}
 		}
 

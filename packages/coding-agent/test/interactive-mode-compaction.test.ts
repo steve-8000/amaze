@@ -1,4 +1,4 @@
-import { Container } from "@earendil-works/pi-tui";
+import { Container } from "@steve-8000/amaze-tui";
 import { beforeAll, describe, expect, test, vi } from "vitest";
 import { CompactionSummaryMessageComponent } from "../src/modes/interactive/components/compaction-summary-message.ts";
 import { InteractiveMode } from "../src/modes/interactive/interactive-mode.ts";
@@ -154,7 +154,7 @@ describe("InteractiveMode compaction events", () => {
 			tokensBefore: 1234,
 			timestamp: Date.now(),
 			details: {
-				schema: "senpi.compaction.openai-remote.v1",
+				schema: "amaze.compaction.openai-remote.v1",
 				mode: "openai-remote",
 				provider: "openai",
 				api: "openai-responses",

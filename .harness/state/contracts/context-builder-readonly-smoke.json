@@ -1,0 +1,21 @@
+{
+  "contract_id": "context-builder-readonly-smoke",
+  "status": "completed",
+  "created_at": "2026-06-18T03:57:26.014Z",
+  "updated_at": "2026-06-18T03:58:20.748Z",
+  "run_id": "e877dfb8",
+  "agent": "context-builder",
+  "task": "Live smoke test only. Build a minimal context packet for this policy: role-specific acceptance contracts and shared Xenonite tools including graph_status. Do not modify files. Return only objective, constraints, and acceptance recommendations.\n\n---\n**Output:** Return your findings in the final response only. The parent runtime persists that response at the hidden output file: /Users/steve/.amaze/agent/sessions/--Users-steve-rocky-amaze--/subagent-artifacts/.subagent-outputs/e877dfb8_context-builder_0_output.md. No filesystem action is required for this output artifact.",
+  "path_contract": {
+    "read_allowed_paths": [
+      "**/*"
+    ],
+    "write_allowed_paths": [],
+    "write_denied_paths": [
+      "**/*"
+    ],
+    "contract_id": "context-builder-readonly-smoke"
+  },
+  "locks": [],
+  "exit_code": 0
+}

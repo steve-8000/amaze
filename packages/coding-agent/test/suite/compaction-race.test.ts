@@ -1,5 +1,5 @@
 import { setImmediate as waitForImmediate } from "node:timers/promises";
-import { fauxAssistantMessage } from "@earendil-works/pi-ai";
+import { fauxAssistantMessage } from "@steve-8000/amaze-ai";
 import { afterEach, describe, expect, it } from "vitest";
 import type { ExtensionAPI } from "../../src/core/extensions/index.ts";
 import { COMPACTION_SUMMARY_PREFIX } from "../../src/core/messages.ts";

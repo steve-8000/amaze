@@ -132,7 +132,7 @@
 
 ### Removed
 
-- Removed the dead `test-sessions.ts` fixture module, the unregistered `CalculateRenderer`/`GetCurrentTimeRenderer` tool renderers, the unused auth-token utilities, and the unused `@earendil-works/pi-tui` dependency.
+- Removed the dead `test-sessions.ts` fixture module, the unregistered `CalculateRenderer`/`GetCurrentTimeRenderer` tool renderers, the unused auth-token utilities, and the unused `@steve-8000/amaze-tui` dependency.
 
 ## [2026.6.10] - 2026-06-10
 
@@ -699,19 +699,19 @@
 
 ### Breaking Changes
 
-- **Agent class moved to `@mariozechner/pi-agent-core`**: The `Agent` class, `AgentState`, and related types are no longer exported from this package. Import them from `@mariozechner/pi-agent-core` instead.
+- **Agent class moved to `@steve-8000/amaze-agent-core`**: The `Agent` class, `AgentState`, and related types are no longer exported from this package. Import them from `@steve-8000/amaze-agent-core` instead.
 
 - **Transport abstraction removed**: `ProviderTransport`, `AppTransport`, `AgentTransport` interface, and related types have been removed. The `Agent` class now uses `streamFn` for custom streaming.
 
-- **`AppMessage` renamed to `AgentMessage`**: Now imported from `@mariozechner/pi-agent-core`. Custom message types use declaration merging on `CustomAgentMessages` interface.
+- **`AppMessage` renamed to `AgentMessage`**: Now imported from `@steve-8000/amaze-agent-core`. Custom message types use declaration merging on `CustomAgentMessages` interface.
 
 - **`UserMessageWithAttachments` is now a custom message type**: Has `role: "user-with-attachments"` instead of `role: "user"`. Use `isUserMessageWithAttachments()` type guard.
 
-- **`CustomMessages` interface removed**: Use declaration merging on `CustomAgentMessages` from `@mariozechner/pi-agent-core` instead.
+- **`CustomMessages` interface removed**: Use declaration merging on `CustomAgentMessages` from `@steve-8000/amaze-agent-core` instead.
 
 - **`agent.appendMessage()` removed**: Use `agent.queueMessage()` instead.
 
-- **Agent event types changed**: `AgentInterface` now handles new event types from `@mariozechner/pi-agent-core`: `message_start`, `message_end`, `message_update`, `turn_start`, `turn_end`, `agent_start`, `agent_end`.
+- **Agent event types changed**: `AgentInterface` now handles new event types from `@steve-8000/amaze-agent-core`: `message_start`, `message_end`, `message_update`, `turn_start`, `turn_end`, `agent_start`, `agent_end`.
 
 ### Added
 
@@ -731,7 +731,7 @@
 
 ### Removed
 
-- `Agent` class (moved to `@mariozechner/pi-agent-core`)
+- `Agent` class (moved to `@steve-8000/amaze-agent-core`)
 - `ProviderTransport` class
 - `AppTransport` class
 - `AgentTransport` interface
@@ -753,7 +753,7 @@ const agent = new Agent({
 
 **After:**
 ```typescript
-import { Agent, type AgentMessage } from '@mariozechner/pi-agent-core';
+import { Agent, type AgentMessage } from '@steve-8000/amaze-agent-core';
 import { defaultConvertToLlm } from '@mariozechner/pi-web-ui';
 
 const agent = new Agent({
@@ -775,7 +775,7 @@ declare module "@mariozechner/pi-web-ui" {
 }
 
 // After: declaration merging on CustomAgentMessages
-declare module "@mariozechner/pi-agent-core" {
+declare module "@steve-8000/amaze-agent-core" {
   interface CustomAgentMessages {
     "my-message": MyMessage;
   }

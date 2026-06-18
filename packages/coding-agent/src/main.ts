@@ -6,7 +6,7 @@
  */
 
 import { createInterface } from "node:readline";
-import { type ImageContent, modelsAreEqual } from "@earendil-works/pi-ai";
+import { type ImageContent, modelsAreEqual } from "@steve-8000/amaze-ai";
 import chalk from "chalk";
 import { type Args, type Mode, parseArgs, printHelp } from "./cli/args.ts";
 import { processFileArguments } from "./cli/file-processor.ts";
@@ -470,10 +470,10 @@ export interface MainOptions {
 
 export async function main(args: string[], options?: MainOptions) {
 	resetTimings();
-	const offlineMode = args.includes("--offline") || isTruthyEnvFlag(process.env.PI_OFFLINE);
+	const offlineMode = args.includes("--offline") || isTruthyEnvFlag(process.env.AMAZE_OFFLINE);
 	if (offlineMode) {
-		process.env.PI_OFFLINE = "1";
-		process.env.PI_SKIP_VERSION_CHECK = "1";
+		process.env.AMAZE_OFFLINE = "1";
+		process.env.AMAZE_SKIP_VERSION_CHECK = "1";
 	}
 
 	if (process.platform === "win32") {
@@ -498,6 +498,9 @@ export async function main(args: string[], options?: MainOptions) {
 		if (parsed.diagnostics.some((d) => d.type === "error")) {
 			process.exit(1);
 		}
+	}
+	if (parsed.paseoPiCompat) {
+		process.env.AMAZE_PASEO_PI_COMPAT = "1";
 	}
 	time("parseArgs");
 

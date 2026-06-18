@@ -1,4 +1,4 @@
-import type { AssistantMessage, AssistantMessageEvent } from '@earendil-works/pi-ai';
+import type { AssistantMessage, AssistantMessageEvent } from '@steve-8000/amaze-ai';
 import { describe, expect, it, vi } from 'vitest';
 import { reconstructInterruptedStream, StreamChunkWriter } from '../src/runtime/stream-chunks.ts';
 

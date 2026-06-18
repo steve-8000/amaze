@@ -36,6 +36,10 @@ const RESEARCH_AGENT_PATTERNS = [
 	/\binvestigate\b/i,
 	/\bscout\b/i,
 	/\bresearch(?:er)?\b/i,
+	/\bcontext-builder\b/i,
+	/\bplanner\b/i,
+	/\bdelegate\b/i,
+	/\boracle\b/i,
 ];
 
 const WORKER_IMPLEMENTATION_PATTERNS = [

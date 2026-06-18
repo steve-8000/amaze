@@ -2,7 +2,7 @@
  * Deterministic, no-LLM context reductions applied before compaction summarization.
  *
  * Ported from plugsuits' `context-collapse` and `micro-compact` patterns and
- * adapted to the senpi `AgentMessage` shape. Three independent transforms:
+ * adapted to the amaze `AgentMessage` shape. Three independent transforms:
  *
  *  1. {@link collapseConsecutiveToolResults} — runs of same-kind read/grep/shell
  *     tool result payloads are replaced with a single one-line label so the
@@ -18,8 +18,8 @@
  * {@link reduceContextMessages} composes the three transforms in order.
  */
 
-import type { AgentMessage } from "@earendil-works/pi-agent-core";
-import type { AssistantMessage, ImageContent, TextContent, ToolResultMessage } from "@earendil-works/pi-ai";
+import type { AgentMessage } from "@steve-8000/amaze-agent-core";
+import type { AssistantMessage, ImageContent, TextContent, ToolResultMessage } from "@steve-8000/amaze-ai";
 
 const DEFAULT_READ_TOOL_NAMES = ["read", "Read", "read_file"];
 const DEFAULT_SEARCH_TOOL_NAMES = ["grep", "Grep", "glob", "Glob"];
@@ -142,7 +142,7 @@ export const BUILTIN_CONTEXT_REDUCTION_OPTIONS: ReduceContextOptions = {
 	},
 };
 
-export const BUILTIN_CONTEXT_REDUCTION_GATE_RATIO = 0.5;
+export const BUILTIN_CONTEXT_REDUCTION_GATE_RATIO = 0.6;
 
 export interface ShouldApplyContextReductionInput {
 	usageTokens: number | null;

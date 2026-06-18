@@ -3,13 +3,13 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { assertSenpiPackedWorkspaceFiles, prepareSenpiBundledWorkspaces } from "./prepare-senpi-bundled-workspaces.mjs";
+import { assertAmazePackedWorkspaceFiles, prepareAmazeBundledWorkspaces } from "./prepare-amaze-bundled-workspaces.mjs";
 
 const packages = [
-	{ directory: "packages/ai", name: "@earendil-works/pi-ai" },
-	{ directory: "packages/agent", name: "@earendil-works/pi-agent-core" },
-	{ directory: "packages/tui", name: "@earendil-works/pi-tui" },
-	{ directory: "packages/coding-agent", name: "@code-yeongyu/senpi" },
+	{ directory: "packages/ai", name: "@steve-8000/amaze-ai" },
+	{ directory: "packages/agent", name: "@steve-8000/amaze-agent-core" },
+	{ directory: "packages/tui", name: "@steve-8000/amaze-tui" },
+	{ directory: "packages/coding-agent", name: "amaze" },
 ];
 
 const dryRun = process.argv.includes("--dry-run");
@@ -55,7 +55,7 @@ function validatePack(directory) {
 	const result = run("npm", ["pack", "--dry-run", "--ignore-scripts", "--json"], { capture: true, cwd: directory });
 	const packed = JSON.parse(result.stdout)[0];
 	if (directory === "packages/coding-agent") {
-		assertSenpiPackedWorkspaceFiles(packed);
+		assertAmazePackedWorkspaceFiles(packed);
 	}
 	console.log(`  ${packed.filename}: ${packed.files.length} files, ${packed.size} bytes packed, ${packed.unpackedSize} bytes unpacked`);
 }
@@ -92,9 +92,9 @@ if (versions.length !== 1) {
 	throw new Error(`Publish packages are not lockstep versioned: ${versions.join(", ")}`);
 }
 
-console.log(`Publishing senpi packages at ${versions[0]}${dryRun ? " (dry run)" : ""}\n`);
+console.log(`Publishing amaze packages at ${versions[0]}${dryRun ? " (dry run)" : ""}\n`);
 
-prepareSenpiBundledWorkspaces();
+prepareAmazeBundledWorkspaces();
 
 for (const pkg of packages) {
 	const version = packageVersions.get(pkg.name);

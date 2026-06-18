@@ -1,4 +1,4 @@
-import type { AssistantMessage, ProviderNativeContent } from "@earendil-works/pi-ai";
+import type { AssistantMessage, ProviderNativeContent } from "@steve-8000/amaze-ai";
 
 type NativeRecord = Record<string, unknown>;
 

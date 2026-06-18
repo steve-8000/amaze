@@ -1,0 +1,27 @@
+{
+  "contract_id": "readonly-context-builder",
+  "status": "failed",
+  "created_at": "2026-06-18T03:53:08.218Z",
+  "updated_at": "2026-06-18T03:57:10.300Z",
+  "run_id": "c2aabf81",
+  "agent": "context-builder",
+  "task": "We are implementing a small CodexPro-inspired ChatGPT Developer Mode MCP/App SDK bridge in amaze. Current repo: /Users/steve/rocky/amaze. Requirements: do not port CodexPro search/file tools wholesale; expose connection patterns only. Prefer minimal, low-conflict architecture in packages/coding-agent, likely under src/amaze, with CLI subcommand or bin entry. Initial tool mode minimal/standard/full. Safe operations only at first: server_config, workspace_snapshot/context export, read-only tree/search via existing local primitives or Xenonite call wrappers if simple. Need live tests/build. Please inspect relevant files (config, cli/main args, package, existing tools/extensions) and return a concise implementation contract: files to modify/add, public interface, risks, and validation commands. Stop after boundary design; do not edit.\n\n---\n**Output:** Return your findings in the final response only. The parent runtime persists that response at the hidden output file: /Users/steve/rocky/amaze/.subagent-outputs/context.md. No filesystem action is required for this output artifact.",
+  "path_contract": {
+    "contract_id": "readonly-context-builder",
+    "assigned_worker": "context-builder",
+    "read_allowed_paths": [
+      "**/*"
+    ],
+    "write_allowed_paths": [],
+    "write_denied_paths": [
+      "**/*"
+    ],
+    "activity_budget": {
+      "max_tokens": 270000,
+      "max_elapsed_ms": 240000
+    }
+  },
+  "locks": [],
+  "exit_code": 1,
+  "error": "Path contract readonly-context-builder exceeded activity budget max_elapsed_ms=240000"
+}

@@ -1,0 +1,41 @@
+{
+  "contract_id": "contract-scout-Users_steve_rocky_amaze.",
+  "status": "failed",
+  "created_at": "2026-06-18T03:11:00.023Z",
+  "updated_at": "2026-06-18T03:12:23.649Z",
+  "run_id": "f41a8c53",
+  "agent": "scout",
+  "task": "Find the code paths that manage memory context summaries, context compression, summary thresholds, or token-budget thresholds. Scope: repository /Users/steve/rocky/amaze. Return only file paths, key symbols/functions, any constants/thresholds, and likely tests. Stop after locating the main implementation and tests; do not modify files.\n\n---\n**Output:** Return your findings in the final response only. The parent runtime persists that response at the hidden output file: /Users/steve/rocky/amaze/.subagent-outputs/context.md. No filesystem action is required for this output artifact.",
+  "path_contract": {
+    "contract_id": "contract-scout-Users_steve_rocky_amaze.",
+    "assigned_worker": "scout",
+    "assigned_path": "Users/steve/rocky/amaze.",
+    "owned_paths": [
+      "Users/steve/rocky/amaze./**"
+    ],
+    "read_allowed_paths": [
+      "**/*"
+    ],
+    "write_allowed_paths": [
+      "Users/steve/rocky/amaze./**"
+    ],
+    "write_denied_paths": [],
+    "activity_budget": {
+      "max_tokens": 270000,
+      "max_elapsed_ms": 180000
+    }
+  },
+  "locks": [
+    {
+      "lock_id": "contract-scout-Users_steve_rocky_amaze.-Users_steve_rocky_amaze.",
+      "contract_id": "contract-scout-Users_steve_rocky_amaze.",
+      "lock_path": "Users/steve/rocky/amaze.",
+      "created_at": "2026-06-18T03:11:00.023Z",
+      "pid": 75033,
+      "run_id": "f41a8c53",
+      "agent": "scout"
+    }
+  ],
+  "exit_code": 1,
+  "error": "Acceptance rejected: changed-files evidence missing from child report."
+}

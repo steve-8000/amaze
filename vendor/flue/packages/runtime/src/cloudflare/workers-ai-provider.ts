@@ -21,9 +21,9 @@ import type {
 	Tool,
 	ToolCall,
 	Usage,
-} from '@earendil-works/pi-ai';
-import { createAssistantMessageEventStream, parseStreamingJson } from '@earendil-works/pi-ai';
-import { convertMessages } from '@earendil-works/pi-ai/openai-completions';
+} from '@steve-8000/amaze-ai';
+import { createAssistantMessageEventStream, parseStreamingJson } from '@steve-8000/amaze-ai';
+import { convertMessages } from '@steve-8000/amaze-ai/openai-completions';
 import { CLOUDFLARE_AI_BINDING_API, type CloudflareAIBindingApi } from '../cloudflare-model.ts';
 import { getModelBinding, getModelGateway } from '../runtime/providers.ts';
 import type { CloudflareGatewayOptions } from './gateway.ts';

@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 
-const modelsUrl = 'https://unpkg.com/@earendil-works/pi-ai/dist/models.generated.js';
+const modelsUrl = 'https://unpkg.com/@steve-8000/amaze-ai/dist/models.generated.js';
 
 type ModelRegistry = Record<string, Record<string, unknown>>;
 

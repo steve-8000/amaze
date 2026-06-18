@@ -1,5 +1,5 @@
-import type { AgentMessage } from "@earendil-works/pi-agent-core";
-import type { AssistantMessage, ToolResultMessage, Usage, UserMessage } from "@earendil-works/pi-ai";
+import type { AgentMessage } from "@steve-8000/amaze-agent-core";
+import type { AssistantMessage, ToolResultMessage, Usage, UserMessage } from "@steve-8000/amaze-ai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { hardLimitEmergencyPrune } from "../../src/core/extensions/builtin/compaction/speculative.ts";
 

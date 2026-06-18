@@ -1,4 +1,4 @@
-import type { AgentMessage } from "@earendil-works/pi-agent-core";
+import type { AgentMessage } from "@steve-8000/amaze-agent-core";
 import {
 	type Api,
 	type AssistantMessage,
@@ -9,13 +9,13 @@ import {
 	streamSimple,
 	type TextContent,
 	type ToolCall,
-} from "@earendil-works/pi-ai";
+} from "@steve-8000/amaze-ai";
 import type { CompactionResult } from "../../../compaction/index.ts";
 import type { SessionEntry } from "../../../session-manager.ts";
 import type { ServiceTier, SessionBeforeCompactEvent } from "../../types.ts";
 
-export const OPENAI_REMOTE_COMPACTION_SCHEMA = "senpi.compaction.openai-remote.v1";
-export const SENPI_COMPACTION_EVENT = "senpi:compaction";
+export const OPENAI_REMOTE_COMPACTION_SCHEMA = "amaze.compaction.openai-remote.v1";
+export const AMAZE_COMPACTION_EVENT = "amaze:compaction";
 
 type OpenAiInputText = { type: "input_text"; text: string };
 type OpenAiInputImage = { type: "input_image"; detail: "auto"; image_url: string };

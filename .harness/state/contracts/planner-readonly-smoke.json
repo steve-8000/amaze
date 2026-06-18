@@ -1,0 +1,21 @@
+{
+  "contract_id": "planner-readonly-smoke",
+  "status": "completed",
+  "created_at": "2026-06-18T03:52:36.703Z",
+  "updated_at": "2026-06-18T03:52:54.443Z",
+  "run_id": "2e4996eb",
+  "agent": "planner",
+  "task": "Live smoke test only. Create a minimal 3-step plan for validating role-based subagent acceptance contracts. Do not modify files. Return only the plan and one risk.\n\n---\n**Output:** Return your findings in the final response only. The parent runtime persists that response at the hidden output file: /Users/steve/rocky/amaze/.subagent-outputs/plan.md. No filesystem action is required for this output artifact.",
+  "path_contract": {
+    "read_allowed_paths": [
+      "**/*"
+    ],
+    "write_allowed_paths": [],
+    "write_denied_paths": [
+      "**/*"
+    ],
+    "contract_id": "planner-readonly-smoke"
+  },
+  "locks": [],
+  "exit_code": 0
+}

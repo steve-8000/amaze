@@ -6,13 +6,13 @@
 
 - `interactive-mode.ts`: the default normal TUI Working indicator uses two visible frames, `•` and `◦`, plus the
   animated `Working (Xs • esc to interrupt)` message formatter.
-- `packages/coding-agent/package.json`: the public `@code-yeongyu/senpi` package bundles the private forked
-  `@earendil-works/pi-agent-core`, `@earendil-works/pi-ai`, and `@earendil-works/pi-tui` workspaces.
+- `packages/coding-agent/package.json`: the public `amaze` package bundles the private forked
+  `@steve-8000/amaze-agent-core`, `@steve-8000/amaze-ai`, and `@steve-8000/amaze-tui` workspaces.
 - `scripts/release.mjs`: release no longer rewrites those dependencies to upstream npm `0.x` packages before publish.
 
 ### Why
 
-- The normal TUI looked static after `@code-yeongyu/senpi` installed an upstream `@earendil-works/pi-tui` package whose
+- The normal TUI looked static after `amaze` installed an upstream `@steve-8000/amaze-tui` package whose
   `Loader` ignored `messageFormatter`, so the installed CLI rendered only `• Working`.
 - The source tree already had richer Working text animation; the npm tarball must carry the forked TUI runtime that
   implements it.
@@ -25,8 +25,8 @@
 ### Expected merge conflict zones
 
 - HIGH: `interactive-mode.ts` around `getWorkingIndicatorOptions()`; preserve two default frames plus message formatter.
-- HIGH: release/package files around bundled workspace dependencies; do not pin `@earendil-works/pi-*` to upstream npm
-  versions for `@code-yeongyu/senpi` publishing.
+- HIGH: release/package files around bundled workspace dependencies; do not pin `@steve-8000/amaze-*` to upstream npm
+  versions for `amaze` publishing.
 - MEDIUM: `packages/tui/src/components/loader.ts`; preserve `messageFormatter` and independent message animation.
 
 ## live tool hook status rows (2026-05-19)

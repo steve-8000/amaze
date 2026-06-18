@@ -1,4 +1,4 @@
-import { getModel } from '@earendil-works/pi-ai';
+import { getModel } from '@steve-8000/amaze-ai';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createAgent, ProviderRegistrationError } from '../src/index.ts';
 import { createFlueContext, InMemorySessionStore, resolveModel } from '../src/internal.ts';

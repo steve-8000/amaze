@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Release script for the senpi monorepo (CalVer).
+ * Release script for the amaze monorepo (CalVer).
  *
  * Usage:
  *   node scripts/release.mjs               # compute next version via calver.mjs, run release
@@ -38,7 +38,7 @@ function printUsage() {
 	const text = [
 		"Usage: node scripts/release.mjs [options]",
 		"",
-		"Releases the senpi monorepo using CalVer (YYYY.M.D or YYYY.M.D-N).",
+		"Releases the amaze monorepo using CalVer (YYYY.M.D or YYYY.M.D-N).",
 		"",
 		"Options:",
 		"  --version <v>   Explicit CalVer version. Must match",

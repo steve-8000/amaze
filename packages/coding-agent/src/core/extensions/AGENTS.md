@@ -10,7 +10,7 @@ extensions/
 │                        # ExtensionEvent union (30+ events), all *EventResult types, ToolDefinition.
 │                        # ~1700 LOC — VERY HIGH merge-conflict risk on every upstream sync.
 ├── loader.ts            # Discovery + jiti-based TS import. Shared importer per `loadExtensions()` batch
-│                        # (perf fix 2026-05-08). Aliases `@mariozechner/pi-*` → workspace packages.
+│                        # (perf fix 2026-05-08). Aliases `@steve-8000/amaze-*` → workspace packages.
 ├── runner.ts            # ExtensionRunner — owns the runtime, dispatches events, holds shutdown handlers,
 │                        # exposes `bindCore()` to wire `pi.*` stubs to real implementations.
 ├── wrapper.ts           # 30-line wrapper utility used to track extension origin per UI message
@@ -40,21 +40,21 @@ extensions/
 
 1. Builtin factories from `builtin/index.ts`, in `builtinExtensions` array order — affects permission/agent stacking precedence.
 2. Generated default global extensions (`globalDefaultExtensionFactories`: `diff`, `files`, `prompt-url-widget`, `tps`) — fast-path resolved by `core/resource-loader.ts` (avoids jiti for unchanged stub files).
-3. User extensions from `~/.senpi/agent/extensions/`, `.senpi/extensions/` (directory name comes from `CONFIG_DIR_NAME` in `config.ts`), settings.json paths, `-e` CLI flag.
+3. User extensions from `~/.amaze/agent/extensions/`, `.amaze/extensions/` (directory name comes from `CONFIG_DIR_NAME` in `config.ts`), settings.json paths, `-e` CLI flag.
 
 ## CONVENTIONS
 
 - **Every public API change** in `types.ts` MUST add a section to `changes.md` with explicit *expected merge-conflict zones*.
 - **Event handlers can return values** that the runner uses — see `model_select` returning `ModelSelectEventResult` (2026-04-30) and `session_before_compact` returning a snapshot.
 - **Extension factories are pure**: no top-level side effects, no fs reads, no environment captures. All side effects belong inside `pi.on("session_start", …)`.
-- **`bindCore()` is privileged**: only the host (senpi `agent-session.ts` or interactive-mode shortcut path) may call it. Extensions consume the bound API only.
+- **`bindCore()` is privileged**: only the host (amaze `agent-session.ts` or interactive-mode shortcut path) may call it. Extensions consume the bound API only.
 - **Shared jiti importer** per `loadExtensions()` call — preserve `moduleCache: false` so reloads see fresh source, but reuse the importer to avoid multi-second per-extension TS resolution cost.
 
 ## ANTI-PATTERNS
 
 - Adding a new event without adding an `*EventResult` type and `pi.on` overload + a `runner.ts` emit helper — silent breakage downstream.
 - Static-importing extension modules at the top of `loader.ts` — extensions are user-supplied; loading must stay dynamic.
-- Removing the `@mariozechner/pi-*` alias in `loader.ts` — installed pi-mono extensions still resolve those peer names, and without the alias jiti pulls a duplicate runtime from the extension's own `node_modules`.
+- Removing the `@steve-8000/amaze-*` alias in `loader.ts` — installed pi-mono extensions still resolve those peer names, and without the alias jiti pulls a duplicate runtime from the extension's own `node_modules`.
 - Mutating `ExtensionContext` values returned to handlers — context is meant to be read-only.
 
 ## NOTES

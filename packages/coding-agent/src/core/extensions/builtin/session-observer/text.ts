@@ -1,5 +1,5 @@
-import type { ImageContent, TextContent } from "@earendil-works/pi-ai";
-import { truncateToWidth } from "@earendil-works/pi-tui";
+import type { ImageContent, TextContent } from "@steve-8000/amaze-ai";
+import { truncateToWidth } from "@steve-8000/amaze-tui";
 
 export const INDENT = "    ";
 

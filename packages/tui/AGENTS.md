@@ -1,6 +1,6 @@
 # packages/tui
 
-`@earendil-works/pi-tui` — terminal UI library with three-strategy differential rendering and synchronized output (DECSET 2026). Standalone (no agent dependency); senpi's interactive mode is the largest consumer.
+`@steve-8000/amaze-tui` — terminal UI library with three-strategy differential rendering and synchronized output (DECSET 2026). Standalone (no agent dependency); amaze's interactive mode is the largest consumer.
 
 ## STRUCTURE
 
@@ -39,8 +39,8 @@ src/
 - `doRender()` MUST stay on the differential path whenever viewport rows are stable.
 - Every `DECSET 2026` (synchronized output begin) MUST have a matching end. The flicker-budget test counts them.
 - `fullRender(true)` (full clear) is allowed at most once — at init. Any post-init full clear is a regression.
-- Component memoization for high-frequency streaming updates is the consumer's responsibility (see senpi `assistant-message.ts` / `tool-execution.ts` caches).
-- `Loader` MUST preserve `messageFormatter` and `messageIntervalMs`. Senpi normal TUI uses them for animated `Working (Xs • esc to interrupt)` text; indicator-only animation is a regression.
+- Component memoization for high-frequency streaming updates is the consumer's responsibility (see amaze `assistant-message.ts` / `tool-execution.ts` caches).
+- `Loader` MUST preserve `messageFormatter` and `messageIntervalMs`. amaze normal TUI uses them for animated `Working (Xs • esc to interrupt)` text; indicator-only animation is a regression.
 
 ## CONVENTIONS
 

@@ -1,4 +1,4 @@
-import type { ToolResultMessage } from "@earendil-works/pi-ai";
+import type { ToolResultMessage } from "@steve-8000/amaze-ai";
 import "./javascript-repl.ts"; // Auto-registers the renderer
 import "./extract-document.ts"; // Auto-registers the renderer
 import { getToolRenderer, registerToolRenderer } from "./renderer-registry.ts";

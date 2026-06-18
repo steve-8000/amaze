@@ -1,4 +1,4 @@
-import type { AssistantMessageEvent, Model } from '@earendil-works/pi-ai';
+import type { AssistantMessageEvent, Model } from '@steve-8000/amaze-ai';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { getCloudflareAIBindingApiProvider } from '../src/cloudflare/workers-ai-provider.ts';
 import { resolveModel } from '../src/internal.ts';

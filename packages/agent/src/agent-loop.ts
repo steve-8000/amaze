@@ -11,7 +11,7 @@ import {
 	streamSimple,
 	type ToolResultMessage,
 	validateToolArguments,
-} from "@earendil-works/pi-ai";
+} from "@steve-8000/amaze-ai";
 import type {
 	AgentContext,
 	AgentEvent,

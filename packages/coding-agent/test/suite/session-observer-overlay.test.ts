@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { setKeybindings } from "@earendil-works/pi-tui";
+import { setKeybindings } from "@steve-8000/amaze-tui";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { loadTranscriptSnapshot } from "../../src/core/extensions/builtin/session-observer/loader.ts";
 import { SessionHudOverlay } from "../../src/core/extensions/builtin/session-observer/overlay.ts";

@@ -1,0 +1,27 @@
+{
+  "contract_id": "readonly-oracle",
+  "status": "failed",
+  "created_at": "2026-06-18T03:32:51.705Z",
+  "updated_at": "2026-06-18T03:33:17.184Z",
+  "run_id": "a4a0d0a3",
+  "agent": "oracle",
+  "task": "Live smoke test only. Audit this policy in three bullets: shared Xenonite tools, role-specific acceptance, explicit write permissions. Do not modify files.",
+  "path_contract": {
+    "contract_id": "readonly-oracle",
+    "assigned_worker": "oracle",
+    "read_allowed_paths": [
+      "**/*"
+    ],
+    "write_allowed_paths": [],
+    "write_denied_paths": [
+      "**/*"
+    ],
+    "activity_budget": {
+      "max_tokens": 270000,
+      "max_elapsed_ms": 240000
+    }
+  },
+  "locks": [],
+  "exit_code": 1,
+  "error": "Acceptance rejected: changed-files evidence missing from child report."
+}

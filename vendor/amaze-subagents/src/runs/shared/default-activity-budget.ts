@@ -2,8 +2,7 @@ import type { FreshBootContract } from "../../harness/fresh-boot-contract.ts";
 import type { PathContract } from "../../harness/path-contract.ts";
 
 export const DEFAULT_SCOUT_ACTIVITY_BUDGET = {
-	max_tool_uses: 80,
-	max_tokens: 150_000,
+	max_tokens: 270_000,
 	max_elapsed_ms: 300_000,
 } as const;
 

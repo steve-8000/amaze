@@ -9,8 +9,8 @@ describe("self-update bootstrap", () => {
 		const commands: SelfUpdateBootstrapCommand[] = [];
 		const command: SelfUpdateBootstrapCommand = {
 			command: "npm",
-			args: ["install", "-g", "@code-yeongyu/senpi"],
-			display: "npm install -g @code-yeongyu/senpi",
+			args: ["install", "-g", "amaze"],
+			display: "npm install -g amaze",
 		};
 
 		// When
@@ -27,8 +27,8 @@ describe("self-update bootstrap", () => {
 		// Then
 		expect(handled).toBe(true);
 		expect(commands).toEqual([command]);
-		expect(writes.join("\n")).toContain("Updating senpi with npm install -g @code-yeongyu/senpi");
-		expect(writes.join("\n")).toContain("Updated senpi");
+		expect(writes.join("\n")).toContain("Updating amaze with npm install -g amaze");
+		expect(writes.join("\n")).toContain("Updated amaze");
 	});
 
 	it("leaves extension-only update commands for the full CLI", async () => {
@@ -40,8 +40,8 @@ describe("self-update bootstrap", () => {
 			getLatestRelease: async () => ({ version: "9999.0.0" }),
 			getSelfUpdateCommand: () => ({
 				command: "npm",
-				args: ["install", "-g", "@code-yeongyu/senpi"],
-				display: "npm install -g @code-yeongyu/senpi",
+				args: ["install", "-g", "amaze"],
+				display: "npm install -g amaze",
 			}),
 			runCommand: async (step) => {
 				commands.push(step);
@@ -63,8 +63,8 @@ describe("self-update bootstrap", () => {
 			getLatestRelease: async () => ({ packageName: PACKAGE_NAME, version: VERSION }),
 			getSelfUpdateCommand: () => ({
 				command: "npm",
-				args: ["install", "-g", "@code-yeongyu/senpi"],
-				display: "npm install -g @code-yeongyu/senpi",
+				args: ["install", "-g", "amaze"],
+				display: "npm install -g amaze",
 			}),
 			runCommand: async (step) => {
 				commands.push(step);
@@ -75,6 +75,6 @@ describe("self-update bootstrap", () => {
 		// Then
 		expect(handled).toBe(true);
 		expect(commands).toEqual([]);
-		expect(writes.join("\n")).toContain(`senpi is already up to date (v${VERSION})`);
+		expect(writes.join("\n")).toContain(`amaze is already up to date (v${VERSION})`);
 	});
 });

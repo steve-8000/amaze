@@ -4,7 +4,7 @@ import { join } from "path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { SessionManager } from "../../src/core/session-manager.ts";
 
-const SENTINEL_PREFIX = "\\u0000senpi-resident-string:v1:";
+const SENTINEL_PREFIX = "\\u0000amaze-resident-string:v1:";
 
 function largeText(label: string): string {
 	return `${label}: ${"x".repeat(40 * 1024)}`;
@@ -41,7 +41,7 @@ describe("SessionManager resident retention", () => {
 	let tempDir: string;
 
 	beforeEach(() => {
-		tempDir = join(tmpdir(), `senpi-resident-retention-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+		tempDir = join(tmpdir(), `amaze-resident-retention-${Date.now()}-${Math.random().toString(16).slice(2)}`);
 		mkdirSync(tempDir, { recursive: true });
 	});
 

@@ -1,4 +1,4 @@
-import { Text, truncateToWidth } from "@earendil-works/pi-tui";
+import { Text, truncateToWidth } from "@steve-8000/amaze-tui";
 import type { Theme } from "../../../../../modes/interactive/theme/theme.ts";
 import type { ToolRenderResultOptions } from "../../../types.ts";
 

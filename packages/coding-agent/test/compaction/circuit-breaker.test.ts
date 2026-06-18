@@ -1,4 +1,4 @@
-import { fauxOverflowError, registerFauxProvider } from "@earendil-works/pi-ai";
+import { fauxOverflowError, registerFauxProvider } from "@steve-8000/amaze-ai";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
 	isTripped,

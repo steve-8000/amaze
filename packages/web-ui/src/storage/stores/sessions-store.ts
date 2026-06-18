@@ -1,4 +1,4 @@
-import type { AgentState } from "@earendil-works/pi-agent-core";
+import type { AgentState } from "@steve-8000/amaze-agent-core";
 import { Store } from "../store.ts";
 import type { SessionData, SessionMetadata, StoreConfig } from "../types.ts";
 

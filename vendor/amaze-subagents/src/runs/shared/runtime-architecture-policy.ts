@@ -21,12 +21,13 @@ const READ_ONLY_AGENT_NAMES = new Set([
 	"researcher",
 	"planner",
 	"context-builder",
+	"delegate",
 	"reviewer",
 	"oracle",
 ]);
 
 const WRITE_INTENT_PATTERN = /\b(?:fix|implement|update|write|edit|modify|migrate|delete|remove|refactor|patch|change|create|add|apply)\b|고쳐|수정|구현|추가|변경|삭제|작성/i;
-const NO_EDIT_PATTERN = /\b(?:read[- ]only|do not edit|don't edit|no edits|without edits|review only|조사만|읽기만)\b/i;
+const NO_EDIT_PATTERN = /\b(?:read[- ]only|do not edit|don't edit|do not modify|don't modify|do not change files|no edits|without edits|review only|조사만|읽기만)\b/i;
 const PATH_PATTERN = /(?:^|\s|`)([A-Za-z0-9_.@~/-]+\/[A-Za-z0-9_.@~/-]*|(?:README|package|tsconfig)\.json|README(?:\.[A-Za-z0-9]+)?|Chart\.yaml|values\.ya?ml)(?=\s|`|$|[,.):])/g;
 
 export interface RuntimeArchitectureTask {
@@ -101,6 +102,7 @@ function expectsWrite(task: RuntimeArchitectureTask, agent?: AgentConfig): boole
 	if (typeof task.output === "string" && task.output === "false") return false;
 	if (text.trim().toLowerCase() === "write") return false;
 	if (NO_EDIT_PATTERN.test(text)) return false;
+	if (isReadOnlyAgent(task.agent)) return false;
 	if (agent?.tools?.some((tool) => ["edit", "write", "apply_patch"].includes(localAgentName(tool)))) {
 		return WRITE_INTENT_PATTERN.test(text);
 	}

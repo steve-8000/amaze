@@ -40,10 +40,38 @@ function tempRepo(): string {
 
 describe("acceptance gates", () => {
 	it("infers different policies for reviewer, writer, async writer, and dynamic contexts", () => {
-		assert.equal(resolveEffectiveAcceptance({ agentName: "reviewer", task: "Review-only. Do not edit.", mode: "single" }).level, "attested");
-		assert.equal(resolveEffectiveAcceptance({ agentName: "worker", task: "Implement the fix", mode: "single" }).level, "checked");
+		const scout = resolveEffectiveAcceptance({ agentName: "scout", task: "Find relevant files. Do not edit.", mode: "single" });
+		const reviewer = resolveEffectiveAcceptance({ agentName: "reviewer", task: "Review-only. Do not edit.", mode: "single" });
+		const worker = resolveEffectiveAcceptance({ agentName: "worker", task: "Implement the fix", mode: "single" });
+
+		assert.equal(scout.level, "none");
+		assert.deepEqual(scout.evidence, []);
+		assert.equal(reviewer.level, "attested");
+		assert.deepEqual(reviewer.evidence, ["review-findings", "residual-risks"]);
+		assert.equal(worker.level, "checked");
+		assert.deepEqual(worker.evidence, [
+			"changed-files",
+			"tests-added",
+			"commands-run",
+			"validation-output",
+			"residual-risks",
+			"no-staged-files",
+		]);
 		assert.equal(resolveEffectiveAcceptance({ agentName: "worker", task: "Implement the fix", mode: "single", async: true }).level, "reviewed");
 		assert.equal(resolveEffectiveAcceptance({ agentName: "worker", task: "Fix each item", mode: "chain", dynamic: true }).level, "reviewed");
+	});
+
+	it("keeps planning and audit agents lightweight even when task wording is active", () => {
+		for (const agentName of ["planner", "context-builder", "delegate", "oracle"]) {
+			const acceptance = resolveEffectiveAcceptance({
+				agentName,
+				task: "Live smoke test only. Build or audit a concise plan. Do not modify files.",
+				mode: "single",
+			});
+
+			assert.equal(acceptance.level, "attested", `${agentName} should remain attested`);
+			assert.deepEqual(acceptance.evidence, ["manual-notes", "residual-risks"]);
+		}
 	});
 
 	it("explicit acceptance can strengthen inferred policy", () => {
@@ -100,7 +128,7 @@ describe("acceptance gates", () => {
 		assert.deepEqual(acceptance.evidence, []);
 	});
 
-	it("checked mode does not require test changes for non-test contracts", async () => {
+	it("worker checked mode requires implementation validation evidence", async () => {
 		const cwd = tempRepo();
 		try {
 			const acceptance = resolveEffectiveAcceptance({
@@ -114,7 +142,8 @@ describe("acceptance gates", () => {
 				cwd,
 			});
 
-			assert.equal(ledger.status, "checked");
+			assert.equal(ledger.status, "rejected");
+			assert.equal(ledger.runtimeChecks.some((check) => check.id === "evidence:tests-added" && check.status === "failed"), true);
 		} finally {
 			fs.rmSync(cwd, { recursive: true, force: true });
 		}
@@ -265,7 +294,7 @@ describe("acceptance gates", () => {
 			});
 
 			assert.equal(acceptance.level, "reviewed");
-			assert.equal(acceptance.review && acceptance.review !== false ? acceptance.review.required : undefined, false);
+			assert.equal(typeof acceptance.review === "object" ? acceptance.review.required : undefined, false);
 			const ledger = await evaluateAcceptance({ acceptance, output: report({ criteriaSatisfied: [
 				{ id: "criterion-1", status: "satisfied", evidence: "implemented" },
 				{ id: "criterion-2", status: "satisfied", evidence: "evidence returned" },

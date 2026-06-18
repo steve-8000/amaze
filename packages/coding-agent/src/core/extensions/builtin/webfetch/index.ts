@@ -3,7 +3,7 @@ import type { ExtensionAPI, ExtensionContext } from "../../types.ts";
 import { renderWebfetchCall, renderWebfetchResult } from "./webfetch/renderers.ts";
 import { type WebfetchRenderDetails, webfetch } from "./webfetch/tool.ts";
 
-const ENABLE_ENV = "PI_WEBFETCH";
+const ENABLE_ENV = "AMAZE_WEBFETCH";
 const STATUS_KEY = "pi-webfetch";
 const WIDGET_KEY = "pi-webfetch";
 

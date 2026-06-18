@@ -1,4 +1,4 @@
-import type { AssistantMessage, Model } from "@earendil-works/pi-ai";
+import type { AssistantMessage, Model } from "@steve-8000/amaze-ai";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_COMPACTION_SETTINGS } from "../../src/core/compaction/index.ts";
 import {
@@ -115,14 +115,14 @@ describe("OpenAI remote compaction", () => {
 	it("builds a compact request only when every context message is OpenAI Responses-compatible", () => {
 		const request = createOpenAiRemoteCompactionRequest({
 			model: OPENAI_MODEL,
-			systemPrompt: "You are senpi.",
+			systemPrompt: "You are amaze.",
 			branchEntries: openAiBranch(),
 			tokensBefore: 1234,
 			serviceTier: "priority" as const,
 		});
 
 		expect(request?.body.model).toBe("gpt-5.4");
-		expect(request?.body.instructions).toBe("You are senpi.");
+		expect(request?.body.instructions).toBe("You are amaze.");
 		expect(request?.body.service_tier).toBe("priority");
 		expect(request?.body.input).toEqual([
 			{ role: "user", content: [{ type: "input_text", text: "Please inspect the build." }] },
@@ -149,7 +149,7 @@ describe("OpenAI remote compaction", () => {
 	it("builds a Codex-style Responses WebSocket compaction payload", () => {
 		const request = createOpenAiRemoteCompactionRequest({
 			model: OPENAI_MODEL,
-			systemPrompt: "You are senpi.",
+			systemPrompt: "You are amaze.",
 			branchEntries: openAiBranch(),
 			tokensBefore: 1234,
 			promptCacheKey: "session-1",
@@ -208,7 +208,7 @@ describe("OpenAI remote compaction", () => {
 				getApiKeyAndHeaders: async () => ({ ok: true as const, apiKey: "test-key" }),
 			},
 			sessionManager: { getSessionId: () => "session-1" },
-			getSystemPrompt: () => "You are senpi.",
+			getSystemPrompt: () => "You are amaze.",
 		};
 
 		const result = await runOpenAiRemoteCompaction(
@@ -286,7 +286,7 @@ describe("OpenAI remote compaction", () => {
 				getApiKeyAndHeaders: async () => ({ ok: true as const, apiKey: "test-key" }),
 			},
 			sessionManager: { getSessionId: () => "session-1" },
-			getSystemPrompt: () => "You are senpi.",
+			getSystemPrompt: () => "You are amaze.",
 		};
 
 		const result = await runOpenAiRemoteCompaction(
@@ -340,7 +340,7 @@ describe("OpenAI remote compaction", () => {
 		expect(
 			createOpenAiRemoteCompactionRequest({
 				model: OPENAI_MODEL,
-				systemPrompt: "You are senpi.",
+				systemPrompt: "You are amaze.",
 				branchEntries: branch,
 				tokensBefore: 1234,
 			}),
@@ -416,7 +416,7 @@ describe("OpenAI remote compaction", () => {
 			requestInput:
 				createOpenAiRemoteCompactionRequest({
 					model: OPENAI_MODEL,
-					systemPrompt: "You are senpi.",
+					systemPrompt: "You are amaze.",
 					branchEntries: openAiBranch(),
 					tokensBefore: 1234,
 				})?.body.input ?? [],

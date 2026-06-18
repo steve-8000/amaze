@@ -168,11 +168,11 @@ async function createGeneratedFixture(
 ): Promise<string> {
 	const root = fs.mkdtempSync(path.join(os.tmpdir(), 'flue-cloudflare-deployment-extension-'));
 	const output = path.join(root, 'generated');
-	fs.mkdirSync(path.join(root, 'node_modules', '@earendil-works'), { recursive: true });
+	fs.mkdirSync(path.join(root, 'node_modules', '@steve-8000'), { recursive: true });
 	fs.mkdirSync(path.join(root, 'node_modules', '@flue'), { recursive: true });
 	fs.symlinkSync(
-		path.resolve(process.cwd(), '../runtime/node_modules/@earendil-works/pi-ai'),
-		path.join(root, 'node_modules', '@earendil-works', 'pi-ai'),
+		path.resolve(process.cwd(), '../runtime/node_modules/@steve-8000/amaze-ai'),
+		path.join(root, 'node_modules', '@steve-8000', 'pi-ai'),
 		'dir',
 	);
 	fs.symlinkSync(

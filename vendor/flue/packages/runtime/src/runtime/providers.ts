@@ -7,7 +7,7 @@ import {
 	type KnownProvider,
 	type Model,
 	registerApiProvider as piRegisterApiProvider,
-} from '@earendil-works/pi-ai';
+} from '@steve-8000/amaze-ai';
 import type { CloudflareGatewayOptions } from '../cloudflare/gateway.ts';
 import { CLOUDFLARE_AI_BINDING_API } from '../cloudflare-model.ts';
 import { ProviderRegistrationError } from '../errors.ts';

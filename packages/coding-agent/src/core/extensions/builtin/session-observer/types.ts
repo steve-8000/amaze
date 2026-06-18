@@ -1,4 +1,4 @@
-import type { MarkdownTheme } from "@earendil-works/pi-tui";
+import type { MarkdownTheme } from "@steve-8000/amaze-tui";
 import type { SessionMessageEntry } from "../../../session-manager.ts";
 
 export interface SessionHudEntry {

@@ -2,8 +2,8 @@
  * Shared utilities for compaction and branch summarization.
  */
 
-import type { AgentMessage } from "@earendil-works/pi-agent-core";
-import type { Message } from "@earendil-works/pi-ai";
+import type { AgentMessage } from "@steve-8000/amaze-agent-core";
+import type { Message } from "@steve-8000/amaze-ai";
 import { extractPatchedPaths } from "../extensions/builtin/gpt-apply-patch/index.ts";
 
 // ============================================================================

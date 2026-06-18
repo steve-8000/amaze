@@ -2,7 +2,7 @@
 
 ## Overview
 Persistent per-thread goal tracking as an in-tree builtin. Ports the standalone
-`pi-goal` extension into senpi with no dependency on it, file-based persistence,
+`pi-goal` extension into amaze with no dependency on it, file-based persistence,
 codex-aligned tool naming, and the budget concept removed.
 
 ## Initial port — budget-free, file-based goal builtin (2026-06-15)
@@ -11,7 +11,7 @@ codex-aligned tool naming, and the budget concept removed.
 - New builtin extension `goal` (`builtin/goal/`), registered last in
   `builtin/index.ts` `builtinExtensions`. Exposes `create_goal`, `update_goal`,
   `get_goal` and the `/goal` command.
-- Ported from `code-yeongyu/pi-goal` (`src/goal/*`) module-for-module:
+- Ported from `code-yeongyu/amaze-goal` (`src/goal/*`) module-for-module:
   `store`, `types`, `validation`, `continuation`, `prompt`, `format`, `command`,
   `errors`, `index`. No runtime or dev dependency on `pi-goal`.
 - File-based persistence retained: `GoalFile{version:1, goal}` under
@@ -30,10 +30,10 @@ codex-aligned tool naming, and the budget concept removed.
   (the `get_goal` "budgets / remaining token budget" wording, the create
   "token budget" lines, the update "budget-limit" lines).
 
-### Senpi adaptations vs upstream pi-goal
-- Imports `getAgentDir()` from `src/config.ts` (env `SENPI_CODING_AGENT_DIR`,
-  fallback `~/.senpi/agent`) instead of pi-goal's `.pi` agent dir.
-- Tool error results are signaled by throwing from `execute()`; senpi's
+### amaze adaptations vs upstream pi-goal
+- Imports `getAgentDir()` from `src/config.ts` (env `SENAMAZE_CODING_AGENT_DIR`,
+  fallback `~/.amaze/agent`) instead of pi-goal's `.pi` agent dir.
+- Tool error results are signaled by throwing from `execute()`; amaze's
   `AgentToolResult` has no `isError` field and the agent loop only marks an error
   on throw (`agent-loop.ts` `executePreparedToolCall`).
 - UI simplified to a single `ctx.ui.setStatus("goal", …)` footer segment instead

@@ -6,9 +6,9 @@
  */
 
 import { randomUUID } from "node:crypto";
-import type { AgentMessage, StreamFn } from "@earendil-works/pi-agent-core";
-import type { Model, SimpleStreamOptions } from "@earendil-works/pi-ai";
-import { completeSimple } from "@earendil-works/pi-ai";
+import type { AgentMessage, StreamFn } from "@steve-8000/amaze-agent-core";
+import type { Model, SimpleStreamOptions } from "@steve-8000/amaze-ai";
+import { completeSimple } from "@steve-8000/amaze-ai";
 import type { ExtensionRunner } from "../extensions/runner.ts";
 import type { SessionBeforeCompactResult } from "../extensions/types.ts";
 import {

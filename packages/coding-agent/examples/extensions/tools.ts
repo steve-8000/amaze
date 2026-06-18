@@ -5,13 +5,13 @@
  * Tool selection persists across session reloads and respects branch navigation.
  *
  * Usage:
- * 1. Copy this file to ~/.senpi/agent/extensions/ or your project's .senpi/extensions/
+ * 1. Copy this file to ~/.amaze/agent/extensions/ or your project's .amaze/extensions/
  * 2. Use /tools to open the tool selector
  */
 
-import type { ExtensionAPI, ExtensionContext, ToolInfo } from "@code-yeongyu/senpi";
-import { getSettingsListTheme } from "@code-yeongyu/senpi";
-import { Container, type SettingItem, SettingsList } from "@earendil-works/pi-tui";
+import type { ExtensionAPI, ExtensionContext, ToolInfo } from "amaze";
+import { getSettingsListTheme } from "amaze";
+import { Container, type SettingItem, SettingsList } from "@steve-8000/amaze-tui";
 
 // State persisted to session
 interface ToolsState {

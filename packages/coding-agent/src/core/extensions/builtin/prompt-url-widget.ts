@@ -1,4 +1,4 @@
-import { Container, Text } from "@earendil-works/pi-tui";
+import { Container, Text } from "@steve-8000/amaze-tui";
 import { DynamicBorder } from "../../../modes/interactive/components/dynamic-border.ts";
 import type { ExtensionAPI, ExtensionContext } from "../types.ts";
 

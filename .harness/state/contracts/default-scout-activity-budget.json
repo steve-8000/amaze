@@ -1,0 +1,20 @@
+{
+  "contract_id": "default-scout-activity-budget",
+  "status": "completed",
+  "created_at": "2026-06-17T22:49:41.009Z",
+  "updated_at": "2026-06-17T22:50:05.237Z",
+  "run_id": "0778f64e",
+  "agent": "scout",
+  "task": "Find the code and tests that render the terminal/TUI message boxes titled `AMAZE` and `User Prompt`. Do not edit. Return only file paths, functions/classes, and likely test command. Stop after exact locations.\n\n---\n**Output:** Write your findings to: /Users/steve/rocky/amaze/context.md",
+  "path_contract": {
+    "contract_id": "default-scout-activity-budget",
+    "assigned_worker": "scout",
+    "activity_budget": {
+      "max_tool_uses": 80,
+      "max_tokens": 150000,
+      "max_elapsed_ms": 300000
+    }
+  },
+  "locks": [],
+  "exit_code": 0
+}

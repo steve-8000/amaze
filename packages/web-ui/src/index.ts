@@ -1,7 +1,7 @@
 // Main chat interface
 
-export type { Agent, AgentMessage, AgentState, ThinkingLevel } from "@earendil-works/pi-agent-core";
-export type { Model } from "@earendil-works/pi-ai";
+export type { Agent, AgentMessage, AgentState, ThinkingLevel } from "@steve-8000/amaze-agent-core";
+export type { Model } from "@steve-8000/amaze-ai";
 export { ChatPanel } from "./ChatPanel.ts";
 // Components
 export { AgentInterface } from "./components/AgentInterface.ts";

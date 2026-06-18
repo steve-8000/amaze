@@ -19,6 +19,10 @@ const agents = [
 	{ name: "worker", localName: "worker", description: "worker", systemPromptMode: "replace", inheritProjectContext: false, inheritSkills: false, systemPrompt: "", source: "project", filePath: "worker.md", tools: ["read", "write"] },
 	{ name: "scout", localName: "scout", description: "scout", systemPromptMode: "replace", inheritProjectContext: false, inheritSkills: false, systemPrompt: "", source: "project", filePath: "scout.md", tools: ["read"] },
 	{ name: "researcher", localName: "researcher", description: "researcher", systemPromptMode: "replace", inheritProjectContext: false, inheritSkills: false, systemPrompt: "", source: "project", filePath: "researcher.md", tools: ["read"] },
+	{ name: "planner", localName: "planner", description: "planner", systemPromptMode: "replace", inheritProjectContext: false, inheritSkills: false, systemPrompt: "", source: "project", filePath: "planner.md", tools: ["read", "write"] },
+	{ name: "context-builder", localName: "context-builder", description: "context-builder", systemPromptMode: "replace", inheritProjectContext: false, inheritSkills: false, systemPrompt: "", source: "project", filePath: "context-builder.md", tools: ["read", "write"] },
+	{ name: "delegate", localName: "delegate", description: "delegate", systemPromptMode: "replace", inheritProjectContext: false, inheritSkills: false, systemPrompt: "", source: "project", filePath: "delegate.md", tools: ["read", "write"] },
+	{ name: "oracle", localName: "oracle", description: "oracle", systemPromptMode: "replace", inheritProjectContext: false, inheritSkills: false, systemPrompt: "", source: "project", filePath: "oracle.md", tools: ["read", "write"] },
 ] as any;
 
 test("runtime policy rejects write-capable work without an owned path", () => {
@@ -104,6 +108,21 @@ test("runtime policy keeps parent-managed output artifacts read-only for scouts"
 	assert.notEqual(result.params?.acceptance?.level, "checked");
 	assert.deepEqual(result.params?.pathContract?.write_allowed_paths, []);
 	assert.deepEqual(result.params?.pathContract?.write_denied_paths, ["**/*"]);
+});
+
+test("runtime policy keeps planning and audit agents read-only despite active wording", () => {
+	for (const agent of ["planner", "context-builder", "delegate", "oracle"]) {
+		const result = applyRuntimeArchitecturePolicy({
+			agent,
+			task: "Live smoke test only. Build or audit a concise plan. Do not modify files.",
+		}, agents);
+		const params = result.params as any;
+
+		assert.equal(result.error, undefined, `${agent} should not require assigned_path`);
+		assert.notEqual(params?.acceptance?.level, "checked", `${agent} should not get write acceptance`);
+		assert.deepEqual(params?.pathContract?.write_allowed_paths, [], `${agent} should not get write paths`);
+		assert.deepEqual(params?.pathContract?.write_denied_paths, ["**/*"], `${agent} should deny writes`);
+	}
 });
 
 test("contract DAG leases recover expired running work and complete durable queue state", () => {

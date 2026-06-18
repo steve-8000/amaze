@@ -17,9 +17,9 @@
  * separate variables. Only the agent cursor is ever exposed to the agent.
  */
 
-import type { ExtensionAPI, ExtensionContext, Theme, ToolExecutionMode } from "@code-yeongyu/senpi";
-import { StringEnum } from "@earendil-works/pi-ai";
-import { type Component, matchesKey, Text, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
+import type { ExtensionAPI, ExtensionContext, Theme, ToolExecutionMode } from "amaze";
+import { StringEnum } from "@steve-8000/amaze-ai";
+import { type Component, matchesKey, Text, truncateToWidth, visibleWidth } from "@steve-8000/amaze-tui";
 import { Type } from "typebox";
 
 // Thrown from the tool on illegal actions. The agent runtime surfaces thrown

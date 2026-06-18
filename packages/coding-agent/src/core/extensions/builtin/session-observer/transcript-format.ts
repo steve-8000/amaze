@@ -1,5 +1,5 @@
-import type { ToolCall, ToolResultMessage } from "@earendil-works/pi-ai";
-import { Markdown, type MarkdownTheme } from "@earendil-works/pi-tui";
+import type { ToolCall, ToolResultMessage } from "@steve-8000/amaze-ai";
+import { Markdown, type MarkdownTheme } from "@steve-8000/amaze-tui";
 import { theme } from "../../../../modes/interactive/theme/theme.ts";
 import { INDENT, sanitizeLine } from "./text.ts";
 

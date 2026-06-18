@@ -39,10 +39,10 @@ permission-system/
 
 `evaluate.ts` is **last-match-wins** over the concatenated ruleset; later sources override earlier ones:
 
-1. **Global settings** (`~/.senpi/agent/settings.json` `permission`).
-2. **Project settings** (`.senpi/settings.json` `permission`).
+1. **Global settings** (`~/.amaze/agent/settings.json` `permission`).
+2. **Project settings** (`.amaze/settings.json` `permission`).
 3. **CLI flags** (`--permission`).
-4. **Session approvals** — in-memory "always allow" rules; new ones are appended to `<projectDir>/.senpi/permissions-approved.jsonl` on session shutdown.
+4. **Session approvals** — in-memory "always allow" rules; new ones are appended to `<projectDir>/.amaze/permissions-approved.jsonl` on session shutdown.
 5. **No match** — interactive → ask; non-interactive → block (`non-interactive.ts`).
 
 Pattern syntax: tool name + optional arg pattern, e.g. `bash:rm *`, `write:/etc/**`. Wildcard matching in `wildcard.ts`, rule lookup in `evaluate.ts`.

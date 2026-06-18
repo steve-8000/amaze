@@ -16,7 +16,9 @@ export type TodoStateEntry = {
 
 type BranchEntry = { type: string; customType?: string; data?: unknown; message?: unknown };
 
-export const TODO_STATE_ENTRY_TYPE = "senpi.todo-state";
+export const TODO_STATE_ENTRY_TYPE = "amaze.todo-state";
+// Legacy type for backward compatibility with sessions written by older builds
+const LEGACY_TODO_STATE_ENTRY_TYPES = ["amaze.todo-state"];
 
 export function isTerminalTodoStatus(status: string): boolean {
 	return status === "completed" || status === "cancelled";
@@ -75,7 +77,10 @@ export function getLatestTodosFromBranchEntries(entries: BranchEntry[]): TodoIte
 	let todos: TodoItem[] = [];
 
 	for (const entry of entries) {
-		if (entry.type === "custom" && entry.customType === TODO_STATE_ENTRY_TYPE) {
+		const isTodoEntry =
+			entry.type === "custom" &&
+			(entry.customType === TODO_STATE_ENTRY_TYPE || LEGACY_TODO_STATE_ENTRY_TYPES.includes(entry.customType ?? ""));
+		if (isTodoEntry) {
 			const data = entry.data as TodoStateEntry | undefined;
 			if (isTodoItemArray(data?.todos)) {
 				todos = data.todos.map((todo) => ({ ...todo }));

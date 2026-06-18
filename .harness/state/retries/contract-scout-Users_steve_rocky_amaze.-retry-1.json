@@ -1,0 +1,31 @@
+{
+  "type": "return_to_same_worker",
+  "created_at": "2026-06-18T03:10:56.314Z",
+  "source_contract_id": "contract-scout-Users_steve_rocky_amaze.",
+  "retry_contract_id": "contract-scout-Users_steve_rocky_amaze.-retry-1",
+  "assigned_worker": "scout",
+  "assigned_path": "Users/steve/rocky/amaze.",
+  "reason": "Acceptance rejected: Required criterion 'runtime-contract' was not reported.",
+  "path_contract": {
+    "contract_id": "contract-scout-Users_steve_rocky_amaze.-retry-1",
+    "assigned_worker": "scout",
+    "assigned_path": "Users/steve/rocky/amaze.",
+    "owned_paths": [
+      "Users/steve/rocky/amaze./**"
+    ],
+    "read_allowed_paths": [
+      "**/*"
+    ],
+    "write_allowed_paths": [
+      "Users/steve/rocky/amaze./**"
+    ],
+    "write_denied_paths": [],
+    "activity_budget": {
+      "max_tokens": 270000,
+      "max_elapsed_ms": 180000
+    },
+    "depends_on": [
+      "contract-scout-Users_steve_rocky_amaze."
+    ]
+  }
+}

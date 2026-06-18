@@ -1,4 +1,5 @@
-import { Box, Container, Spacer, Text } from "@earendil-works/pi-tui";
+import { Box, Container, Spacer, Text } from "@steve-8000/amaze-tui";
+import { BoxWrapper } from "../../../../tui/box-wrapper.ts";
 import type { AgentToolResult, ToolRenderContext } from "../../types.ts";
 import { defineTool } from "../../types.ts";
 import { applyPatchDetailed, buildPartialFailureText } from "./apply.ts";
@@ -6,7 +7,7 @@ import { APPLY_PATCH_FREEFORM_DESCRIPTION, APPLY_PATCH_LARK_GRAMMAR, APPLY_PATCH
 import { normalizeApplyPatchArguments } from "./params.ts";
 import { parsePatch } from "./parser.ts";
 import { createPendingPatchUpdate } from "./preview.ts";
-import { getApplyPatchRenderState, renderPatchPreview } from "./preview-format.ts";
+import { renderPatchPreview } from "./preview-format.ts";
 import { renderStreamingPatchCall } from "./streaming-render.ts";
 import type {
 	ApplyPatchRenderState,
@@ -103,39 +104,39 @@ export function createApplyPatchTool(): ApplyPatchToolDefinition {
 				const streaming = renderStreamingPatchCall(normalizeApplyPatchArguments(args), theme, context.state);
 				if (streaming) return streaming;
 			}
-			if (!context.argsComplete) return new Text(theme.fg("toolTitle", theme.bold("apply_patch: Patching")), 0, 0);
-			const normalizedArgs = normalizeApplyPatchArguments(args);
-			const renderState = getApplyPatchRenderState(context.toolCallId, context.cwd, normalizedArgs.input);
-			const text = renderState.callText?.length ? `apply_patch: ${renderState.callText}` : "apply_patch";
-			return new Text(theme.fg("toolTitle", theme.bold(text)), 0, 0);
+			// The result box header ("Applying/Applied patch") carries the title, so the
+			// pre-result "apply_patch: Patching: <path>" line is intentionally hidden.
+			return new Text("", 0, 0);
 		},
 		renderResult(result, options, theme, context) {
+			// apply_patch is a modification tool: keep its diff/preview as a bordered box
+			// (a durable record useful for later section search), like edit/write.
+			// The box header carries the title ("Applying/Applied patch"); inner content
+			// is just the diff preview so the title isn't duplicated inside.
+			const header = context.isError ? "Patch failed" : options.isPartial ? "Applying patch" : "Applied patch";
+			let inner: Container | undefined;
 			if (result.details?.preview) {
-				const expanded = true;
-				return renderPreviewBox(
-					options.isPartial ? "Applying patch" : "Applied patch",
-					result.details,
-					options.isPartial,
-					context.cwd,
-					expanded,
-					theme,
-				);
-			}
-			if (result.details?.result) {
+				inner = renderPreviewBox("", result.details, options.isPartial, context.cwd, true, theme);
+			} else if (result.details?.result) {
 				const component = new Container();
-				const box = new Box(1, 1, (text: string) =>
-					theme.bg(options.isPartial ? "toolPendingBg" : "toolSuccessBg", text),
-				);
-				box.addChild(new Text(theme.fg("toolTitle", theme.bold("Applying patch")), 0, 0));
-				box.addChild(new Spacer(1));
 				if (result.details.preview) {
 					const expanded = options.isPartial ? true : (options.expanded ?? true);
-					box.addChild(new Text(renderPatchPreview(result.details.preview, context.cwd, theme, expanded), 0, 0));
+					component.addChild(
+						new Text(renderPatchPreview(result.details.preview, context.cwd, theme, expanded), 0, 0),
+					);
 				}
-				component.addChild(box);
-				return component;
+				inner = component;
 			}
-			return renderTextResult(result, theme);
+			if (!inner) {
+				return renderTextResult(result, theme);
+			}
+			const wrapper =
+				context.lastComponent instanceof BoxWrapper ? context.lastComponent : new BoxWrapper(inner, theme, header);
+			wrapper.inner = inner;
+			wrapper.setState(context.isError ? "error" : options.isPartial ? "pending" : "success");
+			wrapper.setHeader(header);
+			wrapper.invalidate();
+			return wrapper;
 		},
 	});
 

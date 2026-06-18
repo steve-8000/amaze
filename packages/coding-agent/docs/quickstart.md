@@ -1,49 +1,49 @@
 # Quickstart
 
-This page gets you from install to a useful first senpi session.
+This page gets you from install to a useful first amaze session.
 
 ## Install
 
-Senpi is distributed as an npm package:
+amaze is distributed as an npm package:
 
 ```bash
-npm install -g @code-yeongyu/senpi
+npm install -g amaze
 ```
 
 ### Uninstall
 
-Use the package manager that installed senpi:
+Use the package manager that installed amaze:
 
 ```bash
 # npm install -g
-npm uninstall -g @code-yeongyu/senpi
+npm uninstall -g amaze
 
 # pnpm
-pnpm remove -g @code-yeongyu/senpi
+pnpm remove -g amaze
 
 # Yarn
-yarn global remove @code-yeongyu/senpi
+yarn global remove amaze
 
 # Bun
-bun uninstall -g @code-yeongyu/senpi
+bun uninstall -g amaze
 ```
 
-Uninstalling senpi leaves settings, credentials, sessions, and installed senpi packages in `~/.senpi/agent/`.
+Uninstalling amaze leaves settings, credentials, sessions, and installed amaze packages in `~/.amaze/agent/`.
 
-Then start senpi in the project directory you want it to work on:
+Then start amaze in the project directory you want it to work on:
 
 ```bash
 cd /path/to/project
-senpi
+amaze
 ```
 
 ## Authenticate
 
-Senpi can use subscription providers through `/login`, or API-key providers through environment variables or the auth file.
+amaze can use subscription providers through `/login`, or API-key providers through environment variables or the auth file.
 
 ### Option 1: subscription login
 
-Start senpi and run:
+Start amaze and run:
 
 ```text
 /login
@@ -53,37 +53,37 @@ Then select a provider. Built-in subscription logins include Claude Pro/Max, Cha
 
 ### Option 2: API key
 
-Set an API key before launching senpi:
+Set an API key before launching amaze:
 
 ```bash
 export ANTHROPIC_API_KEY=sk-ant-...
-senpi
+amaze
 ```
 
-You can also run `/login` and select an API-key provider to store the key in `~/.senpi/agent/auth.json`.
+You can also run `/login` and select an API-key provider to store the key in `~/.amaze/agent/auth.json`.
 
 See [Providers](providers.md) for all supported providers, environment variables, and cloud-provider setup.
 
 ## First session
 
-Once senpi starts, type a request and press Enter:
+Once amaze starts, type a request and press Enter:
 
 ```text
 Summarize this repository and tell me how to run its checks.
 ```
 
-By default, senpi gives the model four tools:
+By default, amaze gives the model four tools:
 
 - `read` - read files
 - `write` - create or overwrite files
 - `edit` - patch files
 - `bash` - run shell commands
 
-Additional built-in read-only tools (`grep`, `find`, `ls`) are available through tool options. Senpi runs in your current working directory and can modify files there. Use git or another checkpointing workflow if you want easy rollback.
+Additional built-in read-only tools (`grep`, `find`, `ls`) are available through tool options. amaze runs in your current working directory and can modify files there. Use git or another checkpointing workflow if you want easy rollback.
 
-## Give senpi project instructions
+## Give amaze project instructions
 
-Senpi loads context files at startup. Add an `AGENTS.md` file to tell it how to work in a project:
+amaze loads context files at startup. Add an `AGENTS.md` file to tell it how to work in a project:
 
 ```markdown
 # Project Instructions
@@ -93,12 +93,12 @@ Senpi loads context files at startup. Add an `AGENTS.md` file to tell it how to 
 - Keep responses concise.
 ```
 
-Senpi loads:
+amaze loads:
 
-- `~/.senpi/agent/AGENTS.md` for global instructions
+- `~/.amaze/agent/AGENTS.md` for global instructions
 - `AGENTS.md` or `CLAUDE.md` from parent directories and the current directory
 
-Restart senpi, or run `/reload`, after changing context files.
+Restart amaze, or run `/reload`, after changing context files.
 
 ## Common things to try
 
@@ -107,8 +107,8 @@ Restart senpi, or run `/reload`, after changing context files.
 Type `@` in the editor to fuzzy-search files, or pass files on the command line:
 
 ```bash
-senpi @README.md "Summarize this"
-senpi @src/app.ts @src/app.test.ts "Review these together"
+amaze @README.md "Summarize this"
+amaze @src/app.ts @src/app.test.ts "Review these together"
 ```
 
 Images can be pasted with Ctrl+V (Alt+V on Windows) or dragged into supported terminals.
@@ -132,32 +132,32 @@ Use `/model` or Ctrl+L to choose a model. Use Shift+Tab to cycle thinking level.
 Sessions are saved automatically:
 
 ```bash
-senpi -c                  # Continue most recent session
-senpi -r                  # Browse previous sessions
-senpi --name "my task"    # Set session display name at startup
-senpi --session <path|id> # Open a specific session
+amaze -c                  # Continue most recent session
+amaze -r                  # Browse previous sessions
+amaze --name "my task"    # Set session display name at startup
+amaze --session <path|id> # Open a specific session
 ```
 
-Inside senpi, use `/resume`, `/new`, `/tree`, `/fork`, and `/clone` to manage sessions.
+Inside amaze, use `/resume`, `/new`, `/tree`, `/fork`, and `/clone` to manage sessions.
 
 ### Non-interactive mode
 
 For one-shot prompts:
 
 ```bash
-senpi -p "Summarize this codebase"
-cat README.md | senpi -p "Summarize this text"
-senpi -p @screenshot.png "What's in this image?"
+amaze -p "Summarize this codebase"
+cat README.md | amaze -p "Summarize this text"
+amaze -p @screenshot.png "What's in this image?"
 ```
 
 Use `--mode json` for JSON event output or `--mode rpc` for process integration.
 
 ## Next steps
 
-- [Using Senpi](usage.md) - interactive mode, slash commands, sessions, context files, and CLI reference.
+- [Using amaze](usage.md) - interactive mode, slash commands, sessions, context files, and CLI reference.
 - [Providers](providers.md) - authentication and model setup.
 - [Settings](settings.md) - global and project configuration.
 - [Keybindings](keybindings.md) - shortcuts and customization.
-- [Senpi Packages](packages.md) - install shared extensions, skills, prompts, and themes.
+- [amaze Packages](packages.md) - install shared extensions, skills, prompts, and themes.
 
 Platform notes: [Windows](windows.md), [Termux](termux.md), [tmux](tmux.md), [Terminal setup](terminal-setup.md), [Shell aliases](shell-aliases.md).

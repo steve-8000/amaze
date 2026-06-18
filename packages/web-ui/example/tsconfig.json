@@ -8,9 +8,9 @@
         "rewriteRelativeImportExtensions": true,
 		"paths": {
 			"*": ["./*"],
-			"@earendil-works/pi-agent-core": ["../../agent/src/index.ts"],
-			"@earendil-works/pi-ai": ["../../ai/src/index.ts"],
-			"@earendil-works/pi-web-ui": ["../src/index.ts"]
+			"@steve-8000/amaze-agent-core": ["../../agent/src/index.ts"],
+			"@steve-8000/amaze-ai": ["../../ai/src/index.ts"],
+			"@steve-8000/amaze-web-ui": ["../src/index.ts"]
 		},
 		"strict": true,
 		"skipLibCheck": true,

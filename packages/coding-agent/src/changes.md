@@ -23,7 +23,7 @@
 
 ### What changed
 
-- `main.ts`: `senpi --export ~/session.jsonl ~/out.html` expands leading `~` for both the input session path and optional output path before exporting.
+- `main.ts`: `amaze --export ~/session.jsonl ~/out.html` expands leading `~` for both the input session path and optional output path before exporting.
 
 ### Why
 
@@ -37,17 +37,17 @@
 
 - LOW: `main.ts` around the early `parsed.export` branch.
 
-## Senpi self-update release source (2026-05-02)
+## amaze self-update release source (2026-05-02)
 
 ### What changed
 
-- `config.ts`: Bun-binary self-update fallback now points to `code-yeongyu/senpi` releases.
-- `package-manager-cli.ts`: `senpi update senpi` is accepted as the branded self-update target and help text uses senpi wording.
-- `package.json`: Repository metadata now points to the senpi fork.
+- `config.ts`: Bun-binary self-update fallback now points to `code-yeongyu/amaze` releases.
+- `package-manager-cli.ts`: `amaze update amaze` is accepted as the branded self-update target and help text uses amaze wording.
+- `package.json`: Repository metadata now points to the amaze fork.
 
 ### Why
 
-- Self-update messaging and release metadata should direct users to senpi, not upstream pi-mono.
+- Self-update messaging and release metadata should direct users to amaze, not upstream pi-mono.
 
 ### Why extension system couldn't handle this
 

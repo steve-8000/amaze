@@ -1,4 +1,4 @@
-import { StringEnum } from "@earendil-works/pi-ai";
+import { StringEnum } from "@steve-8000/amaze-ai";
 import { Type } from "typebox";
 import { defineTool } from "../../../types.ts";
 

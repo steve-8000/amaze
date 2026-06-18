@@ -15,31 +15,31 @@ describe("resolveBashTimeoutDefaults", () => {
 		expect(result.maxSeconds).toBe(BASH_MAX_TIMEOUT_SECONDS);
 	});
 
-	it("reads PI_BASH_DEFAULT_TIMEOUT_SECONDS from env", () => {
-		const result = resolveBashTimeoutDefaults({ PI_BASH_DEFAULT_TIMEOUT_SECONDS: "30" });
+	it("reads AMAZE_BASH_DEFAULT_TIMEOUT_SECONDS from env", () => {
+		const result = resolveBashTimeoutDefaults({ AMAZE_BASH_DEFAULT_TIMEOUT_SECONDS: "30" });
 
 		expect(result.defaultSeconds).toBe(30);
 	});
 
-	it("reads PI_BASH_MAX_TIMEOUT_SECONDS from env", () => {
-		const result = resolveBashTimeoutDefaults({ PI_BASH_MAX_TIMEOUT_SECONDS: "900" });
+	it("reads AMAZE_BASH_MAX_TIMEOUT_SECONDS from env", () => {
+		const result = resolveBashTimeoutDefaults({ AMAZE_BASH_MAX_TIMEOUT_SECONDS: "900" });
 
 		expect(result.maxSeconds).toBe(900);
 	});
 
-	it("ignores PI_BASH_DEFAULT_TIMEOUT_SECONDS when value is not a positive integer", () => {
-		const garbage = resolveBashTimeoutDefaults({ PI_BASH_DEFAULT_TIMEOUT_SECONDS: "garbage" });
-		const zero = resolveBashTimeoutDefaults({ PI_BASH_DEFAULT_TIMEOUT_SECONDS: "0" });
-		const negative = resolveBashTimeoutDefaults({ PI_BASH_DEFAULT_TIMEOUT_SECONDS: "-1" });
+	it("ignores AMAZE_BASH_DEFAULT_TIMEOUT_SECONDS when value is not a positive integer", () => {
+		const garbage = resolveBashTimeoutDefaults({ AMAZE_BASH_DEFAULT_TIMEOUT_SECONDS: "garbage" });
+		const zero = resolveBashTimeoutDefaults({ AMAZE_BASH_DEFAULT_TIMEOUT_SECONDS: "0" });
+		const negative = resolveBashTimeoutDefaults({ AMAZE_BASH_DEFAULT_TIMEOUT_SECONDS: "-1" });
 
 		expect(garbage.defaultSeconds).toBe(BASH_DEFAULT_TIMEOUT_SECONDS);
 		expect(zero.defaultSeconds).toBe(BASH_DEFAULT_TIMEOUT_SECONDS);
 		expect(negative.defaultSeconds).toBe(BASH_DEFAULT_TIMEOUT_SECONDS);
 	});
 
-	it("ignores PI_BASH_MAX_TIMEOUT_SECONDS when value is not a positive integer", () => {
-		const garbage = resolveBashTimeoutDefaults({ PI_BASH_MAX_TIMEOUT_SECONDS: "garbage" });
-		const zero = resolveBashTimeoutDefaults({ PI_BASH_MAX_TIMEOUT_SECONDS: "0" });
+	it("ignores AMAZE_BASH_MAX_TIMEOUT_SECONDS when value is not a positive integer", () => {
+		const garbage = resolveBashTimeoutDefaults({ AMAZE_BASH_MAX_TIMEOUT_SECONDS: "garbage" });
+		const zero = resolveBashTimeoutDefaults({ AMAZE_BASH_MAX_TIMEOUT_SECONDS: "0" });
 
 		expect(garbage.maxSeconds).toBe(BASH_MAX_TIMEOUT_SECONDS);
 		expect(zero.maxSeconds).toBe(BASH_MAX_TIMEOUT_SECONDS);
@@ -47,8 +47,8 @@ describe("resolveBashTimeoutDefaults", () => {
 
 	it("ensures max is at least as large as default when env values would invert that order", () => {
 		const result = resolveBashTimeoutDefaults({
-			PI_BASH_DEFAULT_TIMEOUT_SECONDS: "500",
-			PI_BASH_MAX_TIMEOUT_SECONDS: "100",
+			AMAZE_BASH_DEFAULT_TIMEOUT_SECONDS: "500",
+			AMAZE_BASH_MAX_TIMEOUT_SECONDS: "100",
 		});
 
 		expect(result.defaultSeconds).toBe(500);

@@ -1,10 +1,10 @@
 # JSON Event Stream Mode
 
 ```bash
-senpi --mode json "Your prompt"
+amaze --mode json "Your prompt"
 ```
 
-Outputs all session events as JSON lines to stdout. Useful for integrating senpi into other tools or custom UIs.
+Outputs all session events as JSON lines to stdout. Useful for integrating amaze into other tools or custom UIs.
 
 ## Event Types
 
@@ -84,5 +84,5 @@ Followed by events as they occur:
 ## Example
 
 ```bash
-senpi --mode json "List files" 2>/dev/null | jq -c 'select(.type == "message_end")'
+amaze --mode json "List files" 2>/dev/null | jq -c 'select(.type == "message_end")'
 ```

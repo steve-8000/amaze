@@ -1,7 +1,7 @@
 /** Session history: tree-structured entry storage with context-building logic. */
 
-import type { AgentMessage } from '@earendil-works/pi-agent-core';
-import type { AssistantMessage, UserMessage } from '@earendil-works/pi-ai';
+import type { AgentMessage } from '@steve-8000/amaze-agent-core';
+import type { AssistantMessage, UserMessage } from '@steve-8000/amaze-ai';
 import type {
 	CompactionEntry,
 	DispatchMessageMetadata,

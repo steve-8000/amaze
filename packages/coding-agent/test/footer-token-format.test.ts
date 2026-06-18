@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { stripAnsi } from "../src/utils/ansi.ts";
 
-vi.mock("@earendil-works/pi-tui", async () => import("@earendil-works/pi-tui"));
+vi.mock("@steve-8000/amaze-tui", async () => import("@steve-8000/amaze-tui"));
 vi.mock("../src/modes/interactive/theme/theme.js", () => ({
 	theme: {
 		fg: (_color: string, text: string) => text,

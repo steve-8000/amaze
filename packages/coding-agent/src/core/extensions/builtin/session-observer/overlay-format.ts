@@ -1,4 +1,4 @@
-import { TruncatedText } from "@earendil-works/pi-tui";
+import { TruncatedText } from "@steve-8000/amaze-tui";
 import { keyHint, keyText } from "../../../../modes/interactive/components/keybinding-hints.ts";
 import { theme } from "../../../../modes/interactive/theme/theme.ts";
 import { shortenPath } from "../../../../utils/paths.ts";

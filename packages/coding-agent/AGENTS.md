@@ -1,6 +1,6 @@
 # packages/coding-agent
 
-`@code-yeongyu/senpi` — primary fork target. The CLI app users actually run (`senpi`). Highest merge-conflict surface against upstream `pi-mono`. **Always reach for the extension API before touching anything in `src/core/`**.
+`amaze` — primary fork target. The CLI app users actually run (`amaze`). Highest merge-conflict surface against upstream `pi-mono`. **Always reach for the extension API before touching anything in `src/core/`**.
 
 ## STRUCTURE
 
@@ -11,8 +11,8 @@ src/
 ├── main.ts                    # Arg parse → model resolution → mode dispatch
 ├── index.ts                   # Public API (AgentSession, AuthStorage, compaction, extension types, tools)
 ├── config.ts                  # APP_NAME, VERSION, configDir/cacheDir/sessionDir resolvers
-├── migrations.ts              # Settings/session schema migrations (incl. `pi → senpi` rename)
-├── package-manager-cli.ts     # `senpi update senpi`, package commands (install/list/remove)
+├── migrations.ts              # Settings/session schema migrations (incl. `pi → amaze` rename)
+├── package-manager-cli.ts     # `amaze update amaze`, package commands (install/list/remove)
 ├── self-update-bootstrap.ts   # Bootstrap self-update when bundled workspace deps are missing
 ├── changes.md                 # Fork tracker (root-level src changes)
 ├── bun/                       # Bun binary entry (cli.ts, register-bedrock.ts, restore-sandbox-env.ts)
@@ -57,8 +57,8 @@ test/
 
 ## EXTENSION LIFECYCLE (1-line each)
 
-1. **Discovery**: builtin (`builtin/index.ts`) + `.pi/extensions/` (legacy project path), `.senpi/extensions/`, `~/.senpi/agent/extensions/`, `settings.json` paths, `-e` CLI flag.
-2. **Loading**: `extensions/loader.ts` — single shared `jiti` importer (`changes.md` 2026-05-08), aliases `@mariozechner/pi-*` → workspace packages.
+1. **Discovery**: builtin (`builtin/index.ts`) + `.pi/extensions/` (legacy project path), `.amaze/extensions/`, `~/.amaze/agent/extensions/`, `settings.json` paths, `-e` CLI flag.
+2. **Loading**: `extensions/loader.ts` — single shared `jiti` importer (`changes.md` 2026-05-08), aliases `@steve-8000/amaze-*` → workspace packages.
 3. **Factory**: `export default function(pi: ExtensionAPI) { … }` runs at load time.
 4. **Binding**: `ExtensionRunner.bindCore()` connects `pi.*` stubs to real implementations.
 5. **Events**: `session_start` → `resources_discover` → tool/command/UI events → `session_shutdown`.
@@ -68,10 +68,10 @@ test/
 
 - **Tool shape**: TypeBox schema + `execute(input, ctx)` + `renderCall` + `renderResult`. Match `core/tools/` patterns; see `core/tools/AGENTS.md`.
 - **No built-in MCP / permission popups / plan mode / todos in core** — pi philosophy. The fork's `permission-system`, `compaction`, `prompt-preset`, and `todowrite` features live as **builtin extensions**, not core.
-- **Keybindings always configurable** — `KEYBINDINGS` (`src/core/keybindings.ts`, spreads `TUI_KEYBINDINGS` from `@earendil-works/pi-tui` and adds the `app.*` bindings) is the source of truth.
+- **Keybindings always configurable** — `KEYBINDINGS` (`src/core/keybindings.ts`, spreads `TUI_KEYBINDINGS` from `@steve-8000/amaze-tui` and adds the `app.*` bindings) is the source of truth.
 - **Faux provider for tests** — never spend a real token in `npm test`. Use `harness.ts` + `pi-ai/faux`.
 - **Inlined UUIDv7 in `core/session-manager.ts`** — do NOT re-add the `uuid` package. Documented in `changes.md` 2026-04-17.
-- **Branding**: package name `@code-yeongyu/senpi`, app name `senpi`, configDir `.senpi`. Self-update target is `code-yeongyu/senpi`.
+- **Branding**: package name `amaze`, app name `amaze`, configDir `.amaze`. Self-update target is `code-yeongyu/amaze`.
 
 ## ANTI-PATTERNS
 

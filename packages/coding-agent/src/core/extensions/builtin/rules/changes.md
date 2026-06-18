@@ -2,10 +2,10 @@
 
 Vendored from [`code-yeongyu/pi-rules`](https://github.com/code-yeongyu/pi-rules) (see `external-versions.json`).
 
-## Senpi adaptations vs upstream
+## amaze adaptations vs upstream
 
-- Imports rewritten by `scripts/vendor-transform.mjs`: `@mariozechner/pi-tui` -> `@earendil-works/pi-tui`; `@mariozechner/pi-coding-agent` symbols -> `../../types.ts` (and `Theme` -> `modes/interactive/theme/theme.ts`); relative `.js` import suffixes -> `.ts`.
-- `ui/dynamic-border.ts` and `ui/rules-banner.ts`: constructor parameter properties (`private readonly …`) -> explicit fields + constructor assignment (senpi's root tsconfig is `erasableSyntaxOnly`; parameter properties are disallowed).
+- Imports rewritten by `scripts/vendor-transform.mjs`: `@steve-8000/amaze-tui` -> `@steve-8000/amaze-tui`; `amaze` symbols -> `../../types.ts` (and `Theme` -> `modes/interactive/theme/theme.ts`); relative `.js` import suffixes -> `.ts`.
+- `ui/dynamic-border.ts` and `ui/rules-banner.ts`: constructor parameter properties (`private readonly …`) -> explicit fields + constructor assignment (amaze's root tsconfig is `erasableSyntaxOnly`; parameter properties are disallowed).
 - Runtime dep `picomatch` (+ `@types/picomatch`) added to `package.json`.
 - No behavior changes. Registers `/rules` and `/reload-rules` and discovers rule files from `.sisyphus/rules`, `.claude/rules`, `.cursor/rules`, `.github/instructions`, `AGENTS.md`, `CLAUDE.md`.
 

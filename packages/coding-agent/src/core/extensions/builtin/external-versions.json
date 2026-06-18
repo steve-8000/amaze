@@ -1,44 +1,44 @@
 {
 	"extensions": {
 		"bash-timeout": {
-			"packageName": "pi-bash-timeout",
+			"packageName": "amaze-bash-timeout",
 			"version": "0.1.0",
-			"source": "../pi-extensions/pi-bash-timeout"
+			"source": "../amaze-extensions/amaze-bash-timeout"
 		},
 		"gpt-apply-patch": {
-			"packageName": "pi-apply-patch",
+			"packageName": "amaze-apply-patch",
 			"version": "0.1.1",
-			"source": "../pi-extensions/pi-apply-patch"
+			"source": "../amaze-extensions/amaze-apply-patch"
 		},
 		"todowrite": {
-			"packageName": "pi-todotools",
+			"packageName": "amaze-todotools",
 			"version": "0.1.0",
-			"source": "../pi-extensions/pi-todotools"
+			"source": "../amaze-extensions/amaze-todotools"
 		},
 		"goal": {
-			"packageName": "pi-goal",
+			"packageName": "amaze-goal",
 			"version": "0.2.0",
-			"source": "../pi-extensions/pi-goal"
+			"source": "../amaze-extensions/amaze-goal"
 		},
 		"websearch": {
-			"packageName": "pi-websearch",
+			"packageName": "amaze-websearch",
 			"version": "0.2.0",
-			"source": "../pi-extensions/pi-websearch"
+			"source": "../amaze-extensions/amaze-websearch"
 		},
 		"webfetch": {
-			"packageName": "pi-webfetch",
+			"packageName": "amaze-webfetch",
 			"version": "0.1.0",
-			"source": "../pi-extensions/pi-webfetch"
+			"source": "../amaze-extensions/amaze-webfetch"
 		},
 		"nested-agents-md": {
-			"packageName": "@code-yeongyu/pi-nested-agents-md",
+			"packageName": "amaze-nested-agents-md",
 			"version": "0.1.0",
-			"source": "../pi-extensions/pi-nested-agents-md"
+			"source": "../amaze-extensions/amaze-nested-agents-md"
 		},
 		"rules": {
-			"packageName": "@code-yeongyu/pi-rules",
+			"packageName": "amaze-rules",
 			"version": "0.1.0",
-			"source": "../pi-extensions/pi-rules"
+			"source": "../amaze-extensions/amaze-rules"
 		}
 	}
 }

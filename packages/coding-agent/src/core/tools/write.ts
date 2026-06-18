@@ -1,10 +1,11 @@
-import type { AgentTool } from "@earendil-works/pi-agent-core";
-import { Container, Text } from "@earendil-works/pi-tui";
+import type { AgentTool } from "@steve-8000/amaze-agent-core";
+import { Container, Text } from "@steve-8000/amaze-tui";
 import { mkdir as fsMkdir, writeFile as fsWriteFile } from "fs/promises";
 import { dirname } from "path";
 import { type Static, Type } from "typebox";
 import { keyHint } from "../../modes/interactive/components/keybinding-hints.ts";
 import { getLanguageFromPath, highlightCode, type Theme } from "../../modes/interactive/theme/theme.ts";
+import { CachedTextBox } from "../../tui/cached-text-box.ts";
 import type { ToolDefinition, ToolRenderResultOptions } from "../extensions/types.ts";
 import { renderToolDiff } from "./diff-render.ts";
 import { withFileMutationQueue } from "./file-mutation-queue.ts";
@@ -279,9 +280,8 @@ export function createWriteToolDefinition(
 				component.clear();
 				return component;
 			}
-			const text = (context.lastComponent as Text | undefined) ?? new Text("", 0, 0);
-			text.setText(output);
-			return text;
+			const box = context.lastComponent instanceof CachedTextBox ? context.lastComponent : new CachedTextBox(theme);
+			return box.set({ text: output, state: context.isError ? "error" : "success" });
 		},
 	};
 }

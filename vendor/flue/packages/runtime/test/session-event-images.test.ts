@@ -1,10 +1,10 @@
-import type { AgentMessage } from '@earendil-works/pi-agent-core';
+import type { AgentMessage } from '@steve-8000/amaze-agent-core';
 import {
 	type FauxProviderRegistration,
 	fauxAssistantMessage,
 	fauxToolCall,
 	registerFauxProvider,
-} from '@earendil-works/pi-ai';
+} from '@steve-8000/amaze-ai';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createAgent, IMAGE_DATA_OMITTED } from '../src/index.ts';
 import { createFlueContext, InMemorySessionStore } from '../src/internal.ts';

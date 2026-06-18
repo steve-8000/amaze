@@ -5,7 +5,7 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentMessage } from "@earendil-works/pi-agent-core";
+import type { AgentMessage } from "@steve-8000/amaze-agent-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthStorage } from "../src/core/auth-storage.ts";
 import { DEFAULT_COMPACTION_SETTINGS } from "../src/core/compaction/index.ts";
@@ -1177,7 +1177,7 @@ describe("ExtensionRunner", () => {
 
 		it("uses bounded custom hook status labels", async () => {
 			const runtime = createExtensionRuntime();
-			const extensionPath = path.join(tempDir, ".senpi", "extensions", "check-output.ts");
+			const extensionPath = path.join(tempDir, ".amaze", "extensions", "check-output.ts");
 			const extension = await loadExtensionFromFactory(
 				(pi) => {
 					pi.on("tool_result", async () => undefined);

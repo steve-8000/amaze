@@ -7,7 +7,7 @@ import {
 	type RgbColor,
 	type SelectListTheme,
 	type SettingsListTheme,
-} from "@earendil-works/pi-tui";
+} from "@steve-8000/amaze-tui";
 import chalk from "chalk";
 import { type Static, Type } from "typebox";
 import { Compile } from "typebox/compile";
@@ -362,6 +362,78 @@ export class Theme {
 
 	bold(text: string): string {
 		return chalk.bold(text);
+	}
+
+	// --- symbol system (ported from upstream so tool/box renderers work) ---
+	get status() {
+		return {
+			success: "\u2714",
+			error: "\u2718",
+			warning: "\u26a0",
+			info: "\u24d8",
+			pending: "\u23f3",
+			disabled: "\u29b8",
+			enabled: "\u25cf",
+			running: "\u27f3",
+			shadowed: "\u25cc",
+			aborted: "\u23f9",
+		};
+	}
+
+	get tree() {
+		return { branch: "\u251c\u2500", last: "\u2514\u2500", vertical: "\u2502", horizontal: "\u2500", hook: "\u2514" };
+	}
+
+	get format() {
+		return { bullet: "\u2022", dash: "\u2014", bracketLeft: "\u27e6", bracketRight: "\u27e7" };
+	}
+
+	get boxSharp() {
+		return {
+			topLeft: "\u250c",
+			topRight: "\u2510",
+			bottomLeft: "\u2514",
+			bottomRight: "\u2518",
+			horizontal: "\u2500",
+			vertical: "\u2502",
+			cross: "\u253c",
+			teeDown: "\u252c",
+			teeUp: "\u2534",
+			teeRight: "\u251c",
+			teeLeft: "\u2524",
+		};
+	}
+
+	get boxRound() {
+		return {
+			topLeft: "\u256d",
+			topRight: "\u256e",
+			bottomLeft: "\u2570",
+			bottomRight: "\u256f",
+			horizontal: "\u2500",
+			vertical: "\u2502",
+		};
+	}
+
+	get spinnerFrames(): string[] {
+		return ["\u2807", "\u280b", "\u2819", "\u2838", "\u2834", "\u2826"];
+	}
+
+	get sep() {
+		return { dot: " \u00b7 ", slash: " / ", arrow: " \u2192 " };
+	}
+
+	styledSymbol(key: string, color: ThemeColor): string {
+		const groups: Record<string, Record<string, string>> = {
+			status: this.status,
+			tree: this.tree,
+			format: this.format,
+			boxSharp: this.boxSharp,
+			boxRound: this.boxRound,
+		};
+		const [group, name] = key.split(".");
+		const glyph = groups[group]?.[name] ?? "";
+		return this.fg(color, glyph);
 	}
 
 	italic(text: string): string {
@@ -754,8 +826,8 @@ export function getDefaultTheme(): string {
 // ============================================================================
 
 // Use globalThis to share theme across module loaders (tsx + jiti in dev mode)
-const THEME_KEY = Symbol.for("@earendil-works/pi-coding-agent:theme");
-const THEME_KEY_OLD = Symbol.for("@mariozechner/pi-coding-agent:theme");
+const THEME_KEY = Symbol.for("amaze:theme");
+const THEME_KEY_OLD = Symbol.for("amaze:theme");
 
 // Export theme as a getter that reads from globalThis
 // This ensures all module instances (tsx, jiti) see the same theme

@@ -9,7 +9,7 @@ import {
 	PACKAGE_NAME,
 	VERSION,
 } from "./config.ts";
-import { getLatestPiRelease, isNewerPackageVersion, type LatestPiRelease } from "./utils/version-check.ts";
+import { getLatestAmazeRelease, isNewerPackageVersion, type LatestAmazeRelease } from "./utils/version-check.ts";
 
 export interface SelfUpdateBootstrapCommand {
 	command: string;
@@ -23,7 +23,7 @@ interface BootstrapSelfUpdateArgs {
 }
 
 interface BootstrapSelfUpdateDependencies {
-	getLatestRelease?: (currentVersion: string) => Promise<LatestPiRelease | undefined>;
+	getLatestRelease?: (currentVersion: string) => Promise<LatestAmazeRelease | undefined>;
 	getSelfUpdateCommand?: (
 		packageName: string,
 		npmCommand?: string[],
@@ -83,7 +83,7 @@ function parseBootstrapSelfUpdateArgs(args: readonly string[]): BootstrapSelfUpd
 		return undefined;
 	}
 
-	const sourceIsSelf = source === "self" || source === "pi" || source === APP_NAME;
+	const sourceIsSelf = source === "self" || source === APP_NAME;
 	if (source && !sourceIsSelf) {
 		return undefined;
 	}
@@ -148,9 +148,9 @@ export async function handleBootstrapSelfUpdate(
 	const resolveSelfUpdateCommand = dependencies.getSelfUpdateCommand ?? getSelfUpdateCommand;
 	const resolveUnavailableInstruction = dependencies.getUnavailableInstruction ?? getSelfUpdateUnavailableInstruction;
 	const executeCommand = dependencies.runCommand ?? runCommand;
-	const loadLatestRelease = dependencies.getLatestRelease ?? getLatestPiRelease;
+	const loadLatestRelease = dependencies.getLatestRelease ?? getLatestAmazeRelease;
 
-	let latestRelease: LatestPiRelease | undefined;
+	let latestRelease: LatestAmazeRelease | undefined;
 	if (!parsed.force) {
 		try {
 			latestRelease = await loadLatestRelease(VERSION);

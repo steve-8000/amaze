@@ -1,4 +1,4 @@
-import type { AssistantMessage } from "@earendil-works/pi-ai";
+import type { AssistantMessage } from "@steve-8000/amaze-ai";
 import { describe, expect, test } from "vitest";
 import { AssistantMessageComponent } from "../src/modes/interactive/components/assistant-message.ts";
 import { initTheme } from "../src/modes/interactive/theme/theme.ts";
@@ -40,6 +40,8 @@ describe("AssistantMessageComponent", () => {
 
 		expect(lines).not.toHaveLength(0);
 		expect(lines[0]).toContain(OSC133_ZONE_START);
+		expect(lines[0]).toContain("💬 AMAZE");
+		expect(lines[0]).toContain("\x1b[38;5;116m");
 		expect(lines[lines.length - 1].startsWith(OSC133_ZONE_END + OSC133_ZONE_FINAL)).toBe(true);
 	});
 
@@ -57,6 +59,7 @@ describe("AssistantMessageComponent", () => {
 		expect(rendered.includes(OSC133_ZONE_START)).toBe(false);
 		expect(rendered.includes(OSC133_ZONE_END)).toBe(false);
 		expect(rendered.includes(OSC133_ZONE_FINAL)).toBe(false);
+		expect(rendered).toContain("💬 AMAZE");
 	});
 
 	test("renders providerNative content with collapsed and expanded states", () => {

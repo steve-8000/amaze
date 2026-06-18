@@ -1,4 +1,4 @@
-import { fauxAssistantMessage } from "@earendil-works/pi-ai";
+import { fauxAssistantMessage } from "@steve-8000/amaze-ai";
 import { afterEach, describe, expect, it } from "vitest";
 import type { CompactionResult } from "../../src/core/compaction/index.ts";
 import type { ExtensionAPI } from "../../src/core/extensions/index.ts";

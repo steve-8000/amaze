@@ -1,4 +1,4 @@
-import type { AgentTool } from '@earendil-works/pi-agent-core';
+import type { AgentTool } from '@steve-8000/amaze-agent-core';
 import { toJsonSchema } from '@valibot/to-json-schema';
 import * as v from 'valibot';
 import { formatPackagedSkillFilePath } from './agent.ts';

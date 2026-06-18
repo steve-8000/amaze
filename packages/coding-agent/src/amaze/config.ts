@@ -20,10 +20,10 @@ export interface AmazeConfig {
 	channels: FeatureFlag & Record<string, unknown>;
 	sandbox: FeatureFlag & Record<string, unknown>;
 	session: {
-		compression: { enabled: boolean; engine: "senpi" | "flue" } & Record<string, unknown>;
+		compression: { enabled: boolean; engine: "amaze" | "flue" } & Record<string, unknown>;
 	};
 	services: {
-		xenonite: { enabled: boolean; port: number; autoStart: boolean } & Record<string, unknown>;
+		xenonite: { enabled: boolean; port: number; autoStart: boolean; autoIndex: boolean; autoWatch: boolean } & Record<string, unknown>;
 	};
 	raw: Record<string, unknown>;
 }
@@ -40,8 +40,8 @@ const DEFAULTS: AmazeConfig = {
 	hooks: { enabled: true },
 	channels: { enabled: false },
 	sandbox: { enabled: false },
-	session: { compression: { enabled: true, engine: "senpi" } },
-	services: { xenonite: { enabled: false, port: 8700, autoStart: false } },
+	session: { compression: { enabled: true, engine: "amaze" } },
+	services: { xenonite: { enabled: false, port: 8700, autoStart: false, autoIndex: true, autoWatch: true } },
 	raw: {},
 };
 
@@ -109,7 +109,7 @@ export function loadAmazeConfig(explicitPath?: string): AmazeConfig {
 			compression: {
 				...compression,
 				enabled: compression.enabled === undefined ? true : Boolean(compression.enabled),
-				engine: compression.engine === "flue" ? "flue" : "senpi",
+				engine: compression.engine === "flue" ? "flue" : "amaze",
 			},
 		},
 		services: {
@@ -118,6 +118,12 @@ export function loadAmazeConfig(explicitPath?: string): AmazeConfig {
 				enabled: Boolean(xenonite.enabled),
 				port: typeof xenonite.port === "number" ? xenonite.port : DEFAULTS.services.xenonite.port,
 				autoStart: Boolean(xenonite.auto_start ?? xenonite.autoStart),
+				autoIndex: xenonite.auto_index === undefined && xenonite.autoIndex === undefined
+					? DEFAULTS.services.xenonite.autoIndex
+					: Boolean(xenonite.auto_index ?? xenonite.autoIndex),
+				autoWatch: xenonite.auto_watch === undefined && xenonite.autoWatch === undefined
+					? DEFAULTS.services.xenonite.autoWatch
+					: Boolean(xenonite.auto_watch ?? xenonite.autoWatch),
 			},
 		},
 		raw,

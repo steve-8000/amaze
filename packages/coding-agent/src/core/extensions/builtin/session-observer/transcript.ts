@@ -1,4 +1,4 @@
-import type { ToolResultMessage } from "@earendil-works/pi-ai";
+import type { ToolResultMessage } from "@steve-8000/amaze-ai";
 import type { SessionMessageEntry } from "../../../session-manager.ts";
 import { getTextContent } from "./text.ts";
 import { renderTextEntry, renderThinkingEntry, renderToolEntry, renderUserEntry } from "./transcript-entries.ts";

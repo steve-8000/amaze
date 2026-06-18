@@ -1,0 +1,26 @@
+{
+  "type": "replan",
+  "created_at": "2026-06-18T03:12:23.650Z",
+  "replan_request_id": "contract-scout-Users_steve_rocky_amaze.-replan-2",
+  "source_contract_id": "contract-scout-Users_steve_rocky_amaze.",
+  "reason": "Acceptance rejected: changed-files evidence missing from child report.",
+  "path_contract": {
+    "contract_id": "contract-scout-Users_steve_rocky_amaze.",
+    "assigned_worker": "scout",
+    "assigned_path": "Users/steve/rocky/amaze.",
+    "owned_paths": [
+      "Users/steve/rocky/amaze./**"
+    ],
+    "read_allowed_paths": [
+      "**/*"
+    ],
+    "write_allowed_paths": [
+      "Users/steve/rocky/amaze./**"
+    ],
+    "write_denied_paths": [],
+    "activity_budget": {
+      "max_tokens": 270000,
+      "max_elapsed_ms": 180000
+    }
+  }
+}

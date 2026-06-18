@@ -14,7 +14,7 @@ import type {
 	AgentToolUpdateCallback,
 	ThinkingLevel,
 	ToolExecutionMode,
-} from "@earendil-works/pi-agent-core";
+} from "@steve-8000/amaze-agent-core";
 import type {
 	Api,
 	AssistantMessageEvent,
@@ -28,7 +28,7 @@ import type {
 	SimpleStreamOptions,
 	TextContent,
 	ToolResultMessage,
-} from "@earendil-works/pi-ai";
+} from "@steve-8000/amaze-ai";
 import type {
 	AutocompleteItem,
 	AutocompleteProvider,
@@ -39,7 +39,7 @@ import type {
 	OverlayHandle,
 	OverlayOptions,
 	TUI,
-} from "@earendil-works/pi-tui";
+} from "@steve-8000/amaze-tui";
 import type { Static, TSchema } from "typebox";
 import type { Theme } from "../../modes/interactive/theme/theme.ts";
 import type { BashResult } from "../bash-executor.ts";
@@ -232,12 +232,12 @@ export interface ExtensionUIContext {
 	 * - `keybindings`: KeybindingsManager for app-level keybindings
 	 *
 	 * For full app keybinding support (escape, ctrl+d, model switching, etc.),
-	 * extend `CustomEditor` from `@earendil-works/pi-coding-agent` and call
+	 * extend `CustomEditor` from `amaze` and call
 	 * `super.handleInput(data)` for keys you don't handle.
 	 *
 	 * @example
 	 * ```ts
-	 * import { CustomEditor } from "@earendil-works/pi-coding-agent";
+	 * import { CustomEditor } from "amaze";
 	 *
 	 * class VimEditor extends CustomEditor {
 	 *   private mode: "normal" | "insert" = "insert";
@@ -470,6 +470,8 @@ export interface ToolRenderContext<TState = any, TArgs = any> {
 	showImages: boolean;
 	/** Whether the current result is an error. */
 	isError: boolean;
+	/** Whether a (final or partial) result has been produced yet. */
+	hasResult: boolean;
 	spinnerFrame?: number;
 }
 
@@ -820,7 +822,7 @@ export interface ModelSelectEvent {
 }
 
 export interface ModelSelectEventResult {
-	/** Replace the active system prompt after the model switch. `null` resets to the base senpi prompt. */
+	/** Replace the active system prompt after the model switch. `null` resets to the base amaze prompt. */
 	systemPrompt?: string | null;
 	/** Human-readable name for the prompt that became active. */
 	systemPromptName?: string;

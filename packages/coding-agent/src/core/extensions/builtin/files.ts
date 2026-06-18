@@ -5,7 +5,7 @@
  * coalesced by path and sorted newest first. Selecting a file opens it in VS Code.
  */
 
-import { Container, Key, matchesKey, type SelectItem, SelectList, Text } from "@earendil-works/pi-tui";
+import { Container, Key, matchesKey, type SelectItem, SelectList, Text } from "@steve-8000/amaze-tui";
 import { DynamicBorder } from "../../../modes/interactive/components/dynamic-border.ts";
 import type { ExtensionAPI } from "../types.ts";
 import { extractPatchedPaths } from "./gpt-apply-patch/index.ts";

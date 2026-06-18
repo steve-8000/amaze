@@ -5,15 +5,15 @@ import { tmpdir } from "node:os";
 import { isAbsolute, join, relative, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { prepareSenpiBundledWorkspaces } from "./prepare-senpi-bundled-workspaces.mjs";
+import { prepareAmazeBundledWorkspaces } from "./prepare-amaze-bundled-workspaces.mjs";
 
 const packages = [
-	{ directory: "packages/ai", name: "@earendil-works/pi-ai" },
-	{ directory: "packages/tui", name: "@earendil-works/pi-tui" },
-	{ directory: "packages/agent", name: "@earendil-works/pi-agent-core" },
-	{ directory: "packages/coding-agent", name: "@code-yeongyu/senpi" },
+	{ directory: "packages/ai", name: "@steve-8000/amaze-ai" },
+	{ directory: "packages/tui", name: "@steve-8000/amaze-tui" },
+	{ directory: "packages/agent", name: "@steve-8000/amaze-agent-core" },
+	{ directory: "packages/coding-agent", name: "amaze" },
 ];
-const packageCliCommand = "senpi";
+const packageCliCommand = "amaze";
 const captureMaxBufferBytes = 64 * 1024 * 1024;
 
 function printUsage() {
@@ -192,7 +192,7 @@ function main() {
 	const repoRoot = process.cwd();
 	const rootPackageJson = readPackageJson(repoRoot);
 
-	if (rootPackageJson.name !== "senpi-monorepo") {
+	if (rootPackageJson.name !== "amaze-monorepo") {
 		throw new Error("Run this script from the repository root");
 	}
 
@@ -212,7 +212,7 @@ function main() {
 		run("npm", ["run", "build"], { cwd: pkg.directory });
 	}
 
-	prepareSenpiBundledWorkspaces(repoRoot);
+	prepareAmazeBundledWorkspaces(repoRoot);
 
 	const tarballs = new Map();
 	for (const pkg of packages) {
@@ -260,7 +260,7 @@ function main() {
 		console.log(`  ${binaryDirectory}`);
 		console.log(`  ${join(outDir, `pi-${binaryPlatform}.${String(binaryPlatform).startsWith("windows-") ? "zip" : "tar.gz"}`)}`);
 		console.log("\nRun the local Bun binary release from outside the repository:");
-		console.log(`  ${join(binaryDirectory, String(binaryPlatform).startsWith("windows-") ? "pi.exe" : "pi")} --help`);
+		console.log(`  ${join(binaryDirectory, String(binaryPlatform).startsWith("windows-") ? "amaze.exe" : "pi")} --help`);
 
 		console.log("\nIsolated npm install:");
 		console.log(`  ${nodeInstallDirectory}`);

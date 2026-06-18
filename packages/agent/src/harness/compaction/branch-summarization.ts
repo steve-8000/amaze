@@ -1,5 +1,5 @@
-import type { Model } from "@earendil-works/pi-ai";
-import { completeSimple } from "@earendil-works/pi-ai";
+import type { Model } from "@steve-8000/amaze-ai";
+import { completeSimple } from "@steve-8000/amaze-ai";
 import type { AgentMessage } from "../../types.ts";
 import {
 	convertToLlm,

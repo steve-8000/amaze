@@ -64,6 +64,32 @@ Do work
 			assert.equal(agent?.defaultContext, "fresh", `${name} should default to fresh context`);
 		}
 	});
+
+	it("loads packaged agents with shared Xenonite code engine tools", () => {
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "amaze-subagents-builtin-xenonite-tools-"));
+		tempDirs.push(dir);
+		const agents = discoverAgentsAll(dir).builtin;
+		const xenoniteTools = [
+			"index_status",
+			"search_query",
+			"graph_status",
+			"graph_query",
+			"graph_impact",
+			"graph_symbol",
+			"graph_symbols",
+			"graph_trace",
+			"graph_cycles",
+			"graph_stats",
+		];
+
+		for (const name of ["context-builder", "delegate", "oracle", "planner", "researcher", "reviewer", "scout", "worker"]) {
+			const agent = agents.find((candidate) => candidate.name === name);
+			assert.ok(agent, `${name} should be packaged`);
+			for (const tool of xenoniteTools) {
+				assert.ok(agent.tools?.includes(tool), `${name} should expose ${tool}`);
+			}
+		}
+	});
 });
 
 describe("chain discovery", () => {

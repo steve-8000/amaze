@@ -15,7 +15,7 @@
  */
 
 import { mkdtemp, writeFile } from "node:fs/promises";
-import type { ExtensionAPI } from "@code-yeongyu/senpi";
+import type { ExtensionAPI } from "amaze";
 import {
 	DEFAULT_MAX_BYTES,
 	DEFAULT_MAX_LINES,
@@ -23,8 +23,8 @@ import {
 	type TruncationResult,
 	truncateHead,
 	withFileMutationQueue,
-} from "@code-yeongyu/senpi";
-import { Text } from "@earendil-works/pi-tui";
+} from "amaze";
+import { Text } from "@steve-8000/amaze-tui";
 import { execSync } from "child_process";
 import { tmpdir } from "os";
 import { join } from "path";

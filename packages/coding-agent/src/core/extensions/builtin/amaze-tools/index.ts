@@ -12,13 +12,13 @@ interface VendoredExtensionSpec extends WrapPiOptions {
 
 const VENDORED_EXTENSIONS: VendoredExtensionSpec[] = [
 	{
-		relativeEntry: "vendor/pi-ast-grep/src/index.ts",
+		relativeEntry: "vendor/amaze-ast-grep/src/index.ts",
 		isEnabled: (c) => c.tools.code.enabled,
 		rename: { ast_grep_search: "code_find", ast_grep_replace: "code_rewrite" },
 		renameCmd: { "ast-grep": "code" },
 	},
 	{
-		relativeEntry: "vendor/pi-lsp-client/src/index.ts",
+		relativeEntry: "vendor/amaze-lsp-client/src/index.ts",
 		isEnabled: (c) => c.tools.lang.enabled,
 		rename: {
 			lsp_diagnostics: "lang_check",
@@ -30,13 +30,13 @@ const VENDORED_EXTENSIONS: VendoredExtensionSpec[] = [
 		renameCmd: { lsp: "lang" },
 	},
 	{
-		relativeEntry: "vendor/pi-subagents/src/extension/index.ts",
+		relativeEntry: "vendor/amaze-subagents/src/extension/index.ts",
 		isEnabled: (c) => c.agents.enabled,
 		rename: { subagent: "agent_run" },
 		renameCmd: { "subagents-doctor": "agents-doctor" },
 	},
 	{
-		relativeEntry: "vendor/pi-cua-integration/src/index.ts",
+		relativeEntry: "vendor/amaze-cua-integration/src/index.ts",
 		isEnabled: (c) => c.desk.enabled,
 		rename: {
 			cua_screenshot: "desk_shot",
@@ -51,7 +51,7 @@ const VENDORED_EXTENSIONS: VendoredExtensionSpec[] = [
 		renameCmd: { cua: "desk" },
 	},
 	{
-		relativeEntry: "vendor/pi-comment-checker/src/index.ts",
+		relativeEntry: "vendor/amaze-comment-checker/src/index.ts",
 		isEnabled: (c) => c.hooks.enabled,
 	},
 ];
@@ -61,9 +61,9 @@ function vendorRoot(): string {
 }
 
 export default async function amazeToolsExtension(pi: ExtensionAPI): Promise<void> {
-	// Vendored pi-* extensions read PI_CODING_AGENT_DIR for their config/agents;
+	// Vendored pi-* extensions read AMAZE_CODING_AGENT_DIR for their config/agents;
 	// point it at amaze's agent dir so subagent overrides etc. resolve correctly.
-	process.env.PI_CODING_AGENT_DIR ??= getAgentDir();
+	process.env.AMAZE_CODING_AGENT_DIR ??= getAgentDir();
 	const config = loadAmazeConfig();
 	const importer = createExtensionModuleImporter();
 	const root = vendorRoot();

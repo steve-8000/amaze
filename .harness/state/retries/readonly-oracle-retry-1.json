@@ -1,0 +1,26 @@
+{
+  "type": "return_to_same_worker",
+  "created_at": "2026-06-18T03:33:17.184Z",
+  "source_contract_id": "readonly-oracle",
+  "retry_contract_id": "readonly-oracle-retry-1",
+  "assigned_worker": "oracle",
+  "reason": "Acceptance rejected: changed-files evidence missing from child report.",
+  "path_contract": {
+    "contract_id": "readonly-oracle-retry-1",
+    "assigned_worker": "oracle",
+    "read_allowed_paths": [
+      "**/*"
+    ],
+    "write_allowed_paths": [],
+    "write_denied_paths": [
+      "**/*"
+    ],
+    "activity_budget": {
+      "max_tokens": 270000,
+      "max_elapsed_ms": 240000
+    },
+    "depends_on": [
+      "readonly-oracle"
+    ]
+  }
+}

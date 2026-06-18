@@ -90,9 +90,9 @@ describe("bashTimeoutExtension factory wiring", () => {
 		expect(result.systemPrompt).toContain(`Recommended maximum timeout: ${BASH_MAX_TIMEOUT_SECONDS}s`);
 	});
 
-	it("respects PI_BASH_DEFAULT_TIMEOUT_SECONDS env override at factory load time", async () => {
-		const original = process.env.PI_BASH_DEFAULT_TIMEOUT_SECONDS;
-		process.env.PI_BASH_DEFAULT_TIMEOUT_SECONDS = "7";
+	it("respects AMAZE_BASH_DEFAULT_TIMEOUT_SECONDS env override at factory load time", async () => {
+		const original = process.env.AMAZE_BASH_DEFAULT_TIMEOUT_SECONDS;
+		process.env.AMAZE_BASH_DEFAULT_TIMEOUT_SECONDS = "7";
 		try {
 			const { api, handlers } = makeApiMock();
 			bashTimeoutExtension(api as never);
@@ -107,8 +107,8 @@ describe("bashTimeoutExtension factory wiring", () => {
 			};
 			expect(result.systemPrompt).toContain("Default timeout: 7s");
 		} finally {
-			if (original === undefined) delete process.env.PI_BASH_DEFAULT_TIMEOUT_SECONDS;
-			else process.env.PI_BASH_DEFAULT_TIMEOUT_SECONDS = original;
+			if (original === undefined) delete process.env.AMAZE_BASH_DEFAULT_TIMEOUT_SECONDS;
+			else process.env.AMAZE_BASH_DEFAULT_TIMEOUT_SECONDS = original;
 		}
 	});
 });

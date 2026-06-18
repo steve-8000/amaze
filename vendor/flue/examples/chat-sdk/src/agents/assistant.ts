@@ -3,7 +3,7 @@ import {
 	fauxText,
 	fauxToolCall,
 	registerFauxProvider,
-} from '@earendil-works/pi-ai';
+} from '@steve-8000/amaze-ai';
 import { createAgent, defineTool } from '@flue/runtime';
 import * as v from 'valibot';
 import { bot } from '../chat.ts';

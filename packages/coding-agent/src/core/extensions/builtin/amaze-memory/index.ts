@@ -122,7 +122,7 @@ function sessionId(ctx: ExtensionContext): string {
 }
 
 function downMessage(action: string): string {
-	return `Xenonite service is not reachable. Start it with: cd ~/rocky/xenonite && node src/server.mjs. (${action})`;
+	return `Xenonite MCP service is not reachable. Start it with: cd ~/rocky/xenonite && XENONITE_MCP_TOOL_MODE=full npm start. (${action})`;
 }
 
 function contentText(result: { content?: Array<{ type?: string; text?: string }> }): string {
@@ -167,15 +167,13 @@ function memoryContextMessage(result: MemoryRecallResult): string | undefined {
 export default function amazeMemoryExtension(pi: ExtensionAPI): void {
 	const config = loadAmazeConfig();
 	const memEnabled = config.tools.mem.enabled;
-	const skillsEnabled = Boolean((config.raw.skills as { enabled?: unknown } | undefined)?.enabled);
-	if (!memEnabled && !skillsEnabled) return;
+	if (!memEnabled) return;
 
 	const client = new XenoniteClient(config.services.xenonite.port);
 	const toolsConfig = rawRecord(config.raw.tools);
 	const memConfig = rawRecord(toolsConfig.mem);
 	const autoRecall = configBool(memConfig.auto_recall ?? memConfig.autoRecall, true);
 	const autoSync = configBool(memConfig.auto_sync ?? memConfig.autoSync, true);
-	const autoImprove = Boolean((config.raw.skills as { auto_improve?: unknown } | undefined)?.auto_improve);
 	let lastUserInput = "";
 
 	if (memEnabled) {
@@ -188,7 +186,7 @@ export default function amazeMemoryExtension(pi: ExtensionAPI): void {
 			return renderMemoryBox("Memory-Store", body, theme);
 		});
 
-		if (autoSync || autoImprove) {
+		if (autoSync) {
 			pi.on("input", async (event) => {
 				lastUserInput = event.text;
 			});
@@ -216,32 +214,27 @@ export default function amazeMemoryExtension(pi: ExtensionAPI): void {
 			});
 		}
 
-		if (autoSync || autoImprove) {
+		if (autoSync) {
 			pi.on("turn_end", async (event, ctx) => {
 				const assistant = messageText(event.message);
 				if (!lastUserInput && !assistant) return;
 				try {
-					if (autoSync) {
-						const stored = await client.syncTurn(lastUserInput, assistant, sessionId(ctx), pathMemoryNamespaceOptions());
-						if ((stored.added ?? 0) > 0 && ctx.hasUI) {
-							const body = memoryItemsText(stored, "", "(no memory stored)");
-							if (ctx.isIdle()) {
-								pi.sendMessage(
-									{
-										customType: "memory-store",
-										content: body,
-										display: true,
-										details: stored,
-									},
-									{ triggerTurn: false },
-								);
-							} else {
-								ctx.ui.notify(`Memory-Store\n${body}`, "info");
-							}
+					const stored = await client.syncTurn(lastUserInput, assistant, sessionId(ctx), pathMemoryNamespaceOptions());
+					if ((stored.added ?? 0) > 0 && ctx.hasUI) {
+						const body = memoryItemsText(stored, "", "(no memory stored)");
+						if (ctx.isIdle()) {
+							pi.sendMessage(
+								{
+									customType: "memory-store",
+									content: body,
+									display: true,
+									details: stored,
+								},
+								{ triggerTurn: false },
+							);
+						} else {
+							ctx.ui.notify(`Memory-Store\n${body}`, "info");
 						}
-					}
-					if (autoImprove) {
-						await client.backgroundReview([{ role: "user", content: lastUserInput }, { role: "assistant", content: assistant }]);
 					}
 				} catch {
 					// Memory sync and self-review are best-effort; a missing bridge must never break a turn.
@@ -349,7 +342,10 @@ export default function amazeMemoryExtension(pi: ExtensionAPI): void {
 					const result: MemoryStoreResult = { ok: true, added: 0, skipped: [duplicate], items: existing.items };
 					return { content: [{ type: "text", text: `Already remembered:\n${duplicate}` }], details: result };
 				}
-				const result = await client.store(text, sessionId(ctx), pathMemoryNamespaceOptions());
+				const result = await client.store(text, sessionId(ctx), {
+					...pathMemoryNamespaceOptions(),
+					source: String((params as { source: string }).source),
+				});
 				return { content: [{ type: "text", text: result.context || "(no memory stored)" }], details: result };
 			},
 			renderCall(args, theme) {
@@ -366,27 +362,5 @@ export default function amazeMemoryExtension(pi: ExtensionAPI): void {
 		pi.registerTool(recall);
 		pi.registerTool(search);
 		pi.registerTool(store);
-	}
-
-	if (skillsEnabled) {
-		const skillManage: ToolDefinition = {
-			name: "skill_manage",
-			label: "skill_manage",
-			description: "Create, edit, patch, or delete a reusable skill (procedural knowledge).",
-			parameters: Type.Object({
-				action: Type.String({ description: "create | edit | patch | delete | write_file" }),
-				name: Type.String({ description: "Skill name." }),
-				content: Type.Optional(Type.String({ description: "Full SKILL.md content for create/edit." })),
-				category: Type.Optional(Type.String({ description: "Skill category." })),
-				old_string: Type.Optional(Type.String({ description: "For patch: text to replace." })),
-				new_string: Type.Optional(Type.String({ description: "For patch: replacement text." })),
-			}),
-			async execute(_id, params) {
-				if (!(await client.isHealthy())) return { content: [{ type: "text", text: downMessage("skill_manage") }], details: undefined };
-				const text = await client.skillManage(params as Record<string, unknown>);
-				return { content: [{ type: "text", text }], details: undefined };
-			},
-		};
-		pi.registerTool(skillManage);
 	}
 }

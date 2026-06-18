@@ -10,9 +10,9 @@ import { CONFIG_DIR_NAME, getAgentDir, getBinDir } from "./config.ts";
 import { migrateKeybindingsConfig } from "./core/keybindings.ts";
 
 const MIGRATION_GUIDE_URL =
-	"https://github.com/earendil-works/pi-mono/blob/main/packages/coding-agent/CHANGELOG.md#extensions-migration";
+	"https://github.com/steve-8000/amaze/blob/main/packages/coding-agent/CHANGELOG.md#extensions-migration";
 const EXTENSIONS_DOC_URL =
-	"https://github.com/earendil-works/pi-mono/blob/main/packages/coding-agent/docs/extensions.md";
+	"https://github.com/steve-8000/amaze/blob/main/packages/coding-agent/docs/extensions.md";
 
 /**
  * Migrate legacy oauth.json and settings.json apiKeys to auth.json.
@@ -79,8 +79,6 @@ export function migrateAuthToAuthJson(): string[] {
  * Bug in v0.30.0: Sessions were saved to ~/.pi/agent/ instead of
  * ~/.pi/agent/sessions/<encoded-cwd>/. This migration moves them
  * to the correct location based on the cwd in their session header.
- *
- * See: https://github.com/earendil-works/pi-mono/issues/320
  */
 export function migrateSessionsFromAgentRoot(): void {
 	const agentDir = getAgentDir();
@@ -172,22 +170,25 @@ function migrateKeybindingsConfigFile(): void {
 	}
 }
 
-function migrateLegacySenpiDirs(cwd: string): void {
+function migrateLegacyDirs(cwd: string): void {
 	if (CONFIG_DIR_NAME === ".pi") return;
 
 	const homeDir = os.homedir();
-	const globalOldAgentDir = join(homeDir, ".pi", "agent");
 	const globalNewAgentDir = getAgentDir();
-	const globalOldMomDir = join(homeDir, ".pi", "mom");
 	const globalNewMomDir = join(homeDir, CONFIG_DIR_NAME, "mom");
-	const projectOldDir = join(cwd, ".pi");
 	const projectNewDir = join(cwd, CONFIG_DIR_NAME);
 
-	const moves: Array<[string, string, string]> = [
-		[globalOldAgentDir, globalNewAgentDir, "global agent directory"],
-		[globalOldMomDir, globalNewMomDir, "global mom directory"],
-		[projectOldDir, projectNewDir, "project config directory"],
-	];
+	// Migrate legacy .pi directory names to the current config dir
+	const legacyNames = [".pi"];
+	const moves: Array<[string, string, string]> = [];
+	for (const legacy of legacyNames) {
+		if (CONFIG_DIR_NAME === legacy) continue;
+		moves.push(
+			[join(homeDir, legacy, "agent"), globalNewAgentDir, `global agent directory (${legacy})`],
+			[join(homeDir, legacy, "mom"), globalNewMomDir, `global mom directory (${legacy})`],
+			[join(cwd, legacy), projectNewDir, `project config directory (${legacy})`],
+		);
+	}
 
 	for (const [oldPath, newPath, label] of moves) {
 		if (!existsSync(oldPath) || existsSync(newPath)) continue;
@@ -337,7 +338,7 @@ export function runMigrations(cwd: string): {
 	deprecationWarnings: string[];
 } {
 	const migratedAuthProviders = migrateAuthToAuthJson();
-	migrateLegacySenpiDirs(cwd);
+	migrateLegacyDirs(cwd);
 	migrateSessionsFromAgentRoot();
 	migrateToolsToBin();
 	migrateKeybindingsConfigFile();

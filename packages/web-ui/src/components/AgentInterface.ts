@@ -1,4 +1,4 @@
-import { streamSimple, type ToolResultMessage, type Usage } from "@earendil-works/pi-ai";
+import { streamSimple, type ToolResultMessage, type Usage } from "@steve-8000/amaze-ai";
 import { html, LitElement } from "lit";
 import { customElement, property, query } from "lit/decorators.js";
 import { ModelSelector } from "../dialogs/ModelSelector.ts";
@@ -8,7 +8,7 @@ import "./MessageList.ts";
 import "./Messages.ts"; // Import for side effects to register the custom elements
 import { getAppStorage } from "../storage/app-storage.ts";
 import "./StreamingMessageContainer.ts";
-import type { Agent, AgentEvent } from "@earendil-works/pi-agent-core";
+import type { Agent, AgentEvent } from "@steve-8000/amaze-agent-core";
 import type { Attachment } from "../utils/attachment-utils.ts";
 import { formatUsage } from "../utils/format.ts";
 import { i18n } from "../utils/i18n.ts";

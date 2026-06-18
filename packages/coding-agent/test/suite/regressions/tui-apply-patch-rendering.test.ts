@@ -1,4 +1,4 @@
-import type { TUI } from "@earendil-works/pi-tui";
+import type { TUI } from "@steve-8000/amaze-tui";
 import { describe, expect, test } from "vitest";
 import {
 	type ApplyPatchParams,

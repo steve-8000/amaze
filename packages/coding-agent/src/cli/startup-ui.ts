@@ -1,4 +1,4 @@
-import { ProcessTerminal, setKeybindings, TUI } from "@earendil-works/pi-tui";
+import { ProcessTerminal, setKeybindings, TUI } from "@steve-8000/amaze-tui";
 import { existsSync } from "fs";
 import { APP_NAME, CONFIG_DIR_NAME, ENV_AGENT_DIR, getSettingsPath, PACKAGE_NAME } from "../config.ts";
 import { KeybindingsManager } from "../core/keybindings.ts";
@@ -11,9 +11,9 @@ import {
 } from "../modes/interactive/components/first-time-setup.ts";
 import { detectTerminalBackgroundTheme, initTheme, setTheme } from "../modes/interactive/theme/theme.ts";
 
-const OFFICIAL_PACKAGE_NAME = "@earendil-works/pi-coding-agent";
-const OFFICIAL_APP_NAME = "pi";
-const OFFICIAL_CONFIG_DIR_NAME = ".pi";
+const OFFICIAL_PACKAGE_NAME = "amaze";
+const OFFICIAL_APP_NAME = "amaze";
+const OFFICIAL_CONFIG_DIR_NAME = ".amaze";
 
 interface DistributionMetadata {
 	packageName: string;
@@ -30,7 +30,7 @@ function isOfficialDistribution({ packageName, appName, configDirName }: Distrib
 }
 
 function areExperimentalFeaturesEnabled(): boolean {
-	return process.env.PI_EXPERIMENTAL === "1";
+	return process.env.AMAZE_EXPERIMENTAL === "1";
 }
 
 function createStartupTui(settingsManager: SettingsManager): TUI {
@@ -50,7 +50,7 @@ async function clearStartupTui(ui: TUI): Promise<void> {
 /**
  * First-time setup runs when all of these hold:
  * - this is the official Pi distribution (not a fork/rebrand)
- * - experimental features are enabled (PI_EXPERIMENTAL=1)
+ * - experimental features are enabled (AMAZE_EXPERIMENTAL=1)
  * - the default agent directory is used (no custom agent dir override)
  * - setup was not completed before (settings.json does not exist)
  */

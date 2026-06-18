@@ -33,7 +33,7 @@ describe("extension loader", () => {
 	});
 
 	it("prefers bundled package aliases when the local coding-agent package carries dependencies", async () => {
-		// given a linked local senpi install where dependencies live under
+		// given a linked local amaze install where dependencies live under
 		// packages/coding-agent/node_modules instead of the workspace root
 		const extensionFactory: ExtensionFactory = (pi: ExtensionAPI) => {
 			pi.registerCommand("mock-command", {
@@ -52,8 +52,8 @@ describe("extension loader", () => {
 			"packages",
 			"coding-agent",
 			"node_modules",
-			"@earendil-works",
-			"pi-tui",
+			"@steve-8000",
+			"amaze-tui",
 			"dist",
 			"index.js",
 		);
@@ -76,6 +76,6 @@ describe("extension loader", () => {
 		// then aliased upstream TUI imports resolve to the bundled copy whose
 		// transitive deps are installed beside the coding-agent package
 		expect(result.errors).toHaveLength(0);
-		expect(capturedOptions?.alias?.["@earendil-works/pi-tui"]).toContain(bundledTuiEntry);
+		expect(capturedOptions?.alias?.["@steve-8000/amaze-tui"]).toContain(bundledTuiEntry);
 	});
 });

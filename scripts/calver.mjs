@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * CalVer (Calendar Versioning) computation for the senpi monorepo.
+ * CalVer (Calendar Versioning) computation for the amaze monorepo.
  *
  * Version format: `YYYY.M.D` for the first release of the day, then
  * `YYYY.M.D-N` (N >= 2) for each subsequent same-day re-release.
@@ -33,11 +33,11 @@
 import { execFileSync } from "node:child_process";
 
 const DEFAULT_PACKAGES = [
-	"@code-yeongyu/senpi",
-	"@earendil-works/pi-ai",
-	"@earendil-works/pi-agent-core",
-	"@earendil-works/pi-tui",
-	"@earendil-works/pi-web-ui",
+	"amaze",
+	"@steve-8000/amaze-ai",
+	"@steve-8000/amaze-agent-core",
+	"@steve-8000/amaze-tui",
+	"@steve-8000/amaze-web-ui",
 ];
 
 const REGISTRY_TIMEOUT_MS = 30000;
@@ -55,7 +55,7 @@ function computeToday(now = new Date()) {
 /**
  * Fetch published versions for a single npm package, tolerating any failure.
  *
- * @param {string} pkg npm package name (e.g. `"@code-yeongyu/senpi"`).
+ * @param {string} pkg npm package name (e.g. `"amaze"`).
  * @returns {string[]} Array of versions, or `[]` on any failure.
  */
 function fetchRegistryVersions(pkg) {
@@ -188,7 +188,7 @@ function printHelp() {
 	const text = [
 		"Usage: node scripts/calver.mjs [--print | --json | --help]",
 		"",
-		"Computes the next CalVer version for the senpi monorepo.",
+		"Computes the next CalVer version for the amaze monorepo.",
 		"",
 		"Options:",
 		"  --print   Print next version to stdout (default).",

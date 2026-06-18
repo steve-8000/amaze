@@ -1,4 +1,4 @@
-import { Container } from "@earendil-works/pi-tui";
+import { Container } from "@steve-8000/amaze-tui";
 import type { Theme } from "../../../../../modes/interactive/theme/theme.ts";
 import type { LoadedRule, RuleDiagnostic } from "../rules/types.ts";
 import { DynamicBorder } from "./dynamic-border.ts";

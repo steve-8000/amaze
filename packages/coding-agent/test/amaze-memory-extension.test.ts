@@ -8,6 +8,7 @@ import type { MemoryRecallResult, MemoryStoreResult } from "../src/core/extensio
 import type { ExtensionAPI, MessageRenderer, ToolDefinition } from "../src/core/extensions/types.ts";
 import { stripAnsi } from "../src/utils/ansi.ts";
 import { initTheme, theme } from "../src/modes/interactive/theme/theme.ts";
+import { renderPathMemoryPacket } from "../../../vendor/amaze-subagents/src/harness/path-memory.ts";
 
 function renderText(component: { render(width: number): string[] }): string {
 	return stripAnsi(component.render(120).join("\n"));
@@ -197,17 +198,16 @@ port = 8700
 			if (pathname === "/health") {
 				return { ok: true, async json() { return { ok: true }; } };
 			}
-			if (pathname === "/v1/memory/recall") {
-				expect(JSON.parse(String(init?.body)).query).toBe(durableText);
+			if (pathname === "/v1/mcp") {
+				const body = JSON.parse(String(init?.body));
+				expect(body.params.name).toBe("xenonite_memory_recall");
+				expect(body.params.arguments.query).toBe(durableText);
 				return {
 					ok: true,
 					async json() {
-						return { items: [{ text: durableText, source: "semantic", score: 1 }], context: "" };
+						return { result: { content: [{ type: "text", text: JSON.stringify({ items: [{ text: durableText, source: "semantic", score: 1 }], context: "" }) }] } };
 					},
 				};
-			}
-			if (pathname === "/v1/memory/store") {
-				throw new Error("duplicate memory should not be stored");
 			}
 			throw new Error(`unexpected request: ${pathname}`);
 		});
@@ -237,7 +237,7 @@ port = 8700
 		expect(textPart?.text).toContain("Already remembered");
 		expect(fetchMock.mock.calls.map((call) => new URL(String(call[0])).pathname)).toEqual([
 			"/health",
-			"/v1/memory/recall",
+			"/v1/mcp",
 		]);
 	});
 
@@ -266,12 +266,13 @@ port = 8700
 			if (pathname === "/health") {
 				return { ok: true, async json() { return { ok: true }; } };
 			}
-			payloads.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
-			if (pathname === "/v1/memory/recall") {
-				return { ok: true, async json() { return { items: [], context: "" }; } };
+			const body = JSON.parse(String(init?.body)) as { params?: { name?: string; arguments?: Record<string, unknown> } };
+			payloads.push(body.params?.arguments ?? {});
+			if (pathname === "/v1/mcp" && body.params?.name === "xenonite_memory_recall") {
+				return { ok: true, async json() { return { result: { content: [{ type: "text", text: JSON.stringify({ items: [], context: "" }) }] } }; } };
 			}
-			if (pathname === "/v1/memory/store") {
-				return { ok: true, async json() { return { added: 1, skipped: [] }; } };
+			if (pathname === "/v1/mcp" && body.params?.name === "xenonite_memory_store") {
+				return { ok: true, async json() { return { result: { content: [{ type: "text", text: JSON.stringify({ added: 1, skipped: [] }) }] } }; } };
 			}
 			throw new Error(`unexpected request: ${pathname}`);
 		});
@@ -307,6 +308,79 @@ port = 8700
 		}
 	});
 
+	test("subagent-rendered memoryPacket flows into Xenonite MCP arguments", async () => {
+		const tools: ToolDefinition[] = [];
+		const durableText = "Runtime contracts prefer path-scoped memory namespaces.";
+		const packet = renderPathMemoryPacket(
+			{
+				packet_id: "runtime-worker-src-runtime",
+				contract_id: "memory-worker-src-runtime",
+				memory_scope: {
+					type: "path",
+					path_id: "folder.packages_coding_agent.src.runtime",
+					agent_id: "worker",
+					memory_path: ".harness/memory/paths/packages/coding-agent/src/runtime",
+					xenonite_namespace: "path:packages/coding-agent/src/runtime",
+				},
+				memory_attachments: [],
+				apply_updates_after_validation_pass: true,
+			},
+			configDir,
+		);
+		const packetPath = join(configDir, "rendered-path-memory.md");
+		writeFileSync(packetPath, packet.markdown);
+		process.env.PI_SUBAGENT_PATH_MEMORY_PACKET = packetPath;
+
+		const payloads: Record<string, unknown>[] = [];
+		const fetchMock = vi.fn(async (url: string | URL, init?: RequestInit) => {
+			const pathname = new URL(String(url)).pathname;
+			if (pathname === "/health") {
+				return { ok: true, async json() { return { ok: true }; } };
+			}
+			const body = JSON.parse(String(init?.body)) as { params?: { name?: string; arguments?: Record<string, unknown> } };
+			payloads.push(body.params?.arguments ?? {});
+			if (pathname === "/v1/mcp" && body.params?.name === "xenonite_memory_recall") {
+				return { ok: true, async json() { return { result: { content: [{ type: "text", text: JSON.stringify({ items: [], context: "" }) }] } }; } };
+			}
+			if (pathname === "/v1/mcp" && body.params?.name === "xenonite_memory_store") {
+				return { ok: true, async json() { return { result: { content: [{ type: "text", text: JSON.stringify({ added: 1, items: [{ text: durableText }], skipped: [] }) }] } }; } };
+			}
+			throw new Error(`unexpected request: ${pathname}`);
+		});
+		vi.stubGlobal("fetch", fetchMock);
+		const pi = {
+			registerTool(tool: ToolDefinition) {
+				tools.push(tool);
+			},
+			registerMessageRenderer: vi.fn(),
+			on: vi.fn(),
+			sendMessage: vi.fn(),
+			appendEntry: vi.fn(),
+		} as unknown as ExtensionAPI;
+
+		amazeMemoryExtension(pi);
+
+		const store = tools.find((tool) => tool.name === "mem_store");
+		await store?.execute(
+			"store-1",
+			{ text: durableText, source: "verified_durable_fact" },
+			undefined,
+			undefined,
+			{ sessionManager: { getSessionId: () => "session-1" } } as any,
+		);
+
+		expect(payloads).toHaveLength(2);
+		for (const payload of payloads) {
+			expect(payload).toMatchObject({
+				session_id: "path:packages/coding-agent/src/runtime",
+				namespace: "path:packages/coding-agent/src/runtime",
+				memory_scope: "path",
+				path_id: "folder.packages_coding_agent.src.runtime",
+				memory_path: ".harness/memory/paths/packages/coding-agent/src/runtime",
+			});
+		}
+	});
+
 	test("mem_store skips near-duplicate durable facts before writing", async () => {
 		const tools: ToolDefinition[] = [];
 		const newText = "User prefers manual intervention for context length exceeded failures.";
@@ -316,16 +390,13 @@ port = 8700
 			if (pathname === "/health") {
 				return { ok: true, async json() { return { ok: true }; } };
 			}
-			if (pathname === "/v1/memory/recall") {
+			if (pathname === "/v1/mcp") {
 				return {
 					ok: true,
 					async json() {
-						return { items: [{ text: existingText, source: "semantic", score: 0.84 }], context: "" };
+						return { result: { content: [{ type: "text", text: JSON.stringify({ items: [{ text: existingText, source: "semantic", score: 0.84 }], context: "" }) }] } };
 					},
 				};
-			}
-			if (pathname === "/v1/memory/store") {
-				throw new Error("near-duplicate memory should not be stored");
 			}
 			throw new Error(`unexpected request: ${pathname}`);
 		});
@@ -355,7 +426,7 @@ port = 8700
 		expect(textPart?.text).toContain("Already remembered");
 		expect(fetchMock.mock.calls.map((call) => new URL(String(call[0])).pathname)).toEqual([
 			"/health",
-			"/v1/memory/recall",
+			"/v1/mcp",
 		]);
 	});
 

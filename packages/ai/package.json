@@ -1,5 +1,5 @@
 {
-	"name": "@earendil-works/pi-ai",
+	"name": "@steve-8000/amaze-ai",
 	"private": true,
 	"version": "2026.6.16-2",
 	"description": "Unified LLM API with automatic model discovery and provider configuration",
@@ -53,7 +53,7 @@
 		}
 	},
 	"bin": {
-		"pi-ai": "./dist/cli.js"
+		"amaze-ai": "./dist/cli.js"
 	},
 	"files": [
 		"dist",
@@ -99,7 +99,7 @@
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/earendil-works/pi.git",
+		"url": "git+https://github.com/steve-8000/amaze.git",
 		"directory": "packages/ai"
 	},
 	"engines": {

@@ -1,9 +1,11 @@
 import { fileURLToPath } from "node:url";
-import { fauxAssistantMessage, fauxToolCall } from "@earendil-works/pi-ai";
+import { fauxAssistantMessage, fauxToolCall } from "@steve-8000/amaze-ai";
 import { afterEach, describe, expect, it } from "vitest";
 import { discoverAndLoadExtensions } from "../../src/core/extensions/loader.ts";
 import type { ExtensionAPI, ToolDefinition } from "../../src/core/extensions/types.ts";
 import { SessionManager } from "../../src/core/session-manager.ts";
+import { initTheme, theme } from "../../src/modes/interactive/theme/theme.ts";
+import { stripAnsi } from "../../src/utils/ansi.ts";
 import { assistantMsg, createTestResourceLoader, userMsg } from "../utilities.ts";
 import { createHarness, getAssistantTexts, type Harness } from "./harness.ts";
 
@@ -122,6 +124,36 @@ describe("todowrite extension", () => {
 				text: JSON.stringify(secondTodos, null, 2),
 			},
 		]);
+	});
+
+	it("renders completed todowrite as a single success summary line", async () => {
+		// given
+		initTheme("dark");
+		const tool = await captureTodoWriteToolDefinition();
+		const todos = [
+			{ content: "Done 1", status: "completed", priority: "high" },
+			{ content: "Done 2", status: "completed", priority: "medium" },
+			{ content: "Done 3", status: "completed", priority: "medium" },
+			{ content: "Done 4", status: "completed", priority: "low" },
+			{ content: "Remaining", status: "pending", priority: "high" },
+		];
+
+		// when
+		const callLines = tool.renderCall?.({ todos }, theme, { hasResult: true } as any).render(120) ?? [];
+		const resultLines =
+			tool
+				.renderResult?.(
+					{ content: [{ type: "text", text: JSON.stringify(todos, null, 2) }], details: { todos } },
+					{ expanded: false, isPartial: false },
+					theme,
+					{} as any,
+				)
+				.render(120) ?? [];
+
+		// then
+		expect(callLines).toEqual([]);
+		expect(resultLines).toHaveLength(1);
+		expect(stripAnsi(resultLines[0]!).trim()).toBe("✔ todowrite 5 todos · 4 done · 1 left");
 	});
 
 	it("rejects replacing the todo list with an empty array", async () => {

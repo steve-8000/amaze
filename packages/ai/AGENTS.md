@@ -1,6 +1,6 @@
 # packages/ai
 
-`@earendil-works/pi-ai` — unified streaming + tool-calling API across 15+ LLM providers. Browser-safe (subset). Used by every other package in the monorepo.
+`@steve-8000/amaze-ai` — unified streaming + tool-calling API across 15+ LLM providers. Browser-safe (subset). Used by every other package in the monorepo.
 
 ## STRUCTURE
 

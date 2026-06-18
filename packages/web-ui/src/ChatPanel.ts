@@ -2,7 +2,7 @@ import { Badge } from "@mariozechner/mini-lit/dist/Badge.js";
 import { html, LitElement } from "lit";
 import { customElement, state } from "lit/decorators.js";
 import "./components/AgentInterface.ts";
-import type { Agent, AgentTool } from "@earendil-works/pi-agent-core";
+import type { Agent, AgentTool } from "@steve-8000/amaze-agent-core";
 import type { AgentInterface } from "./components/AgentInterface.ts";
 import { ArtifactsRuntimeProvider } from "./components/sandbox/ArtifactsRuntimeProvider.ts";
 import { AttachmentsRuntimeProvider } from "./components/sandbox/AttachmentsRuntimeProvider.ts";

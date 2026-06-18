@@ -1,4 +1,4 @@
-import type { ToolResultMessage } from "@earendil-works/pi-ai";
+import type { ToolResultMessage } from "@steve-8000/amaze-ai";
 import { html } from "lit";
 import { Code } from "lucide";
 import { i18n } from "../../utils/i18n.ts";

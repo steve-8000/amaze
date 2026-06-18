@@ -1,4 +1,4 @@
-import type { ToolResultMessage } from "@earendil-works/pi-ai";
+import type { ToolResultMessage } from "@steve-8000/amaze-ai";
 import type { TemplateResult } from "lit";
 
 export interface ToolRenderResult {
