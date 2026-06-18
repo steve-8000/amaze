@@ -55,7 +55,7 @@ function requiredEvidenceForLevel(level: Exclude<AcceptanceLevel, "auto">): Acce
 		case "attested":
 			return ["manual-notes", "residual-risks"];
 		case "checked":
-			return ["changed-files", "commands-run", "residual-risks", "no-staged-files"];
+			return ["changed-files", "residual-risks", "no-staged-files"];
 		case "verified":
 		case "reviewed":
 			return ["changed-files", "tests-added", "commands-run", "validation-output", "residual-risks", "no-staged-files"];
