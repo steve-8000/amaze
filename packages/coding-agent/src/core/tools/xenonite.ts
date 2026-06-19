@@ -268,6 +268,17 @@ async function callXenoniteTool(config: XenoniteCoreConfig, spec: XenoniteToolSp
 	return stringifyApiResult(data);
 }
 
+function isCompletedCodeStatus(value: unknown): boolean {
+	return Boolean(
+		value &&
+			typeof value === "object" &&
+			"ok" in value &&
+			(value as { ok?: unknown }).ok === true &&
+			"status" in value &&
+			(value as { status?: unknown }).status === "completed",
+	);
+}
+
 export async function autoPrepareXenoniteCore(cwd: string): Promise<void> {
 	const config = loadAmazeConfig();
 	if (!config.services.xenonite.enabled || !config.tools.search.enabled || !config.services.xenonite.autoIndex) return;
@@ -279,7 +290,10 @@ export async function autoPrepareXenoniteCore(cwd: string): Promise<void> {
 		return;
 	}
 	const preparedProjectPath = toXenonitePath(undefined, cwd, xenonite.hostPrefix);
-	await post(xenonite.baseUrl, "/v1/code/index", { projectPath: preparedProjectPath });
+	const status = await post(xenonite.baseUrl, "/v1/code/status", { projectPath: preparedProjectPath }).catch(() => undefined);
+	if (!isCompletedCodeStatus(status)) {
+		await post(xenonite.baseUrl, "/v1/code/index", { projectPath: preparedProjectPath });
+	}
 	if (config.services.xenonite.autoWatch) {
 		await post(xenonite.baseUrl, "/v1/code/watch", { projectPath: preparedProjectPath, action: "start" }).catch(() => undefined);
 	}

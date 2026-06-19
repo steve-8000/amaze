@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ExtensionContext } from "../src/core/extensions/types.ts";
-import { createAllToolDefinitions } from "../src/core/tools/index.ts";
+import { autoPrepareXenoniteCore, createAllToolDefinitions } from "../src/core/tools/index.ts";
 
 function writeConfig(configPath: string, xenoniteConfig = "enabled = true\nport = 18745\nauto_index = false"): void {
 	writeFileSync(
@@ -109,6 +109,34 @@ describe("Xenonite core tools", () => {
 		await tools.index_health.execute("call-2", {}, undefined, undefined, context);
 
 		expect(body).toEqual({ op: "codebase_health", args: {} });
+	});
+
+	it("auto-prepare skips full indexing when the project index is already completed", async () => {
+		writeConfig(configPath, "enabled = true\nport = 18745\nauto_index = true\nauto_watch = false");
+		const calls: Array<{ url: string; body?: Record<string, unknown> }> = [];
+		globalThis.fetch = vi.fn(async (url, init) => {
+			const body = init?.body ? JSON.parse(String(init.body)) as Record<string, unknown> : undefined;
+			calls.push({ url: String(url), body });
+			return {
+				ok: true,
+				async json() {
+					if (String(url).endsWith("/v1/code/status")) {
+						return { ok: true, status: "completed", indexedFiles: 10 };
+					}
+					return { ok: true };
+				},
+				async text() {
+					return "";
+				},
+			} as Response;
+		});
+
+		await autoPrepareXenoniteCore("/tmp/project");
+
+		expect(calls).toEqual([
+			{ url: "http://127.0.0.1:18745/health" },
+			{ url: "http://127.0.0.1:18745/v1/code/status", body: { projectPath: "/host/tmp/project" } },
+		]);
 	});
 
 	it("registers memory tools from core and calls Xenonite memory endpoints directly", async () => {
