@@ -67,6 +67,13 @@ export {
 	type WriteToolInput,
 	type WriteToolOptions,
 } from "./write.ts";
+export {
+	autoPrepareXenoniteCore,
+	createXenoniteToolDefinitions,
+	isXenoniteCoreEnabled,
+	xenoniteToolNames,
+	type XenoniteToolName,
+} from "./xenonite.ts";
 
 import type { AgentTool } from "@steve-8000/amaze-agent-core";
 import type { ToolDefinition } from "../extensions/types.ts";
@@ -77,10 +84,11 @@ import { createGrepTool, createGrepToolDefinition, type GrepToolOptions } from "
 import { createLsTool, createLsToolDefinition, type LsToolOptions } from "./ls.ts";
 import { createReadTool, createReadToolDefinition, type ReadToolOptions } from "./read.ts";
 import { createWriteTool, createWriteToolDefinition, type WriteToolOptions } from "./write.ts";
+import { createXenoniteToolDefinitions, isXenoniteCoreEnabled, type XenoniteToolName } from "./xenonite.ts";
 
 export type Tool = AgentTool<any>;
 export type ToolDef = ToolDefinition<any, any>;
-export type ToolName = "read" | "bash" | "edit" | "write" | "grep" | "find" | "ls";
+export type ToolName = "read" | "bash" | "edit" | "write" | "grep" | "find" | "ls" | XenoniteToolName;
 export const allToolNames: Set<ToolName> = new Set(["read", "bash", "edit", "write", "grep", "find", "ls"]);
 
 export interface ToolsOptions {
@@ -94,7 +102,7 @@ export interface ToolsOptions {
 }
 
 export function createAllToolDefinitions(cwd: string, options?: ToolsOptions): Record<ToolName, ToolDef> {
-	return {
+	const definitions: Record<ToolName, ToolDef> = {
 		read: createReadToolDefinition(cwd, options?.read),
 		bash: createBashToolDefinition(cwd, options?.bash),
 		edit: createEditToolDefinition(cwd, options?.edit),
@@ -103,6 +111,10 @@ export function createAllToolDefinitions(cwd: string, options?: ToolsOptions): R
 		find: createFindToolDefinition(cwd, options?.find),
 		ls: createLsToolDefinition(cwd, options?.ls),
 	};
+	if (isXenoniteCoreEnabled()) {
+		Object.assign(definitions, createXenoniteToolDefinitions(cwd));
+	}
+	return definitions;
 }
 
 export function createCodingTools(cwd: string, options?: ToolsOptions): Tool[] {

@@ -8,7 +8,8 @@ describe("CLI MCP entrypoint contract", () => {
 		expect(contract).toMatchObject({ kind: "xenonite-migration", exitCode: 2 });
 		if (contract.kind !== "xenonite-migration") throw new Error("expected Xenonite migration contract");
 		expect(contract.messages.join("\n")).toContain("amaze mcp has moved to Xenonite");
-		expect(contract.messages.join("\n")).toContain("XENONITE_MCP_TOOL_MODE=full npm start");
+		expect(contract.messages.join("\n")).toContain("core-direct");
+		expect(contract.messages.join("\n")).toContain("services.xenonite.url");
 		expect(contract.messages.join("\n")).toContain("amaze mcp-dev");
 	});
 

@@ -1,7 +1,5 @@
 import type { ExtensionFactory } from "../types.ts";
-import amazeMemoryExtension from "./amaze-memory/index.ts";
 import amazeSandboxExtension from "./amaze-sandbox/index.ts";
-import amazeSearchExtension from "./amaze-search/index.ts";
 import amazeToolsExtension from "./amaze-tools/index.ts";
 import anthropicBashExtension from "./anthropic-bash/index.ts";
 import anthropicWebSearchExtension from "./anthropic-web-search/index.ts";
@@ -62,7 +60,5 @@ export const builtinExtensions: BuiltinExtensionFactory[] = [
 	{ id: "rules", factory: piRulesExtension },
 	{ id: "goal", factory: goalExtension },
 	{ id: "amaze-tools", factory: amazeToolsExtension },
-	{ id: "amaze-search", factory: amazeSearchExtension },
-	{ id: "amaze-memory", factory: amazeMemoryExtension },
 	{ id: "amaze-sandbox", factory: amazeSandboxExtension },
 ];

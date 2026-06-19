@@ -50,6 +50,19 @@ export interface HarnessAcceptanceContract {
 	validation_commands: string[];
 }
 
+export interface ToolPolicy {
+	xenonite_first: true;
+	core_tools_available: true;
+	skills_available: true;
+	parent_tool_inheritance: false;
+}
+
+export interface CoordinationPolicy {
+	irc_required: true;
+	orchestrator_contact: "intercom";
+	goal_updates_allowed: true;
+}
+
 export type HarnessOutputRequired =
 	| "summary"
 	| "files_changed"
@@ -69,6 +82,8 @@ export interface HarnessExecutionContract {
 	write_denied_paths: string[];
 	activity_budget: ActivityBudget;
 	acceptance: HarnessAcceptanceContract;
+	tool_policy: ToolPolicy;
+	coordination: CoordinationPolicy;
 	output_required: HarnessOutputRequired[];
 }
 
@@ -104,6 +119,19 @@ const DEFAULT_ACTIVITY_BUDGET: ActivityBudget = {
 	max_tool_uses: 40,
 	max_tokens: 80_000,
 	max_elapsed_ms: 180_000,
+};
+
+const DEFAULT_TOOL_POLICY: ToolPolicy = {
+	xenonite_first: true,
+	core_tools_available: true,
+	skills_available: true,
+	parent_tool_inheritance: false,
+};
+
+const DEFAULT_COORDINATION_POLICY: CoordinationPolicy = {
+	irc_required: true,
+	orchestrator_contact: "intercom",
+	goal_updates_allowed: true,
 };
 
 function asObject(value: unknown): Record<string, unknown> | undefined {
@@ -179,6 +207,25 @@ function parseAcceptance(value: unknown): HarnessAcceptanceContract {
 	};
 }
 
+function parseToolPolicy(value: unknown): ToolPolicy {
+	const object = asObject(value);
+	return {
+		xenonite_first: object?.xenonite_first === false ? true : DEFAULT_TOOL_POLICY.xenonite_first,
+		core_tools_available: object?.core_tools_available === false ? true : DEFAULT_TOOL_POLICY.core_tools_available,
+		skills_available: object?.skills_available === false ? true : DEFAULT_TOOL_POLICY.skills_available,
+		parent_tool_inheritance: false,
+	};
+}
+
+function parseCoordinationPolicy(value: unknown): CoordinationPolicy {
+	const object = asObject(value);
+	return {
+		irc_required: object?.irc_required === false ? true : DEFAULT_COORDINATION_POLICY.irc_required,
+		orchestrator_contact: "intercom",
+		goal_updates_allowed: object?.goal_updates_allowed === false ? true : DEFAULT_COORDINATION_POLICY.goal_updates_allowed,
+	};
+}
+
 function parseOutputRequired(value: unknown): HarnessOutputRequired[] {
 	const values = asStringArray(value).filter((item): item is HarnessOutputRequired =>
 		(DEFAULT_OUTPUT_REQUIRED as string[]).includes(item)
@@ -211,6 +258,8 @@ function parseExecutionContract(value: unknown, fallbackContractId: string | und
 		write_denied_paths: asStringArray(object.write_denied_paths),
 		activity_budget: parseActivityBudget(object.activity_budget),
 		acceptance: parseAcceptance(object.acceptance),
+		tool_policy: parseToolPolicy(object.tool_policy),
+		coordination: parseCoordinationPolicy(object.coordination),
 		output_required: parseOutputRequired(object.output_required),
 	};
 }

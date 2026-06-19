@@ -155,6 +155,19 @@ describe("buildPiArgs session wiring", () => {
 		assert.ok(args.includes("/tmp/subagent-sessions"));
 		assert.ok(!args.includes("--session"));
 	});
+
+	it("disables AGENTS.md discovery when project context inheritance is disabled", () => {
+		const { args, env } = buildPiArgs({
+			baseArgs: ["-p"],
+			task: "hello",
+			sessionEnabled: false,
+			inheritProjectContext: false,
+			inheritSkills: true,
+		});
+
+		assert.ok(args.includes("--no-context-files"));
+		assert.equal(env.PI_SUBAGENT_INHERIT_PROJECT_CONTEXT, "0");
+	});
 });
 
 describe("buildPiArgs model wiring", () => {

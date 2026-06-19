@@ -23,7 +23,16 @@ export interface AmazeConfig {
 		compression: { enabled: boolean; engine: "amaze" | "flue" } & Record<string, unknown>;
 	};
 	services: {
-		xenonite: { enabled: boolean; port: number; autoStart: boolean; autoIndex: boolean; autoWatch: boolean } & Record<string, unknown>;
+		xenonite: {
+			enabled: boolean;
+			port: number;
+			url: string;
+			hostPrefix: string;
+			autoStart: boolean;
+			autoIndex: boolean;
+			autoWatch: boolean;
+			require: boolean;
+		} & Record<string, unknown>;
 	};
 	raw: Record<string, unknown>;
 }
@@ -41,7 +50,18 @@ const DEFAULTS: AmazeConfig = {
 	channels: { enabled: false },
 	sandbox: { enabled: false },
 	session: { compression: { enabled: true, engine: "amaze" } },
-	services: { xenonite: { enabled: false, port: 8700, autoStart: false, autoIndex: true, autoWatch: true } },
+	services: {
+		xenonite: {
+			enabled: true,
+			port: 8700,
+			url: "http://127.0.0.1:8700",
+			hostPrefix: "/host",
+			autoStart: false,
+			autoIndex: true,
+			autoWatch: true,
+			require: false,
+		},
+	},
 	raw: {},
 };
 
@@ -115,8 +135,14 @@ export function loadAmazeConfig(explicitPath?: string): AmazeConfig {
 		services: {
 			xenonite: {
 				...xenonite,
-				enabled: Boolean(xenonite.enabled),
+				enabled: xenonite.enabled === undefined ? DEFAULTS.services.xenonite.enabled : Boolean(xenonite.enabled),
 				port: typeof xenonite.port === "number" ? xenonite.port : DEFAULTS.services.xenonite.port,
+				url: typeof xenonite.url === "string" ? xenonite.url : `http://127.0.0.1:${typeof xenonite.port === "number" ? xenonite.port : DEFAULTS.services.xenonite.port}`,
+				hostPrefix: typeof xenonite.host_prefix === "string"
+					? xenonite.host_prefix
+					: typeof xenonite.hostPrefix === "string"
+						? xenonite.hostPrefix
+						: DEFAULTS.services.xenonite.hostPrefix,
 				autoStart: Boolean(xenonite.auto_start ?? xenonite.autoStart),
 				autoIndex: xenonite.auto_index === undefined && xenonite.autoIndex === undefined
 					? DEFAULTS.services.xenonite.autoIndex
@@ -124,6 +150,7 @@ export function loadAmazeConfig(explicitPath?: string): AmazeConfig {
 				autoWatch: xenonite.auto_watch === undefined && xenonite.autoWatch === undefined
 					? DEFAULTS.services.xenonite.autoWatch
 					: Boolean(xenonite.auto_watch ?? xenonite.autoWatch),
+				require: Boolean(xenonite.require ?? xenonite.required),
 			},
 		},
 		raw,

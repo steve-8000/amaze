@@ -1,6 +1,6 @@
 export const MCP_MIGRATION_MESSAGES = [
 	"amaze mcp has moved to Xenonite. Use: cd ~/rocky/xenonite && npm run mcp",
-	"For amaze memory/search tools over HTTP MCP, use: cd ~/rocky/xenonite && XENONITE_MCP_TOOL_MODE=full npm start",
+	"amaze memory/search/code tools are core-direct and use services.xenonite.url from amaze.toml.",
 	"For the experimental amaze-local adapter, use: amaze mcp-dev",
 ] as const;
 

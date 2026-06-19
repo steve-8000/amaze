@@ -5,6 +5,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { describe, it } from "node:test";
 import { createSubagentExecutor } from "../../src/runs/foreground/subagent-executor.ts";
+import { validateHarnessValidatorContract } from "../../src/harness/validator-contract.ts";
 
 function createState() {
 	return {
@@ -173,6 +174,138 @@ describe("harness actions", () => {
 		assert.equal(parsed.route.baseRuntime, "micro-direct");
 		assert.equal(parsed.route.validatorPack, "basic-diff");
 		assert.equal(parsed.policy.runtime, "micro-direct");
+	});
+
+	it("compiles profiled orchestration into FreshBootContract-only child invocations", async () => {
+		const result = await createExecutor().execute("run-1", {
+			action: "orchestrate",
+			id: "mission-runtime",
+			task: "Fix the subagent runtime so profile orchestration creates worker and reviewer contracts",
+		}, new AbortController().signal, undefined, ctx());
+
+		assert.equal(result.isError, undefined);
+		const parsed = JSON.parse(text(result)) as {
+			missionId: string;
+			policy: { agentPolicy: { agentType: string } };
+			executionPlan: {
+				mode: string;
+				childExecution: string;
+				contextBoundary: {
+					freshBootOnly: boolean;
+					parentContextDisabled: boolean;
+					contextFilesDisabled: boolean;
+					skillsDisabled: boolean;
+				};
+				steps: Array<{
+					role: string;
+					action: string;
+					bootContract: {
+						boot_mode: string;
+						parent_context: {
+							inherit_conversation: boolean;
+							inherit_system_prompt: boolean;
+							inherit_tools: boolean;
+							inherit_skills: boolean;
+						};
+						execution_contract: {
+							assigned_specialist: string;
+							assigned_path: string;
+							output_required: string[];
+							tool_policy: {
+								xenonite_first: boolean;
+								core_tools_available: boolean;
+								skills_available: boolean;
+								parent_tool_inheritance: boolean;
+							};
+							coordination: {
+								irc_required: boolean;
+								orchestrator_contact: string;
+								goal_updates_allowed: boolean;
+							};
+						};
+					};
+				}>;
+			};
+		};
+		assert.equal(parsed.missionId, "mission-runtime");
+		assert.equal(parsed.executionPlan.mode, "profiled_orchestration");
+		assert.equal(parsed.executionPlan.childExecution, "harness_run_contract_only");
+		assert.deepEqual(parsed.executionPlan.contextBoundary, {
+			freshBootOnly: true,
+			parentContextDisabled: true,
+			contextFilesDisabled: true,
+			skillsDisabled: false,
+		});
+		assert.deepEqual(parsed.executionPlan.steps.map((step) => step.role), ["scout", "planner", "worker", "reviewer"]);
+		for (const step of parsed.executionPlan.steps) {
+			assert.equal(step.action, "harness_run_contract");
+			assert.equal(step.bootContract.boot_mode, "fresh");
+			assert.equal(validateHarnessValidatorContract(step.bootContract as any).status, "valid");
+			assert.deepEqual(step.bootContract.parent_context, {
+				inherit_conversation: false,
+				inherit_system_prompt: false,
+				inherit_tools: false,
+				inherit_skills: false,
+			});
+			assert.ok(step.bootContract.execution_contract.assigned_specialist);
+			assert.ok(step.bootContract.execution_contract.assigned_path);
+			assert.deepEqual(step.bootContract.execution_contract.tool_policy, {
+				xenonite_first: true,
+				core_tools_available: true,
+				skills_available: true,
+				parent_tool_inheritance: false,
+			});
+			assert.deepEqual(step.bootContract.execution_contract.coordination, {
+				irc_required: true,
+				orchestrator_contact: "intercom",
+				goal_updates_allowed: true,
+			});
+			assert.ok(step.bootContract.execution_contract.output_required.includes("memory_updates"));
+		}
+	});
+
+	it("fans out workers by mentioned folder paths", async () => {
+		const result = await createExecutor().execute("run-1", {
+			action: "orchestrate",
+			id: "mission-folders",
+			task: "Update packages/coding-agent/src/core and vendor/amaze-subagents/src/runs for orchestration",
+		}, new AbortController().signal, undefined, ctx());
+
+		assert.equal(result.isError, undefined);
+		const parsed = JSON.parse(text(result)) as {
+			executionPlan: {
+				steps: Array<{
+					role: string;
+					bootContract: { execution_contract: { assigned_path: string } };
+				}>;
+			};
+		};
+		const workerPaths = parsed.executionPlan.steps
+			.filter((step) => step.role === "worker")
+			.map((step) => step.bootContract.execution_contract.assigned_path);
+		assert.deepEqual(workerPaths, ["packages/coding-agent/src/core", "vendor/amaze-subagents/src/runs"]);
+	});
+
+	it("defaults task-only subagent calls to profiled orchestration", async () => {
+		const result = await createExecutor().execute("run-1", {
+			id: "mission-default",
+			task: "Fix the subagent runtime so profile orchestration is the default path",
+		}, new AbortController().signal, undefined, ctx());
+
+		assert.equal(result.isError, undefined);
+		const parsed = JSON.parse(text(result)) as {
+			missionId: string;
+			executionPlan: {
+				mode: string;
+				childExecution: string;
+				steps: Array<{ role: string; action: string }>;
+			};
+		};
+		assert.equal(parsed.missionId, "mission-default");
+		assert.equal(parsed.executionPlan.mode, "profiled_orchestration");
+		assert.equal(parsed.executionPlan.childExecution, "harness_run_contract_only");
+		assert.deepEqual(parsed.executionPlan.steps.map((step) => step.role), ["scout", "planner", "worker", "reviewer"]);
+		assert.deepEqual([...new Set(parsed.executionPlan.steps.map((step) => step.action))], ["harness_run_contract"]);
 	});
 
 	it("starts mission profiles and persists mission state", async () => {

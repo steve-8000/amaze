@@ -15,12 +15,24 @@ amaze is the main repository for the local agent system. It works with two compa
 | Product | Repository | Role |
 |---|---|---|
 | **amaze** | <https://github.com/steve-8000/amaze> | CLI agent. Provides file, shell, code, language-server, subagent, sandbox, channel, and verification tools. |
-| **Xenonite** | <https://github.com/steve-8000/xenonite> | MCP-first project intelligence core. Owns durable memory, semantic code search, code graphs, and context bundles. |
+| **Xenonite** | <https://github.com/steve-8000/xenonite> | Always-on Docker/API project intelligence core. Owns durable memory, semantic code search, code graphs, realtime watchers, and context bundles. |
 | **rocky** | <https://github.com/steve-8000/rocky> | OpenAI-compatible local model server for chat and embeddings. |
 
 ```
-amaze (CLI) ──MCP/HTTP JSON-RPC──▶ Xenonite (memory + code intelligence) ──HTTP──▶ rocky (LLM + embeddings)
+amaze (CLI) ──HTTP API──▶ Xenonite Docker server (memory + code intelligence) ──HTTP──▶ rocky (LLM + embeddings)
 ```
+
+## Runtime workflow
+
+The intended end-to-end flow is:
+
+1. **Goal / user turn** — `/goal`, `create_goal`, or an ordinary user request enters the amaze CLI. Active goals are resumed by hidden continuation prompts that require a completion audit before `update_goal(status="complete")`.
+2. **Orchestrator** — multi-step `agent_run` work defaults to profiled orchestration. The orchestrator classifies the request, compiles an execution policy, and emits `harness_run_contract` FreshBoot child contracts.
+3. **FreshBoot child execution** — child agents boot fresh with parent conversation, parent system prompt, parent tools, and project context inheritance disabled. Child-local core tools, skills, and Xenonite remain available through the child's own runtime.
+4. **Path contracts and memory** — workers operate inside explicit read/write path boundaries. Path memory attachments use stable path ids and Xenonite namespaces; memory updates are read-only during execution and committed only after validation.
+5. **Xenonite intelligence** — `index_*`, `search_query`, `graph_*`, `ctx_*`, `mem_*`, and `mem_optimize` call Xenonite's HTTP API directly from amaze core tools.
+6. **rocky model services** — Xenonite uses rocky's OpenAI-compatible LLM endpoint for memory optimization/classification and rocky's embedding endpoint for vector search.
+7. **Verification** — validators and the parent agent must verify changed files, tests, and user-visible behavior before reporting completion.
 
 ## Features
 
@@ -28,8 +40,10 @@ amaze (CLI) ──MCP/HTTP JSON-RPC──▶ Xenonite (memory + code intelligenc
 - **Code intelligence** — AST-aware structural search/rewrite, language-server diagnostics, jump-to-definition, and safe renames.
 - **Semantic search + graph** — index a codebase and search it by meaning; explore symbols, dependencies, and impact across files.
 - **Durable memory** — recall and store verified project facts and decisions through Xenonite.
+- **Scoped memory isolation** — global memory is for operator preferences/style only; project/repo facts and folder/path facts live in separate Xenonite scopes.
+- **Memory optimizer** — `mem_optimize` / `/v1/memory/optimize` dry-runs or applies sequential LLM-assisted dedupe, cleanup, and scope reclassification.
 - **Sandboxed execution** — run commands inside isolated local sandboxes.
-- **External MCP bridge** — expose memory, search, graph, and context tools to MCP clients through Xenonite.
+- **Xenonite API backend** — `index_*`, `search_query`, `graph_*`, `ctx_*`, `mem_*`, and `mem_optimize` are default amaze tools backed by Xenonite's always-on HTTP API.
 - **Single amaze config** — local feature toggles live in `amaze.toml`; model and subagent routing live in `~/.amaze/agent`.
 
 ## Exact local-system install guide
@@ -49,9 +63,12 @@ Use this section when handing setup to another agent. The commands reproduce the
 
 ```bash
 mkdir -p ~/rocky
-cd ~/rocky
+mkdir -p ~/llm
 
+cd ~/llm
 git clone https://github.com/steve-8000/rocky
+
+cd ~/rocky
 git clone https://github.com/steve-8000/xenonite
 git clone https://github.com/steve-8000/amaze
 ```
@@ -59,7 +76,7 @@ git clone https://github.com/steve-8000/amaze
 Expected layout:
 
 ```text
-~/rocky/rocky
+~/llm/rocky
 ~/rocky/xenonite
 ~/rocky/amaze
 ```
@@ -67,9 +84,10 @@ Expected layout:
 ### 2. Install and start rocky
 
 rocky provides the OpenAI-compatible local endpoints used by both amaze and Xenonite.
+rocky is a companion service, not vendored into this repository; if it is already running from another checkout or service manager, verify the endpoints below instead of starting a second instance.
 
 ```bash
-cd ~/rocky/rocky
+cd ~/llm/rocky
 uv sync
 
 # Terminal 1: LLM server, http://127.0.0.1:7777/v1
@@ -105,6 +123,8 @@ curl -s http://127.0.0.1:7777/health
 curl -s http://127.0.0.1:7778/health
 ```
 
+Runtime smoke checks used by the workflow are `/v1/chat/completions` on port `7777` and `/v1/embeddings` on port `7778`.
+
 ### 3. Install Xenonite
 
 ```bash
@@ -130,25 +150,18 @@ embed_key = "x"
 EOF
 ```
 
-Start the HTTP MCP compatibility service with full tools:
+Start the Docker API service:
 
 ```bash
 cd ~/rocky/xenonite
-XENONITE_MCP_TOOL_MODE=full npm run start
-```
-
-Optional stdio MCP bridge for external MCP clients:
-
-```bash
-cd ~/rocky/xenonite
-XENONITE_MCP_TOOL_MODE=standard npm run mcp
+docker compose up -d
 ```
 
 Xenonite health check:
 
 ```bash
 curl -s http://127.0.0.1:8700/health
-curl -s http://127.0.0.1:8700/v1/mcp/manifest
+curl -s http://127.0.0.1:8700/v1/config
 ```
 
 ### 4. Install amaze
@@ -210,7 +223,13 @@ enabled = true
 engine = "senpi"
 
 [services.xenonite]
+enabled = true
+url = "http://127.0.0.1:8700"
 port = 8700
+host_prefix = "/host"
+auto_index = true
+auto_watch = true
+require = false
 EOF
 ```
 
@@ -281,7 +300,9 @@ cat > ~/.amaze/agent/settings.json <<'EOF'
           "graph_impact",
           "graph_trace",
           "graph_symbol",
-          "graph_symbols"
+          "graph_symbols",
+          "mem_recall",
+          "mem_search"
         ]
       },
       "planner": {
@@ -303,7 +324,9 @@ cat > ~/.amaze/agent/settings.json <<'EOF'
           "graph_impact",
           "graph_trace",
           "graph_symbol",
-          "graph_symbols"
+          "graph_symbols",
+          "mem_recall",
+          "mem_search"
         ]
       },
       "context-builder": {
@@ -328,7 +351,9 @@ cat > ~/.amaze/agent/settings.json <<'EOF'
           "graph_trace",
           "graph_symbol",
           "graph_symbols",
-          "ctx_search"
+          "ctx_search",
+          "mem_recall",
+          "mem_search"
         ]
       },
       "worker": {
@@ -352,7 +377,9 @@ cat > ~/.amaze/agent/settings.json <<'EOF'
           "graph_impact",
           "graph_trace",
           "graph_symbol",
-          "graph_symbols"
+          "graph_symbols",
+          "mem_recall",
+          "mem_search"
         ]
       },
       "researcher": {
@@ -379,7 +406,9 @@ cat > ~/.amaze/agent/settings.json <<'EOF'
           "graph_impact",
           "graph_trace",
           "graph_symbol",
-          "graph_symbols"
+          "graph_symbols",
+          "mem_recall",
+          "mem_search"
         ]
       },
       "delegate": {
@@ -407,7 +436,9 @@ cat > ~/.amaze/agent/settings.json <<'EOF'
           "graph_impact",
           "graph_trace",
           "graph_symbol",
-          "graph_symbols"
+          "graph_symbols",
+          "mem_recall",
+          "mem_search"
         ]
       }
     }
@@ -447,37 +478,65 @@ Useful first checks inside amaze:
 ```text
 Use index_status to confirm Xenonite indexing is reachable.
 Use mem_recall with a harmless query to confirm durable memory is reachable.
+Use mem_optimize with dryRun=true, useLlm=false to confirm the memory optimizer endpoint is reachable without rewriting data.
 Use agent_run list to confirm subagents are loaded.
 ```
 
-## External MCP bridge
+## Xenonite API backend
 
-The primary ChatGPT Pro / MCP integration point is Xenonite, not the amaze CLI.
-
-```bash
-cd ~/rocky/xenonite
-XENONITE_MCP_TOOL_MODE=standard npm run mcp
-```
-
-Tool modes:
-
-- `minimal` — `xenonite_server_config`, `xenonite_health`
-- `standard` — read-only memory/code intelligence tools
-- `full` — state-mutating tools such as indexing and verified memory storage
-
-For amaze's built-in memory/search tools, run the HTTP MCP compatibility transport:
+amaze's built-in memory/search tools use the always-on Xenonite HTTP API directly. Users do not define these tools in `AGENTS.md`; they are registered by builtin extensions the same way `read` is registered by the runtime.
 
 ```bash
 cd ~/rocky/xenonite
-XENONITE_MCP_TOOL_MODE=full npm run start
+docker compose up -d
 ```
+
+Useful checks:
+
+```bash
+curl -s http://127.0.0.1:8700/health
+curl -s http://127.0.0.1:8700/v1/config
+```
+
+### Memory scope rules
+
+Durable memory is intentionally split by scope:
+
+| Scope | Use for | Storage intent |
+|---|---|---|
+| `global` / `common` / `operator` | Steve/operator preferences, reporting style, stable personal workflow preferences | Shared across projects |
+| `project` / `repo` | Repo-wide verified facts, architectural decisions, persistent project constraints | Isolated per project path |
+| `path` / `folder` | Folder/work-package decisions, known failures, contract summaries | Isolated per path namespace |
+
+Operational rules:
+
+- `mem_recall` and `mem_search` default to project scope from the current working directory.
+- Passing `path` or `pathId` selects path/folder scope.
+- `mem_store` only keeps `scope: "global"` when `source: "direct_user_request"`; verified project facts are forced back to project scope.
+- FreshBoot path memory uses stable path ids and Xenonite namespaces, and child memory updates are committed only after validation.
+
+### Memory optimizer
+
+Run a dry-run before applying memory cleanup:
+
+```text
+mem_optimize({ "dryRun": true, "maxFacts": 200, "batchSize": 8, "useLlm": true })
+```
+
+Apply only after reviewing the dry-run result:
+
+```text
+mem_optimize({ "apply": true, "maxFacts": 200, "batchSize": 8, "useLlm": true })
+```
+
+The optimizer processes batches sequentially through Xenonite's configured rocky LLM, deduplicates facts by topic, removes transient/test artifacts, and reclassifies facts into global/project/path scopes.
 
 ## Troubleshooting
 
 - If `mem_recall` says Xenonite is unreachable, start Xenonite:
   ```bash
   cd ~/rocky/xenonite
-  XENONITE_MCP_TOOL_MODE=full npm run start
+  docker compose up -d
   ```
 - If model calls fail, confirm rocky is listening:
   ```bash

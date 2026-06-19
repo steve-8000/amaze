@@ -404,6 +404,7 @@ EXECUTION (use exactly ONE mode):
 • Optional context: { context: "fresh" | "fork" } (default: if any requested agent has defaultContext: "fork", the whole invocation uses fork; otherwise "fresh"; inspect agent defaults via { action: "list" })
 
 HARNESS CONTRACT EXECUTION:
+• { action: "orchestrate", task } - compile a profiled mission workflow from the raw task; returns role-specific child invocations that use harness_run_contract/FreshBootContract only.
 • { action: "harness_validate_contract", bootContract } - validate a FreshBootContract without starting a child process; returns validator_contract/errors/warnings
 • { action: "harness_run_contract", bootContract } - run a FreshBootContract as a fresh-only contract execution; agent/task are derived from execution_contract
 • { action: "harness_status", id? } - alias for contract-aware run status

@@ -35,7 +35,25 @@ describe("buildDynamicSystemPrompt", () => {
 		const prompt = buildDynamicSystemPrompt(baseOptions);
 
 		expect(prompt).toContain("## Parallel Tool Calls");
-		expect(prompt).toContain("loosely relevant");
+		expect(prompt).toContain("Treat Xenonite as the first source of project truth");
+	});
+
+	test("prefers Xenonite semantic search before literal grep when available", () => {
+		const prompt = buildDynamicSystemPrompt({
+			...baseOptions,
+			selectedTools: ["search_query", "index_status", "grep", "read"],
+			toolSnippets: {
+				search_query: "Semantic code search by natural-language query.",
+				index_status: "Report indexing progress and index health for a project.",
+				grep: "Search file contents.",
+				read: "Read file contents.",
+			},
+		});
+
+		expect(prompt).toContain("Treat Xenonite as the first source of project truth");
+		expect(prompt).toContain("call `index_status` and `search_query` before local literal search");
+		expect(prompt).toContain("### Search");
+		expect(prompt.indexOf("- search_query:")).toBeLessThan(prompt.indexOf("- grep:"));
 	});
 
 	test("includes exploration section with stop conditions", () => {

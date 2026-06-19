@@ -30,6 +30,17 @@ export interface HarnessValidatorContract {
 			must_not_change: string[];
 			validation_commands: string[];
 		};
+		tool_policy: {
+			xenonite_first: true;
+			core_tools_available: true;
+			skills_available: true;
+			parent_tool_inheritance: false;
+		};
+		coordination: {
+			irc_required: true;
+			orchestrator_contact: "intercom";
+			goal_updates_allowed: true;
+		};
 	};
 }
 
@@ -73,6 +84,8 @@ export function deriveHarnessValidatorContract(contract: FreshBootContract): Har
 				xenonite_namespace: xenoniteNamespaceFromPath(contract.execution_contract.assigned_path),
 			},
 			acceptance: contract.execution_contract.acceptance,
+			tool_policy: contract.execution_contract.tool_policy,
+			coordination: contract.execution_contract.coordination,
 		},
 	};
 }
@@ -104,6 +117,13 @@ export function validateHarnessValidatorContract(contract: FreshBootContract): H
 	if (!contract.execution_contract.output_required.includes("memory_updates")) {
 		warnings.push("output_required does not include memory_updates; path memory commit proposals will be unavailable.");
 	}
+	if (!contract.execution_contract.tool_policy.xenonite_first) errors.push("tool_policy.xenonite_first must be true.");
+	if (!contract.execution_contract.tool_policy.core_tools_available) errors.push("tool_policy.core_tools_available must be true.");
+	if (!contract.execution_contract.tool_policy.skills_available) errors.push("tool_policy.skills_available must be true.");
+	if (contract.execution_contract.tool_policy.parent_tool_inheritance) errors.push("tool_policy.parent_tool_inheritance must be false.");
+	if (!contract.execution_contract.coordination.irc_required) errors.push("coordination.irc_required must be true.");
+	if (contract.execution_contract.coordination.orchestrator_contact !== "intercom") errors.push("coordination.orchestrator_contact must be intercom.");
+	if (!contract.execution_contract.coordination.goal_updates_allowed) errors.push("coordination.goal_updates_allowed must be true.");
 	if (contract.memory_attachments.length === 0) errors.push("memory_attachments must include at least one read-only path attachment.");
 	const expectedXenoniteNamespace = xenoniteNamespaceFromPath(contract.execution_contract.assigned_path);
 	for (const [index, attachment] of contract.memory_attachments.entries()) {

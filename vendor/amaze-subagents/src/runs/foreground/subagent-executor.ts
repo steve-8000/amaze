@@ -62,6 +62,7 @@ import type { PathContract } from "../../harness/path-contract.ts";
 import { parseFreshBootContract, type FreshBootContract } from "../../harness/fresh-boot-contract.ts";
 import { validateHarnessValidatorContract } from "../../harness/validator-contract.ts";
 import { compileMissionPolicy, startMission } from "../../harness/orchestrator/mission-orchestrator.ts";
+import { compileProfiledOrchestrationPlan } from "../../harness/orchestrator/profiled-orchestration-plan.ts";
 import {
 	cleanupWorktrees,
 	createWorktrees,
@@ -2422,6 +2423,19 @@ export function createSubagentExecutor(deps: ExecutorDeps): {
 			paramsWithResolvedCwd = { ...paramsWithResolvedCwd, action: undefined, context: "fresh" };
 			params = paramsWithResolvedCwd;
 		}
+		const hasRawMissionRequest = (typeof paramsWithResolvedCwd.task === "string" && paramsWithResolvedCwd.task.trim())
+			|| (typeof paramsWithResolvedCwd.message === "string" && paramsWithResolvedCwd.message.trim());
+		const hasExplicitExecutionMode = Boolean(
+			paramsWithResolvedCwd.action
+				|| paramsWithResolvedCwd.agent
+				|| paramsWithResolvedCwd.tasks
+				|| paramsWithResolvedCwd.chain
+				|| paramsWithResolvedCwd.bootContract,
+		);
+		if (hasRawMissionRequest && !hasExplicitExecutionMode) {
+			paramsWithResolvedCwd = { ...paramsWithResolvedCwd, action: "orchestrate" };
+			params = paramsWithResolvedCwd;
+		}
 		if (params.action) {
 			let action = params.action;
 			if (action === "harness_validate_contract") {
@@ -2450,6 +2464,28 @@ export function createSubagentExecutor(deps: ExecutorDeps): {
 						}, null, 2),
 					}],
 					isError: report.status === "invalid" ? true : undefined,
+					details: { mode: "management" as const, results: [] },
+				};
+			}
+			if (action === "orchestrate") {
+				const rawRequest = (typeof paramsWithResolvedCwd.task === "string" && paramsWithResolvedCwd.task.trim())
+					? paramsWithResolvedCwd.task.trim()
+					: (typeof paramsWithResolvedCwd.message === "string" && paramsWithResolvedCwd.message.trim())
+						? paramsWithResolvedCwd.message.trim()
+						: "";
+				if (!rawRequest) {
+					return {
+						content: [{ type: "text", text: "orchestrate requires task or message as the raw mission request." }],
+						isError: true,
+						details: { mode: "management" as const, results: [] },
+					};
+				}
+				const missionId = typeof paramsWithResolvedCwd.id === "string" && paramsWithResolvedCwd.id.trim()
+					? paramsWithResolvedCwd.id.trim()
+					: undefined;
+				const result = compileProfiledOrchestrationPlan(rawRequest, { missionId, cwd: requestCwd });
+				return {
+					content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
 					details: { mode: "management" as const, results: [] },
 				};
 			}

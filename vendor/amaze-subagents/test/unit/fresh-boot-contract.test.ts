@@ -109,6 +109,17 @@ describe("fresh boot contract", () => {
 			inherit_tools: false,
 			inherit_skills: false,
 		});
+		assert.deepEqual(contract.execution_contract.tool_policy, {
+			xenonite_first: true,
+			core_tools_available: true,
+			skills_available: true,
+			parent_tool_inheritance: false,
+		});
+		assert.deepEqual(contract.execution_contract.coordination, {
+			irc_required: true,
+			orchestrator_contact: "intercom",
+			goal_updates_allowed: true,
+		});
 		assert.match(renderFreshBootContract(contract), /Harness Fresh Boot Contract/);
 
 		assert.equal(parseFreshBootContract(contractInput({ boot_mode: "fork" })), undefined);
@@ -165,7 +176,8 @@ describe("fresh boot contract", () => {
 
 		assert.ok(args.includes("--no-session"));
 		assert.equal(args.includes("--session"), false);
-		assert.ok(args.includes("--no-skills"));
+		assert.ok(args.includes("--no-context-files"));
+		assert.equal(args.includes("--no-skills"), false);
 		assert.equal(env.PI_SUBAGENT_INHERIT_PROJECT_CONTEXT, "0");
 		assert.equal(env.PI_SUBAGENT_INHERIT_SKILLS, "0");
 		assert.equal(env.PI_SUBAGENT_FANOUT_CHILD, "0");

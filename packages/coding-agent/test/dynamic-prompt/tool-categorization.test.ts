@@ -19,6 +19,19 @@ describe("categorizeTools", () => {
 		]);
 	});
 
+	test("categorizes Xenonite project search tools as search", () => {
+		const tools = categorizeTools(["search_query", "index_status", "graph_symbol", "ctx_search", "mem_recall", "mem_optimize"]);
+
+		expect(tools).toEqual([
+			{ name: "search_query", category: "search" },
+			{ name: "index_status", category: "search" },
+			{ name: "graph_symbol", category: "search" },
+			{ name: "ctx_search", category: "search" },
+			{ name: "mem_recall", category: "search" },
+			{ name: "mem_optimize", category: "search" },
+		]);
+	});
+
 	test("categorizes session_ prefixed tools as session", () => {
 		const tools = categorizeTools(["session_list", "session_read"]);
 
@@ -71,6 +84,13 @@ describe("getToolsPromptDisplay", () => {
 
 		expect(display).toContain("`grep`");
 		expect(display).toContain("`glob`");
+	});
+
+	test("shows Xenonite search tools before literal search tools", () => {
+		const tools = categorizeTools(["grep", "search_query", "index_status", "mem_recall", "mem_optimize"]);
+		const display = getToolsPromptDisplay(tools);
+
+		expect(display).toBe("`search_query`, `index_status`, `mem_recall`, `mem_optimize`, `grep`");
 	});
 
 	test("only displays search tools, not lsp or ast", () => {

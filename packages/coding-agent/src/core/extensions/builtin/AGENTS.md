@@ -1,6 +1,6 @@
 # packages/coding-agent/src/core/extensions/builtin
 
-19 in-tree extensions. Each is the canonical answer to "can amaze do X without core changes?". Registration order matters.
+20 in-tree extensions. Each is the canonical answer to "can amaze do X without core changes?". Registration order matters.
 
 ## INVENTORY (registration order from `builtin/index.ts`)
 
@@ -22,11 +22,16 @@
 | 14 | `session-observer` | `session-observer/` | `/sessions` command — peek at previous session transcripts in a HUD |
 | 15 | `websearch` | `websearch/` | Provider-backed `web_search` tool + `/websearch` (providers incl. kimi); vendored from `../pi-extensions/pi-websearch` |
 | 16 | `webfetch` | `webfetch/` | `webfetch` tool (md/text/html, gated by `PI_WEBFETCH`); vendored from `../pi-extensions/pi-webfetch` |
-| 17 | `nested-agents-md` | `nested-agents-md/` | Auto-injects nearby `AGENTS.md` + `/nested-agents`; vendored from `../pi-extensions/pi-nested-agents-md` |
-| 18 | `rules` | `rules/` | Rule-file discovery + `/rules`/`/reload-rules`; vendored from `../pi-extensions/pi-rules` |
-| 19 | `goal` | `goal/` | Budget-free goal tools + `/goal`; vendored from `../pi-extensions/pi-goal` |
+| 17 | `rules` | `rules/` | Rule-file discovery + `/rules`/`/reload-rules`; vendored from `../pi-extensions/pi-rules` |
+| 18 | `goal` | `goal/` | Budget-free goal tools + `/goal`; vendored from `../pi-extensions/pi-goal` |
+| 19 | `amaze-tools` | `amaze-tools/` | amaze-specific vendored tool wrappers (`code_*`, `lang_*`, `agent_run`, desktop tools) |
+| 20 | `amaze-sandbox` | `amaze-sandbox/` | Optional local sandbox integration |
 
 Plus 4 **global default extensions** (resolved fast-path): `diff`, `files`, `prompt-url-widget`, `tps` (in `globalDefaultExtensionFactories`).
+
+`nested-agents-md` remains intentionally disabled in `builtin/index.ts`; project knowledge should come from core-direct Xenonite memory/search tools rather than automatic nested `AGENTS.md` injection.
+
+Xenonite-backed tools are first-class builtins: users do not define them in `AGENTS.md`, just as they do not define `read`. The builtin extensions register them when `tools.search`/`tools.mem` and `services.xenonite.enabled` are true. The expected backend is the always-on Xenonite HTTP API server, not MCP.
 
 ## ADDING A NEW BUILTIN EXTENSION
 

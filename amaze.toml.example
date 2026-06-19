@@ -124,6 +124,13 @@ engine  = "senpi"
 
 # ── Xenonite service (memory + code engine; talks to rocky LLM/embeddings) ───
 [services.xenonite]
-enabled    = false
-port       = 8700
-auto_start = false
+enabled     = true
+# Full HTTP endpoint for the always-on Rust/zvec Xenonite service.
+# Override this when Xenonite runs on another host, port, or tunnel.
+url         = "http://127.0.0.1:8700"
+port        = 8700
+host_prefix = "/host"
+auto_start  = false
+auto_index  = true
+auto_watch  = true
+require     = false

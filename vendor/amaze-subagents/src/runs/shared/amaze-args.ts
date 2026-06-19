@@ -110,6 +110,10 @@ export function buildPiArgs(input: BuildPiArgsInput): BuildPiArgsResult {
 		}
 	}
 
+	if (input.bootContract || !input.inheritProjectContext) {
+		args.push("--no-context-files");
+	}
+
 	const modelArg = applyThinkingSuffix(input.model, input.thinking);
 	if (modelArg) {
 		args.push("--model", modelArg);
@@ -147,7 +151,7 @@ export function buildPiArgs(input: BuildPiArgsInput): BuildPiArgsResult {
 		}
 	}
 
-	if (input.bootContract || !input.inheritSkills) {
+	if (!input.inheritSkills) {
 		args.push("--no-skills");
 	}
 
