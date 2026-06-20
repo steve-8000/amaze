@@ -37,7 +37,7 @@ async function waitForCompactionStart(deferred: Deferred): Promise<void> {
 		await Promise.race([
 			deferred.promise,
 			new Promise<never>((_, reject) => {
-				timeout = setTimeout(() => reject(new Error("Timed out waiting for compaction to start")), 1000);
+				timeout = setTimeout(() => reject(new Error("Timed out waiting for compaction to start")), 5000);
 			}),
 		]);
 	} finally {

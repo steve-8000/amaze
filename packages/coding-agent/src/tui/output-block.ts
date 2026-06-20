@@ -208,7 +208,6 @@ export function trimBlankEdges(lines: string[]): string[] {
 	const isBlank = (l: string): boolean =>
 		l
 			.replace(/\x1b\[[0-9;]*m/g, "")
-			// biome-ignore lint/suspicious/noControlCharactersInRegex: stripping terminal OSC sequences
 			.replace(/\x1b\][0-9;]*(?:\x07|\x1b\\)/g, "")
 			.trim() === "";
 	let start = 0;

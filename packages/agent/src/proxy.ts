@@ -359,7 +359,7 @@ function processProxyEvent(
 			return { type: "error", reason: proxyEvent.reason, error: partial };
 
 		default: {
-			const _exhaustiveCheck: never = proxyEvent;
+			proxyEvent satisfies never;
 			console.warn(`Unhandled proxy event type: ${(proxyEvent as any).type}`);
 			return undefined;
 		}

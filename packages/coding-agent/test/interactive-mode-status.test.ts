@@ -429,10 +429,10 @@ describe("InteractiveMode.setToolsExpanded", () => {
 });
 
 describe("InteractiveMode.createExtensionUIContext setTheme", () => {
-	test("persists theme changes to settings manager", () => {
-		initTheme("dark");
+	test("keeps the fixed erid theme without rewriting settings", () => {
+		initTheme("erid");
 
-		let currentTheme = "dark";
+		let currentTheme = "erid";
 		const settingsManager = {
 			getTheme: vi.fn(() => currentTheme),
 			setTheme: vi.fn((theme: string) => {
@@ -446,19 +446,19 @@ describe("InteractiveMode.createExtensionUIContext setTheme", () => {
 		};
 
 		const uiContext = (InteractiveMode as any).prototype.createExtensionUIContext.call(fakeThis);
-		const result = uiContext.setTheme("light");
+		const result = uiContext.setTheme("erid");
 
 		expect(result.success).toBe(true);
-		expect(settingsManager.setTheme).toHaveBeenCalledWith("light");
-		expect(currentTheme).toBe("light");
+		expect(settingsManager.setTheme).not.toHaveBeenCalled();
+		expect(currentTheme).toBe("erid");
 		expect(fakeThis.ui.requestRender).toHaveBeenCalledTimes(1);
 	});
 
 	test("does not persist invalid theme names", () => {
-		initTheme("dark");
+		initTheme("erid");
 
 		const settingsManager = {
-			getTheme: vi.fn(() => "dark"),
+			getTheme: vi.fn(() => "erid"),
 			setTheme: vi.fn(),
 		};
 		const fakeThis: any = {

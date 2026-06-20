@@ -144,7 +144,7 @@ Project skill`,
 			);
 
 			const baseTheme = JSON.parse(
-				readFileSync(join(process.cwd(), "src", "modes", "interactive", "theme", "dark.json"), "utf-8"),
+				readFileSync(join(process.cwd(), "src", "modes", "interactive", "theme", "defaults", "erid.json"), "utf-8"),
 			) as { name: string; vars?: Record<string, string> };
 			baseTheme.name = "collision-theme";
 			const userThemePath = join(agentDir, "themes", "collision.json");
@@ -157,7 +157,8 @@ Project skill`,
 			}
 			writeFileSync(projectThemePath, JSON.stringify(baseTheme, null, 2));
 
-			const loader = new DefaultResourceLoader({ cwd, agentDir });
+			const settingsManager = SettingsManager.create(cwd, agentDir, { projectTrusted: true });
+			const loader = new DefaultResourceLoader({ cwd, agentDir, settingsManager });
 			await loader.reload();
 
 			const prompt = loader.getPrompts().prompts.find((p) => p.name === "commit");
@@ -361,14 +362,14 @@ Content`,
 			expect(themes.some((t) => t.sourcePath?.endsWith("skip.json"))).toBe(false);
 		});
 
-		it("should discover AGENTS.md context files", async () => {
-			writeFileSync(join(cwd, "AGENTS.md"), "# Project Guidelines\n\nBe helpful.");
+		it("should discover global AGENTS.md context files", async () => {
+			writeFileSync(join(agentDir, "AGENTS.md"), "# Global Guidelines\n\nBe helpful.");
 
 			const loader = new DefaultResourceLoader({ cwd, agentDir });
 			await loader.reload();
 
 			const { agentsFiles } = loader.getAgentsFiles();
-			expect(agentsFiles.some((f) => f.path.includes("AGENTS.md"))).toBe(true);
+			expect(agentsFiles.some((f) => f.path === join(agentDir, "AGENTS.md"))).toBe(true);
 		});
 
 		it("should skip AGENTS.md and CLAUDE.md discovery when noContextFiles is true", async () => {
@@ -418,7 +419,7 @@ Project skill content`,
 			);
 			writeFileSync(join(promptsDir, "project.md"), "Project prompt");
 			const themeData = JSON.parse(
-				readFileSync(join(process.cwd(), "src", "modes", "interactive", "theme", "dark.json"), "utf-8"),
+				readFileSync(join(process.cwd(), "src", "modes", "interactive", "theme", "defaults", "erid.json"), "utf-8"),
 			) as { name: string };
 			themeData.name = "project-theme";
 			writeFileSync(join(themesDir, "project.json"), JSON.stringify(themeData, null, 2));
@@ -431,7 +432,7 @@ Project skill content`,
 			expect(loader.getAgentsFiles().agentsFiles.some((file) => file.path === join(agentDir, "AGENTS.md"))).toBe(
 				true,
 			);
-			expect(loader.getAgentsFiles().agentsFiles.some((file) => file.path === join(cwd, "AGENTS.md"))).toBe(true);
+			expect(loader.getAgentsFiles().agentsFiles.some((file) => file.path === join(cwd, "AGENTS.md"))).toBe(false);
 			expect(nonBuiltinExtensions(loader.getExtensions().extensions)).toHaveLength(0);
 			expect(loader.getExtensions().errors).toEqual([]);
 			expect(loader.getSkills().skills.some((skill) => skill.name === "project-skill")).toBe(false);

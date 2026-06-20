@@ -3,6 +3,7 @@ import { Box, type Component, Container, getCapabilities, Image, Spacer, Text, t
 import type { ToolDefinition, ToolRenderContext } from "../../../core/extensions/types.ts";
 import { createAllToolDefinitions, type ToolName } from "../../../core/tools/index.ts";
 import { getTextOutput as getRenderedTextOutput } from "../../../core/tools/render-utils.ts";
+import { xenoniteToolNames } from "../../../core/tools/xenonite.ts";
 import { stripAnsi } from "../../../utils/ansi.ts";
 import { convertToPng } from "../../../utils/image-convert.ts";
 import { theme } from "../theme/theme.ts";
@@ -20,6 +21,7 @@ type ToolExecutionResult = Omit<AgentToolResult<unknown>, "details"> & {
 const FALLBACK_STRING_MAX_LENGTH = 160;
 const FALLBACK_JSON_MAX_LENGTH = 2000;
 const PENDING_RENDER_FRAME_INTERVAL_MS = 80;
+const VISIBLE_XENONITE_RESULT_TOOL_NAMES = new Set(["mem_recall"]);
 
 function sanitizeFallbackString(value: string, maxLength = FALLBACK_STRING_MAX_LENGTH): string {
 	const sanitized = stripAnsi(value)
@@ -172,11 +174,18 @@ export class ToolExecutionComponent extends Container {
 	}
 
 	private createResultFallback(): Component | undefined {
+		if (this.shouldHideResultOutput()) {
+			return undefined;
+		}
 		const output = this.getTextOutput();
 		if (!output) {
 			return undefined;
 		}
 		return new Text(theme.fg("toolOutput", output), 0, 0);
+	}
+
+	private shouldHideResultOutput(): boolean {
+		return xenoniteToolNames.includes(this.toolName) && !VISIBLE_XENONITE_RESULT_TOOL_NAMES.has(this.toolName);
 	}
 
 	updateArgs(args: any): void {
@@ -347,7 +356,7 @@ export class ToolExecutionComponent extends Container {
 				}
 			}
 
-			if (this.result) {
+			if (this.result && !this.shouldHideResultOutput()) {
 				const resultRenderer = this.getResultRenderer();
 				if (!resultRenderer) {
 					const component = this.createResultFallback();
@@ -395,7 +404,7 @@ export class ToolExecutionComponent extends Container {
 		}
 		this.imageSpacers = [];
 
-		if (this.result) {
+		if (this.result && !this.shouldHideResultOutput()) {
 			const imageBlocks = this.result.content.filter((c) => c.type === "image");
 			const caps = getCapabilities();
 			for (let i = 0; i < imageBlocks.length; i++) {
@@ -427,6 +436,9 @@ export class ToolExecutionComponent extends Container {
 	}
 
 	private getTextOutput(): string {
+		if (this.shouldHideResultOutput()) {
+			return "";
+		}
 		return getRenderedTextOutput(this.result, this.showImages);
 	}
 

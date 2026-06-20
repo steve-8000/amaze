@@ -107,7 +107,15 @@ import type { SlashCommandInfo } from "./slash-commands.ts";
 import { createSyntheticSourceInfo, type SourceInfo } from "./source-info.ts";
 import { getSupportedThinkingLevels, supportsMax, supportsXhigh } from "./thinking-levels.ts";
 import { type BashOperations, createLocalBashOperations } from "./tools/bash.ts";
-import { autoPrepareXenoniteCore, createAllToolDefinitions, isXenoniteCoreEnabled, xenoniteToolNames } from "./tools/index.ts";
+import {
+	autoPrepareXenoniteCore,
+	createAllToolDefinitions,
+	isXenoniteCoreEnabled,
+	type RecalledMemory,
+	recallMemoryForTurn,
+	storeMemoryFact,
+	xenoniteToolNames,
+} from "./tools/index.ts";
 import { createToolDefinitionFromAgentTool } from "./tools/tool-definition-wrapper.ts";
 
 // ============================================================================
@@ -135,6 +143,56 @@ export function parseSkillBlock(text: string): ParsedSkillBlock | null {
 		content: match[3],
 		userMessage: match[4]?.trim() || undefined,
 	};
+}
+
+function formatRecalledMemoryForTurn(memory: RecalledMemory): string {
+	const lines = memory.context
+		? memory.context
+				.split("\n")
+				.map((line) => line.trim())
+				.filter(Boolean)
+		: memory.items.map((item) => (typeof item.text === "string" ? item.text.trim() : "")).filter(Boolean);
+	const unique = Array.from(new Set(lines)).slice(0, 5);
+	if (unique.length === 0) return "";
+	return [
+		"Durable memory recalled for this turn. Treat these as advisory context; current user instructions and source code evidence take priority.",
+		...unique.map((line) => `- ${line}`),
+	].join("\n");
+}
+
+export type MemoryReranker = (input: { query: string; memory: RecalledMemory }) => Promise<RecalledMemory | undefined>;
+
+export async function rerankRecalledMemoryForTurn(
+	memory: RecalledMemory,
+	query: string,
+	reranker: MemoryReranker | undefined,
+): Promise<RecalledMemory | undefined> {
+	if (!reranker) return memory;
+	try {
+		return await reranker({ query, memory });
+	} catch {
+		return memory;
+	}
+}
+
+function extractMemoryCandidates(text: string): string[] {
+	const marker = /memory candidate[s]?\s*:/i.exec(text);
+	if (!marker) return [];
+	const section = text.slice(marker.index + marker[0].length);
+	const nextHeading = /\n#{1,6}\s+\S/.exec(section);
+	const body = (nextHeading ? section.slice(0, nextHeading.index) : section).trim();
+	if (!body || /^(none|없음|n\/a)[\s.]*$/i.test(body)) return [];
+	return body
+		.split("\n")
+		.map((line) =>
+			line
+				.trim()
+				.replace(/^[-*]\s*/, "")
+				.trim(),
+		)
+		.filter((line) => line.length >= 20)
+		.filter((line) => !/^(none|없음|n\/a)[\s.]*$/i.test(line))
+		.slice(0, 5);
 }
 
 /** Session-specific events that extend the core AgentEvent */
@@ -207,6 +265,15 @@ export interface AgentSessionConfig {
 	extensionRunnerRef?: { current?: ExtensionRunner };
 	/** Session start event metadata emitted when extensions bind to this runtime. */
 	sessionStartEvent?: SessionStartEvent;
+	/**
+	 * Optional reranker for automatically recalled durable memory.
+	 *
+	 * This runs after Xenonite/vector retrieval and deterministic filtering, but before the
+	 * memory_context custom message is injected. Implementations may call a fast LLM, apply
+	 * policy, or return undefined to suppress memory injection for this turn. Failures fall
+	 * back to the deterministic recalled memory.
+	 */
+	memoryReranker?: MemoryReranker;
 }
 
 type SessionModelEntry = { model: Model<any>; thinkingLevel?: ThinkingLevel; serviceTier?: ServiceTier };
@@ -375,6 +442,8 @@ export class AgentSession {
 	private _extensionShutdownHandler?: ShutdownHandler;
 	private _extensionErrorListener?: ExtensionErrorListener;
 	private _extensionErrorUnsubscriber?: () => void;
+	private _storedMemoryCandidateKeys = new Set<string>();
+	private _memoryReranker?: AgentSessionConfig["memoryReranker"];
 
 	// Model registry for API key resolution
 	private _modelRegistry: ModelRegistry;
@@ -406,6 +475,7 @@ export class AgentSession {
 		this._excludedToolNames = config.excludedToolNames ? new Set(config.excludedToolNames) : undefined;
 		this._baseToolsOverride = config.baseToolsOverride;
 		this._sessionStartEvent = config.sessionStartEvent ?? { type: "session_start", reason: "startup" };
+		this._memoryReranker = config.memoryReranker;
 
 		const initialModel = this.agent.state.model;
 		if (initialModel) {
@@ -444,6 +514,7 @@ export class AgentSession {
 		apiKey: string;
 		headers?: Record<string, string>;
 		extraBody?: Record<string, unknown>;
+		env?: Record<string, string>;
 	}> {
 		const result = await this._modelRegistry.getApiKeyAndHeaders(model);
 		if (!result.ok) {
@@ -453,7 +524,7 @@ export class AgentSession {
 			throw new Error(result.error);
 		}
 		if (result.apiKey) {
-			return { apiKey: result.apiKey, headers: result.headers, extraBody: result.extraBody };
+			return { apiKey: result.apiKey, headers: result.headers, extraBody: result.extraBody, env: result.env };
 		}
 
 		const isOAuth = this._modelRegistry.isUsingOAuth(model);
@@ -471,13 +542,16 @@ export class AgentSession {
 		apiKey?: string;
 		headers?: Record<string, string>;
 		extraBody?: Record<string, unknown>;
+		env?: Record<string, string>;
 	}> {
 		if (this.agent.streamFn === streamSimple) {
 			return this._getRequiredRequestAuth(model);
 		}
 
 		const result = await this._modelRegistry.getApiKeyAndHeaders(model);
-		return result.ok ? { apiKey: result.apiKey, headers: result.headers, extraBody: result.extraBody } : {};
+		return result.ok
+			? { apiKey: result.apiKey, headers: result.headers, extraBody: result.extraBody, env: result.env }
+			: {};
 	}
 
 	/**
@@ -730,6 +804,9 @@ export class AgentSession {
 					});
 					this._retryAttempt = 0;
 				}
+				if (assistantMsg.stopReason !== "error") {
+					await this._storeMemoryCandidatesFromAssistant(assistantMsg);
+				}
 			}
 		}
 
@@ -769,6 +846,25 @@ export class AgentSession {
 		if (typeof content === "string") return content;
 		const textBlocks = content.filter((c) => c.type === "text");
 		return textBlocks.map((c) => (c as TextContent).text).join("");
+	}
+
+	private _getAssistantMessageText(message: AssistantMessage): string {
+		const content = message.content;
+		if (typeof content === "string") return content;
+		return content
+			.filter((c) => c.type === "text")
+			.map((c) => (c as TextContent).text)
+			.join("");
+	}
+
+	private async _storeMemoryCandidatesFromAssistant(message: AssistantMessage): Promise<void> {
+		const candidates = extractMemoryCandidates(this._getAssistantMessageText(message));
+		for (const candidate of candidates) {
+			const key = candidate.toLowerCase();
+			if (this._storedMemoryCandidateKeys.has(key)) continue;
+			this._storedMemoryCandidateKeys.add(key);
+			await storeMemoryFact(this._cwd, candidate, "verified_durable_fact");
+		}
 	}
 
 	/** Find the last assistant message in agent state (including aborted ones) */
@@ -1295,6 +1391,26 @@ export class AgentSession {
 				content: userContent,
 				timestamp: Date.now(),
 			});
+
+			const recalledMemory = await recallMemoryForTurn(this._cwd, expandedText);
+			if (recalledMemory) {
+				const rerankedMemory = await rerankRecalledMemoryForTurn(
+					recalledMemory,
+					expandedText,
+					this._memoryReranker,
+				);
+				const memoryText = rerankedMemory ? formatRecalledMemoryForTurn(rerankedMemory) : "";
+				if (memoryText) {
+					messages.push({
+						role: "custom",
+						customType: "memory_context",
+						content: memoryText,
+						display: true,
+						details: rerankedMemory,
+						timestamp: Date.now(),
+					});
+				}
+			}
 
 			// Inject any pending "nextTurn" messages as context alongside the user message
 			for (const msg of this._pendingNextTurnMessages) {
@@ -2087,7 +2203,7 @@ export class AgentSession {
 				}
 
 				if (!compactionResult) {
-					const { apiKey, headers, extraBody } = await this._getCompactionRequestAuth(this.model);
+					const { apiKey, headers, extraBody, env } = await this._getCompactionRequestAuth(this.model);
 					compactionResult = await compact(
 						preparation,
 						this.model,
@@ -2098,6 +2214,7 @@ export class AgentSession {
 						extraBody,
 						this.thinkingLevel,
 						this.agent.streamFn,
+						env,
 					);
 				}
 			}
@@ -2319,6 +2436,9 @@ export class AgentSession {
 			contextTokens = estimate.tokens;
 		} else {
 			contextTokens = calculateContextTokens(assistantMessage.usage);
+			if (contextTokens <= 0 && contextUsage?.tokens !== null && contextUsage?.tokens !== undefined) {
+				contextTokens = contextUsage.tokens;
+			}
 		}
 		if (shouldCompact(contextTokens, contextWindow, settings)) {
 			if (requestReason) {
@@ -2880,13 +3000,7 @@ export class AgentSession {
 
 		const defaultActiveToolNames = this._baseToolsOverride
 			? Object.keys(this._baseToolsOverride)
-			: [
-					"read",
-					"bash",
-					"edit",
-					"write",
-					...(isXenoniteCoreEnabled() ? xenoniteToolNames : []),
-				];
+			: ["bash", "edit", "write", ...(isXenoniteCoreEnabled() ? xenoniteToolNames : [])];
 		const baseActiveToolNames = options.activeToolNames ?? defaultActiveToolNames;
 		this._refreshToolRegistry({
 			activeToolNames: baseActiveToolNames,
@@ -3356,13 +3470,14 @@ export class AgentSession {
 			let summaryDetails: unknown;
 			if (options.summarize && entriesToSummarize.length > 0 && !extensionSummary) {
 				const model = this.model!;
-				const { apiKey, headers, extraBody } = await this._getRequiredRequestAuth(model);
+				const { apiKey, headers, extraBody, env } = await this._getRequiredRequestAuth(model);
 				const branchSummarySettings = this.settingsManager.getBranchSummarySettings();
 				const result = await generateBranchSummary(entriesToSummarize, {
 					model,
 					apiKey,
 					headers,
 					extraBody,
+					env,
 					signal: this._branchSummaryAbortController.signal,
 					customInstructions,
 					replaceInstructions,
@@ -3579,10 +3694,22 @@ export class AgentSession {
 		}
 
 		const estimate = estimateContextTokens(messages);
-		const percent = (estimate.tokens / contextWindow) * 100;
+		let contextTokens = estimate.tokens;
+		const lastUsageIndex = estimate.lastUsageIndex;
+		if (latestCompaction && typeof lastUsageIndex === "number") {
+			const compactedContentTokens = messages.reduce((sum, message) => sum + estimateTokens(message), 0);
+			const staleHighUsageAfterCompaction =
+				estimate.tokens > contextWindow * 0.5 &&
+				compactedContentTokens < contextWindow * 0.25 &&
+				estimate.tokens > compactedContentTokens * 2;
+			if (compactedContentTokens > 0 && staleHighUsageAfterCompaction) {
+				contextTokens = compactedContentTokens;
+			}
+		}
+		const percent = (contextTokens / contextWindow) * 100;
 
 		return {
-			tokens: estimate.tokens,
+			tokens: contextTokens,
 			contextWindow,
 			percent,
 		};

@@ -1,6 +1,7 @@
 import type { AvailableTool } from "./types.ts";
 
 const XENONITE_SEARCH_TOOLS = new Set([
+	"context_engine",
 	"index_build",
 	"index_sync",
 	"index_drop",
@@ -10,6 +11,7 @@ const XENONITE_SEARCH_TOOLS = new Set([
 	"index_health",
 	"index_list",
 	"search_query",
+	"code_read",
 	"graph_build",
 	"graph_query",
 	"graph_stats",
@@ -29,6 +31,7 @@ const XENONITE_SEARCH_TOOLS = new Set([
 	"mem_search",
 	"mem_store",
 	"mem_optimize",
+	"mem_delete",
 ]);
 
 function getToolCategory(name: string): AvailableTool["category"] {
@@ -54,24 +57,61 @@ export function categorizeTools(toolNames: string[]): AvailableTool[] {
 export function getToolsPromptDisplay(tools: AvailableTool[]): string {
 	const displayNames: string[] = [];
 
-	if (tools.some((tool) => tool.category === "search" && tool.name === "search_query")) {
-		displayNames.push("`search_query`");
-	}
-	if (tools.some((tool) => tool.category === "search" && tool.name === "index_status")) {
-		displayNames.push("`index_status`");
+	if (tools.some((tool) => tool.category === "search" && tool.name === "context_engine")) {
+		displayNames.push("`context_engine`");
 	}
 	if (tools.some((tool) => tool.category === "search" && tool.name === "mem_recall")) {
 		displayNames.push("`mem_recall`");
 	}
+	if (tools.some((tool) => tool.category === "search" && tool.name === "mem_search")) {
+		displayNames.push("`mem_search`");
+	}
+	if (tools.some((tool) => tool.category === "search" && tool.name === "mem_store")) {
+		displayNames.push("`mem_store`");
+	}
 	if (tools.some((tool) => tool.category === "search" && tool.name === "mem_optimize")) {
 		displayNames.push("`mem_optimize`");
 	}
-	if (tools.some((tool) => tool.category === "search" && tool.name === "grep")) {
-		displayNames.push("`grep`");
+	if (tools.some((tool) => tool.category === "search" && tool.name === "mem_delete")) {
+		displayNames.push("`mem_delete`");
 	}
-	if (tools.some((tool) => tool.category === "search" && tool.name === "glob")) {
-		displayNames.push("`glob`");
+	if (tools.some((tool) => tool.name === "agent_run")) {
+		displayNames.push("`agent_run`");
 	}
 
 	return displayNames.join(", ");
+}
+
+export function getFallbackToolsPromptDisplay(tools: AvailableTool[]): string {
+	const fallbackNames = [
+		"search_query",
+		"code_read",
+		"index_status",
+		"graph_build",
+		"graph_query",
+		"graph_stats",
+		"graph_cycles",
+		"graph_view",
+		"graph_drop",
+		"graph_status",
+		"graph_impact",
+		"graph_trace",
+		"graph_symbol",
+		"graph_symbols",
+		"ctx_list",
+		"ctx_search",
+		"ctx_add",
+		"ctx_drop",
+		"grep",
+		"glob",
+	];
+	const available = new Set(tools.map((tool) => tool.name));
+	return fallbackNames
+		.filter((name) => available.has(name))
+		.map((name) => `\`${name}\``)
+		.join(", ");
+}
+
+export function hasXenoniteProjectTools(tools: AvailableTool[]): boolean {
+	return tools.some((tool) => XENONITE_SEARCH_TOOLS.has(tool.name));
 }

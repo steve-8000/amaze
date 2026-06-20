@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import type { AssistantMessage, ToolResultMessage } from "@steve-8000/amaze-ai";
+import { describe, expect, it } from "vitest";
 import { mapMessageForPaseoPiCompat } from "../src/core/paseo-pi-compat.ts";
 
 function assistantToolCall(name: string, args: Record<string, any>): AssistantMessage {
@@ -35,7 +35,9 @@ describe("paseo pi compatibility mapping", () => {
 	});
 
 	it("maps code search calls to grep-shaped Paseo search cards", () => {
-		const mapped = mapMessageForPaseoPiCompat(assistantToolCall("code_find", { pattern: "function $X($$$)", paths: ["src"] }));
+		const mapped = mapMessageForPaseoPiCompat(
+			assistantToolCall("code_find", { pattern: "function $X($$$)", paths: ["src"] }),
+		);
 		const call = mapped.content[0] as Extract<AssistantMessage["content"][number], { type: "toolCall" }>;
 		expect(call.name).toBe("grep");
 		expect(call.arguments).toMatchObject({ pattern: "function $X($$$)", path: "src", amazeToolName: "code_find" });

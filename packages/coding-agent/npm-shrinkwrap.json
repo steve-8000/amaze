@@ -1,19 +1,19 @@
 {
-	"name": "@code-yeongyu/senpi",
-	"version": "2026.6.16-2",
+	"name": "amaze",
+	"version": "0.1.0",
 	"lockfileVersion": 3,
 	"requires": true,
 	"packages": {
 		"": {
-			"name": "@code-yeongyu/senpi",
-			"version": "2026.6.16-2",
+			"name": "amaze",
+			"version": "0.1.0",
 			"license": "MIT",
 			"dependencies": {
 				"@anthropic-ai/sdk": "0.91.1",
 				"@aws-sdk/client-bedrock-runtime": "3.1048.0",
-				"@steve-8000/pi-agent-core": "^2026.6.16-2",
-				"@steve-8000/pi-ai": "^2026.6.16-2",
-				"@steve-8000/pi-tui": "^2026.6.16-2",
+				"@steve-8000/amaze-agent-core": "^2026.6.16-2",
+				"@steve-8000/amaze-ai": "^2026.6.16-2",
+				"@steve-8000/amaze-tui": "^2026.6.16-2",
 				"@mistralai/mistralai": "2.2.1",
 				"@silvia-odwyer/photon-node": "0.3.4",
 				"@smithy/node-http-handler": "4.7.3",
@@ -37,6 +37,7 @@
 				"proper-lockfile": "4.1.2",
 				"proxy-from-env": "1.1.0",
 				"semver": "7.8.0",
+				"smol-toml": "1.6.1",
 				"turndown": "7.2.4",
 				"typebox": "1.1.38",
 				"undici": "8.3.0",
@@ -46,7 +47,7 @@
 				"@mariozechner/clipboard": "0.3.9"
 			},
 			"bin": {
-				"senpi": "dist/cli.js"
+				"amaze": "dist/cli.js"
 			},
 			"engines": {
 				"node": ">=24.0.0"
@@ -487,59 +488,6 @@
 				"node": ">=6.9.0"
 			}
 		},
-		"node_modules/@steve-8000/pi-agent-core": {
-			"version": "2026.6.16-2",
-			"inBundle": true,
-			"license": "MIT",
-			"dependencies": {
-				"@steve-8000/pi-ai": "^2026.6.16-2",
-				"ignore": "7.0.5",
-				"typebox": "1.1.38",
-				"yaml": "2.9.0"
-			},
-			"engines": {
-				"node": ">=24.0.0"
-			}
-		},
-		"node_modules/@steve-8000/pi-ai": {
-			"version": "2026.6.16-2",
-			"inBundle": true,
-			"license": "MIT",
-			"dependencies": {
-				"@anthropic-ai/sdk": "0.91.1",
-				"@aws-sdk/client-bedrock-runtime": "3.1048.0",
-				"@google/genai": "1.52.0",
-				"@mistralai/mistralai": "2.2.1",
-				"@smithy/node-http-handler": "4.7.3",
-				"@smithy/types": "4.8.0",
-				"chalk": "5.6.2",
-				"http-proxy-agent": "7.0.2",
-				"https-proxy-agent": "7.0.6",
-				"openai": "6.26.0",
-				"partial-json": "0.1.7",
-				"proxy-from-env": "1.1.0",
-				"typebox": "1.1.38",
-				"yaml": "2.9.0"
-			},
-			"bin": {
-				"pi-ai": "./dist/cli.js"
-			},
-			"engines": {
-				"node": ">=24.0.0"
-			}
-		},
-		"node_modules/@steve-8000/pi-tui": {
-			"version": "2026.6.16-2",
-			"inBundle": true,
-			"license": "MIT",
-			"dependencies": {
-				"get-east-asian-width": "1.6.0",
-				"marked": "15.0.12"
-			},
-			"engines": {
-				"node": ">=24.0.0"
-			}
-		},
 		"node_modules/@google/genai": {
 			"version": "1.52.0",
 			"resolved": "https://registry.npmjs.org/@google/genai/-/genai-1.52.0.tgz",
@@ -974,6 +922,59 @@
 			},
 			"engines": {
 				"node": ">=14.0.0"
+			}
+		},
+		"node_modules/@steve-8000/amaze-agent-core": {
+			"version": "2026.6.16-2",
+			"inBundle": true,
+			"license": "MIT",
+			"dependencies": {
+				"@steve-8000/amaze-ai": "^2026.6.16-2",
+				"ignore": "7.0.5",
+				"typebox": "1.1.38",
+				"yaml": "2.9.0"
+			},
+			"engines": {
+				"node": ">=24.0.0"
+			}
+		},
+		"node_modules/@steve-8000/amaze-ai": {
+			"version": "2026.6.16-2",
+			"inBundle": true,
+			"license": "MIT",
+			"dependencies": {
+				"@anthropic-ai/sdk": "0.91.1",
+				"@aws-sdk/client-bedrock-runtime": "3.1048.0",
+				"@google/genai": "1.52.0",
+				"@mistralai/mistralai": "2.2.1",
+				"@smithy/node-http-handler": "4.7.3",
+				"@smithy/types": "4.8.0",
+				"chalk": "5.6.2",
+				"http-proxy-agent": "7.0.2",
+				"https-proxy-agent": "7.0.6",
+				"openai": "6.26.0",
+				"partial-json": "0.1.7",
+				"proxy-from-env": "1.1.0",
+				"typebox": "1.1.38",
+				"yaml": "2.9.0"
+			},
+			"bin": {
+				"amaze-ai": "./dist/cli.js"
+			},
+			"engines": {
+				"node": ">=24.0.0"
+			}
+		},
+		"node_modules/@steve-8000/amaze-tui": {
+			"version": "2026.6.16-2",
+			"inBundle": true,
+			"license": "MIT",
+			"dependencies": {
+				"get-east-asian-width": "1.6.0",
+				"marked": "15.0.12"
+			},
+			"engines": {
+				"node": ">=24.0.0"
 			}
 		},
 		"node_modules/@types/node": {
@@ -1734,6 +1735,18 @@
 			"resolved": "https://registry.npmjs.org/signal-exit/-/signal-exit-3.0.7.tgz",
 			"integrity": "sha512-wnD2ZE+l+SPC/uoS0vXeE9L1+0wuaMqKlfz9AMUo38JsyLSBWSFcHR1Rri62LZc12vLr1gb3jl7iwQhgwpAbGQ==",
 			"license": "ISC"
+		},
+		"node_modules/smol-toml": {
+			"version": "1.6.1",
+			"resolved": "https://registry.npmjs.org/smol-toml/-/smol-toml-1.6.1.tgz",
+			"integrity": "sha512-dWUG8F5sIIARXih1DTaQAX4SsiTXhInKf1buxdY9DIg4ZYPZK5nGM1VRIYmEbDbsHt7USo99xSLFu5Q1IqTmsg==",
+			"license": "BSD-3-Clause",
+			"engines": {
+				"node": ">= 18"
+			},
+			"funding": {
+				"url": "https://github.com/sponsors/cyyynthia"
+			}
 		},
 		"node_modules/strnum": {
 			"version": "2.3.0",

@@ -55,9 +55,7 @@ export default function goalExtension(pi: ExtensionAPI): void {
 			const ref = goalStoreRef(ctx);
 			const current = await readGoal(ref);
 			if (current !== null && current.status !== "complete") {
-				throw new Error(
-					"cannot create a new goal because this thread already has an active or paused goal",
-				);
+				throw new Error("cannot create a new goal because this thread already has an active or paused goal");
 			}
 			const goal = await createGoal(ref, params.objective);
 			beginAgentGoalAccounting(goal);

@@ -117,7 +117,7 @@ describe("stdout cleanliness in non-interactive modes", () => {
 	});
 
 	it("ignores untrusted project package installs for help", async () => {
-		const result = await runCli(["-p", "--help"]);
+		const result = await runCli(["-p", "--help", "--no-approve"]);
 
 		expect(result.code).toBe(0);
 		expect(result.stdout).toBe("");

@@ -139,17 +139,12 @@ function pruneToolResults(messages: AgentMessage[], contextWindow: number): Agen
 }
 
 export function truncateContextMessages(messages: AgentMessage[]): AgentMessage[] {
-	const toolResults = messages
-		.filter((message) => message.role === "toolResult")
-		.map((message) => ({ content: message.content, details: undefined }));
-	if (toolResults.length === 0) return messages;
-
-	const truncatedResults = truncation.truncateOversizedToolResults(toolResults);
-	let resultIndex = 0;
 	return messages.map((message) => {
 		if (message.role !== "toolResult") return message;
-		const truncated = truncatedResults[resultIndex];
-		resultIndex++;
+		if (message.toolName === "context_engine") return message;
+		const [truncated] = truncation.truncateOversizedToolResults([{ content: message.content, details: undefined }], {
+			toolName: message.toolName,
+		});
 		return truncated ? { ...message, content: truncated.content } : message;
 	});
 }

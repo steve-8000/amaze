@@ -25,9 +25,12 @@ export interface AmazeConfig {
 	services: {
 		xenonite: {
 			enabled: boolean;
+			transport: "tool" | "http";
 			port: number;
 			url: string;
 			hostPrefix: string;
+			root: string;
+			bin?: string;
 			autoStart: boolean;
 			autoIndex: boolean;
 			autoWatch: boolean;
@@ -53,12 +56,14 @@ const DEFAULTS: AmazeConfig = {
 	services: {
 		xenonite: {
 			enabled: true,
+			transport: "tool",
 			port: 8700,
 			url: "http://127.0.0.1:8700",
 			hostPrefix: "/host",
+			root: join(homedir(), "rocky", "xenonite"),
 			autoStart: false,
-			autoIndex: true,
-			autoWatch: true,
+			autoIndex: false,
+			autoWatch: false,
 			require: false,
 		},
 	},
@@ -136,20 +141,29 @@ export function loadAmazeConfig(explicitPath?: string): AmazeConfig {
 			xenonite: {
 				...xenonite,
 				enabled: xenonite.enabled === undefined ? DEFAULTS.services.xenonite.enabled : Boolean(xenonite.enabled),
+				transport: xenonite.transport === "http" ? "http" : "tool",
 				port: typeof xenonite.port === "number" ? xenonite.port : DEFAULTS.services.xenonite.port,
-				url: typeof xenonite.url === "string" ? xenonite.url : `http://127.0.0.1:${typeof xenonite.port === "number" ? xenonite.port : DEFAULTS.services.xenonite.port}`,
-				hostPrefix: typeof xenonite.host_prefix === "string"
-					? xenonite.host_prefix
-					: typeof xenonite.hostPrefix === "string"
-						? xenonite.hostPrefix
-						: DEFAULTS.services.xenonite.hostPrefix,
+				url:
+					typeof xenonite.url === "string"
+						? xenonite.url
+						: `http://127.0.0.1:${typeof xenonite.port === "number" ? xenonite.port : DEFAULTS.services.xenonite.port}`,
+				hostPrefix:
+					typeof xenonite.host_prefix === "string"
+						? xenonite.host_prefix
+						: typeof xenonite.hostPrefix === "string"
+							? xenonite.hostPrefix
+							: DEFAULTS.services.xenonite.hostPrefix,
+				root: typeof xenonite.root === "string" ? xenonite.root : DEFAULTS.services.xenonite.root,
+				bin: typeof xenonite.bin === "string" ? xenonite.bin : undefined,
 				autoStart: Boolean(xenonite.auto_start ?? xenonite.autoStart),
-				autoIndex: xenonite.auto_index === undefined && xenonite.autoIndex === undefined
-					? DEFAULTS.services.xenonite.autoIndex
-					: Boolean(xenonite.auto_index ?? xenonite.autoIndex),
-				autoWatch: xenonite.auto_watch === undefined && xenonite.autoWatch === undefined
-					? DEFAULTS.services.xenonite.autoWatch
-					: Boolean(xenonite.auto_watch ?? xenonite.autoWatch),
+				autoIndex:
+					xenonite.auto_index === undefined && xenonite.autoIndex === undefined
+						? DEFAULTS.services.xenonite.autoIndex
+						: Boolean(xenonite.auto_index ?? xenonite.autoIndex),
+				autoWatch:
+					xenonite.auto_watch === undefined && xenonite.autoWatch === undefined
+						? DEFAULTS.services.xenonite.autoWatch
+						: Boolean(xenonite.auto_watch ?? xenonite.autoWatch),
 				require: Boolean(xenonite.require ?? xenonite.required),
 			},
 		},

@@ -5,6 +5,7 @@ import { Container, type Terminal, Text, TUI } from "@steve-8000/amaze-tui";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { createEditToolDefinition } from "../src/core/tools/edit.ts";
 import { computeEditsDiff, type Edit } from "../src/core/tools/edit-diff.ts";
+import { xenoniteToolNames } from "../src/core/tools/xenonite.ts";
 import { ToolExecutionComponent } from "../src/modes/interactive/components/tool-execution.ts";
 import { initTheme } from "../src/modes/interactive/theme/theme.ts";
 
@@ -231,5 +232,42 @@ describe("edit tool TUI rendering", () => {
 		);
 		expect(rendered).not.toContain("+1 ");
 		expect(rendered).not.toContain("-1 ");
+	});
+
+	it("keeps Xenonite tool calls visible while hiding every result except mem_recall", async () => {
+		for (const toolName of xenoniteToolNames) {
+			const terminal = new FakeTerminal();
+			const tui = new TUI(terminal);
+			const component = new ToolExecutionComponent(
+				toolName,
+				`tool-call-${toolName}`,
+				{ task: "visible call args" },
+				{},
+				undefined,
+				tui,
+				process.cwd(),
+			);
+			tui.addChild(component);
+			tui.start();
+			await waitForRender();
+
+			component.updateResult(
+				{
+					content: [{ type: "text", text: "hidden result payload" }],
+					details: undefined,
+					isError: false,
+				},
+				false,
+			);
+			await waitForRender();
+
+			const rendered = component.render(80).join("\n");
+			expect(rendered).toContain(toolName);
+			if (toolName === "mem_recall") {
+				expect(rendered).toContain("hidden result payload");
+			} else {
+				expect(rendered).not.toContain("hidden result payload");
+			}
+		}
 	});
 });

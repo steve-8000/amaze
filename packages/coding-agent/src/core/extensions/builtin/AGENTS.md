@@ -31,7 +31,7 @@ Plus 4 **global default extensions** (resolved fast-path): `diff`, `files`, `pro
 
 `nested-agents-md` remains intentionally disabled in `builtin/index.ts`; project knowledge should come from core-direct Xenonite memory/search tools rather than automatic nested `AGENTS.md` injection.
 
-Xenonite-backed tools are first-class builtins: users do not define them in `AGENTS.md`, just as they do not define `read`. The builtin extensions register them when `tools.search`/`tools.mem` and `services.xenonite.enabled` are true. The expected backend is the always-on Xenonite HTTP API server, not MCP.
+Xenonite-backed tools are first-class builtins: users do not define them in `AGENTS.md`, just as they do not define `read`. The builtin extensions register them when `tools.search`/`tools.mem` and `services.xenonite.enabled` are true. The expected backend is the always-on Xenonite HTTP API server.
 
 ## ADDING A NEW BUILTIN EXTENSION
 

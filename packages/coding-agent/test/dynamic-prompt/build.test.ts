@@ -4,9 +4,9 @@ import { buildDynamicSystemPrompt } from "../../src/core/dynamic-prompt/build.ts
 describe("buildDynamicSystemPrompt", () => {
 	const baseOptions = {
 		cwd: "/test/project",
-		selectedTools: ["read", "bash", "edit", "write"],
+		selectedTools: ["code_read", "bash", "edit", "write"],
 		toolSnippets: {
-			read: "Read file contents",
+			code_read: "Read indexed code context",
 			bash: "Execute shell commands",
 			edit: "Apply surgical edits",
 			write: "Create or overwrite files",
@@ -35,25 +35,28 @@ describe("buildDynamicSystemPrompt", () => {
 		const prompt = buildDynamicSystemPrompt(baseOptions);
 
 		expect(prompt).toContain("## Parallel Tool Calls");
-		expect(prompt).toContain("Treat Xenonite as the first source of project truth");
+		expect(prompt).toContain("Use one `context_engine` call first");
 	});
 
-	test("prefers Xenonite semantic search before literal grep when available", () => {
+	test("prefers Xenonite context_engine before manual search fanout when available", () => {
 		const prompt = buildDynamicSystemPrompt({
 			...baseOptions,
-			selectedTools: ["search_query", "index_status", "grep", "read"],
+			selectedTools: ["context_engine", "search_query", "index_status", "code_read"],
 			toolSnippets: {
+				context_engine: "Select sufficient repository context.",
 				search_query: "Semantic code search by natural-language query.",
 				index_status: "Report indexing progress and index health for a project.",
-				grep: "Search file contents.",
-				read: "Read file contents.",
+				code_read: "Read indexed code context.",
 			},
 		});
 
-		expect(prompt).toContain("Treat Xenonite as the first source of project truth");
-		expect(prompt).toContain("call `index_status` and `search_query` before local literal search");
+		expect(prompt).toContain("Use one `context_engine` call first");
+		expect(prompt).not.toContain("call `index_status` and `search_query` in the first wave");
+		expect(prompt).toContain("### Xenonite-first project intelligence");
+		expect(prompt).toContain("Do not manually fan out `index_status` + `search_query`");
 		expect(prompt).toContain("### Search");
-		expect(prompt.indexOf("- search_query:")).toBeLessThan(prompt.indexOf("- grep:"));
+		expect(prompt).toContain("If the location is unknown, call `context_engine` once");
+		expect(prompt).toContain("Stop when `context_engine.assessment.shouldReadMore` is false");
 	});
 
 	test("includes exploration section with stop conditions", () => {
@@ -75,7 +78,7 @@ describe("buildDynamicSystemPrompt", () => {
 	test("includes tool section with categorized tools", () => {
 		const prompt = buildDynamicSystemPrompt(baseOptions);
 
-		expect(prompt).toContain("read");
+		expect(prompt).toContain("code_read");
 		expect(prompt).toContain("bash");
 	});
 

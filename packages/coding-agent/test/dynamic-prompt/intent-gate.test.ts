@@ -33,10 +33,31 @@ describe("buildIntentGate", () => {
 		expect(result).toContain("Turn-Local Intent Reset");
 	});
 
-	test("adds search trigger when search tools are available", () => {
+	test("does not promote low-level search tools as primary triggers", () => {
 		const tools: AvailableTool[] = [{ name: "grep", category: "search" }];
 		const result = buildIntentGate({ tools });
 
+		expect(result).toContain("No specialized trigger tools");
+		expect(result).not.toContain("Low-level repository tools");
+	});
+
+	test("adds fallback guidance when primary and low-level repository tools are available", () => {
+		const tools: AvailableTool[] = [
+			{ name: "context_engine", category: "search" },
+			{ name: "code_read", category: "search" },
+			{ name: "grep", category: "search" },
+			{ name: "read", category: "other" },
+		];
+		const result = buildIntentGate({ tools });
+
+		expect(result).toContain("context_engine");
+		expect(result).toContain("repository discovery");
+		expect(result).toContain("targets[]");
+		expect(result).toContain("targets[].readArgs");
+		expect(result).toContain("before citing code");
+		expect(result).toContain('outputMode: "inline"');
+		expect(result).toContain("Low-level repository tools");
+		expect(result).toContain("code_read");
 		expect(result).toContain("grep");
 	});
 
@@ -58,13 +79,30 @@ describe("buildIntentGate", () => {
 		expect(result).toContain("refactor");
 	});
 
-	test("includes search triggers when search tools present", () => {
+	test("keeps memory tools as primary triggers", () => {
 		const tools: AvailableTool[] = [
-			{ name: "grep", category: "search" },
-			{ name: "read", category: "other" },
+			{ name: "mem_recall", category: "search" },
+			{ name: "mem_search", category: "search" },
 		];
 		const result = buildIntentGate({ tools });
 
-		expect(result).toContain("grep");
+		expect(result).toContain("mem_recall");
+		expect(result).toContain("mem_search");
+		expect(result).toContain("Memory tools are a separate primary channel");
+	});
+
+	test("promotes agent_run orchestration as the default repository work decision layer when available", () => {
+		const tools: AvailableTool[] = [
+			{ name: "agent_run", category: "other" },
+			{ name: "context_engine", category: "search" },
+		];
+		const result = buildIntentGate({ tools });
+
+		expect(result).toContain("agent_run");
+		expect(result).toContain("default decision layer");
+		expect(result).toContain("classify the request");
+		expect(result).toContain("select the profile");
+		expect(result).toContain("execute directly or use child agents");
+		expect(result).toContain("Bypass `agent_run` only");
 	});
 });

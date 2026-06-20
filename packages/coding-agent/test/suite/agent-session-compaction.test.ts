@@ -400,7 +400,7 @@ describe("AgentSession compaction characterization", () => {
 		const continueSpy = vi.spyOn(harness.session.agent, "continue").mockResolvedValue();
 
 		await runAutoCompaction(harness.session, "threshold", false);
-		await vi.advanceTimersByTimeAsync(100);
+		vi.advanceTimersByTime(100);
 
 		expect(continueSpy).toHaveBeenCalledTimes(1);
 	});
@@ -604,6 +604,33 @@ describe("AgentSession compaction characterization", () => {
 		const runAutoCompactionSpy = stubRunAutoCompaction(harness.session);
 
 		await checkCompaction(harness.session, errorAssistant);
+
+		expect(runAutoCompactionSpy).toHaveBeenCalledWith("threshold", false);
+	});
+
+	it("triggers threshold compaction from estimated context when assistant usage is zero", async () => {
+		const harness = await createHarness({
+			settings: { compaction: { enabled: true, reserveTokens: 100 } },
+			models: [{ id: "tiny-context", contextWindow: 2_000 }],
+		});
+		harnesses.push(harness);
+		const assistant = createAssistant(harness, {
+			stopReason: "stop",
+			totalTokens: 0,
+			timestamp: Date.now(),
+		});
+		harness.session.agent.state.messages = [
+			{
+				role: "user",
+				content: [{ type: "text", text: "large prompt ".repeat(1_200) }],
+				timestamp: Date.now() - 1_000,
+			},
+			assistant,
+		];
+
+		const runAutoCompactionSpy = stubRunAutoCompaction(harness.session);
+
+		await checkCompaction(harness.session, assistant);
 
 		expect(runAutoCompactionSpy).toHaveBeenCalledWith("threshold", false);
 	});

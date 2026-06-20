@@ -286,6 +286,7 @@ export type ResolvedRequestAuth =
 			extraBody?: Record<string, unknown>;
 			upstreamModelId?: string;
 			serviceTier?: ModelServiceTier;
+			env?: Record<string, string>;
 	  }
 	| {
 			ok: false;

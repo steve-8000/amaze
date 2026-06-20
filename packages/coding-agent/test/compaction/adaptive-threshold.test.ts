@@ -45,7 +45,7 @@ beforeAll(() => {
 describe("compaction policy: adaptive threshold ratio", () => {
 	describe("Given a faux model with context window 16000", () => {
 		describe("When the adaptive threshold ratio is computed for that window", () => {
-			it("Then the ratio equals 0.45", () => {
+			it("Then the ratio equals the 60 percent trigger threshold", () => {
 				const registration = registerFauxProvider({
 					models: [{ id: "faux-16k", contextWindow: 16000 }],
 				});
@@ -61,14 +61,14 @@ describe("compaction policy: adaptive threshold ratio", () => {
 
 				const ratio = computeAdaptiveThresholdRatio(model.contextWindow);
 
-				expect(ratio).toBe(0.45);
+				expect(ratio).toBe(0.6);
 			});
 		});
 	});
 
 	describe("Given a faux model with context window 32000", () => {
 		describe("When the adaptive threshold ratio is computed for that window", () => {
-			it("Then the ratio equals 0.50", () => {
+			it("Then the ratio equals the 60 percent trigger threshold", () => {
 				const registration = registerFauxProvider({
 					models: [{ id: "faux-32k", contextWindow: 32000 }],
 				});
@@ -81,14 +81,14 @@ describe("compaction policy: adaptive threshold ratio", () => {
 
 				const ratio = computeAdaptiveThresholdRatio(model.contextWindow);
 
-				expect(ratio).toBe(0.5);
+				expect(ratio).toBe(0.6);
 			});
 		});
 	});
 
 	describe("Given a faux model with context window 64000", () => {
 		describe("When the adaptive threshold ratio is computed for that window", () => {
-			it("Then the ratio equals 0.55", () => {
+			it("Then the ratio equals the 60 percent trigger threshold", () => {
 				const registration = registerFauxProvider({
 					models: [{ id: "faux-64k", contextWindow: 64000 }],
 				});
@@ -101,14 +101,14 @@ describe("compaction policy: adaptive threshold ratio", () => {
 
 				const ratio = computeAdaptiveThresholdRatio(model.contextWindow);
 
-				expect(ratio).toBe(0.55);
+				expect(ratio).toBe(0.6);
 			});
 		});
 	});
 
 	describe("Given a faux model with context window 128000", () => {
 		describe("When the adaptive threshold ratio is computed for that window", () => {
-			it("Then the ratio equals 0.60", () => {
+			it("Then the ratio equals the 60 percent trigger threshold", () => {
 				const registration = registerFauxProvider({
 					models: [{ id: "faux-128k", contextWindow: 128000 }],
 				});
@@ -128,7 +128,7 @@ describe("compaction policy: adaptive threshold ratio", () => {
 
 	describe("Given a faux model with context window 200000", () => {
 		describe("When the adaptive threshold ratio is computed for that window", () => {
-			it("Then the ratio equals 0.65", () => {
+			it("Then the ratio equals the 60 percent trigger threshold", () => {
 				const registration = registerFauxProvider({
 					models: [{ id: "faux-200k", contextWindow: 200000 }],
 				});
@@ -141,14 +141,14 @@ describe("compaction policy: adaptive threshold ratio", () => {
 
 				const ratio = computeAdaptiveThresholdRatio(model.contextWindow);
 
-				expect(ratio).toBe(0.65);
+				expect(ratio).toBe(0.6);
 			});
 		});
 	});
 
 	describe("Given a 32000 context window", () => {
 		describe("When the effective threshold is computed", () => {
-			it("Then the adaptive threshold is used without an omo floor", () => {
+			it("Then the 60 percent trigger threshold is used", () => {
 				const registration = registerFauxProvider({
 					models: [{ id: "faux-32k", contextWindow: 32000 }],
 				});
@@ -160,7 +160,7 @@ describe("compaction policy: adaptive threshold ratio", () => {
 				}
 
 				const baseRatio = computeAdaptiveThresholdRatio(model.contextWindow);
-				expect(baseRatio).toBe(0.5);
+				expect(baseRatio).toBe(0.6);
 
 				const effective = computeEffectiveThreshold(model.contextWindow);
 
@@ -171,7 +171,7 @@ describe("compaction policy: adaptive threshold ratio", () => {
 
 	describe("Given context window 16000 with a high-yield prior compaction (savedTokens > 8000)", () => {
 		describe("When the next adaptive threshold ratio is computed", () => {
-			it("Then the ratio drops by 0.05 and is clamped at the 0.40 floor", () => {
+			it("Then the ratio remains fixed at the 60 percent trigger threshold", () => {
 				const registration = registerFauxProvider({
 					models: [{ id: "faux-16k-high-yield", contextWindow: 16000 }],
 				});
@@ -185,16 +185,15 @@ describe("compaction policy: adaptive threshold ratio", () => {
 				const baselineRatio = computeAdaptiveThresholdRatio(model.contextWindow);
 				const adjustedRatio = computeAdaptiveThresholdRatio(model.contextWindow, HIGH_YIELD_SAVED_TOKENS);
 
-				expect(baselineRatio).toBe(0.45);
-				expect(adjustedRatio).toBe(0.4);
-				expect(adjustedRatio).toBeGreaterThanOrEqual(0.4);
+				expect(baselineRatio).toBe(0.6);
+				expect(adjustedRatio).toBe(0.6);
 			});
 		});
 	});
 
 	describe("Given context window 16000 with a low-yield prior compaction (savedTokens < 1000)", () => {
 		describe("When the next adaptive threshold ratio is computed", () => {
-			it("Then the ratio rises by 0.05 and is clamped at the 0.70 ceiling", () => {
+			it("Then the ratio remains fixed at the 60 percent trigger threshold", () => {
 				const registration = registerFauxProvider({
 					models: [{ id: "faux-16k-low-yield", contextWindow: 16000 }],
 				});
@@ -208,16 +207,15 @@ describe("compaction policy: adaptive threshold ratio", () => {
 				const baselineRatio = computeAdaptiveThresholdRatio(model.contextWindow);
 				const adjustedRatio = computeAdaptiveThresholdRatio(model.contextWindow, LOW_YIELD_SAVED_TOKENS);
 
-				expect(baselineRatio).toBe(0.45);
-				expect(adjustedRatio).toBe(0.5);
-				expect(adjustedRatio).toBeLessThanOrEqual(0.7);
+				expect(baselineRatio).toBe(0.6);
+				expect(adjustedRatio).toBe(0.6);
 			});
 		});
 	});
 
 	describe("Given context window 32000 with a high-yield prior compaction", () => {
 		describe("When the effective threshold is computed", () => {
-			it("Then the threshold drops by 0.05 from the adaptive baseline", () => {
+			it("Then the threshold remains fixed at the 60 percent trigger threshold", () => {
 				// given
 				const registration = registerFauxProvider({
 					models: [{ id: "faux-32k-effective-high-yield", contextWindow: 32000 }],
@@ -235,14 +233,14 @@ describe("compaction policy: adaptive threshold ratio", () => {
 				});
 
 				// then
-				expect(effective).toBe(0.45);
+				expect(effective).toBe(0.6);
 			});
 		});
 	});
 
 	describe("Given context window 32000 with a low-yield prior compaction", () => {
 		describe("When the effective threshold is computed", () => {
-			it("Then the threshold rises by 0.05 from the adaptive baseline", () => {
+			it("Then the threshold remains fixed at the 60 percent trigger threshold", () => {
 				// given
 				const registration = registerFauxProvider({
 					models: [{ id: "faux-32k-effective-low-yield", contextWindow: 32000 }],
@@ -260,21 +258,21 @@ describe("compaction policy: adaptive threshold ratio", () => {
 				});
 
 				// then
-				expect(effective).toBe(0.55);
+				expect(effective).toBe(0.6);
 			});
 		});
 	});
 
 	describe("Given speculative compaction policy", () => {
 		describe("When the speculative fraction and threshold are evaluated", () => {
-			it("Then speculative starts at 75% of each adaptive threshold tier", () => {
+			it("Then speculative starts at 75% of the 60 percent trigger threshold", () => {
 				// given
 				const cases = [
-					{ contextWindow: 16_000, adaptiveRatio: 0.45 },
-					{ contextWindow: 32_000, adaptiveRatio: 0.5 },
-					{ contextWindow: 64_000, adaptiveRatio: 0.55 },
+					{ contextWindow: 16_000, adaptiveRatio: 0.6 },
+					{ contextWindow: 32_000, adaptiveRatio: 0.6 },
+					{ contextWindow: 64_000, adaptiveRatio: 0.6 },
 					{ contextWindow: 128_000, adaptiveRatio: 0.6 },
-					{ contextWindow: 200_000, adaptiveRatio: 0.65 },
+					{ contextWindow: 200_000, adaptiveRatio: 0.6 },
 				];
 
 				// when / then
@@ -302,7 +300,7 @@ describe("compaction policy: adaptive threshold ratio", () => {
 
 	describe("Given default keepRecentTokens exceeds a small context window", () => {
 		describe("When the effective keepRecentTokens cap is computed", () => {
-			it("Then the cap stays below the context remainder so preparation can summarize", () => {
+			it("Then the cap keeps only 10 percent of the context window", () => {
 				// given
 				const contextWindow = 16_000;
 				const thresholdRatio = computeEffectiveThreshold(contextWindow);
@@ -315,9 +313,9 @@ describe("compaction policy: adaptive threshold ratio", () => {
 				);
 
 				// then
-				expect(keepRecentTokens).toBe(8000);
+				expect(keepRecentTokens).toBe(1600);
 				expect(keepRecentTokens).toBeLessThan(DEFAULT_COMPACTION_SETTINGS.keepRecentTokens);
-				expect(keepRecentTokens).toBeLessThanOrEqual(contextWindow * (1 - thresholdRatio));
+				expect(keepRecentTokens).toBeLessThanOrEqual(contextWindow * 0.1);
 			});
 		});
 	});

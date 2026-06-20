@@ -114,6 +114,7 @@ describe("package commands", () => {
 			join(projectDir, CONFIG_DIR_NAME, "settings.json"),
 			JSON.stringify({ packages: ["npm:@project/pkg"] }),
 		);
+		new ProjectTrustStore(agentDir).set(projectDir, false);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		try {
@@ -330,6 +331,7 @@ describe("package commands", () => {
 	it("blocks local package changes when project is untrusted", async () => {
 		mkdirSync(join(projectDir, CONFIG_DIR_NAME), { recursive: true });
 		writeFileSync(join(projectDir, CONFIG_DIR_NAME, "settings.json"), "{}");
+		new ProjectTrustStore(agentDir).set(projectDir, false);
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
 		try {

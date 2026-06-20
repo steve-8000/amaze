@@ -29,7 +29,8 @@ export default function (pi: ExtensionAPI): void {
 	let state: ConfigLoadResult = {
 		ok: false,
 		reason: "missing_config",
-		message: "Missing websearch config. Create .amaze/websearch.json or ~/.amaze/websearch.json before starting amaze.",
+		message:
+			"Missing websearch config. Create .amaze/websearch.json or ~/.amaze/websearch.json before starting amaze.",
 	};
 
 	function providerLabel(provider: WebsearchConfig["providers"][number]): string {

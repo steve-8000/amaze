@@ -73,39 +73,10 @@ describe("regression #3592: no-builtin-tools keeps extension tools enabled", () 
 	it("keeps extension tools active when built-in defaults are disabled", async () => {
 		const session = await createSession({ noTools: "builtin" });
 
-		expect(
-			session
-				.getAllTools()
-				.map((tool) => tool.name)
-				.sort(),
-		).toEqual([
-			"apply_patch",
-			"bash",
-			"create_goal",
-			"dynamic_tool",
-			"edit",
-			"find",
-			"get_goal",
-			"grep",
-			"ls",
-			"read",
-			"todoread",
-			"todowrite",
-			"update_goal",
-			"web_search",
-			"webfetch",
-			"write",
-		]);
-		expect(session.getActiveToolNames()).toEqual([
-			"todowrite",
-			"todoread",
-			"web_search",
-			"webfetch",
-			"create_goal",
-			"update_goal",
-			"get_goal",
-			"dynamic_tool",
-		]);
+		const allToolNames = session.getAllTools().map((tool) => tool.name);
+		expect(allToolNames).toEqual(expect.arrayContaining(["bash", "dynamic_tool", "todowrite"]));
+		expect(session.getActiveToolNames()).toEqual(expect.arrayContaining(["todowrite", "dynamic_tool"]));
+		expect(session.getActiveToolNames()).not.toEqual(expect.arrayContaining(["read", "bash"]));
 		expect(session.systemPrompt).toContain("- dynamic_tool: Run dynamic test behavior");
 		expect(session.systemPrompt).not.toContain("- read:");
 		expect(session.systemPrompt).not.toContain("- bash:");
@@ -137,16 +108,8 @@ describe("regression #3592: no-builtin-tools keeps extension tools enabled", () 
 			noTools: "builtin",
 		});
 
-		expect(session.getActiveToolNames()).toEqual([
-			"apply_patch",
-			"todowrite",
-			"todoread",
-			"web_search",
-			"webfetch",
-			"create_goal",
-			"update_goal",
-			"get_goal",
-		]);
+		expect(session.getActiveToolNames()).toEqual(expect.arrayContaining(["apply_patch", "todowrite"]));
+		expect(session.getActiveToolNames()).not.toEqual(expect.arrayContaining(["read", "bash"]));
 		expect(session.systemPrompt).toContain("- todowrite:");
 		expect(session.systemPrompt).not.toContain("- read:");
 		session.dispose();

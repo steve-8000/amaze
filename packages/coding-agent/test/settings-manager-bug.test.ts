@@ -43,15 +43,15 @@ describe("SettingsManager - External Edit Preservation", () => {
 			settingsPath,
 			JSON.stringify({
 				theme: "dark",
-				packages: ["npm:pi-mcp-adapter"],
+				packages: ["npm:example-package"],
 			}),
 		);
 
 		// Pi starts up, loads settings into memory
 		const manager = SettingsManager.create(projectDir, agentDir);
 
-		// At this point, globalSettings.packages = ["npm:pi-mcp-adapter"]
-		expect(manager.getPackages()).toEqual(["npm:pi-mcp-adapter"]);
+		// At this point, globalSettings.packages = ["npm:example-package"]
+		expect(manager.getPackages()).toEqual(["npm:example-package"]);
 
 		// User externally edits settings.json to remove the package
 		const currentSettings = JSON.parse(readFileSync(settingsPath, "utf-8"));

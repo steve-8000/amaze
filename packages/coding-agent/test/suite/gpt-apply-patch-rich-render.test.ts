@@ -23,6 +23,18 @@ const markerTheme = {
 	bg: (name: string, text: string) => `<bg:${name}>${text}</bg:${name}>`,
 	bold: (text: string) => `<bold>${text}</bold>`,
 	inverse: (text: string) => `<inverse>${text}</inverse>`,
+	getBgAnsi: (name: string) => `<bg-ansi:${name}>`,
+	boxSharp: {
+		horizontal: "─",
+		vertical: "│",
+		topLeft: "┌",
+		topRight: "┐",
+		bottomLeft: "└",
+		bottomRight: "┘",
+		teeLeft: "┤",
+		teeRight: "├",
+	},
+	sep: { dot: " • " },
 };
 
 const successBg = "\x1b[48;2;40;50;40m";
@@ -35,6 +47,18 @@ const ansiTheme = {
 	},
 	bold: (text: string) => text,
 	inverse: (text: string) => text,
+	getBgAnsi: (name: string) => (name === "toolSuccessBg" ? successBg : "\x1b[48;2;40;40;50m"),
+	boxSharp: {
+		horizontal: "─",
+		vertical: "│",
+		topLeft: "┌",
+		topRight: "┐",
+		bottomLeft: "└",
+		bottomRight: "┘",
+		teeLeft: "┤",
+		teeRight: "├",
+	},
+	sep: { dot: " • " },
 };
 
 function createRenderContext(cwd: string, args: ApplyPatchArgs, overrides: Partial<ToolRenderContext> = {}) {
@@ -51,6 +75,7 @@ function createRenderContext(cwd: string, args: ApplyPatchArgs, overrides: Parti
 		expanded: false,
 		showImages: true,
 		isError: false,
+		hasResult: false,
 		...overrides,
 	} satisfies ToolRenderContext<ApplyPatchState, ApplyPatchArgs>;
 }

@@ -254,9 +254,9 @@ export function estimateTokens(message: AgentMessage): number {
 			chars = message.summary.length;
 			return Math.ceil(chars / 4);
 		}
+		default:
+			return 0;
 	}
-
-	return 0;
 }
 function findValidCutPoints(entries: SessionTreeEntry[], startIndex: number, endIndex: number): number[] {
 	const cutPoints: number[] = [];

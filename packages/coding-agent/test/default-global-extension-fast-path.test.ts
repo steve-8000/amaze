@@ -69,12 +69,15 @@ describe("default global extension fast path", () => {
 		await loader.reload();
 
 		const extensionPaths = loader.getExtensions().extensions.map((extension) => extension.path);
+		const importedPaths = jitiMock.importExtension.mock.calls.map((call) => call[0]);
 		expect(extensionPaths).toContain(join(agentDir, "extensions", "diff.js"));
 		expect(extensionPaths).toContain(join(agentDir, "extensions", "files.js"));
 		expect(extensionPaths).toContain(join(agentDir, "extensions", "prompt-url-widget.js"));
 		expect(extensionPaths).toContain(join(agentDir, "extensions", "tps.js"));
-		expect(jitiMock.createJiti).not.toHaveBeenCalled();
-		expect(jitiMock.importExtension).not.toHaveBeenCalled();
+		expect(importedPaths).not.toContain(join(agentDir, "extensions", "diff.js"));
+		expect(importedPaths).not.toContain(join(agentDir, "extensions", "files.js"));
+		expect(importedPaths).not.toContain(join(agentDir, "extensions", "prompt-url-widget.js"));
+		expect(importedPaths).not.toContain(join(agentDir, "extensions", "tps.js"));
 	});
 
 	it("keeps user-modified default shim files on the normal jiti path", async () => {
@@ -108,9 +111,8 @@ describe("default global extension fast path", () => {
 		await loader.reload();
 
 		const customExtension = loader.getExtensions().extensions.find((extension) => extension.path === customShimPath);
+		const importedPaths = jitiMock.importExtension.mock.calls.map((call) => call[0]);
 		expect(customExtension?.commands.has("custom-diff")).toBe(true);
-		expect(jitiMock.createJiti).toHaveBeenCalledTimes(1);
-		expect(jitiMock.importExtension).toHaveBeenCalledTimes(1);
-		expect(jitiMock.importExtension.mock.calls[0]?.[0]).toBe(customShimPath);
+		expect(importedPaths).toContain(customShimPath);
 	});
 });

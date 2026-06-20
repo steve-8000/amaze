@@ -35,7 +35,8 @@ describe("vendored pi-* builtins", () => {
 	it("registers every vendored extension in the builtin registry", () => {
 		const ids = builtinExtensions.map((extension) => extension.id);
 
-		expect(ids).toEqual(expect.arrayContaining(["websearch", "webfetch", "nested-agents-md", "rules", "goal"]));
+		expect(ids).toEqual(expect.arrayContaining(["websearch", "webfetch", "rules", "goal"]));
+		expect(ids).not.toContain("nested-agents-md");
 	});
 
 	it("exposes the web_search tool and /websearch command from the websearch builtin", () => {
@@ -49,12 +50,6 @@ describe("vendored pi-* builtins", () => {
 		const probe = runFactory(factoryFor("webfetch"));
 
 		expect(probe.tools.has("webfetch")).toBe(true);
-	});
-
-	it("registers the /nested-agents command from the nested-agents-md builtin", () => {
-		const probe = runFactory(factoryFor("nested-agents-md"));
-
-		expect(probe.commands.has("nested-agents")).toBe(true);
 	});
 
 	it("registers the /rules and /reload-rules commands from the rules builtin", () => {

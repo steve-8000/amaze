@@ -9,6 +9,7 @@ import { AuthStorage } from "./auth-storage.ts";
 import { DEFAULT_THINKING_LEVEL } from "./defaults.ts";
 import type { ServiceTier } from "./extensions/builtin/service-tier.ts";
 import type { ExtensionRunner, LoadExtensionsResult, SessionStartEvent, ToolDefinition } from "./extensions/index.ts";
+import { createFastMemoryReranker } from "./memory-reranker.ts";
 import { convertToLlm } from "./messages.ts";
 import { ModelRegistry } from "./model-registry.ts";
 import { findInitialModel, getModelNarrowingPatterns, resolveModelScope } from "./model-resolver.ts";
@@ -29,8 +30,9 @@ import {
 	createReadOnlyTools,
 	createReadTool,
 	createWriteTool,
-	type ToolName,
+	isXenoniteCoreEnabled,
 	withFileMutationQueue,
+	xenoniteToolNames,
 } from "./tools/index.ts";
 
 export interface CreateAgentSessionOptions {
@@ -251,7 +253,12 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 	// Clamp to model capabilities
 	thinkingLevel = clampThinkingLevelToModel(thinkingLevel, model);
 
-	const defaultActiveToolNames: ToolName[] = ["read", "bash", "edit", "write"];
+	const defaultActiveToolNames: string[] = [
+		"bash",
+		"edit",
+		"write",
+		...(isXenoniteCoreEnabled() ? xenoniteToolNames : []),
+	];
 	const allowedToolNames = options.tools ?? (options.noTools === "all" ? [] : undefined);
 	const excludedToolNames = options.excludeTools;
 	const excludedToolNameSet = excludedToolNames ? new Set(excludedToolNames) : undefined;
@@ -403,6 +410,7 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 		excludedToolNames,
 		extensionRunnerRef,
 		sessionStartEvent: options.sessionStartEvent,
+		memoryReranker: createFastMemoryReranker({ modelRegistry, fallbackModel: model }),
 	});
 	const extensionsResult = resourceLoader.getExtensions();
 

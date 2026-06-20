@@ -19,9 +19,9 @@ import {
 	resetOnSessionCompact,
 } from "./degradation-monitor.ts";
 import {
+	AMAZE_COMPACTION_EVENT,
 	rewriteOpenAiPayloadWithRemoteCompaction,
 	runOpenAiRemoteCompaction,
-	AMAZE_COMPACTION_EVENT,
 } from "./openai-remote.ts";
 import * as cap from "./per-turn-cap.ts";
 import * as policy from "./policy.ts";
@@ -442,7 +442,15 @@ export default function compactionExtension(pi: ExtensionAPI): void {
 	});
 
 	pi.on("tool_result", (event) => {
-		const [truncated] = truncation.truncateOversizedToolResults([{ content: event.content, details: event.details }]);
+		if (event.toolName === "context_engine") {
+			return undefined;
+		}
+		const [truncated] = truncation.truncateOversizedToolResults(
+			[{ content: event.content, details: event.details }],
+			{
+				toolName: event.toolName,
+			},
+		);
 		return truncated ? { content: truncated.content, details: event.details, isError: event.isError } : undefined;
 	});
 

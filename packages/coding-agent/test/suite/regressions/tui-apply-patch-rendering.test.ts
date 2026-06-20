@@ -31,6 +31,7 @@ function renderApplyPatchCall(input: string): string {
 		expanded: false,
 		showImages: true,
 		isError: false,
+		hasResult: false,
 	} satisfies ToolRenderContext<ApplyPatchRenderState, ApplyPatchParams>;
 	const whenComponent = givenTool.renderCall?.({ input }, theme, givenRenderContext);
 	return stripAnsi(whenComponent?.render(120).join("\n") ?? "");

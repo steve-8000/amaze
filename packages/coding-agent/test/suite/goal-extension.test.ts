@@ -147,7 +147,12 @@ describe("goal extension contract (budget-free)", () => {
 		expect(secondGoal.status).toBe("active");
 		expect(secondGoal.tokensUsed).toBe(0);
 		expect(secondGoal.timeUsedSeconds).toBe(0);
-		expect(await readGoal(ref)).toMatchObject({ objective: "Second", status: "active", tokensUsed: 0, timeUsedSeconds: 0 });
+		expect(await readGoal(ref)).toMatchObject({
+			objective: "Second",
+			status: "active",
+			tokensUsed: 0,
+			timeUsedSeconds: 0,
+		});
 	});
 
 	it("queues a hidden continuation prompt after agent_end while a goal is active", async () => {

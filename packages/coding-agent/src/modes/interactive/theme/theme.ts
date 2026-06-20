@@ -887,9 +887,9 @@ export function setTheme(name: string, enableWatcher: boolean = false): { succes
 		}
 		return { success: true };
 	} catch (error) {
-		// Theme is invalid - fall back to dark theme
-		currentThemeName = "dark";
-		setGlobalTheme(loadTheme("dark"));
+		// Theme is invalid - fall back to the fixed amaze theme.
+		currentThemeName = "erid";
+		setGlobalTheme(loadTheme("erid"));
 		// Don't start watcher for fallback theme
 		return {
 			success: false,

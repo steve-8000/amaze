@@ -13,7 +13,7 @@ function padding(width: number): string {
 }
 
 /** Pad or truncate a possibly ANSI-styled string to exactly `width` columns. */
-export function fit(text: string, width: number): string {
+export function fitColumns(text: string, width: number): string {
 	if (width <= 0) return "";
 	const w = visibleWidth(text);
 	if (w === width) return text;
@@ -55,7 +55,7 @@ export function bottomBorder(theme: Theme, width: number): string {
 /** Wrap pre-styled content in vertical borders with single-column insets. */
 export function row(theme: Theme, content: string, width: number): string {
 	const box = theme.boxSharp;
-	return `${paint(theme, box.vertical)} ${fit(content, Math.max(0, width - 4))} ${paint(theme, box.vertical)}`;
+	return `${paint(theme, box.vertical)} ${fitColumns(content, Math.max(0, width - 4))} ${paint(theme, box.vertical)}`;
 }
 
 function splitDividerCol(sidebarWidth: number): number {
@@ -104,5 +104,5 @@ export function splitRow(theme: Theme, sidebar: string, body: string, width: num
 	const box = theme.boxSharp;
 	const bodyWidth = splitBodyWidth(width, sidebarWidth);
 	const bar = paint(theme, box.vertical);
-	return `${bar} ${fit(sidebar, sidebarWidth)} ${bar} ${fit(body, bodyWidth)} ${bar}`;
+	return `${bar} ${fitColumns(sidebar, sidebarWidth)} ${bar} ${fitColumns(body, bodyWidth)} ${bar}`;
 }

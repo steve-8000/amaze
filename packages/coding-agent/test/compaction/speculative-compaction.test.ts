@@ -9,6 +9,7 @@ import {
 	createSpeculativeCompactionSnapshot,
 	runExtensionCompaction,
 	type SpeculativeCompactionContext,
+	truncateContextMessages,
 } from "../../src/core/extensions/builtin/compaction/speculative.ts";
 import { ModelRegistry } from "../../src/core/model-registry.ts";
 import { SessionManager } from "../../src/core/session-manager.ts";
@@ -88,18 +89,86 @@ function createContext(options?: { revision?: number }): TestSpeculativeCompacti
 }
 
 describe("speculative compaction", () => {
-	it("starts at the 37.5 percent default trigger for a 32k context window", () => {
+	it("does not truncate context_engine tool results in active context", () => {
+		const largeContextEngineResult = JSON.stringify({
+			ok: true,
+			assessment: { shouldReadMore: false },
+			context: [{ relativePath: "src/answer.ts", content: "X".repeat(8_000) }],
+		});
+		const [message] = truncateContextMessages([
+			{
+				role: "toolResult",
+				toolName: "context_engine",
+				toolCallId: "call-1",
+				content: [{ type: "text", text: largeContextEngineResult }],
+				isError: false,
+				timestamp: Date.now(),
+			},
+		]);
+
+		expect(message?.role).toBe("toolResult");
+		if (message?.role !== "toolResult") return;
+		const text = message.content.find((part) => part.type === "text")?.text;
+		expect(text).toBe(largeContextEngineResult);
+		expect(text).not.toContain("<truncated:");
+	});
+
+	it("allows bounded code_read results up to the larger evidence threshold", () => {
+		const codeReadResult = JSON.stringify({
+			ok: true,
+			relativePath: "src/answer.ts",
+			content: "X".repeat(10_000),
+		});
+		const [message] = truncateContextMessages([
+			{
+				role: "toolResult",
+				toolName: "code_read",
+				toolCallId: "call-1",
+				content: [{ type: "text", text: codeReadResult }],
+				isError: false,
+				timestamp: Date.now(),
+			},
+		]);
+
+		expect(message?.role).toBe("toolResult");
+		if (message?.role !== "toolResult") return;
+		const text = message.content.find((part) => part.type === "text")?.text;
+		expect(text).toBe(codeReadResult);
+		expect(text).not.toContain("<truncated:");
+	});
+
+	it("keeps the smaller default truncation threshold for non-code-read tool results", () => {
+		const regularToolResult = "X".repeat(10_000);
+		const [message] = truncateContextMessages([
+			{
+				role: "toolResult",
+				toolName: "search_query",
+				toolCallId: "call-1",
+				content: [{ type: "text", text: regularToolResult }],
+				isError: false,
+				timestamp: Date.now(),
+			},
+		]);
+
+		expect(message?.role).toBe("toolResult");
+		if (message?.role !== "toolResult") return;
+		const text = message.content.find((part) => part.type === "text")?.text;
+		expect(text).toContain("<truncated:");
+		expect(text).not.toBe(regularToolResult);
+	});
+
+	it("starts at the 45 percent default speculative trigger for a 32k context window", () => {
 		// Given
 		const contextWindow = 32_000;
 
 		// When
 		const beforeTrigger = shouldStartSpeculativeCompaction(
-			{ tokens: 11_999, contextWindow, percent: null },
+			{ tokens: 14_399, contextWindow, percent: null },
 			contextWindow,
 			DEFAULT_COMPACTION_SETTINGS,
 		);
 		const atTrigger = shouldStartSpeculativeCompaction(
-			{ tokens: 12_000, contextWindow, percent: null },
+			{ tokens: 14_400, contextWindow, percent: null },
 			contextWindow,
 			DEFAULT_COMPACTION_SETTINGS,
 		);

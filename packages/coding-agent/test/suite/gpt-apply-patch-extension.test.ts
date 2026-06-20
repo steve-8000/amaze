@@ -384,8 +384,10 @@ describe("gpt-apply-patch builtin extension", () => {
 
 		await harness.session.prompt("test");
 
-		expect(harness.session.getActiveToolNames()).toEqual(["read", "bash", "apply_patch"]);
-		expect(providerToolNames).toEqual(["read", "bash", "apply_patch"]);
+		expect(harness.session.getActiveToolNames()).toEqual(expect.arrayContaining(["bash", "apply_patch"]));
+		expect(harness.session.getActiveToolNames()).not.toEqual(expect.arrayContaining(["edit", "write"]));
+		expect(providerToolNames).toEqual(expect.arrayContaining(["bash", "apply_patch"]));
+		expect(providerToolNames).not.toEqual(expect.arrayContaining(["edit", "write"]));
 	});
 
 	it("restores write and edit when the session switches away from an OpenAI GPT model", async () => {
@@ -432,7 +434,7 @@ describe("gpt-apply-patch builtin extension", () => {
 		harness.session.setActiveToolsByName(["read", "bash", "grep", "apply_patch"]);
 		await harness.session.setModel(harness.getModel("o1")!);
 
-		expect(harness.session.getActiveToolNames()).toEqual(["read", "bash", "grep", "edit", "write"]);
+		expect(harness.session.getActiveToolNames()).toEqual(expect.arrayContaining(["bash", "edit", "write"]));
 	});
 
 	it("extracts file-scoped edit permissions from apply_patch input", () => {

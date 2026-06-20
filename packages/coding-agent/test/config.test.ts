@@ -72,18 +72,7 @@ function createPnpmGlobalInstall(): { root: string; packageDir: string } {
 	tempDir = temp;
 	process.env.PATH = `${binDir}${delimiter}${originalPath ?? ""}`;
 	process.env.AMAZE_PACKAGE_DIR = packageDir;
-	setExecPath(
-		join(
-			root,
-			".pnpm",
-			"amaze.0.0",
-			"node_modules",
-			"@steve-8000",
-			"amaze",
-			"dist",
-			"cli.js",
-		),
-	);
+	setExecPath(join(root, ".pnpm", "amaze.0.0", "node_modules", "@steve-8000", "amaze", "dist", "cli.js"));
 	return { root, packageDir };
 }
 
@@ -148,7 +137,7 @@ function createFakeBunScript(bunBin: string): string {
 describe("detectInstallMethod", () => {
 	test("detects pnpm from Windows .pnpm install paths", () => {
 		setExecPath(
-			"C:\\Users\\Admin\\Documents\\pnpm-repository\\global\\5\\.pnpm\\@steve-8000+amaze-coding-agent@0.67.68\\node_modules\\\-works\\amaze\\dist\\cli.js",
+			"C:\\Users\\Admin\\Documents\\pnpm-repository\\global\\5\\.pnpm\\@steve-8000+amaze-coding-agent@0.67.68\\node_modules\\-works\\amaze\\dist\\cli.js",
 		);
 
 		expect(detectInstallMethod()).toBe("pnpm");
@@ -175,15 +164,7 @@ describe("detectInstallMethod", () => {
 		expect(detectInstallMethod()).toBe("npm");
 		expect(command).toEqual({
 			command: "npm",
-			args: [
-				"--prefix",
-				prefix,
-				"install",
-				"-g",
-				"--ignore-scripts",
-				"--min-release-age=0",
-				"amaze",
-			],
+			args: ["--prefix", prefix, "install", "-g", "--ignore-scripts", "--min-release-age=0", "amaze"],
 			display: `npm --prefix ${prefix} install -g --ignore-scripts --min-release-age=0 amaze`,
 		});
 	});
@@ -205,7 +186,15 @@ describe("detectInstallMethod", () => {
 				},
 				{
 					command: "npm",
-					args: ["--prefix", prefix, "install", "-g", "--ignore-scripts", "--min-release-age=0", "@new-scope/amaze"],
+					args: [
+						"--prefix",
+						prefix,
+						"install",
+						"-g",
+						"--ignore-scripts",
+						"--min-release-age=0",
+						"@new-scope/amaze",
+					],
 					display: `npm --prefix ${prefix} install -g --ignore-scripts --min-release-age=0 @new-scope/amaze`,
 				},
 			],
@@ -219,15 +208,7 @@ describe("detectInstallMethod", () => {
 
 		expect(command).toEqual({
 			command: "npm",
-			args: [
-				"--prefix",
-				prefix,
-				"install",
-				"-g",
-				"--ignore-scripts",
-				"--min-release-age=0",
-				"amaze",
-			],
+			args: ["--prefix", prefix, "install", "-g", "--ignore-scripts", "--min-release-age=0", "amaze"],
 			display: `npm --prefix ${prefix} install -g --ignore-scripts --min-release-age=0 amaze`,
 		});
 	});
@@ -253,20 +234,16 @@ describe("detectInstallMethod", () => {
 
 		const command = getSelfUpdateCommand("amaze");
 
-		expect(command?.display).toBe(
-			`npm --prefix "${prefix}" install -g --ignore-scripts --min-release-age=0 amaze`,
-		);
+		expect(command?.display).toBe(`npm --prefix "${prefix}" install -g --ignore-scripts --min-release-age=0 amaze`);
 	});
 
 	test("does not infer Windows npm custom prefixes from package paths", () => {
-		const packageDir = "C:\\Users\\Admin\\npm prefix\\node_modules\\\-works\\amaze";
+		const packageDir = "C:\\Users\\Admin\\npm prefix\\node_modules\\-works\\amaze";
 		process.env.AMAZE_PACKAGE_DIR = packageDir;
 		setExecPath(`${packageDir}\\dist\\cli.js`);
 
 		expect(detectInstallMethod()).toBe("npm");
-		expect(getUpdateInstruction("amaze")).toBe(
-			"Run: npm install -g --ignore-scripts --min-release-age=0 amaze",
-		);
+		expect(getUpdateInstruction("amaze")).toBe("Run: npm install -g --ignore-scripts --min-release-age=0 amaze");
 	});
 
 	test("self-updates bun global installs from bun pm bin", () => {
@@ -385,8 +362,7 @@ describe("detectInstallMethod", () => {
 		expect(command).toEqual({
 			command: "bun",
 			args: ["install", "-g", "--ignore-scripts", "--minimum-release-age=0", "@new-scope/amaze"],
-			display:
-				"bun uninstall -g amaze && bun install -g --ignore-scripts --minimum-release-age=0 @new-scope/amaze",
+			display: "bun uninstall -g amaze && bun install -g --ignore-scripts --minimum-release-age=0 @new-scope/amaze",
 			steps: [
 				{
 					command: "bun",
@@ -407,8 +383,6 @@ describe("detectInstallMethod", () => {
 		chmodSync(packageDir, 0o500);
 
 		expect(getSelfUpdateCommand("amaze")).toBeUndefined();
-		expect(getSelfUpdateUnavailableInstruction("amaze")).toContain(
-			"the install path is not writable",
-		);
+		expect(getSelfUpdateUnavailableInstruction("amaze")).toContain("the install path is not writable");
 	});
 });

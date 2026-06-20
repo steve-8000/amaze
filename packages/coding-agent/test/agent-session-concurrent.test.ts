@@ -107,6 +107,10 @@ describe("AgentSession concurrent prompt guard", () => {
 	function createSession() {
 		const model = getModel("anthropic", "claude-sonnet-4-5")!;
 		let abortSignal: AbortSignal | undefined;
+		let resolveStreamStarted!: () => void;
+		const streamStarted = new Promise<void>((resolve) => {
+			resolveStreamStarted = resolve;
+		});
 
 		// Use a stream function that responds to abort
 		const agent = new Agent({
@@ -118,6 +122,7 @@ describe("AgentSession concurrent prompt guard", () => {
 			},
 			streamFn: (_model, _context, options) => {
 				abortSignal = options?.signal;
+				resolveStreamStarted();
 				const stream = new MockAssistantStream();
 				queueMicrotask(() => {
 					stream.push({ type: "start", partial: createAssistantMessage("") });
@@ -150,17 +155,16 @@ describe("AgentSession concurrent prompt guard", () => {
 			resourceLoader: createTestResourceLoader(),
 		});
 
-		return session;
+		return { session, streamStarted };
 	}
 
 	it("should throw when prompt() called while streaming", async () => {
-		createSession();
+		const { streamStarted } = createSession();
 
 		// Start first prompt (don't await, it will block until abort)
 		const firstPrompt = session.prompt("First message");
 
-		// Wait a tick for isStreaming to be set
-		await new Promise((resolve) => setTimeout(resolve, 10));
+		await streamStarted;
 
 		// Verify we're streaming
 		expect(session.isStreaming).toBe(true);
@@ -176,11 +180,11 @@ describe("AgentSession concurrent prompt guard", () => {
 	});
 
 	it("should allow steer() while streaming", async () => {
-		createSession();
+		const { streamStarted } = createSession();
 
 		// Start first prompt
 		const firstPrompt = session.prompt("First message");
-		await new Promise((resolve) => setTimeout(resolve, 10));
+		await streamStarted;
 
 		// steer should work while streaming
 		expect(() => session.steer("Steering message")).not.toThrow();
@@ -192,11 +196,11 @@ describe("AgentSession concurrent prompt guard", () => {
 	});
 
 	it("should allow followUp() while streaming", async () => {
-		createSession();
+		const { streamStarted } = createSession();
 
 		// Start first prompt
 		const firstPrompt = session.prompt("First message");
-		await new Promise((resolve) => setTimeout(resolve, 10));
+		await streamStarted;
 
 		// followUp should work while streaming
 		expect(() => session.followUp("Follow-up message")).not.toThrow();
@@ -213,6 +217,10 @@ describe("AgentSession concurrent prompt guard", () => {
 		let sawSteeringMessage = false;
 		let lastInputSource: string | undefined;
 		const queueEvents: Array<{ steering: readonly string[]; followUp: readonly string[] }> = [];
+		let resolveStreamStarted!: () => void;
+		const streamStarted = new Promise<void>((resolve) => {
+			resolveStreamStarted = resolve;
+		});
 
 		const agent = new Agent({
 			getApiKey: () => "test-key",
@@ -223,6 +231,7 @@ describe("AgentSession concurrent prompt guard", () => {
 			},
 			streamFn: (_model, context, options) => {
 				abortSignal = options?.signal;
+				resolveStreamStarted();
 				const stream = new MockAssistantStream();
 				queueMicrotask(() => {
 					const userTexts = context.messages
@@ -291,7 +300,7 @@ describe("AgentSession concurrent prompt guard", () => {
 		});
 
 		const firstPrompt = session.prompt("First message");
-		await new Promise((resolve) => setTimeout(resolve, 10));
+		await streamStarted;
 		expect(session.isStreaming).toBe(true);
 
 		const pi = (

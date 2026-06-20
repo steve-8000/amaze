@@ -239,7 +239,6 @@ ${chalk.bold("Commands:")}
                                  List installed extensions from settings
   ${APP_NAME} config [--no-approve]
                                  Open TUI to enable/disable package resources
-  ${APP_NAME} mcp-dev                Start the experimental local stdio MCP adapter
   ${APP_NAME} <command> --help          Show help for install/remove/uninstall/update/list
 
 ${chalk.bold("Options:")}

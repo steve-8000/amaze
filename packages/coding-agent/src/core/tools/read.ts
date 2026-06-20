@@ -60,6 +60,10 @@ export interface ReadToolOptions {
 	autoResizeImages?: boolean;
 	/** Custom operations for file reading. Default: local filesystem */
 	operations?: ReadOperations;
+	/** Tool name to expose. Defaults to "read". */
+	toolName?: string;
+	/** Tool label to expose. Defaults to toolName. */
+	label?: string;
 }
 
 type ReadRenderArgs = { path?: string; file_path?: string; offset?: number; limit?: number };
@@ -206,12 +210,13 @@ export function createReadToolDefinition(
 ): ToolDefinition<typeof readSchema, ReadToolDetails | undefined> {
 	const autoResizeImages = options?.autoResizeImages ?? true;
 	const ops = options?.operations ?? defaultReadOperations;
+	const toolName = options?.toolName ?? "read";
 	return {
-		name: "read",
-		label: "read",
-		description: `Read the contents of a file. Supports text files and images (jpg, png, gif, webp). Images are sent as attachments. For text files, output is truncated to ${DEFAULT_MAX_LINES} lines or ${DEFAULT_MAX_BYTES / 1024}KB (whichever is hit first). Use offset/limit for large files. When you need the full file, continue with offset until complete.`,
-		promptSnippet: "Read file contents",
-		promptGuidelines: ["Use read to examine files instead of cat or sed."],
+		name: toolName,
+		label: options?.label ?? toolName,
+		description: `Raw fallback file read. Prefer code_read for indexed code/text context; use ${toolName} only for images, binary/unindexed/generated files, explicit full-file requests, or after code_read/patch/diagnostics failure. Supports text files and images (jpg, png, gif, webp). Text output is truncated to ${DEFAULT_MAX_LINES} lines or ${DEFAULT_MAX_BYTES / 1024}KB.`,
+		promptSnippet: toolName === "read" ? "Raw file read fallback" : "Raw file read fallback",
+		promptGuidelines: [`Prefer code_read for code/text context. Use ${toolName} only as an explicit raw fallback.`],
 		parameters: readSchema,
 		async execute(
 			_toolCallId,

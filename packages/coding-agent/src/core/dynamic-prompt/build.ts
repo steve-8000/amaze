@@ -44,7 +44,7 @@ export function buildDynamicSystemPrompt(options: BuildDynamicSystemPromptOption
 		"",
 		buildParallelToolsSection(),
 		"",
-		buildExplorationSection(),
+		buildExplorationSection(tools),
 		"",
 		buildVerificationSection(),
 		"",

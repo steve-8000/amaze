@@ -146,4 +146,31 @@ describe("AgentSession.getSessionStats", () => {
 			session.dispose();
 		}
 	});
+
+	it("ignores suspiciously high post-compaction provider usage when compacted content is small", () => {
+		const { session, sessionManager } = createSession();
+
+		try {
+			sessionManager.appendMessage(createUserMessage("first", 1));
+			sessionManager.appendMessage(createAssistantMessage("response1", 180_000, 2));
+			const keptUserId = sessionManager.appendMessage(createUserMessage("second", 3));
+			sessionManager.appendMessage(createAssistantMessage("response2", 195_000, 4));
+			sessionManager.appendCompaction("small summary", keptUserId, 195_000);
+			sessionManager.appendMessage(createUserMessage("third", 5));
+			sessionManager.appendMessage(createAssistantMessage("short answer after compaction", 203_193, 6));
+			syncAgentMessages(session, sessionManager);
+
+			const stats = session.getSessionStats();
+			const expectedTokens = session.messages.reduce(
+				(sum, message) => sum + estimateTokens(message as AgentMessage),
+				0,
+			);
+			expect(stats.contextUsage).toBeDefined();
+			expect(stats.contextUsage?.tokens).toBe(expectedTokens);
+			expect(stats.contextUsage?.tokens).toBeLessThan(203_193);
+			expect(stats.contextUsage?.percent).toBe((expectedTokens / model.contextWindow) * 100);
+		} finally {
+			session.dispose();
+		}
+	});
 });

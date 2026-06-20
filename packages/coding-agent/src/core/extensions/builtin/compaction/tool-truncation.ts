@@ -1,10 +1,15 @@
 import type { AgentToolResult } from "@steve-8000/amaze-agent-core";
 import type { ImageContent, TextContent } from "@steve-8000/amaze-ai";
 
-const PER_RESULT_TRUNCATE_THRESHOLD_BYTES = 4096;
+const DEFAULT_PER_RESULT_TRUNCATE_THRESHOLD_BYTES = 4096;
+const CODE_READ_TRUNCATE_THRESHOLD_BYTES = 16 * 1024;
 const TRUNCATION_HEAD_CHARS = 800;
 const TRUNCATION_TAIL_CHARS = 400;
 const TRUNCATION_MARKER_RE = /<truncated:\d+ bytes original>/;
+
+type TruncationOptions = {
+	toolName?: string;
+};
 
 function utf8Bytes(text: string): number {
 	return new TextEncoder().encode(text).length;
@@ -34,10 +39,20 @@ function buildMarker(originalBytes: number): string {
 	return `<truncated:${originalBytes} bytes original>`;
 }
 
-function truncateTextBlock(block: TextContent, headChars: number, tailChars: number): TextContent | null {
+function thresholdBytesForTool(toolName: string | undefined): number {
+	if (toolName === "code_read") return CODE_READ_TRUNCATE_THRESHOLD_BYTES;
+	return DEFAULT_PER_RESULT_TRUNCATE_THRESHOLD_BYTES;
+}
+
+function truncateTextBlock(
+	block: TextContent,
+	headChars: number,
+	tailChars: number,
+	thresholdBytes: number,
+): TextContent | null {
 	const text = block.text;
 	const bytes = utf8Bytes(text);
-	if (bytes <= PER_RESULT_TRUNCATE_THRESHOLD_BYTES) return null;
+	if (bytes <= thresholdBytes) return null;
 	if (TRUNCATION_MARKER_RE.test(text)) return null;
 	const head = text.slice(0, headChars);
 	const tail = text.slice(text.length - tailChars);
@@ -49,11 +64,12 @@ function applyHeadTailTruncation(
 	result: AgentToolResult<unknown>,
 	headChars: number,
 	tailChars: number,
+	thresholdBytes: number,
 ): AgentToolResult<unknown> {
 	let modified = false;
 	const newContent: (TextContent | ImageContent)[] = result.content.map((block) => {
 		if (block.type !== "text") return block;
-		const truncated = truncateTextBlock(block, headChars, tailChars);
+		const truncated = truncateTextBlock(block, headChars, tailChars, thresholdBytes);
 		if (truncated) {
 			modified = true;
 			return truncated;
@@ -79,19 +95,26 @@ function reduceMarkedTextToMarker(result: AgentToolResult<unknown>): AgentToolRe
 	return { ...result, content: newContent };
 }
 
-export function truncateOversizedToolResults(results: AgentToolResult<unknown>[]): AgentToolResult<unknown>[] {
-	return results.map((result) => applyHeadTailTruncation(result, TRUNCATION_HEAD_CHARS, TRUNCATION_TAIL_CHARS));
+export function truncateOversizedToolResults(
+	results: AgentToolResult<unknown>[],
+	options: TruncationOptions = {},
+): AgentToolResult<unknown>[] {
+	const thresholdBytes = thresholdBytesForTool(options.toolName);
+	return results.map((result) =>
+		applyHeadTailTruncation(result, TRUNCATION_HEAD_CHARS, TRUNCATION_TAIL_CHARS, thresholdBytes),
+	);
 }
 
 export function prePruneToolOutputsToBudget(
 	results: AgentToolResult<unknown>[],
 	targetTokens: number,
+	options: TruncationOptions = {},
 ): AgentToolResult<unknown>[] {
 	if (totalTokens(results) <= targetTokens) {
 		return results.map((result) => ({ ...result }));
 	}
 
-	const firstPass = truncateOversizedToolResults(results);
+	const firstPass = truncateOversizedToolResults(results, options);
 	if (totalTokens(firstPass) <= targetTokens) return firstPass;
 
 	return firstPass.map((result) => reduceMarkedTextToMarker(result));

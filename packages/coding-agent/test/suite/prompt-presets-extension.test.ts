@@ -25,14 +25,14 @@ function createModel(id: string, provider: string, api: Api = "openai-responses"
 function fallbackPrompt(): string {
 	return buildDynamicSystemPrompt({
 		cwd: "/repo",
-		selectedTools: ["read", "bash", "edit", "write"],
+		selectedTools: ["code_read", "bash", "edit", "write"],
 		toolSnippets: {
-			read: "Read file contents",
+			code_read: "Read indexed code context",
 			bash: "Execute shell commands",
 			edit: "Edit existing files",
 			write: "Write files",
 		},
-		promptGuidelines: ["Use read before edit."],
+		promptGuidelines: ["Use code_read before edit."],
 		contextFiles: [{ path: "/repo/AGENTS.md", content: "Follow project conventions." }],
 		skills: [],
 	});
@@ -74,7 +74,7 @@ describe("prompt preset resolver", () => {
 
 		// then
 		expect(preset?.name).toBe(expectedName);
-		expect(preset?.prompt).toContain("You are senpi");
+		expect(preset?.prompt).toContain("You are amaze");
 		expect(preset?.prompt).toContain("reasoning effort");
 		expect(preset?.prompt).toContain("## Intent Gate");
 		expect(preset?.prompt).toContain("I read this as");
@@ -102,7 +102,7 @@ describe("prompt preset resolver", () => {
 
 		// then
 		expect(preset?.name).toBe("gpt-5.5");
-		expect(preset?.prompt).toContain("You are senpi");
+		expect(preset?.prompt).toContain("You are amaze");
 		expect(preset?.prompt).toContain("Reason efficiently");
 		expect(preset?.prompt).toContain("outcome-first");
 		expect(preset?.prompt).toContain("Preamble");
@@ -144,7 +144,7 @@ describe("prompt preset resolver", () => {
 
 		// then
 		expect(preset?.name).toBe(expectedName);
-		expect(preset?.prompt).toContain("You are senpi");
+		expect(preset?.prompt).toContain("You are amaze");
 		expect(preset?.prompt).toContain("## Intent Gate");
 		expect(preset?.prompt).toContain("I read this as");
 		expect(preset?.prompt.length).toBeGreaterThan(2_000);
@@ -163,7 +163,7 @@ describe("prompt preset resolver", () => {
 
 		// then
 		expect(preset?.name).toBe("kimi-k2-6");
-		expect(preset?.prompt).toContain("You are senpi");
+		expect(preset?.prompt).toContain("You are amaze");
 		expect(preset?.prompt).toContain("filler verification language");
 		expect(preset?.prompt).toContain("## Intent Gate");
 		expect(preset?.prompt.length).toBeGreaterThan(2_000);
@@ -190,7 +190,7 @@ describe("prompt preset resolver", () => {
 
 		// then
 		expect(preset?.name).toBe("kimi-k2-7");
-		expect(preset?.prompt).toContain("You are senpi");
+		expect(preset?.prompt).toContain("You are amaze");
 		expect(preset?.prompt).toContain("running on Kimi K2.7");
 		expect(preset?.prompt).toContain("## Intent Gate");
 		expect(preset?.prompt.length).toBeGreaterThan(2_000);
@@ -293,7 +293,7 @@ describe("prompt preset resolver", () => {
 
 	it("fallback prompt contains all expected structural sections", () => {
 		const activePrompt = fallbackPrompt();
-		expect(activePrompt).toContain("You are senpi");
+		expect(activePrompt).toContain("You are amaze");
 		expect(activePrompt).toContain("## Intent Gate");
 		expect(activePrompt).toContain("## Parallel Tool Calls");
 		expect(activePrompt).toContain("## Exploration");
@@ -454,7 +454,7 @@ describe("prompt preset resolver", () => {
 
 	// Codex-style File operations guard. Every GPT-5.x preset must teach the model to
 	// route file edits through `apply_patch`, file reads through `read`, and never to
-	// substitute inline python (or sed/awk/heredoc) through bash. This is the senpi
+	// substitute inline python (or sed/awk/heredoc) through bash. This is the amaze
 	// equivalent of codex's `core/gpt_5_2_prompt.md` Task execution + Shell commands
 	// + apply_patch sections collapsed into a single tuning paragraph.
 	it.each([
@@ -488,7 +488,7 @@ describe("prompt preset resolver", () => {
 		expect(prompt.toLowerCase()).toMatch(/python/);
 		// Negative guard: codex's "do not waste tokens re-reading after apply_patch".
 		expect(prompt.toLowerCase()).toMatch(/re-?read|do not.*read/);
-		// Positive routing: prefer the senpi `grep` tool over invoking grep/rg through bash.
+		// Positive routing: prefer the amaze `grep` tool over invoking grep/rg through bash.
 		expect(prompt.toLowerCase()).toMatch(/\brg\b|ripgrep/);
 	});
 });

@@ -1,5 +1,9 @@
 import { describe, expect, test } from "vitest";
-import { categorizeTools, getToolsPromptDisplay } from "../../src/core/dynamic-prompt/tool-categorization.ts";
+import {
+	categorizeTools,
+	getFallbackToolsPromptDisplay,
+	getToolsPromptDisplay,
+} from "../../src/core/dynamic-prompt/tool-categorization.ts";
 
 describe("categorizeTools", () => {
 	test("categorizes lsp_ and ast_grep prefixed tools as other", () => {
@@ -20,10 +24,21 @@ describe("categorizeTools", () => {
 	});
 
 	test("categorizes Xenonite project search tools as search", () => {
-		const tools = categorizeTools(["search_query", "index_status", "graph_symbol", "ctx_search", "mem_recall", "mem_optimize"]);
+		const tools = categorizeTools([
+			"context_engine",
+			"search_query",
+			"code_read",
+			"index_status",
+			"graph_symbol",
+			"ctx_search",
+			"mem_recall",
+			"mem_optimize",
+		]);
 
 		expect(tools).toEqual([
+			{ name: "context_engine", category: "search" },
 			{ name: "search_query", category: "search" },
+			{ name: "code_read", category: "search" },
 			{ name: "index_status", category: "search" },
 			{ name: "graph_symbol", category: "search" },
 			{ name: "ctx_search", category: "search" },
@@ -78,26 +93,38 @@ describe("getToolsPromptDisplay", () => {
 		expect(display).toBe("");
 	});
 
-	test("shows search tools individually", () => {
+	test("does not show low-level literal search tools as primary triggers", () => {
 		const tools = categorizeTools(["grep", "glob"]);
 		const display = getToolsPromptDisplay(tools);
 
-		expect(display).toContain("`grep`");
-		expect(display).toContain("`glob`");
+		expect(display).toBe("");
 	});
 
-	test("shows Xenonite search tools before literal search tools", () => {
-		const tools = categorizeTools(["grep", "search_query", "index_status", "mem_recall", "mem_optimize"]);
+	test("shows primary repository context and memory tools before agent orchestration", () => {
+		const tools = categorizeTools([
+			"grep",
+			"context_engine",
+			"search_query",
+			"index_status",
+			"mem_recall",
+			"mem_search",
+			"mem_store",
+			"mem_optimize",
+			"mem_delete",
+			"agent_run",
+		]);
 		const display = getToolsPromptDisplay(tools);
 
-		expect(display).toBe("`search_query`, `index_status`, `mem_recall`, `mem_optimize`, `grep`");
+		expect(display).toBe(
+			"`context_engine`, `mem_recall`, `mem_search`, `mem_store`, `mem_optimize`, `mem_delete`, `agent_run`",
+		);
 	});
 
-	test("only displays search tools, not lsp or ast", () => {
+	test("only displays primary trigger tools, not low-level search, lsp, or ast", () => {
 		const tools = categorizeTools(["grep", "lsp_diagnostics", "ast_grep_search"]);
 		const display = getToolsPromptDisplay(tools);
 
-		expect(display).toContain("`grep`");
+		expect(display).not.toContain("`grep`");
 		expect(display).not.toContain("lsp");
 		expect(display).not.toContain("ast");
 	});
@@ -111,5 +138,32 @@ describe("getToolsPromptDisplay", () => {
 
 	test("returns empty string for empty input", () => {
 		expect(getToolsPromptDisplay([])).toBe("");
+	});
+});
+
+describe("getFallbackToolsPromptDisplay", () => {
+	test("shows low-level repository tools as fallback tools", () => {
+		const tools = categorizeTools([
+			"grep",
+			"glob",
+			"search_query",
+			"code_read",
+			"index_status",
+			"graph_symbol",
+			"ctx_search",
+			"context_engine",
+			"mem_recall",
+		]);
+		const display = getFallbackToolsPromptDisplay(tools);
+
+		expect(display).toBe("`search_query`, `code_read`, `index_status`, `graph_symbol`, `ctx_search`, `grep`, `glob`");
+		expect(display).not.toContain("context_engine");
+		expect(display).not.toContain("mem_recall");
+	});
+
+	test("returns empty string when no fallback tools exist", () => {
+		const tools = categorizeTools(["context_engine", "mem_recall", "agent_run"]);
+
+		expect(getFallbackToolsPromptDisplay(tools)).toBe("");
 	});
 });

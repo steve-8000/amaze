@@ -49,7 +49,10 @@ function mapToolCallForPaseo(name: string, args: unknown): { name: string; argum
 	switch (name) {
 		case "agent_run": {
 			const agent = firstString(args, ["agent", "action"]) ?? "agent";
-			return { name: "bash", arguments: { command: `agent_run ${agent}`, amazeToolName: name, amazeArguments: args } };
+			return {
+				name: "bash",
+				arguments: { command: `agent_run ${agent}`, amazeToolName: name, amazeArguments: args },
+			};
 		}
 		case "mem_recall":
 		case "mem_search":
@@ -57,21 +60,37 @@ function mapToolCallForPaseo(name: string, args: unknown): { name: string; argum
 		case "create_goal":
 		case "update_goal":
 		case "get_goal":
-			return { name: "bash", arguments: { command: commandForTool(name, args), amazeToolName: name, amazeArguments: args } };
+			return {
+				name: "bash",
+				arguments: { command: commandForTool(name, args), amazeToolName: name, amazeArguments: args },
+			};
 		case "web_search":
 			return {
 				name: "grep",
-				arguments: { pattern: firstString(args, ["query"]) ?? textFromUnknown(args), amazeToolName: name, amazeArguments: args },
+				arguments: {
+					pattern: firstString(args, ["query"]) ?? textFromUnknown(args),
+					amazeToolName: name,
+					amazeArguments: args,
+				},
 			};
 		case "webfetch":
 			return {
 				name: "grep",
-				arguments: { pattern: firstString(args, ["url"]) ?? textFromUnknown(args), amazeToolName: name, amazeArguments: args },
+				arguments: {
+					pattern: firstString(args, ["url"]) ?? textFromUnknown(args),
+					amazeToolName: name,
+					amazeArguments: args,
+				},
 			};
 		case "code_find":
 			return {
 				name: "grep",
-				arguments: { pattern: firstString(args, ["pattern"]) ?? textFromUnknown(args), path: firstPath(args), amazeToolName: name, amazeArguments: args },
+				arguments: {
+					pattern: firstString(args, ["pattern"]) ?? textFromUnknown(args),
+					path: firstPath(args),
+					amazeToolName: name,
+					amazeArguments: args,
+				},
 			};
 		case "code_rewrite":
 		case "apply_patch":
