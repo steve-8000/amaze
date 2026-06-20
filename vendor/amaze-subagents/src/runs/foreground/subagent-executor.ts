@@ -62,7 +62,8 @@ import type { PathContract } from "../../harness/path-contract.ts";
 import { parseFreshBootContract, type FreshBootContract } from "../../harness/fresh-boot-contract.ts";
 import { validateHarnessValidatorContract } from "../../harness/validator-contract.ts";
 import { compileMissionPolicy, startMission } from "../../harness/orchestrator/mission-orchestrator.ts";
-import { compileProfiledOrchestrationPlan } from "../../harness/orchestrator/profiled-orchestration-plan.ts";
+import { compileProfiledOrchestrationPlan, summarizeProfiledOrchestrationPlan } from "../../harness/orchestrator/profiled-orchestration-plan.ts";
+import { compileDelegationDecision } from "../../harness/orchestrator/delegation-decision.ts";
 import {
 	cleanupWorktrees,
 	createWorktrees,
@@ -94,6 +95,7 @@ import {
 	SUBAGENT_ACTIONS,
 	SUBAGENT_CONTROL_EVENT,
 	SUBAGENT_CONTROL_INTERCOM_EVENT,
+	TEMP_ROOT_DIR,
 	checkSubagentDepth,
 	resolveTopLevelParallelConcurrency,
 	resolveTopLevelParallelMaxTasks,
@@ -157,6 +159,7 @@ export interface SubagentParamsLike {
 	pathContract?: PathContract;
 	bootContract?: FreshBootContract;
 	acceptance?: AcceptanceInput;
+	orchestrateOutput?: "compact" | "full";
 }
 
 interface ExecutorDeps {
@@ -198,6 +201,12 @@ type SubagentExecutionContext = "fresh" | "fork";
 
 function resolveRequestedCwd(runtimeCwd: string, requestedCwd: string | undefined): string {
 	return requestedCwd ? path.resolve(runtimeCwd, requestedCwd) : runtimeCwd;
+}
+
+function resolveHarnessStateCwd(): string {
+	return process.env.AMAZE_SUBAGENT_HARNESS_CWD
+		? path.resolve(process.env.AMAZE_SUBAGENT_HARNESS_CWD)
+		: path.join(TEMP_ROOT_DIR, "harness-state");
 }
 
 function getForegroundControl(state: SubagentState, runId: string | undefined) {
@@ -2467,7 +2476,7 @@ export function createSubagentExecutor(deps: ExecutorDeps): {
 					details: { mode: "management" as const, results: [] },
 				};
 			}
-			if (action === "orchestrate") {
+			if (action === "orchestrate" || action === "orchestrate_decision") {
 				const rawRequest = (typeof paramsWithResolvedCwd.task === "string" && paramsWithResolvedCwd.task.trim())
 					? paramsWithResolvedCwd.task.trim()
 					: (typeof paramsWithResolvedCwd.message === "string" && paramsWithResolvedCwd.message.trim())
@@ -2475,7 +2484,7 @@ export function createSubagentExecutor(deps: ExecutorDeps): {
 						: "";
 				if (!rawRequest) {
 					return {
-						content: [{ type: "text", text: "orchestrate requires task or message as the raw mission request." }],
+						content: [{ type: "text", text: `${action} requires task or message as the raw mission request.` }],
 						isError: true,
 						details: { mode: "management" as const, results: [] },
 					};
@@ -2483,9 +2492,81 @@ export function createSubagentExecutor(deps: ExecutorDeps): {
 				const missionId = typeof paramsWithResolvedCwd.id === "string" && paramsWithResolvedCwd.id.trim()
 					? paramsWithResolvedCwd.id.trim()
 					: undefined;
-				const result = compileProfiledOrchestrationPlan(rawRequest, { missionId, cwd: requestCwd });
+				if (action === "orchestrate_decision") {
+					const output = compileDelegationDecision(rawRequest, {
+						missionId,
+						cwd: resolveHarnessStateCwd(),
+					});
+					return {
+						content: [{ type: "text", text: JSON.stringify(output, null, 2) }],
+						details: { mode: "management" as const, results: [] },
+					};
+				}
+				const result = compileProfiledOrchestrationPlan(rawRequest, {
+					missionId,
+					cwd: resolveHarnessStateCwd(),
+				});
+				if (paramsWithResolvedCwd.orchestrateOutput === "full") {
+					return {
+						content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+						details: { mode: "management" as const, results: [] },
+					};
+				}
+				if (result.executionPlan.childExecution === "parent_direct" || result.executionPlan.steps.length === 0) {
+					const output = summarizeProfiledOrchestrationPlan(result);
+					return {
+						content: [{ type: "text", text: JSON.stringify(output, null, 2) }],
+						details: { mode: "management" as const, results: [] },
+					};
+				}
+				const childResults = [];
+				for (let index = 0; index < result.executionPlan.steps.length; index++) {
+					const step = result.executionPlan.steps[index]!;
+					const childResult = await execute(
+						`${result.missionId}-${step.role}-${index + 1}`,
+						{
+							action: step.action,
+							bootContract: step.bootContract,
+							cwd: paramsWithResolvedCwd.cwd,
+							clarify: false,
+							async: paramsWithResolvedCwd.async,
+						},
+						signal,
+						onUpdate,
+						ctx,
+					);
+					childResults.push({
+						role: step.role,
+						profile: step.profile,
+						assignedPath: step.bootContract.execution_contract.assigned_path,
+						exitCode: childResult.isError ? 1 : 0,
+						output: childResult.content[0]?.type === "text" ? childResult.content[0].text : "",
+					});
+					if (childResult.isError) {
+						return {
+							content: [{ type: "text", text: JSON.stringify({
+								missionId: result.missionId,
+								status: "failed",
+								failedStep: {
+									role: step.role,
+									profile: step.profile,
+									assignedPath: step.bootContract.execution_contract.assigned_path,
+								},
+								results: childResults,
+							}, null, 2) }],
+							isError: true,
+							details: { mode: "management" as const, results: [] },
+						};
+					}
+				}
+				const output = {
+					missionId: result.missionId,
+					status: "completed",
+					executionPlan: summarizeProfiledOrchestrationPlan(result).executionPlan,
+					results: childResults,
+				};
 				return {
-					content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+					content: [{ type: "text", text: JSON.stringify(output, null, 2) }],
 					details: { mode: "management" as const, results: [] },
 				};
 			}
@@ -2506,7 +2587,7 @@ export function createSubagentExecutor(deps: ExecutorDeps): {
 					? paramsWithResolvedCwd.id.trim()
 					: undefined;
 				const result = action === "harness_start_mission"
-					? startMission(rawRequest, { missionId, cwd: requestCwd })
+					? startMission(rawRequest, { missionId, cwd: resolveHarnessStateCwd() })
 					: compileMissionPolicy(rawRequest, missionId);
 				return {
 					content: [{ type: "text", text: JSON.stringify(result, null, 2) }],

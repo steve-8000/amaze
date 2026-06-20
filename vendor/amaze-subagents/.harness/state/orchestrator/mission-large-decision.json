@@ -1,0 +1,124 @@
+{
+  "mission_id": "mission-large-decision",
+  "status": "POLICY_COMPILED",
+  "created_at": "2026-06-19T22:15:54.800Z",
+  "updated_at": "2026-06-19T22:15:54.807Z",
+  "route_changes": 0,
+  "raw_request": "orchestrator runtime profile routing refactor 해줘",
+  "normalized": {
+    "raw_request": "orchestrator runtime profile routing refactor 해줘",
+    "mentioned_paths": [],
+    "keywords": [
+      "runtime",
+      "orchestrator",
+      "refactor"
+    ],
+    "user_intent": "modify_code"
+  },
+  "classification": {
+    "missionId": "mission-large-decision",
+    "size": "large",
+    "workPattern": "refactor",
+    "domains": [
+      "agent-runtime"
+    ],
+    "riskLevel": "medium",
+    "requiresResearch": false,
+    "requiresScouter": true,
+    "mentionedPaths": [],
+    "confidence": 0.86,
+    "reason": "classified refactor/large from 3 keyword signal(s) and 1 domain signal(s)"
+  },
+  "pre_route": {
+    "baseRuntime": "large-mission",
+    "workPattern": "refactor",
+    "domainOverlays": [
+      "persistent-agent-runtime",
+      "mcp-orchestrator-builder"
+    ],
+    "validatorPack": "integration-heavy",
+    "confidence": 0.87,
+    "reason": "large size, agent runtime domain; validator=integration-heavy",
+    "fallbackRuntime": "standard-contract"
+  },
+  "final_route": {
+    "baseRuntime": "large-mission",
+    "workPattern": "refactor",
+    "domainOverlays": [
+      "persistent-agent-runtime",
+      "mcp-orchestrator-builder"
+    ],
+    "validatorPack": "integration-heavy",
+    "confidence": 0.87,
+    "reason": "large size, agent runtime domain; validator=integration-heavy",
+    "fallbackRuntime": "standard-contract"
+  },
+  "execution_policy": {
+    "missionId": "mission-large-decision",
+    "runtime": "large-mission",
+    "workPattern": "refactor",
+    "domainOverlays": [
+      "persistent-agent-runtime",
+      "mcp-orchestrator-builder"
+    ],
+    "validatorPack": "integration-heavy",
+    "scouterPolicy": {
+      "depth": "deep",
+      "includeDependencyGraph": true,
+      "includeSymbolGraph": true,
+      "includeRecentChanges": true
+    },
+    "researchPolicy": {
+      "mode": "on_demand"
+    },
+    "plannerPolicy": {
+      "mode": "contract_dag",
+      "maxInitialContracts": 5,
+      "contractGranularity": "path",
+      "allowParallelGroups": true,
+      "requireChangeRequestsForCrossPath": true,
+      "workPatternSequence": [
+        "dependency_map",
+        "compatibility_seam",
+        "move_internals",
+        "regression"
+      ]
+    },
+    "contextPolicy": {
+      "packetBudgetTokens": 8000,
+      "includePathMemory": true,
+      "includeResearch": false
+    },
+    "agentPolicy": {
+      "agentType": "path_specialist",
+      "maxAgents": 6,
+      "reuseExistingAgents": true,
+      "createMissingPathAgents": true,
+      "writeScope": "owned_path_only"
+    },
+    "failurePolicy": {
+      "sameWorkerRetries": 1,
+      "validatorFailuresBeforeReplan": 2,
+      "changeRequestsBeforeReplan": 3
+    },
+    "acceptance": {
+      "level": "checked",
+      "evidence": [
+        "changed-files",
+        "commands-run",
+        "validation-output",
+        "residual-risks"
+      ],
+      "criteria": [
+        {
+          "id": "integration",
+          "must": "Run the smallest meaningful integration or unit coverage for affected runtime behavior.",
+          "evidence": [
+            "commands-run",
+            "validation-output"
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -1,7 +1,7 @@
 ---
 name: scout
 description: Fast codebase recon that returns compressed context for handoff
-tools: read, grep, find, ls, bash, write, intercom, index_status, search_query, graph_status, graph_query, graph_impact, graph_symbol, graph_symbols, graph_trace, graph_cycles, graph_stats
+tools: read, grep, find, ls, bash, write, intercom, context_engine, index_status, search_query, graph_status, graph_query, graph_impact, graph_symbol, graph_symbols, graph_trace, graph_cycles, graph_stats
 thinking: low
 systemPromptMode: replace
 inheritProjectContext: true
@@ -15,9 +15,10 @@ You are a scouting subagent running inside pi.
 ## Xenonite-first code exploration
 
 When the task needs codebase understanding, use Xenonite code engine tools before raw file exploration:
-- Start with `index_status` and `search_query` for orientation.
-- Use `graph_query`, `graph_impact`, `graph_symbol`, or `graph_symbols` to understand relationships.
-- Use `grep`, `find`, and `read` only after the index/graph narrows the relevant files, or when the index is unavailable/stale.
+- Start with `context_engine` for repository context. It routes direct reads, indexed search, FastContext shards, and graph/symbol lookup.
+- Stop when `context_engine.assessment.shouldReadMore` is false.
+- If a concrete missing fact remains, call `context_engine` again with that narrower file/symbol hint or adjusted budget before manually using `index_status`, `search_query`, graph tools, `grep`, `find`, or `read`.
+- Use manual search/read tools only when `context_engine` is unavailable, fails, or explicitly says more reading is needed for a concrete fact.
 
 Use the provided tools directly. Move fast, but do not guess. Prefer targeted search and selective reading over reading whole files unless the task clearly needs broader coverage.
 

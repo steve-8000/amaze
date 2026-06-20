@@ -1,0 +1,102 @@
+{
+  "mission_id": "mission-standard-decision",
+  "status": "POLICY_COMPILED",
+  "created_at": "2026-06-19T22:15:54.799Z",
+  "updated_at": "2026-06-19T22:15:54.800Z",
+  "route_changes": 0,
+  "raw_request": "기능 구현해줘",
+  "normalized": {
+    "raw_request": "기능 구현해줘",
+    "mentioned_paths": [],
+    "keywords": [
+      "feature"
+    ],
+    "user_intent": "modify_code"
+  },
+  "classification": {
+    "missionId": "mission-standard-decision",
+    "size": "standard",
+    "workPattern": "feature",
+    "domains": [],
+    "riskLevel": "low",
+    "requiresResearch": false,
+    "requiresScouter": true,
+    "mentionedPaths": [],
+    "confidence": 0.66,
+    "reason": "classified feature/standard from 1 keyword signal(s) and 0 domain signal(s)"
+  },
+  "pre_route": {
+    "baseRuntime": "standard-contract",
+    "workPattern": "feature",
+    "domainOverlays": [],
+    "validatorPack": "standard-code",
+    "confidence": 0.67,
+    "reason": "conservative fallback from standard-contract; validator=standard-code",
+    "fallbackRuntime": "large-mission"
+  },
+  "final_route": {
+    "baseRuntime": "standard-contract",
+    "workPattern": "feature",
+    "domainOverlays": [],
+    "validatorPack": "standard-code",
+    "confidence": 0.67,
+    "reason": "conservative fallback from standard-contract; validator=standard-code",
+    "fallbackRuntime": "large-mission"
+  },
+  "execution_policy": {
+    "missionId": "mission-standard-decision",
+    "runtime": "standard-contract",
+    "workPattern": "feature",
+    "domainOverlays": [],
+    "validatorPack": "standard-code",
+    "scouterPolicy": {
+      "depth": "targeted",
+      "includeDependencyGraph": true,
+      "includeSymbolGraph": false,
+      "includeRecentChanges": false
+    },
+    "researchPolicy": {
+      "mode": "on_demand"
+    },
+    "plannerPolicy": {
+      "mode": "contract_list",
+      "maxInitialContracts": 3,
+      "contractGranularity": "path",
+      "allowParallelGroups": true,
+      "requireChangeRequestsForCrossPath": true,
+      "workPatternSequence": [
+        "model_state",
+        "integration",
+        "consumer",
+        "tests"
+      ]
+    },
+    "contextPolicy": {
+      "packetBudgetTokens": 5000,
+      "includePathMemory": false,
+      "includeResearch": false
+    },
+    "agentPolicy": {
+      "agentType": "path_specialist",
+      "maxAgents": 3,
+      "reuseExistingAgents": true,
+      "createMissingPathAgents": true,
+      "writeScope": "owned_path_only"
+    },
+    "failurePolicy": {
+      "sameWorkerRetries": 1,
+      "validatorFailuresBeforeReplan": 2,
+      "changeRequestsBeforeReplan": 2,
+      "escalationRuntime": "large-mission"
+    },
+    "acceptance": {
+      "level": "checked",
+      "evidence": [
+        "changed-files",
+        "commands-run",
+        "validation-output",
+        "residual-risks"
+      ]
+    }
+  }
+}

@@ -271,6 +271,10 @@ export const SubagentParams = Type.Object({
 		enum: [...SUBAGENT_ACTIONS],
 		description: "Management/control action. Omit for execution mode."
 	})),
+	orchestrateOutput: Type.Optional(Type.String({
+		enum: ["compact", "full"],
+		description: "For action='orchestrate': return compact summary by default; use 'full' only when the complete FreshBootContract plan is explicitly required. Use action='orchestrate_decision' for a Desktop-safe delegation decision with no child contracts."
+	})),
 	id: Type.Optional(Type.String({
 		description: "Run id or prefix for action='status', action='interrupt', or action='resume'."
 	})),

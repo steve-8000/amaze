@@ -70,6 +70,7 @@ Do work
 		tempDirs.push(dir);
 		const agents = discoverAgentsAll(dir).builtin;
 		const xenoniteTools = [
+			"context_engine",
 			"index_status",
 			"search_query",
 			"graph_status",

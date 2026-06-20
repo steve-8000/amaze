@@ -945,6 +945,7 @@ export const SUBAGENT_ACTIONS = [
 	"resume",
 	"doctor",
 	"orchestrate",
+	"orchestrate_decision",
 	"harness_compile_mission",
 	"harness_start_mission",
 	"harness_run_contract",

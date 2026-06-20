@@ -18,16 +18,56 @@ export interface ProfiledChildInvocation {
 
 export interface ProfiledOrchestrationPlan extends StartMissionResult {
 	executionPlan: {
-		mode: "profiled_orchestration";
-		childExecution: "harness_run_contract_only";
+		mode: "profiled_orchestration" | "direct_profiled_execution";
+		childExecution: "harness_run_contract_only" | "parent_direct";
 		contextBoundary: {
 			freshBootOnly: true;
 			parentContextDisabled: true;
 			contextFilesDisabled: true;
 			skillsDisabled: boolean;
 		};
+		directExecution?: {
+			owner: "parent";
+			reason: string;
+		};
 		steps: ProfiledChildInvocation[];
 	};
+}
+
+export interface ProfiledOrchestrationSummary {
+	missionId: string;
+	classification: {
+		size: StartMissionResult["classification"]["size"];
+		workPattern: StartMissionResult["classification"]["workPattern"];
+		riskLevel: StartMissionResult["classification"]["riskLevel"];
+		requiresScouter: boolean;
+		confidence: number;
+	};
+	route: {
+		baseRuntime: StartMissionResult["route"]["baseRuntime"];
+		workPattern: StartMissionResult["route"]["workPattern"];
+		validatorPack: StartMissionResult["route"]["validatorPack"];
+		domainOverlays: string[];
+	};
+	policy: {
+		plannerMode: StartMissionResult["policy"]["plannerPolicy"]["mode"];
+		maxInitialContracts: number;
+		maxAgents: number;
+		agentType: string;
+	};
+	executionPlan: {
+		mode: ProfiledOrchestrationPlan["executionPlan"]["mode"];
+		childExecution: ProfiledOrchestrationPlan["executionPlan"]["childExecution"];
+		directExecution?: ProfiledOrchestrationPlan["executionPlan"]["directExecution"];
+		steps: Array<{
+			role: ProfiledOrchestrationRole;
+			profile: string;
+			dependsOn: string[];
+			assignedPath: string;
+			reason: string;
+		}>;
+	};
+	fullPlanHint: string;
 }
 
 const OUTPUT_REQUIRED: HarnessOutputRequired[] = [
@@ -195,12 +235,39 @@ function workerAssignedPaths(paths: string[]): string[] {
 	return unique.length > 0 ? unique : ["."];
 }
 
+function shouldStayParentDirect(started: StartMissionResult): boolean {
+	return started.route.baseRuntime === "micro-direct"
+		&& started.policy.plannerPolicy.mode === "direct_contract"
+		&& (started.policy.scouterPolicy.depth === "off" || started.policy.scouterPolicy.depth === "minimal")
+		&& started.policy.agentPolicy.maxAgents <= 1;
+}
+
 export function compileProfiledOrchestrationPlan(
 	rawRequest: string,
 	options: StartMissionOptions = {},
 ): ProfiledOrchestrationPlan {
 	const started = startMission(rawRequest, options);
 	const assignedPath = normalizeAssignedPath(started.classification.mentionedPaths);
+	if (shouldStayParentDirect(started)) {
+		return {
+			...started,
+			executionPlan: {
+				mode: "direct_profiled_execution",
+				childExecution: "parent_direct",
+				contextBoundary: {
+					freshBootOnly: true,
+					parentContextDisabled: true,
+					contextFilesDisabled: true,
+					skillsDisabled: false,
+				},
+				directExecution: {
+					owner: "parent",
+					reason: "Selected profile is micro-direct with direct_contract planning and no scout/planner fan-out requirement.",
+				},
+				steps: [],
+			},
+		};
+	}
 	const roles = enabledRoles(started);
 	const planningRoles = roles.filter((role) => role === "scout" || role === "planner");
 	const hasReviewer = roles.includes("reviewer");
@@ -262,5 +329,43 @@ export function compileProfiledOrchestrationPlan(
 			},
 			steps,
 		},
+	};
+}
+
+export function summarizeProfiledOrchestrationPlan(plan: ProfiledOrchestrationPlan): ProfiledOrchestrationSummary {
+	return {
+		missionId: plan.missionId,
+		classification: {
+			size: plan.classification.size,
+			workPattern: plan.classification.workPattern,
+			riskLevel: plan.classification.riskLevel,
+			requiresScouter: plan.classification.requiresScouter,
+			confidence: plan.classification.confidence,
+		},
+		route: {
+			baseRuntime: plan.route.baseRuntime,
+			workPattern: plan.route.workPattern,
+			validatorPack: plan.route.validatorPack,
+			domainOverlays: plan.route.domainOverlays,
+		},
+		policy: {
+			plannerMode: plan.policy.plannerPolicy.mode,
+			maxInitialContracts: plan.policy.plannerPolicy.maxInitialContracts,
+			maxAgents: plan.policy.agentPolicy.maxAgents,
+			agentType: plan.policy.agentPolicy.agentType,
+		},
+		executionPlan: {
+			mode: plan.executionPlan.mode,
+			childExecution: plan.executionPlan.childExecution,
+			...(plan.executionPlan.directExecution ? { directExecution: plan.executionPlan.directExecution } : {}),
+			steps: plan.executionPlan.steps.map((step) => ({
+				role: step.role,
+				profile: step.profile,
+				dependsOn: step.dependsOn,
+				assignedPath: step.bootContract.execution_contract.assigned_path,
+				reason: step.reason,
+			})),
+		},
+		fullPlanHint: "Pass orchestrateOutput: 'full' only when the complete contract plan is explicitly required.",
 	};
 }

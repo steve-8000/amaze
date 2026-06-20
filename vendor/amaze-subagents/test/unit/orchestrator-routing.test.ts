@@ -7,6 +7,8 @@ import * as path from "node:path";
 import { afterEach, describe, it } from "node:test";
 import { createContractDagFromPlanner } from "../../src/harness/orchestrator/planner-gateway.ts";
 import { compileMissionPolicy, startMission, acceptPlannerOutput, rerouteMissionAtCheckpoint } from "../../src/harness/orchestrator/mission-orchestrator.ts";
+import { compileProfiledOrchestrationPlan, summarizeProfiledOrchestrationPlan } from "../../src/harness/orchestrator/profiled-orchestration-plan.ts";
+import { compileDelegationDecision } from "../../src/harness/orchestrator/delegation-decision.ts";
 import { missionStatePath, transitionMissionState } from "../../src/harness/orchestrator/mission-state-store.ts";
 import type { MissionOrchestratorRecord } from "../../src/harness/orchestrator/types.ts";
 
@@ -40,6 +42,66 @@ describe("mission orchestrator profile routing", () => {
 		assert.equal(result.policy.plannerPolicy.maxInitialContracts, 1);
 		assert.equal(result.policy.researchPolicy.mode, "off");
 		assert.deepEqual(result.policy.plannerPolicy.workPatternSequence, ["locate_doc", "patch_doc", "diff_check"]);
+	});
+
+	it("keeps micro-direct profiled work in parent direct execution without child fanout", () => {
+		const result = compileProfiledOrchestrationPlan("README 오타 하나 고쳐줘", { missionId: "mission-readme-direct" });
+
+		assert.equal(result.route.baseRuntime, "micro-direct");
+		assert.equal(result.policy.plannerPolicy.mode, "direct_contract");
+		assert.equal(result.executionPlan.mode, "direct_profiled_execution");
+		assert.equal(result.executionPlan.childExecution, "parent_direct");
+		assert.deepEqual(result.executionPlan.steps, []);
+		assert.equal(result.executionPlan.directExecution?.owner, "parent");
+	});
+
+	it("returns a parent-direct delegation decision for micro work without child contracts", () => {
+		const result = compileDelegationDecision("README 오타 하나 고쳐줘", { missionId: "mission-readme-decision" });
+		const text = JSON.stringify(result);
+
+		assert.equal(result.mode, "parent_direct");
+		assert.equal(result.baseRuntime, "micro-direct");
+		assert.equal(result.validatorPack, "basic-diff");
+		assert.deepEqual(result.roles, []);
+		assert.ok(result.parentInstructions.some((item) => item.includes("parent session")));
+		assert.ok(!text.includes("bootContract"));
+		assert.ok(!text.includes("FreshBootContract"));
+	});
+
+	it("returns a parent-guided delegation decision for standard work without model-specific child calls", () => {
+		const result = compileDelegationDecision("기능 구현해줘", { missionId: "mission-standard-decision" });
+
+		assert.equal(result.mode, "parent_guided_roles");
+		assert.equal(result.baseRuntime, "standard-contract");
+		assert.ok(result.roles.some((role) => role.role === "worker" && role.profile === "path_specialist"));
+		assert.ok(result.roles.some((role) => role.role === "reviewer"));
+		assert.ok(result.parentInstructions.some((item) => item.includes("Do not launch model-specific child agents")));
+	});
+
+	it("recommends external delegation for large runtime work while keeping parent-guided fallback", () => {
+		const result = compileDelegationDecision("orchestrator runtime profile routing refactor 해줘", { missionId: "mission-large-decision" });
+
+		assert.equal(result.mode, "external_delegation_recommended");
+		assert.equal(result.baseRuntime, "large-mission");
+		assert.ok(result.roles.some((role) => role.role === "scout"));
+		assert.ok(result.roles.some((role) => role.role === "planner"));
+		assert.ok(result.roles.some((role) => role.role === "worker" && role.profile === "path_specialist"));
+		assert.ok(result.parentInstructions.some((item) => item.includes("parent-guided workflow")));
+	});
+
+	it("summarizes large profiled orchestration without embedding full boot contracts by default", () => {
+		const result = compileProfiledOrchestrationPlan("orchestrator runtime profile routing refactor 해줘", { missionId: "mission-large-summary" });
+		const summary = summarizeProfiledOrchestrationPlan(result);
+		const text = JSON.stringify(summary);
+
+		assert.equal(summary.executionPlan.mode, "profiled_orchestration");
+		assert.equal(summary.executionPlan.childExecution, "harness_run_contract_only");
+		assert.ok(summary.executionPlan.steps.length > 0);
+		assert.ok(summary.executionPlan.steps.every((step) => typeof step.assignedPath === "string"));
+		assert.match(summary.fullPlanHint, /orchestrateOutput: 'full'/);
+		assert.ok(!text.includes("bootContract"));
+		assert.ok(!text.includes("FreshBootContract"));
+		assert.ok(text.length < 5000);
 	});
 
 	it("routes Helm production resource policy work to infra-k8s with the k8s validator overlay", () => {

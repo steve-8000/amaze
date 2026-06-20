@@ -1,11 +1,13 @@
 /// <reference types="node" />
 
 import assert from "node:assert/strict";
+import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { describe, it } from "node:test";
 import { createSubagentExecutor } from "../../src/runs/foreground/subagent-executor.ts";
 import { validateHarnessValidatorContract } from "../../src/harness/validator-contract.ts";
+import { TEMP_ROOT_DIR } from "../../src/shared/types.ts";
 
 function createState() {
 	return {
@@ -179,6 +181,7 @@ describe("harness actions", () => {
 	it("compiles profiled orchestration into FreshBootContract-only child invocations", async () => {
 		const result = await createExecutor().execute("run-1", {
 			action: "orchestrate",
+			orchestrateOutput: "full",
 			id: "mission-runtime",
 			task: "Fix the subagent runtime so profile orchestration creates worker and reviewer contracts",
 		}, new AbortController().signal, undefined, ctx());
@@ -260,13 +263,36 @@ describe("harness actions", () => {
 				orchestrator_contact: "intercom",
 				goal_updates_allowed: true,
 			});
-			assert.ok(step.bootContract.execution_contract.output_required.includes("memory_updates"));
+		assert.ok(step.bootContract.execution_contract.output_required.includes("memory_updates"));
 		}
+	});
+
+	it("stores profiled orchestration state under the temp harness root", async () => {
+		const repoCwd = path.join(os.tmpdir(), `amaze-harness-repo-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+		const harnessRoot = path.join(TEMP_ROOT_DIR, "harness-state", ".harness", "state", "orchestrator");
+		fs.rmSync(repoCwd, { recursive: true, force: true });
+		fs.rmSync(harnessRoot, { recursive: true, force: true });
+		fs.mkdirSync(repoCwd, { recursive: true });
+
+		const result = await createExecutor().execute("run-1", {
+			action: "orchestrate",
+			orchestrateOutput: "full",
+			id: "mission-temp-state",
+			task: "Fix the subagent runtime so orchestration state is isolated",
+			cwd: repoCwd,
+		}, new AbortController().signal, undefined, ctx(repoCwd));
+
+		assert.equal(result.isError, undefined);
+		assert.equal(fs.existsSync(path.join(repoCwd, ".harness", "state", "orchestrator")), false);
+		assert.equal(fs.existsSync(path.join(harnessRoot, "mission-temp-state.json")), true);
+		assert.equal(fs.existsSync(path.join(harnessRoot, "events.jsonl")), true);
+		fs.rmSync(repoCwd, { recursive: true, force: true });
 	});
 
 	it("fans out workers by mentioned folder paths", async () => {
 		const result = await createExecutor().execute("run-1", {
 			action: "orchestrate",
+			orchestrateOutput: "full",
 			id: "mission-folders",
 			task: "Update packages/coding-agent/src/core and vendor/amaze-subagents/src/runs for orchestration",
 		}, new AbortController().signal, undefined, ctx());
@@ -286,26 +312,49 @@ describe("harness actions", () => {
 		assert.deepEqual(workerPaths, ["packages/coding-agent/src/core", "vendor/amaze-subagents/src/runs"]);
 	});
 
-	it("defaults task-only subagent calls to profiled orchestration", async () => {
+	it("executes profiled orchestration by default for task-only subagent calls", async () => {
 		const result = await createExecutor().execute("run-1", {
 			id: "mission-default",
 			task: "Fix the subagent runtime so profile orchestration is the default path",
 		}, new AbortController().signal, undefined, ctx());
 
+		assert.equal(result.isError, true);
+		const parsed = JSON.parse(text(result)) as {
+			missionId: string;
+			status: string;
+			failedStep: { role: string; profile: string; assignedPath: string };
+			results: Array<{ role: string; profile: string; assignedPath: string; exitCode: number }>;
+		};
+		assert.equal(parsed.missionId, "mission-default");
+		assert.equal(parsed.status, "failed");
+		assert.equal(parsed.failedStep.role, "scout");
+		assert.deepEqual(parsed.results.map((step) => step.role), ["scout"]);
+		assert.equal(parsed.results[0]?.exitCode, 1);
+	});
+
+	it("returns a Desktop-safe delegation decision without child contracts", async () => {
+		const result = await createExecutor().execute("run-1", {
+			action: "orchestrate_decision",
+			id: "mission-decision",
+			task: "Fix the subagent runtime so profile orchestration can decide delegation",
+		}, new AbortController().signal, undefined, ctx());
+
 		assert.equal(result.isError, undefined);
 		const parsed = JSON.parse(text(result)) as {
 			missionId: string;
-			executionPlan: {
-				mode: string;
-				childExecution: string;
-				steps: Array<{ role: string; action: string }>;
-			};
+			mode: string;
+			baseRuntime: string;
+			roles: Array<{ role: string; profile: string }>;
+			parentInstructions: string[];
 		};
-		assert.equal(parsed.missionId, "mission-default");
-		assert.equal(parsed.executionPlan.mode, "profiled_orchestration");
-		assert.equal(parsed.executionPlan.childExecution, "harness_run_contract_only");
-		assert.deepEqual(parsed.executionPlan.steps.map((step) => step.role), ["scout", "planner", "worker", "reviewer"]);
-		assert.deepEqual([...new Set(parsed.executionPlan.steps.map((step) => step.action))], ["harness_run_contract"]);
+		const resultText = JSON.stringify(parsed);
+		assert.equal(parsed.missionId, "mission-decision");
+		assert.equal(parsed.mode, "external_delegation_recommended");
+		assert.equal(parsed.baseRuntime, "large-mission");
+		assert.ok(parsed.roles.some((role) => role.role === "worker" && role.profile === "path_specialist"));
+		assert.ok(parsed.parentInstructions.some((item) => item.includes("Do not require live child model calls")));
+		assert.ok(!resultText.includes("bootContract"));
+		assert.ok(!resultText.includes("FreshBootContract"));
 	});
 
 	it("starts mission profiles and persists mission state", async () => {

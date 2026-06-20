@@ -1,0 +1,105 @@
+{
+  "mission_id": "mission-readme-direct",
+  "status": "POLICY_COMPILED",
+  "created_at": "2026-06-19T22:15:54.791Z",
+  "updated_at": "2026-06-19T22:15:54.798Z",
+  "route_changes": 0,
+  "raw_request": "README 오타 하나 고쳐줘",
+  "normalized": {
+    "raw_request": "README 오타 하나 고쳐줘",
+    "mentioned_paths": [
+      "README*"
+    ],
+    "keywords": [
+      "bugfix",
+      "docs"
+    ],
+    "user_intent": "fix"
+  },
+  "classification": {
+    "missionId": "mission-readme-direct",
+    "size": "micro",
+    "workPattern": "docs",
+    "domains": [],
+    "riskLevel": "low",
+    "requiresResearch": false,
+    "requiresScouter": false,
+    "mentionedPaths": [
+      "README*"
+    ],
+    "confidence": 0.86,
+    "reason": "classified docs/micro from 2 keyword signal(s) and 0 domain signal(s)"
+  },
+  "pre_route": {
+    "baseRuntime": "micro-direct",
+    "workPattern": "docs",
+    "domainOverlays": [],
+    "validatorPack": "basic-diff",
+    "confidence": 0.86,
+    "reason": "micro size; validator=basic-diff",
+    "fallbackRuntime": "standard-contract"
+  },
+  "final_route": {
+    "baseRuntime": "micro-direct",
+    "workPattern": "docs",
+    "domainOverlays": [],
+    "validatorPack": "basic-diff",
+    "confidence": 0.86,
+    "reason": "micro size; validator=basic-diff",
+    "fallbackRuntime": "standard-contract"
+  },
+  "execution_policy": {
+    "missionId": "mission-readme-direct",
+    "runtime": "micro-direct",
+    "workPattern": "docs",
+    "domainOverlays": [],
+    "validatorPack": "basic-diff",
+    "scouterPolicy": {
+      "depth": "minimal",
+      "includeDependencyGraph": false,
+      "includeSymbolGraph": false,
+      "includeRecentChanges": false
+    },
+    "researchPolicy": {
+      "mode": "off"
+    },
+    "plannerPolicy": {
+      "mode": "direct_contract",
+      "maxInitialContracts": 1,
+      "contractGranularity": "file",
+      "allowParallelGroups": false,
+      "requireChangeRequestsForCrossPath": false,
+      "workPatternSequence": [
+        "locate_doc",
+        "patch_doc",
+        "diff_check"
+      ]
+    },
+    "contextPolicy": {
+      "packetBudgetTokens": 2000,
+      "includePathMemory": false,
+      "includeResearch": false
+    },
+    "agentPolicy": {
+      "agentType": "path_specialist",
+      "maxAgents": 1,
+      "reuseExistingAgents": true,
+      "createMissingPathAgents": true,
+      "writeScope": "owned_path_only"
+    },
+    "failurePolicy": {
+      "sameWorkerRetries": 1,
+      "validatorFailuresBeforeReplan": 1,
+      "changeRequestsBeforeReplan": 1,
+      "escalationRuntime": "standard-contract"
+    },
+    "acceptance": {
+      "level": "checked",
+      "evidence": [
+        "changed-files",
+        "diff-summary",
+        "no-staged-files"
+      ]
+    }
+  }
+}
