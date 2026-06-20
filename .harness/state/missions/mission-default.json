@@ -1,0 +1,9 @@
+{
+  "mission_id": "mission-default",
+  "status": "failed",
+  "created_at": "2026-06-20T00:41:02.561Z",
+  "updated_at": "2026-06-20T00:43:15.725Z",
+  "contracts": {
+    "mission-default-scout": "failed"
+  }
+}

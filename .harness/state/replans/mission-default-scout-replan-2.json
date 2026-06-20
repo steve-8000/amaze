@@ -1,0 +1,31 @@
+{
+  "type": "replan",
+  "created_at": "2026-06-20T00:43:15.726Z",
+  "replan_request_id": "mission-default-scout-replan-2",
+  "source_contract_id": "mission-default-scout",
+  "mission_id": "mission-default",
+  "reason": "Path contract mission-default-scout exceeded activity budget max_tokens=24000",
+  "path_contract": {
+    "contract_id": "mission-default-scout",
+    "mission_id": "mission-default",
+    "assigned_worker": "scout.workspace",
+    "assigned_path": ".",
+    "owned_paths": [
+      "**"
+    ],
+    "read_allowed_paths": [
+      "**"
+    ],
+    "write_allowed_paths": [
+      "**"
+    ],
+    "write_denied_paths": [
+      "**/*"
+    ],
+    "activity_budget": {
+      "max_tool_uses": 16,
+      "max_tokens": 24000,
+      "max_elapsed_ms": 120000
+    }
+  }
+}

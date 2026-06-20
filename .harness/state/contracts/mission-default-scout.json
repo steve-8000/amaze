@@ -1,0 +1,46 @@
+{
+  "contract_id": "mission-default-scout",
+  "mission_id": "mission-default",
+  "status": "failed",
+  "created_at": "2026-06-20T00:42:49.850Z",
+  "updated_at": "2026-06-20T00:43:15.725Z",
+  "run_id": "ad1f4c75",
+  "agent": "scout.workspace",
+  "task": "Execute FreshBootContract mission-default-scout.\n\nGoal: Scout only the assigned scope and return concise evidence for: Fix the subagent runtime so profile orchestration is the default path\nAssigned path: .\nContext packet: .harness/context/packets/mission-default-scout.json\nRequired output fields: summary, files_changed, tests_run, risks, change_requests, memory_updates\n\nTerminal validation requires structured evidence; prose alone is not accepted.\nPut an `acceptance_report` object in the structured output with this shape:\n{\n  \"criteriaSatisfied\": [\n    {\n      \"id\": \"contract-output\",\n      \"status\": \"satisfied\",\n      \"evidence\": \"specific proof\"\n    }\n  ],\n  \"changedFiles\": [],\n  \"testsAddedOrUpdated\": [],\n  \"commandsRun\": [\n    {\n      \"command\": \"command\",\n      \"result\": \"passed\",\n      \"summary\": \"short result\"\n    }\n  ],\n  \"validationOutput\": [],\n  \"residualRisks\": [],\n  \"noStagedFiles\": true,\n  \"notes\": \"include summary, files_changed, tests_run, risks, change_requests, and memory_updates when required\"\n}\nIf structured output is unavailable, end the final response with the same JSON in a fenced block tagged `acceptance-report`.\n\nUse only the FreshBootContract, context packet reference, and attached path memory as authority.",
+  "path_contract": {
+    "contract_id": "mission-default-scout",
+    "mission_id": "mission-default",
+    "assigned_worker": "scout.workspace",
+    "assigned_path": ".",
+    "owned_paths": [
+      "**"
+    ],
+    "read_allowed_paths": [
+      "**"
+    ],
+    "write_allowed_paths": [
+      "**"
+    ],
+    "write_denied_paths": [
+      "**/*"
+    ],
+    "activity_budget": {
+      "max_tool_uses": 16,
+      "max_tokens": 24000,
+      "max_elapsed_ms": 120000
+    }
+  },
+  "locks": [
+    {
+      "lock_id": "mission-default-scout-.",
+      "contract_id": "mission-default-scout",
+      "lock_path": ".",
+      "created_at": "2026-06-20T00:42:49.850Z",
+      "pid": 56752,
+      "run_id": "ad1f4c75",
+      "agent": "scout.workspace"
+    }
+  ],
+  "exit_code": 1,
+  "error": "Path contract mission-default-scout exceeded activity budget max_tokens=24000"
+}
