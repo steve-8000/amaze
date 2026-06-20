@@ -1,8 +1,8 @@
 import { icon } from "@mariozechner/mini-lit";
 import "@mariozechner/mini-lit/dist/MarkdownBlock.js";
+import { Button } from "@mariozechner/mini-lit/dist/Button.js";
 import type { Agent, AgentMessage, AgentTool } from "@steve-8000/amaze-agent-core";
 import { StringEnum, type ToolCall } from "@steve-8000/amaze-ai";
-import { Button } from "@mariozechner/mini-lit/dist/Button.js";
 import { html, LitElement, type TemplateResult } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { createRef, type Ref, ref } from "lit/directives/ref.js";

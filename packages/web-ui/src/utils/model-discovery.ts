@@ -1,5 +1,5 @@
-import type { Model } from "@steve-8000/amaze-ai";
 import { LMStudioClient } from "@lmstudio/sdk";
+import type { Model } from "@steve-8000/amaze-ai";
 import { Ollama } from "ollama/browser";
 
 /**

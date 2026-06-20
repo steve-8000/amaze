@@ -47,11 +47,7 @@ function isPasteMarker(segment: string): boolean {
  *
  * Only markers whose numeric ID exists in `validIds` are merged.
  */
-function segmentWithMarkers(
-	text: string,
-	baseSegmenter: Segmenter,
-	validIds: Set<number>,
-): Iterable<SegmentData> {
+function segmentWithMarkers(text: string, baseSegmenter: Segmenter, validIds: Set<number>): Iterable<SegmentData> {
 	// Fast path: no paste markers in the text or no valid IDs.
 	if (validIds.size === 0 || !text.includes("[paste #")) {
 		return baseSegmenter.segment(text);
