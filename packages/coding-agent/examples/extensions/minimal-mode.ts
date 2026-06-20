@@ -16,6 +16,7 @@
  * Then use ctrl+o to toggle between minimal (collapsed) and full (expanded) views.
  */
 
+import { Text } from "@steve-8000/amaze-tui";
 import type { ExtensionAPI } from "amaze";
 import {
 	createBashTool,
@@ -26,7 +27,6 @@ import {
 	createReadTool,
 	createWriteTool,
 } from "amaze";
-import { Text } from "@steve-8000/amaze-tui";
 import { homedir } from "os";
 
 /**

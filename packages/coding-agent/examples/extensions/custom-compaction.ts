@@ -13,9 +13,9 @@
  *   amaze --extension examples/extensions/custom-compaction.ts
  */
 
+import { complete } from "@steve-8000/amaze-ai";
 import type { ExtensionAPI } from "amaze";
 import { convertToLlm, serializeConversation } from "amaze";
-import { complete } from "@steve-8000/amaze-ai";
 
 export default function (pi: ExtensionAPI) {
 	pi.on("session_before_compact", async (event, ctx) => {

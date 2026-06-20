@@ -2,8 +2,8 @@
  * Snake game extension - play snake with /snake command
  */
 
-import type { ExtensionAPI } from "amaze";
 import { matchesKey, visibleWidth } from "@steve-8000/amaze-tui";
+import type { ExtensionAPI } from "amaze";
 
 const GAME_WIDTH = 40;
 const GAME_HEIGHT = 15;

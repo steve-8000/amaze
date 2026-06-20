@@ -1,11 +1,6 @@
-import {
-	CustomEditor,
-	type ExtensionAPI,
-	type ExtensionContext,
-	type KeybindingsManager,
-} from "amaze";
 import type { Component, EditorTheme, TUI } from "@steve-8000/amaze-tui";
 import { truncateToWidth, visibleWidth } from "@steve-8000/amaze-tui";
+import { CustomEditor, type ExtensionAPI, type ExtensionContext, type KeybindingsManager } from "amaze";
 
 function fitBorder(
 	left: string,

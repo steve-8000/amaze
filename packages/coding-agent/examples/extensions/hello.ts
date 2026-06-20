@@ -2,8 +2,8 @@
  * Hello Tool - Minimal custom tool example
  */
 
-import { defineTool, type ExtensionAPI } from "amaze";
 import { Type } from "@steve-8000/amaze-ai";
+import { defineTool, type ExtensionAPI } from "amaze";
 
 const helloTool = defineTool({
 	name: "hello",

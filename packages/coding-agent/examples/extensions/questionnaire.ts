@@ -5,16 +5,8 @@
  * Multiple questions: tab bar navigation between questions
  */
 
+import { Editor, type EditorTheme, Key, matchesKey, Text, visibleWidth, wrapTextWithAnsi } from "@steve-8000/amaze-tui";
 import type { ExtensionAPI } from "amaze";
-import {
-	Editor,
-	type EditorTheme,
-	Key,
-	matchesKey,
-	Text,
-	visibleWidth,
-	wrapTextWithAnsi,
-} from "@steve-8000/amaze-tui";
 import { Type } from "typebox";
 
 // Types

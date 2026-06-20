@@ -4,6 +4,7 @@
  * Replace everything - no discovery, explicit configuration.
  */
 
+import { getModel } from "@steve-8000/amaze-ai";
 import {
 	AuthStorage,
 	createAgentSession,
@@ -13,7 +14,6 @@ import {
 	SessionManager,
 	SettingsManager,
 } from "amaze";
-import { getModel } from "@steve-8000/amaze-ai";
 
 // Custom auth storage location
 const authStorage = AuthStorage.create("/tmp/my-agent/auth.json");

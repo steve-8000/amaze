@@ -5,8 +5,8 @@
  * without paying for an extra follow-up LLM turn.
  */
 
-import { defineTool, type ExtensionAPI } from "amaze";
 import { Text } from "@steve-8000/amaze-tui";
+import { defineTool, type ExtensionAPI } from "amaze";
 import { Type } from "typebox";
 
 interface StructuredOutputDetails {

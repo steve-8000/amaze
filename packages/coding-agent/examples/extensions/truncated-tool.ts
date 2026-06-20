@@ -15,6 +15,7 @@
  */
 
 import { mkdtemp, writeFile } from "node:fs/promises";
+import { Text } from "@steve-8000/amaze-tui";
 import type { ExtensionAPI } from "amaze";
 import {
 	DEFAULT_MAX_BYTES,
@@ -24,7 +25,6 @@ import {
 	truncateHead,
 	withFileMutationQueue,
 } from "amaze";
-import { Text } from "@steve-8000/amaze-tui";
 import { execSync } from "child_process";
 import { tmpdir } from "os";
 import { join } from "path";

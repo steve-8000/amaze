@@ -386,7 +386,6 @@ The default export can also be `async`. pi waits for async extension factories b
 - Status lines, headers, footers
 - Git checkpointing and auto-commit
 - SSH and sandbox execution
-- MCP server integration
 - Make pi look like Claude Code
 - Games while waiting (yes, Doom runs)
 - ...anything you can dream up
@@ -490,7 +489,7 @@ See [docs/rpc.md](docs/rpc.md) for the protocol.
 
 Pi is aggressively extensible so it doesn't have to dictate your workflow. Features that other tools bake in can be built with [extensions](#extensions), [skills](#skills), or installed from third-party [pi packages](#amaze-packages). This keeps the core minimal while letting you shape pi to fit how you work.
 
-**No MCP.** Build CLI tools with READMEs (see [Skills](#skills)), or build an extension that adds MCP support. [Why?](https://mariozechner.at/posts/2025-11-02-what-if-you-dont-need-mcp/)
+**API-first integrations.** Memory, search, and code intelligence use the configured Xenonite HTTP API directly.
 
 **No sub-agents.** There's many ways to do this. Spawn pi instances via tmux, or build your own with [extensions](#extensions), or install a package that does it your way.
 

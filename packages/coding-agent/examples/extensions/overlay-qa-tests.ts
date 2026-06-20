@@ -19,9 +19,9 @@
  *   /overlay-streaming  - Multiple input panels with simulated streaming (Tab to cycle focus)
  */
 
-import type { ExtensionAPI, ExtensionCommandContext, Theme } from "amaze";
 import type { Component, OverlayAnchor, OverlayHandle, OverlayOptions, TUI } from "@steve-8000/amaze-tui";
 import { Input, matchesKey, truncateToWidth, visibleWidth } from "@steve-8000/amaze-tui";
+import type { ExtensionAPI, ExtensionCommandContext, Theme } from "amaze";
 import { spawn } from "child_process";
 
 // Global handle for toggle demo (in real code, use a more elegant pattern)

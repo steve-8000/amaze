@@ -8,9 +8,9 @@
  * Token stats come from ctx.sessionManager/ctx.model (already accessible).
  */
 
-import type { ExtensionAPI } from "amaze";
 import type { AssistantMessage } from "@steve-8000/amaze-ai";
 import { truncateToWidth, visibleWidth } from "@steve-8000/amaze-tui";
+import type { ExtensionAPI } from "amaze";
 
 export default function (pi: ExtensionAPI) {
 	let enabled = false;

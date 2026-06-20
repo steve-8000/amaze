@@ -25,9 +25,9 @@
  *   amaze -e ./built-in-tool-renderer.ts
  */
 
+import { Text } from "@steve-8000/amaze-tui";
 import type { BashToolDetails, EditToolDetails, ExtensionAPI, ReadToolDetails } from "amaze";
 import { createBashTool, createEditTool, createReadTool, createWriteTool } from "amaze";
-import { Text } from "@steve-8000/amaze-tui";
 
 export default function (pi: ExtensionAPI) {
 	const cwd = process.cwd();

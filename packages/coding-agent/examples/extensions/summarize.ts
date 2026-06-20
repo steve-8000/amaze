@@ -1,7 +1,7 @@
-import type { ExtensionAPI, ExtensionCommandContext } from "amaze";
-import { DynamicBorder, getMarkdownTheme } from "amaze";
 import { complete, getModel } from "@steve-8000/amaze-ai";
 import { Container, Markdown, matchesKey, Text } from "@steve-8000/amaze-tui";
+import type { ExtensionAPI, ExtensionCommandContext } from "amaze";
+import { DynamicBorder, getMarkdownTheme } from "amaze";
 
 type ContentBlock = {
 	type?: string;

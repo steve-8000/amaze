@@ -67,7 +67,7 @@ test/
 ## CONVENTIONS
 
 - **Tool shape**: TypeBox schema + `execute(input, ctx)` + `renderCall` + `renderResult`. Match `core/tools/` patterns; see `core/tools/AGENTS.md`.
-- **No built-in MCP / permission popups / plan mode / todos in core** — pi philosophy. The fork's `permission-system`, `compaction`, `prompt-preset`, and `todowrite` features live as **builtin extensions**, not core.
+- **No permission popups / plan mode / todos in core** — pi philosophy. The fork's `permission-system`, `compaction`, `prompt-preset`, and `todowrite` features live as **builtin extensions**, not core.
 - **Keybindings always configurable** — `KEYBINDINGS` (`src/core/keybindings.ts`, spreads `TUI_KEYBINDINGS` from `@steve-8000/amaze-tui` and adds the `app.*` bindings) is the source of truth.
 - **Faux provider for tests** — never spend a real token in `npm test`. Use `harness.ts` + `pi-ai/faux`.
 - **Inlined UUIDv7 in `core/session-manager.ts`** — do NOT re-add the `uuid` package. Documented in `changes.md` 2026-04-17.

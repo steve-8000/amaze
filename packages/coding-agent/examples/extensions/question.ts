@@ -4,16 +4,8 @@
  * Escape in editor returns to options, Escape in options cancels
  */
 
+import { Editor, type EditorTheme, Key, matchesKey, Text, visibleWidth, wrapTextWithAnsi } from "@steve-8000/amaze-tui";
 import type { ExtensionAPI } from "amaze";
-import {
-	Editor,
-	type EditorTheme,
-	Key,
-	matchesKey,
-	Text,
-	visibleWidth,
-	wrapTextWithAnsi,
-} from "@steve-8000/amaze-tui";
 import { Type } from "typebox";
 
 interface OptionWithDesc {

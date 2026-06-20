@@ -12,10 +12,10 @@
  * - Progress tracking widget during execution
  */
 
-import type { ExtensionAPI, ExtensionContext } from "amaze";
 import type { AgentMessage } from "@steve-8000/amaze-agent-core";
 import type { AssistantMessage, TextContent } from "@steve-8000/amaze-ai";
 import { Key } from "@steve-8000/amaze-tui";
+import type { ExtensionAPI, ExtensionContext } from "amaze";
 import { extractTodoItems, isSafeCommand, markCompletedSteps, type TodoItem } from "./utils.ts";
 
 // Tools

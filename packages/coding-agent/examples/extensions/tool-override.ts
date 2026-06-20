@@ -20,8 +20,8 @@
  *   amaze -e ./tool-override.ts
  */
 
-import { type ExtensionAPI, getAgentDir, withFileMutationQueue } from "amaze";
 import type { TextContent } from "@steve-8000/amaze-ai";
+import { type ExtensionAPI, getAgentDir, withFileMutationQueue } from "amaze";
 import { constants, readFileSync } from "fs";
 import { access, appendFile, readFile } from "fs/promises";
 import { join, resolve } from "path";

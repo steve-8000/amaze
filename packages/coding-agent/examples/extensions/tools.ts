@@ -9,9 +9,9 @@
  * 2. Use /tools to open the tool selector
  */
 
+import { Container, type SettingItem, SettingsList } from "@steve-8000/amaze-tui";
 import type { ExtensionAPI, ExtensionContext, ToolInfo } from "amaze";
 import { getSettingsListTheme } from "amaze";
-import { Container, type SettingItem, SettingsList } from "@steve-8000/amaze-tui";
 
 // State persisted to session
 interface ToolsState {

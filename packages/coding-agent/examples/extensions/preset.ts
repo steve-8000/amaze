@@ -40,10 +40,10 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { ExtensionAPI, ExtensionContext } from "amaze";
-import { DynamicBorder, getAgentDir } from "amaze";
 import type { Api, Model } from "@steve-8000/amaze-ai";
 import { Container, Key, type SelectItem, SelectList, Text } from "@steve-8000/amaze-tui";
+import type { ExtensionAPI, ExtensionContext } from "amaze";
+import { DynamicBorder, getAgentDir } from "amaze";
 
 // Preset configuration
 interface Preset {

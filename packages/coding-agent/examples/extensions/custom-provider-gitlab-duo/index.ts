@@ -9,7 +9,6 @@
  *   # Then /login gitlab-duo, or set GITLAB_TOKEN=glpat-...
  */
 
-import type { ExtensionAPI } from "amaze";
 import {
 	type Api,
 	type AssistantMessageEventStream,
@@ -23,6 +22,7 @@ import {
 	streamSimpleOpenAIResponses,
 	type ThinkingLevelMap,
 } from "@steve-8000/amaze-ai";
+import type { ExtensionAPI } from "amaze";
 
 // =============================================================================
 // Constants
