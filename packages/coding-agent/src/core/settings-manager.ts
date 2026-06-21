@@ -5,6 +5,7 @@ import { dirname, join } from "path";
 import lockfile from "proper-lockfile";
 import { CONFIG_DIR_NAME, getAgentDir } from "../config.ts";
 import { normalizePath, resolvePath } from "../utils/paths.ts";
+import type { ContextOptimizerSettings } from "./context-optimizer/index.ts";
 import { DEFAULT_HTTP_IDLE_TIMEOUT_MS, parseHttpIdleTimeoutMs } from "./http-dispatcher.ts";
 
 export interface CompactionSettings {
@@ -99,6 +100,7 @@ export interface Settings {
 	followUpMode?: "all" | "one-at-a-time";
 	theme?: string;
 	compaction?: CompactionSettings;
+	contextOptimizer?: ContextOptimizerSettings;
 	branchSummary?: BranchSummarySettings;
 	retry?: RetrySettings;
 	hideThinkingBlock?: boolean; // default: true (hidden; shows a compact label)
@@ -813,6 +815,10 @@ export class SettingsManager {
 			restorationMaxTotalTokens: this.settings.compaction?.restorationMaxTotalTokens ?? 50_000,
 			restorationContextRatio: this.settings.compaction?.restorationContextRatio ?? 0.15,
 		};
+	}
+
+	getContextOptimizerSettings(): ContextOptimizerSettings {
+		return this.settings.contextOptimizer ?? {};
 	}
 
 	getBranchSummarySettings(): { reserveTokens: number; skipPrompt: boolean } {

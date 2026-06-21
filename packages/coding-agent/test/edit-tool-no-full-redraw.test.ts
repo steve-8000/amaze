@@ -234,7 +234,7 @@ describe("edit tool TUI rendering", () => {
 		expect(rendered).not.toContain("-1 ");
 	});
 
-	it("keeps Xenonite tool calls visible while hiding every result except mem_recall", async () => {
+	it("keeps Xenonite tool calls visible while hiding their result payloads", async () => {
 		for (const toolName of xenoniteToolNames) {
 			const terminal = new FakeTerminal();
 			const tui = new TUI(terminal);
@@ -263,11 +263,7 @@ describe("edit tool TUI rendering", () => {
 
 			const rendered = component.render(80).join("\n");
 			expect(rendered).toContain(toolName);
-			if (toolName === "mem_recall") {
-				expect(rendered).toContain("hidden result payload");
-			} else {
-				expect(rendered).not.toContain("hidden result payload");
-			}
+			expect(rendered).not.toContain("hidden result payload");
 		}
 	});
 });

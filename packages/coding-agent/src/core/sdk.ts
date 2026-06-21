@@ -6,10 +6,10 @@ import { resolvePath } from "../utils/paths.ts";
 import { AgentSession } from "./agent-session.ts";
 import { formatNoModelsAvailableMessage } from "./auth-guidance.ts";
 import { AuthStorage } from "./auth-storage.ts";
+import { optimizeAgentContextMessages } from "./context-optimizer/index.ts";
 import { DEFAULT_THINKING_LEVEL } from "./defaults.ts";
 import type { ServiceTier } from "./extensions/builtin/service-tier.ts";
 import type { ExtensionRunner, LoadExtensionsResult, SessionStartEvent, ToolDefinition } from "./extensions/index.ts";
-import { createFastMemoryReranker } from "./memory-reranker.ts";
 import { convertToLlm } from "./messages.ts";
 import { ModelRegistry } from "./model-registry.ts";
 import { findInitialModel, getModelNarrowingPatterns, resolveModelScope } from "./model-resolver.ts";
@@ -254,6 +254,10 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 	thinkingLevel = clampThinkingLevelToModel(thinkingLevel, model);
 
 	const defaultActiveToolNames: string[] = [
+		"read",
+		"grep",
+		"find",
+		"ls",
 		"bash",
 		"edit",
 		"write",
@@ -370,8 +374,8 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 		sessionId: sessionManager.getSessionId(),
 		transformContext: async (messages) => {
 			const runner = extensionRunnerRef.current;
-			if (!runner) return messages;
-			return runner.emitContext(messages);
+			const extensionMessages = runner ? await runner.emitContext(messages) : messages;
+			return optimizeAgentContextMessages(extensionMessages, settingsManager.getContextOptimizerSettings()).messages;
 		},
 		steeringMode: settingsManager.getSteeringMode(),
 		followUpMode: settingsManager.getFollowUpMode(),
@@ -410,7 +414,6 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 		excludedToolNames,
 		extensionRunnerRef,
 		sessionStartEvent: options.sessionStartEvent,
-		memoryReranker: createFastMemoryReranker({ modelRegistry, fallbackModel: model }),
 	});
 	const extensionsResult = resourceLoader.getExtensions();
 

@@ -62,7 +62,6 @@ import type { PathContract } from "../../harness/path-contract.ts";
 import { parseFreshBootContract, type FreshBootContract } from "../../harness/fresh-boot-contract.ts";
 import { validateHarnessValidatorContract } from "../../harness/validator-contract.ts";
 import { compileMissionPolicy, startMission } from "../../harness/orchestrator/mission-orchestrator.ts";
-import { compileProfiledOrchestrationPlan, summarizeProfiledOrchestrationPlan } from "../../harness/orchestrator/profiled-orchestration-plan.ts";
 import { compileDelegationDecision } from "../../harness/orchestrator/delegation-decision.ts";
 import {
 	cleanupWorktrees,
@@ -2445,6 +2444,43 @@ export function createSubagentExecutor(deps: ExecutorDeps): {
 			paramsWithResolvedCwd = { ...paramsWithResolvedCwd, action: "orchestrate" };
 			params = paramsWithResolvedCwd;
 		}
+		if (paramsWithResolvedCwd.action === "orchestrate") {
+			const rawRequest = (typeof paramsWithResolvedCwd.task === "string" && paramsWithResolvedCwd.task.trim())
+				? paramsWithResolvedCwd.task.trim()
+				: (typeof paramsWithResolvedCwd.message === "string" && paramsWithResolvedCwd.message.trim())
+					? paramsWithResolvedCwd.message.trim()
+					: "";
+			if (!rawRequest) {
+				return {
+					content: [{ type: "text", text: "orchestrate requires task or message as the raw agent request." }],
+					isError: true,
+					details: { mode: "management" as const, results: [] },
+				};
+			}
+			const directAgentCandidates = deps.discoverAgents(
+				paramsWithResolvedCwd.cwd ?? requestCwd,
+				resolveExecutionAgentScope(paramsWithResolvedCwd.agentScope),
+			).agents;
+			const directDecision = compileDelegationDecision(rawRequest, {
+				agent: typeof paramsWithResolvedCwd.agent === "string" && paramsWithResolvedCwd.agent.trim()
+					? paramsWithResolvedCwd.agent.trim()
+					: undefined,
+				agentCandidates: directAgentCandidates.map((agent) => ({
+					name: agent.name,
+					description: agent.description,
+					disabled: agent.disabled,
+				})),
+			});
+			paramsWithResolvedCwd = {
+				...paramsWithResolvedCwd,
+				action: undefined,
+				agent: directDecision.agent,
+				task: rawRequest,
+				message: undefined,
+				orchestrateOutput: undefined,
+			};
+			params = paramsWithResolvedCwd;
+		}
 		if (params.action) {
 			let action = params.action;
 			if (action === "harness_validate_contract") {
@@ -2476,7 +2512,7 @@ export function createSubagentExecutor(deps: ExecutorDeps): {
 					details: { mode: "management" as const, results: [] },
 				};
 			}
-			if (action === "orchestrate" || action === "orchestrate_decision") {
+			if (action === "orchestrate_decision") {
 				const rawRequest = (typeof paramsWithResolvedCwd.task === "string" && paramsWithResolvedCwd.task.trim())
 					? paramsWithResolvedCwd.task.trim()
 					: (typeof paramsWithResolvedCwd.message === "string" && paramsWithResolvedCwd.message.trim())
@@ -2492,79 +2528,21 @@ export function createSubagentExecutor(deps: ExecutorDeps): {
 				const missionId = typeof paramsWithResolvedCwd.id === "string" && paramsWithResolvedCwd.id.trim()
 					? paramsWithResolvedCwd.id.trim()
 					: undefined;
-				if (action === "orchestrate_decision") {
-					const output = compileDelegationDecision(rawRequest, {
-						missionId,
-						cwd: resolveHarnessStateCwd(),
-					});
-					return {
-						content: [{ type: "text", text: JSON.stringify(output, null, 2) }],
-						details: { mode: "management" as const, results: [] },
-					};
-				}
-				const result = compileProfiledOrchestrationPlan(rawRequest, {
+				const directAgentCandidates = deps.discoverAgents(
+					paramsWithResolvedCwd.cwd ?? requestCwd,
+					resolveExecutionAgentScope(paramsWithResolvedCwd.agentScope),
+				).agents;
+				const output = compileDelegationDecision(rawRequest, {
 					missionId,
-					cwd: resolveHarnessStateCwd(),
+					agent: typeof paramsWithResolvedCwd.agent === "string" && paramsWithResolvedCwd.agent.trim()
+						? paramsWithResolvedCwd.agent.trim()
+						: undefined,
+					agentCandidates: directAgentCandidates.map((agent) => ({
+						name: agent.name,
+						description: agent.description,
+						disabled: agent.disabled,
+					})),
 				});
-				if (paramsWithResolvedCwd.orchestrateOutput === "full") {
-					return {
-						content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
-						details: { mode: "management" as const, results: [] },
-					};
-				}
-				if (result.executionPlan.childExecution === "parent_direct" || result.executionPlan.steps.length === 0) {
-					const output = summarizeProfiledOrchestrationPlan(result);
-					return {
-						content: [{ type: "text", text: JSON.stringify(output, null, 2) }],
-						details: { mode: "management" as const, results: [] },
-					};
-				}
-				const childResults = [];
-				for (let index = 0; index < result.executionPlan.steps.length; index++) {
-					const step = result.executionPlan.steps[index]!;
-					const childResult = await execute(
-						`${result.missionId}-${step.role}-${index + 1}`,
-						{
-							action: step.action,
-							bootContract: step.bootContract,
-							cwd: paramsWithResolvedCwd.cwd,
-							clarify: false,
-							async: paramsWithResolvedCwd.async,
-						},
-						signal,
-						onUpdate,
-						ctx,
-					);
-					childResults.push({
-						role: step.role,
-						profile: step.profile,
-						assignedPath: step.bootContract.execution_contract.assigned_path,
-						exitCode: childResult.isError ? 1 : 0,
-						output: childResult.content[0]?.type === "text" ? childResult.content[0].text : "",
-					});
-					if (childResult.isError) {
-						return {
-							content: [{ type: "text", text: JSON.stringify({
-								missionId: result.missionId,
-								status: "failed",
-								failedStep: {
-									role: step.role,
-									profile: step.profile,
-									assignedPath: step.bootContract.execution_contract.assigned_path,
-								},
-								results: childResults,
-							}, null, 2) }],
-							isError: true,
-							details: { mode: "management" as const, results: [] },
-						};
-					}
-				}
-				const output = {
-					missionId: result.missionId,
-					status: "completed",
-					executionPlan: summarizeProfiledOrchestrationPlan(result).executionPlan,
-					results: childResults,
-				};
 				return {
 					content: [{ type: "text", text: JSON.stringify(output, null, 2) }],
 					details: { mode: "management" as const, results: [] },

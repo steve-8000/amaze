@@ -62,36 +62,22 @@ describe("scouter evidence packets", () => {
 		assert.deepEqual(saved.commands, packet.commands);
 	});
 
-	it("calls Xenonite code engine with repo and symbol queries when available", async () => {
+	it("keeps repository evidence on the filesystem fallback path", async () => {
 		const repo = makeRepo();
-		const calls: Array<{ op: string; args: Record<string, unknown> }> = [];
-		const fakeFetch = (async (_url: string | URL | Request, init?: RequestInit) => {
-			const body = JSON.parse(String(init?.body)) as { op: string; args: Record<string, unknown> };
-			calls.push(body);
-			return {
-				async json() {
-					return { result: { ok: true, op: body.op, query: body.args.query } };
-				},
-			} as Response;
-		}) as typeof fetch;
-
 		const packet = await collectRepoEvidence({
 			recon_plan_id: "recon-resume-001",
 			mission_id: "mission-resume",
 			repo_queries: ["runtime task runner"],
 			symbol_queries: ["TaskRunner"],
 		}, repo, {
-			xenoniteBaseUrl: "http://127.0.0.1:9999",
-			fetchImpl: fakeFetch,
+			useXenonite: false,
 			now: () => Date.parse("2026-06-17T00:00:00Z"),
 		});
 
-		assert.equal(packet.index_status, "xenonite");
-		assert.deepEqual(calls.map((call) => call.op), ["codebase_search", "codebase_symbol"]);
-		assert.equal(calls[0]?.args.projectPath, repo);
-		assert.equal(packet.xenonite?.status, "ok");
+		assert.equal(packet.index_status, "filesystem_fallback");
+		assert.equal(packet.xenonite, undefined);
 		const saved = readJson<RepoEvidencePacket>(path.join(repo, ".harness", "intelligence", "scans", `${packet.scan_id}.json`));
-		assert.equal(saved.index_status, "xenonite");
-		assert.deepEqual(saved.xenonite?.results.map((result) => result.op), ["codebase_search", "codebase_symbol"]);
+		assert.equal(saved.index_status, "filesystem_fallback");
+		assert.equal(saved.xenonite, undefined);
 	});
 });

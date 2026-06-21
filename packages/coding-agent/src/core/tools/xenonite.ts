@@ -20,102 +20,10 @@ interface XenoniteCoreConfig {
 	bin?: string;
 }
 
-export interface RecalledMemoryItem {
-	text?: string;
-	score?: number;
-	source?: string;
-	scope?: string;
-	[key: string]: unknown;
-}
-
-export interface RecalledMemory {
-	items: RecalledMemoryItem[];
-	context: string;
-}
-
-interface MemoryRetrievalPolicy {
-	candidateTopK: number;
-	finalTopK: number;
-	minRelevance: number;
-	scoreMode: "similarity" | "distance";
-}
-
-const DEFAULT_MEMORY_RETRIEVAL_POLICY: MemoryRetrievalPolicy = {
-	candidateTopK: 30,
-	finalTopK: 5,
-	minRelevance: 0.05,
-	scoreMode: "similarity",
-};
-
-function objectValue(value: unknown): Record<string, unknown> | undefined {
-	return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : undefined;
-}
-
-function positiveIntegerSetting(value: unknown, fallback: number, max: number): number {
-	if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
-	const normalized = Math.floor(value);
-	if (normalized < 1) return fallback;
-	return Math.min(normalized, max);
-}
-
-function relevanceSetting(value: unknown, fallback: number): number {
-	if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
-	if (value < 0 || value > 1) return fallback;
-	return value;
-}
-
-function scoreModeSetting(
-	value: unknown,
-	fallback: MemoryRetrievalPolicy["scoreMode"],
-): MemoryRetrievalPolicy["scoreMode"] {
-	return value === "distance" || value === "similarity" ? value : fallback;
-}
-
-function memoryRetrievalPolicyFromConfig(config = loadAmazeConfig(), requestedTopK?: number): MemoryRetrievalPolicy {
-	const tools = objectValue(config.raw.tools);
-	const mem = objectValue(tools?.mem);
-	const retrieval = objectValue(mem?.retrieval);
-	const configuredFinalTopK = positiveIntegerSetting(
-		retrieval?.final_top_k ?? retrieval?.finalTopK,
-		DEFAULT_MEMORY_RETRIEVAL_POLICY.finalTopK,
-		20,
-	);
-	const finalTopK = positiveIntegerSetting(requestedTopK, configuredFinalTopK, 20);
-	const candidateTopK = positiveIntegerSetting(
-		retrieval?.candidate_top_k ?? retrieval?.candidateTopK,
-		DEFAULT_MEMORY_RETRIEVAL_POLICY.candidateTopK,
-		100,
-	);
-	return {
-		candidateTopK: Math.max(candidateTopK, finalTopK),
-		finalTopK,
-		minRelevance: relevanceSetting(
-			retrieval?.min_relevance ?? retrieval?.minRelevance,
-			DEFAULT_MEMORY_RETRIEVAL_POLICY.minRelevance,
-		),
-		scoreMode: scoreModeSetting(
-			retrieval?.score_mode ?? retrieval?.scoreMode,
-			DEFAULT_MEMORY_RETRIEVAL_POLICY.scoreMode,
-		),
-	};
-}
-
 const projectPath = Type.Optional(
 	Type.String({ description: "Absolute project directory path. Defaults to the current working directory." }),
 );
 const requiredProjectPath = Type.String({ description: "Absolute project directory path." });
-const memoryScope = Type.Optional(
-	Type.Union([Type.Literal("global"), Type.Literal("project"), Type.Literal("path")], {
-		description:
-			"Memory scope. 'global' is only for operator preferences/style; project facts should use project, folder facts should use path.",
-	}),
-);
-const memoryPath = Type.Optional(
-	Type.String({ description: "Folder/path scope for path memory. Defaults to project scope when omitted." }),
-);
-const memoryPathId = Type.Optional(
-	Type.String({ description: "Stable path memory id/namespace for folder-scoped memory." }),
-);
 const MAX_CODE_READ_LINES = 200;
 
 const XENONITE_TOOL_SPECS: XenoniteToolSpec[] = [
@@ -123,7 +31,7 @@ const XENONITE_TOOL_SPECS: XenoniteToolSpec[] = [
 		name: "context_engine",
 		endpoint: "/v1/engine/context",
 		description:
-			"Ask Xenonite Core Engine for the smallest sufficient repository/memory read targets. Default output is targets[] with targets[].readArgs for code_read handoff; inline source content is opt-in via outputMode='inline'. Treat targets[] as a ranked read plan, not source evidence: do not automatically code_read every target; read only the minimum target(s) needed for the conclusion or patch.",
+			"Ask Xenonite Core Engine for the smallest sufficient repository context read targets. Default output is targets[] with targets[].readArgs for code_read handoff; inline source content is opt-in via outputMode='inline'. Treat targets[] as a ranked read plan, not source evidence: do not automatically code_read every target; read only the minimum target(s) needed for the conclusion or patch.",
 		params: {
 			projectPath,
 			task: Type.String({ description: "The user's repository-context task or question." }),
@@ -167,11 +75,49 @@ const XENONITE_TOOL_SPECS: XenoniteToolSpec[] = [
 					{ description: "Bounded exploration budget." },
 				),
 			),
-			includeMemory: Type.Optional(
-				Type.Boolean({ description: "Include selected scoped memory in the context packet." }),
+			pathScope: Type.Optional(
+				Type.String({ description: "Optional path scope for repository context selection." }),
 			),
-			memoryScope,
-			pathScope: Type.Optional(Type.String({ description: "Optional path scope for memory selection." })),
+		},
+	},
+	{
+		name: "scout_locator",
+		endpoint: "/v1/engine/context",
+		description:
+			"First-pass repository locator for unknown files/symbols/tests. Internally calls Xenonite context_engine as the only locator, then performs at most three code_read evidence reads from returned targets and returns a compact handoff. Use this instead of manual search/list/read tools when the first unknown is where relevant code lives.",
+		params: {
+			projectPath,
+			task: Type.String({ description: "The user's repository-location question or task." }),
+			mode: Type.Optional(
+				Type.Union([Type.Literal("answer"), Type.Literal("patch"), Type.Literal("investigate")], {
+					description: "What the selected context should support. Defaults to investigate.",
+				}),
+			),
+			hints: Type.Optional(
+				Type.Object(
+					{
+						files: Type.Optional(
+							Type.Array(Type.String(), {
+								description: "Explicit relative or absolute files already mentioned by the user.",
+							}),
+						),
+						symbols: Type.Optional(
+							Type.Array(Type.String(), { description: "Symbols already mentioned by the user." }),
+						),
+					},
+					{ description: "Optional known files/symbols." },
+				),
+			),
+			maxReads: Type.Optional(
+				Type.Integer({
+					minimum: 0,
+					maximum: 3,
+					description: "Maximum code_read evidence reads from context_engine targets. Hard maximum 3, default 3.",
+				}),
+			),
+			pathScope: Type.Optional(
+				Type.String({ description: "Optional path scope for repository context selection." }),
+			),
 		},
 	},
 	{
@@ -379,93 +325,130 @@ const XENONITE_TOOL_SPECS: XenoniteToolSpec[] = [
 		params: { projectPath: requiredProjectPath },
 	},
 ];
+void XENONITE_TOOL_SPECS;
 
-const XENONITE_MEMORY_TOOL_SPECS: XenoniteToolSpec[] = [
+const ROCKY_TOOL_SPECS: XenoniteToolSpec[] = [
 	{
-		name: "mem_recall",
-		endpoint: "/v1/memory/recall",
-		description: "Recall durable memory relevant to a query from previous sessions.",
-		params: {
-			query: Type.String({ description: "What to recall." }),
-			top_k: Type.Optional(Type.Integer({ minimum: 1, maximum: 20, description: "Maximum memory observations." })),
-			scope: memoryScope,
-			projectPath,
-			path: memoryPath,
-			pathId: memoryPathId,
-		},
-	},
-	{
-		name: "mem_search",
-		endpoint: "/v1/memory/recall",
-		description: "Semantic search over durable memory.",
-		params: {
-			query: Type.String({ description: "Search query." }),
-			top_k: Type.Optional(Type.Integer({ minimum: 1, maximum: 20, description: "Maximum memory observations." })),
-			scope: memoryScope,
-			projectPath,
-			path: memoryPath,
-			pathId: memoryPathId,
-		},
-	},
-	{
-		name: "mem_store",
-		endpoint: "/v1/memory/store",
-		description: "Store one durable memory observation for future sessions.",
-		params: {
-			text: Type.String({ description: "Standalone memory fact to store." }),
-			source: Type.Union([Type.Literal("direct_user_request"), Type.Literal("verified_durable_fact")], {
-				description:
-					"Why storage is allowed: explicit user memory request or verified durable project fact/decision.",
-			}),
-			scope: memoryScope,
-			projectPath,
-			path: memoryPath,
-			pathId: memoryPathId,
-		},
-	},
-	{
-		name: "mem_optimize",
-		endpoint: "/v1/memory/optimize",
+		name: "rocky_search",
+		endpoint: "/v1/search",
 		description:
-			"Dry-run or apply sequential LLM-assisted durable memory dedupe, cleanup, and scope reclassification.",
+			"Rocky-first repository/code search and evidence packaging. Use this before low-level read, grep, ls, or legacy context tools when repository context is needed.",
 		params: {
-			dryRun: Type.Optional(Type.Boolean({ description: "Preview only. Defaults to true unless apply is true." })),
-			apply: Type.Optional(Type.Boolean({ description: "Apply the rewrite. Defaults to false." })),
-			maxFacts: Type.Optional(
-				Type.Integer({
-					minimum: 1,
-					maximum: 1000,
-					description: "Maximum facts to process in this run. Default 200.",
-				}),
+			query: Type.String({ description: "Repository investigation question or code search query." }),
+			path: Type.Optional(
+				Type.String({ description: "Absolute repository path. Defaults to the current working directory." }),
 			),
-			batchSize: Type.Optional(
-				Type.Integer({ minimum: 1, maximum: 20, description: "Sequential LLM batch size. Default 8." }),
+			final_answer: Type.Optional(
+				Type.String({ description: "Optional precomputed FastContext <final_answer> block for packaging only." }),
 			),
-			useLlm: Type.Optional(
-				Type.Boolean({ description: "Use Xenonite's configured LLM for classification. Default true." }),
+			turns: Type.Optional(Type.Integer({ minimum: 0, description: "Existing FastContext turn count, if any." })),
+			tool_messages: Type.Optional(
+				Type.Integer({ minimum: 0, description: "Existing FastContext tool message count, if any." }),
 			),
 		},
 	},
 	{
-		name: "mem_delete",
-		endpoint: "/v1/memory/delete",
-		description: "Delete durable memory facts in one scope by id, exact text, or text prefix.",
+		name: "rocky_memory_recall",
+		endpoint: "/v1/rocky/memory/recall",
+		description: "Recall durable Rocky memory facts. Do not use for fresh repository/code evidence.",
 		params: {
-			id: Type.Optional(Type.String({ description: "Exact memory fact id to delete." })),
-			text: Type.Optional(Type.String({ description: "Exact memory fact text to delete." })),
-			textPrefix: Type.Optional(Type.String({ description: "Delete facts whose text starts with this prefix." })),
-			scope: memoryScope,
-			projectPath,
-			path: memoryPath,
-			pathId: memoryPathId,
+			query: Type.String({ description: "Memory recall query." }),
+			limit: Type.Optional(
+				Type.Integer({ minimum: 1, maximum: 50, description: "Maximum memory hits. Default 8." }),
+			),
+			scope: Type.Optional(
+				Type.Object(
+					{
+						kind: Type.Optional(
+							Type.Union([Type.Literal("global"), Type.Literal("project"), Type.Literal("path")]),
+						),
+						project_path: Type.Optional(Type.String()),
+						path: Type.Optional(Type.String()),
+					},
+					{ description: "Durable memory scope." },
+				),
+			),
 		},
+	},
+	{
+		name: "rocky_memory_search",
+		endpoint: "/v1/rocky/memory/search",
+		description:
+			"Semantic durable Rocky memory search. Alias of memory recall; not for fresh repository/code evidence.",
+		params: {
+			query: Type.String({ description: "Memory search query." }),
+			limit: Type.Optional(
+				Type.Integer({ minimum: 1, maximum: 50, description: "Maximum memory hits. Default 8." }),
+			),
+			scope: Type.Optional(
+				Type.Object(
+					{
+						kind: Type.Optional(
+							Type.Union([Type.Literal("global"), Type.Literal("project"), Type.Literal("path")]),
+						),
+						project_path: Type.Optional(Type.String()),
+						path: Type.Optional(Type.String()),
+					},
+					{ description: "Durable memory scope." },
+				),
+			),
+		},
+	},
+	{
+		name: "rocky_memory_store",
+		endpoint: "/v1/rocky/memory/store",
+		description:
+			"Store a verified durable Rocky memory fact. Never store raw logs, guesses, or transient task state.",
+		params: {
+			text: Type.String({ description: "Verified durable preference, project fact, decision, or reusable lesson." }),
+			source: Type.Optional(Type.String({ description: "Source label. Default verified_durable_fact." })),
+			tags: Type.Optional(Type.Array(Type.String(), { description: "Optional memory tags." })),
+			scope: Type.Optional(
+				Type.Object(
+					{
+						kind: Type.Optional(
+							Type.Union([Type.Literal("global"), Type.Literal("project"), Type.Literal("path")]),
+						),
+						project_path: Type.Optional(Type.String()),
+						path: Type.Optional(Type.String()),
+					},
+					{ description: "Durable memory scope." },
+				),
+			),
+		},
+	},
+	{
+		name: "rocky_memory_delete",
+		endpoint: "/v1/rocky/memory/delete",
+		description: "Delete Rocky durable memory by id, exact text, or text prefix.",
+		params: {
+			id: Type.Optional(Type.String({ description: "Memory id to delete." })),
+			text: Type.Optional(Type.String({ description: "Exact memory text to delete." })),
+			text_prefix: Type.Optional(Type.String({ description: "Memory text prefix to delete." })),
+			scope: Type.Optional(
+				Type.Object(
+					{
+						kind: Type.Optional(
+							Type.Union([Type.Literal("global"), Type.Literal("project"), Type.Literal("path")]),
+						),
+						project_path: Type.Optional(Type.String()),
+						path: Type.Optional(Type.String()),
+					},
+					{ description: "Durable memory scope." },
+				),
+			),
+		},
+	},
+	{
+		name: "rocky_memory_optimize",
+		endpoint: "/v1/rocky/memory/optimize",
+		description: "Optimize and deduplicate Rocky durable memory.",
+		params: {},
 	},
 ];
 
 export type XenoniteToolName = string;
-export const xenoniteToolNames = [...XENONITE_TOOL_SPECS, ...XENONITE_MEMORY_TOOL_SPECS].map(
-	(spec) => spec.name,
-) as XenoniteToolName[];
+export const xenoniteToolNames = ROCKY_TOOL_SPECS.map((spec) => spec.name) as XenoniteToolName[];
 
 function normalizeBaseUrl(value: string): string {
 	return value.replace(/\/+$/, "");
@@ -600,32 +583,24 @@ export async function readExactCodeSpan(
 
 function xenoniteConfig(): XenoniteCoreConfig {
 	const config = loadAmazeConfig();
+	const rocky = config.services.rocky;
+	const xenonite = config.services.xenonite;
 	return {
-		baseUrl: normalizeBaseUrl(config.services.xenonite.url),
-		hostPrefix: config.services.xenonite.hostPrefix,
-		transport: config.services.xenonite.transport,
-		root: config.services.xenonite.root,
-		bin: config.services.xenonite.bin,
+		baseUrl: normalizeBaseUrl(rocky.enabled ? rocky.url : xenonite.url),
+		hostPrefix: xenonite.hostPrefix,
+		transport: xenonite.transport,
+		root: xenonite.root,
+		bin: xenonite.bin,
 	};
 }
 
 export function isXenoniteCoreEnabled(): boolean {
 	const config = loadAmazeConfig();
-	return config.services.xenonite.enabled && (config.tools.search.enabled || config.tools.mem.enabled);
+	return Boolean(config.services.rocky.enabled);
 }
 
 function enabledSpecs(): XenoniteToolSpec[] {
-	const config = loadAmazeConfig();
-	if (!config.services.xenonite.enabled) return [];
-	return [
-		...(config.tools.search.enabled ? XENONITE_TOOL_SPECS : []),
-		...(config.tools.mem.enabled ? XENONITE_MEMORY_TOOL_SPECS : []),
-	];
-}
-
-function memoryToolsEnabled(): boolean {
-	const config = loadAmazeConfig();
-	return config.services.xenonite.enabled && config.tools.mem.enabled;
+	return ROCKY_TOOL_SPECS;
 }
 
 function apiPayload(
@@ -644,19 +619,17 @@ function apiPayload(
 	}
 	if (toolName === "index_health") return { op: "codebase_health", args: {} };
 	if (toolName === "index_list") return { op: "codebase_list_projects", args: {} };
-	if (toolName === "mem_recall" || toolName === "mem_search") {
-		return memoryPayload(payload, cwd, hostPrefix, false);
-	}
-	if (toolName === "mem_store") {
-		return memoryPayload(payload, cwd, hostPrefix, true);
-	}
-	if (toolName === "mem_delete") {
-		return memoryDeletePayload(payload, cwd, hostPrefix);
-	}
 	if (toolName === "context_engine") {
 		if (typeof payload.pathScope === "string" && payload.pathScope.trim()) {
 			payload.pathScope = toXenonitePath(payload.pathScope, cwd, hostPrefix);
 		}
+		return payload;
+	}
+	if (toolName === "rocky_search") {
+		const pathValue = typeof payload.path === "string" ? payload.path : undefined;
+		const rockyPath = toXenonitePath(pathValue, cwd, hostPrefix);
+		payload.path = rockyPath;
+		payload.projectPath = rockyPath;
 		return payload;
 	}
 	return payload;
@@ -675,9 +648,6 @@ function localPayload(toolName: string, params: Record<string, unknown>, cwd: st
 		}
 		return payload;
 	}
-	if (toolName === "mem_recall" || toolName === "mem_search") return memoryPayload(payload, cwd, "", false);
-	if (toolName === "mem_store") return memoryPayload(payload, cwd, "", true);
-	if (toolName === "mem_delete") return memoryDeletePayload(payload, cwd, "");
 	return payload;
 }
 
@@ -685,57 +655,8 @@ function localToolOp(toolName: string): string | undefined {
 	const ops: Record<string, string> = {
 		context_engine: "context_engine",
 		code_read: "code_read",
-		mem_recall: "memory_recall",
-		mem_search: "memory_recall",
-		mem_store: "memory_store",
-		mem_optimize: "memory_optimize",
-		mem_delete: "memory_delete",
 	};
 	return ops[toolName];
-}
-
-function memoryPayload(
-	payload: Record<string, unknown>,
-	cwd: string,
-	hostPrefix: string,
-	store: boolean,
-): Record<string, unknown> {
-	const requestedScope = typeof payload.scope === "string" ? payload.scope : undefined;
-	const pathValue =
-		typeof payload.path === "string" && payload.path.trim()
-			? toXenonitePath(payload.path, cwd, hostPrefix)
-			: undefined;
-	const pathId = typeof payload.pathId === "string" && payload.pathId.trim() ? payload.pathId.trim() : undefined;
-	let scope = requestedScope ?? (pathValue || pathId ? "path" : "project");
-	if (store && scope === "global" && payload.source !== "direct_user_request") {
-		scope = "project";
-	}
-	const project = toXenonitePath(
-		typeof payload.projectPath === "string" ? payload.projectPath : undefined,
-		cwd,
-		hostPrefix,
-	);
-	return {
-		...(store ? { text: payload.text, source: payload.source } : { query: payload.query, top_k: payload.top_k }),
-		memoryScope: scope,
-		projectPath: project,
-		...(pathValue ? { path: pathValue } : {}),
-		...(pathId ? { pathId } : {}),
-		session_id: "default",
-	};
-}
-
-function memoryDeletePayload(
-	payload: Record<string, unknown>,
-	cwd: string,
-	hostPrefix: string,
-): Record<string, unknown> {
-	return {
-		...memoryPayload(payload, cwd, hostPrefix, false),
-		id: payload.id,
-		text: payload.text,
-		textPrefix: payload.textPrefix,
-	};
 }
 
 async function post(
@@ -841,6 +762,7 @@ function hasExplicitContextFiles(params: Record<string, unknown>): boolean {
 function shouldFreshenBeforeTool(toolName: string): boolean {
 	return (
 		toolName === "context_engine" ||
+		toolName === "scout_locator" ||
 		toolName === "search_query" ||
 		toolName === "code_read" ||
 		toolName.startsWith("graph_")
@@ -890,6 +812,9 @@ async function callXenoniteTool(
 	if (spec.name === "code_read") {
 		return stringifyApiResult(await readExactCodeSpan(params, cwd, config.hostPrefix));
 	}
+	if (spec.name === "scout_locator") {
+		return stringifyApiResult(await runScoutLocator(config, params, cwd));
+	}
 	const localOp = localToolOp(spec.name);
 	if (config.transport === "tool" && localOp) {
 		const timeoutMs =
@@ -911,127 +836,97 @@ async function callXenoniteTool(
 	return stringifyApiResult(data);
 }
 
-function memoryTokens(value: string): Set<string> {
-	const tokens = value.toLowerCase().match(/[\p{L}\p{N}_-]{3,}/gu) ?? [];
-	return new Set(tokens);
+function boundedScoutReadCount(value: unknown): number {
+	if (typeof value !== "number" || !Number.isInteger(value)) return 3;
+	return Math.max(0, Math.min(3, value));
 }
 
-function lexicalRelevance(queryTokens: Set<string>, text: string): number {
-	if (queryTokens.size === 0) return 0;
-	const textTokens = memoryTokens(text);
-	if (textTokens.size === 0) return 0;
-	let overlap = 0;
-	for (const token of queryTokens) {
-		if (textTokens.has(token)) overlap++;
+function scoutContextParams(params: Record<string, unknown>): Record<string, unknown> {
+	const output: Record<string, unknown> = {
+		task: params.task,
+		mode: typeof params.mode === "string" ? params.mode : "investigate",
+		outputMode: "targets",
+		budget: { maxTargets: 3, maxTotalLines: 360, maxRounds: 1 },
+	};
+	for (const key of ["projectPath", "hints", "pathScope"]) {
+		if (params[key] !== undefined) output[key] = params[key];
 	}
-	return overlap / queryTokens.size;
+	return output;
 }
 
-function normalizeMemoryScore(item: RecalledMemoryItem, scoreMode: MemoryRetrievalPolicy["scoreMode"]): number {
-	if (typeof item.score !== "number" || !Number.isFinite(item.score)) return 0;
-	if (scoreMode === "distance") {
-		if (item.score < 0) return 0;
-		return 1 / (1 + item.score);
-	}
-	if (item.score <= 0) return 0;
-	return Math.min(item.score, 1);
+function contextTargets(contextResult: unknown): Array<{ readArgs?: Record<string, unknown>; [key: string]: unknown }> {
+	if (!contextResult || typeof contextResult !== "object") return [];
+	const targets = (contextResult as { targets?: unknown }).targets;
+	if (!Array.isArray(targets)) return [];
+	return targets.filter((target): target is { readArgs?: Record<string, unknown>; [key: string]: unknown } =>
+		Boolean(target && typeof target === "object"),
+	);
 }
 
-function itemText(item: RecalledMemoryItem): string {
-	return typeof item.text === "string" ? item.text.trim() : "";
-}
-
-function rankMemoryItems(
-	items: RecalledMemoryItem[],
-	query: string,
-	policy: MemoryRetrievalPolicy,
-): RecalledMemoryItem[] {
-	const queryTokens = memoryTokens(query);
-	const hasAnyExplicitScore = items.some((item) => typeof item.score === "number" && Number.isFinite(item.score));
-	return items
-		.map((item, index) => {
-			const text = itemText(item);
-			const lexical = lexicalRelevance(queryTokens, text);
-			const vector = normalizeMemoryScore(item, policy.scoreMode);
-			return {
-				item,
-				index,
-				relevance: Math.max(vector, lexical),
-				hasExplicitScore: typeof item.score === "number" && Number.isFinite(item.score),
-			};
-		})
-		.filter((candidate) => itemText(candidate.item).length > 0)
-		.filter((candidate) => {
-			if (!hasAnyExplicitScore && !candidate.hasExplicitScore && candidate.relevance === 0) return true;
-			return candidate.relevance >= policy.minRelevance;
-		})
-		.sort((left, right) => right.relevance - left.relevance || left.index - right.index)
-		.slice(0, policy.finalTopK)
-		.map((candidate) => candidate.item);
-}
-
-function contextFromMemoryItems(items: RecalledMemoryItem[]): string {
-	return items.map(itemText).filter(Boolean).join("\n");
-}
-
-export async function recallMemoryForTurn(
+async function callContextEngineRaw(
+	config: XenoniteCoreConfig,
+	params: Record<string, unknown>,
 	cwd: string,
-	query: string,
-	topK?: number,
-): Promise<RecalledMemory | undefined> {
-	if (!memoryToolsEnabled()) return undefined;
-	const config = xenoniteConfig();
-	const policy = memoryRetrievalPolicyFromConfig(undefined, topK);
-	const candidateTopK = Math.max(policy.candidateTopK, policy.finalTopK);
-	const payload =
-		config.transport === "tool"
-			? memoryPayload({ query, top_k: candidateTopK, scope: "project" }, cwd, "", false)
-			: memoryPayload({ query, top_k: candidateTopK, scope: "project" }, cwd, config.hostPrefix, false);
-	try {
-		const data =
-			config.transport === "tool"
-				? await callLocalXenoniteTool(config, "memory_recall", payload, 3_000)
-				: await post(config.baseUrl, "/v1/memory/recall", payload, 3_000);
-		if (!data || typeof data !== "object") return undefined;
-		const record = data as { items?: unknown; context?: unknown };
-		const items = Array.isArray(record.items)
-			? record.items.filter((item): item is RecalledMemoryItem => Boolean(item) && typeof item === "object")
-			: [];
-		const context = typeof record.context === "string" ? record.context.trim() : "";
-		const selectedItems = rankMemoryItems(items, query, policy);
-		if (items.length > 0) {
-			if (selectedItems.length === 0) return undefined;
-			return { items: selectedItems, context: contextFromMemoryItems(selectedItems) };
+): Promise<unknown> {
+	if (config.transport === "tool") {
+		return callLocalXenoniteTool(
+			config,
+			"context_engine",
+			localPayload("context_engine", params, cwd),
+			CONTEXT_ENGINE_EXPLORE_TIMEOUT_MS,
+		);
+	}
+	if (!hasExplicitContextFiles(params)) {
+		void freshenProjectIndex(config, params, cwd).catch(() => undefined);
+	}
+	return post(
+		config.baseUrl,
+		"/v1/engine/context",
+		apiPayload("context_engine", params, cwd, config.hostPrefix),
+		CONTEXT_ENGINE_EXPLORE_TIMEOUT_MS,
+	);
+}
+
+async function runScoutLocator(
+	config: XenoniteCoreConfig,
+	params: Record<string, unknown>,
+	cwd: string,
+): Promise<Record<string, unknown>> {
+	const maxReads = boundedScoutReadCount(params.maxReads);
+	const contextParams = scoutContextParams(params);
+	const contextResult = await callContextEngineRaw(config, contextParams, cwd);
+	const targets = contextTargets(contextResult);
+	const readResults: Array<Record<string, unknown>> = [];
+	for (const target of targets.slice(0, maxReads)) {
+		if (!target.readArgs || typeof target.readArgs !== "object") continue;
+		try {
+			readResults.push(await readExactCodeSpan(target.readArgs, cwd, config.hostPrefix));
+		} catch (error) {
+			readResults.push({
+				ok: false,
+				error: error instanceof Error ? error.message : String(error),
+				readArgs: target.readArgs,
+			});
 		}
-		if (!context) return undefined;
-		return { items: [], context };
-	} catch {
-		return undefined;
 	}
-}
-
-export async function storeMemoryFact(
-	cwd: string,
-	text: string,
-	source: "direct_user_request" | "verified_durable_fact" = "verified_durable_fact",
-): Promise<boolean> {
-	if (!memoryToolsEnabled()) return false;
-	const fact = text.trim();
-	if (!fact) return false;
-	const config = xenoniteConfig();
-	const payload =
-		config.transport === "tool"
-			? memoryPayload({ text: fact, source, scope: "project" }, cwd, "", true)
-			: memoryPayload({ text: fact, source, scope: "project" }, cwd, config.hostPrefix, true);
-	try {
-		const data =
-			config.transport === "tool"
-				? await callLocalXenoniteTool(config, "memory_store", payload, 5_000)
-				: await post(config.baseUrl, "/v1/memory/store", payload, 5_000);
-		return Boolean(data && typeof data === "object" && (data as { added?: unknown }).added);
-	} catch {
-		return false;
-	}
+	return {
+		ok: true,
+		tool: "scout_locator",
+		protocol: {
+			locator: "context_engine",
+			evidenceTool: "code_read",
+			maxCodeReads: 3,
+			performedCodeReads: readResults.length,
+			manualDiscoveryToolsUsed: false,
+		},
+		context: contextResult,
+		evidence: readResults,
+		handoff: {
+			instruction:
+				"Report these paths/line ranges to the orchestrator and stop. Do not continue into implementation.",
+			targetsConsidered: targets.length,
+		},
+	};
 }
 
 function isCompletedCodeStatus(value: unknown): boolean {

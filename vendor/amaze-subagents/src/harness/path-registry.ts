@@ -88,14 +88,6 @@ function writeIfMissing(filePath: string, content: string): void {
 function bootstrapPathMemory(cwd: string, entry: PathRegistryEntry): void {
 	const memoryRoot = path.join(cwd, entry.memory_path);
 	fs.mkdirSync(memoryRoot, { recursive: true });
-	writeIfMissing(path.join(memoryRoot, "profile.md"), [
-		`# ${entry.path_id}`,
-		"",
-		`Owned path: \`${entry.owned_path}\``,
-		"",
-		"This path memory is path-local specialist experience. Append durable lessons only after validation passes.",
-		"",
-	].join("\n"));
 	writeIfMissing(path.join(memoryRoot, "conventions.md"), [
 		`# Conventions for ${entry.owned_path}`,
 		"",

@@ -42,7 +42,7 @@ export function buildDynamicSystemPrompt(options: BuildDynamicSystemPromptOption
 		"",
 		buildIntentGate({ tools }),
 		"",
-		buildParallelToolsSection(),
+		buildParallelToolsSection(tools),
 		"",
 		buildExplorationSection(tools),
 		"",

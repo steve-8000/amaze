@@ -160,8 +160,7 @@ export function loadProjectContextFiles(options: {
 	const seenPaths = new Set<string>();
 
 	// amaze: only the global AGENTS.md (agent dir) is loaded. Project/ancestor
-	// AGENTS.md files are intentionally NOT read — project-specific knowledge is
-	// injected via memory (Xenonite) instead.
+	// AGENTS.md files are intentionally NOT read by this loader.
 	void resolvedCwd;
 	const globalContext = loadContextFileFromDir(resolvedAgentDir);
 	if (globalContext) {

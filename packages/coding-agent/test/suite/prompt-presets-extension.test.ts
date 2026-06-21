@@ -25,14 +25,17 @@ function createModel(id: string, provider: string, api: Api = "openai-responses"
 function fallbackPrompt(): string {
 	return buildDynamicSystemPrompt({
 		cwd: "/repo",
-		selectedTools: ["code_read", "bash", "edit", "write"],
+		selectedTools: ["read", "grep", "find", "ls", "bash", "edit", "write"],
 		toolSnippets: {
-			code_read: "Read indexed code context",
+			read: "Read local files",
+			grep: "Search local files",
+			find: "Find local files",
+			ls: "List local files",
 			bash: "Execute shell commands",
 			edit: "Edit existing files",
 			write: "Write files",
 		},
-		promptGuidelines: ["Use code_read before edit."],
+		promptGuidelines: ["Use read before edit."],
 		contextFiles: [{ path: "/repo/AGENTS.md", content: "Follow project conventions." }],
 		skills: [],
 	});

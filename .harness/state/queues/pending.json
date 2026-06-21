@@ -3,10 +3,13 @@
   "contract-delegate-Users_steve_rocky_amaze-retry-1",
   "contract-planner-Users_steve_rocky_amaze-retry-1",
   "contract-scout-Users_steve_rocky_amaze.-retry-1",
+  "default-scout-activity-budget-retry-1",
   "mission-default-scout-retry-1",
   "planner-readonly-smoke-retry-1",
   "readonly-context-builder-retry-1",
+  "readonly-delegate-retry-1",
   "readonly-oracle-retry-1",
   "readonly-reviewer-retry-1",
-  "readonly-scout-retry-1"
+  "readonly-scout-retry-1",
+  "smoke-deny-all-retry-1"
 ]

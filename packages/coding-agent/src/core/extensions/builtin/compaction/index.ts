@@ -25,8 +25,18 @@ import {
 } from "./openai-remote.ts";
 import * as cap from "./per-turn-cap.ts";
 import * as policy from "./policy.ts";
+import { ReadLoopGuard } from "./read-loop-guard.ts";
 import { repairOrphanedToolResults } from "./repair-tool-pairs.ts";
 import * as restoration from "./restoration-tracker.ts";
+
+export {
+	createSectionContextCapsule,
+	renderSectionContextCapsule,
+	SECTION_CONTEXT_CAPSULE_SCHEMA,
+	type SectionContextCapsule,
+	type SectionContextInput,
+} from "./section-context-capsule.ts";
+
 import {
 	applyGeneratedCompaction,
 	createSpeculativeCompactionSnapshot,
@@ -142,6 +152,7 @@ export default function compactionExtension(pi: ExtensionAPI): void {
 	let state: CompactionExtensionState = createInitialState();
 	const degradationState = createDegradationMonitorState();
 	const restorationState = state.restoration ?? restoration.createRestorationTrackerState();
+	const readLoopGuard = new ReadLoopGuard();
 	state = { ...state, restoration: restorationState };
 	let speculativeGeneration = 0;
 	let speculativeJob:
@@ -442,6 +453,9 @@ export default function compactionExtension(pi: ExtensionAPI): void {
 	});
 
 	pi.on("tool_result", (event) => {
+		if (event.toolName === "read" && !event.isError) {
+			readLoopGuard.afterRead(event.input);
+		}
 		if (event.toolName === "context_engine") {
 			return undefined;
 		}
@@ -455,6 +469,10 @@ export default function compactionExtension(pi: ExtensionAPI): void {
 	});
 
 	pi.on("tool_call", (event) => {
+		if (event.toolName === "read") {
+			const reason = readLoopGuard.beforeRead(event.input);
+			if (reason) return { block: true, reason };
+		}
 		restoration.trackToolCall(restorationState, event);
 	});
 }

@@ -1,7 +1,8 @@
 // Consolidated amaze integration verification (model-independent).
 // Exercises every integrated layer that does not require a tool-calling LLM:
 // pi-* tools, socraticode tools, flue sandbox + compaction + channels.
-// Memory layer is checked only if the hermes-bridge is reachable.
+// This script expects built dist artifacts. Source-level runtime policy is
+// checked by scripts/verify-agent-runtime-98.mjs.
 import { createHmac } from "node:crypto";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -19,12 +20,11 @@ port = 16333
 [sandbox]
 enabled = true
 provider = "local"
-[tools.mem]
-enabled = true
 [skills]
 enabled = true
-[services.xenonite]
-port = 8700
+[services.rocky]
+enabled = true
+url = "http://127.0.0.1:30000"
 `,
 );
 process.env.AMAZE_CONFIG = cfgPath;
@@ -98,19 +98,6 @@ try {
 	record("flue channels (slack signed/rejected)", goodJson.challenge === "amaze42" && bad.status === 401);
 } catch (e) {
 	record("flue channels", false, String(e).slice(0, 120));
-}
-
-try {
-	const health = await fetch("http://127.0.0.1:8700/health").then((r) => r.json()).catch(() => null);
-	const mem = await loadFactory("amaze-memory/index.js");
-	const registered = mem.tools.has("mem_recall") && mem.tools.has("skill_manage");
-	if (!health) {
-		record("Xenonite memory (tools register; service down)", registered, "start ~/rocky/xenonite to exercise mem_/skill_");
-	} else {
-		record("Xenonite memory (mem_/skill_ via service)", registered, `xenonite up, ${mem.tools.size} tools`);
-	}
-} catch (e) {
-	record("Xenonite memory", false, String(e).slice(0, 120));
 }
 
 const failed = results.filter((r) => !r.ok);

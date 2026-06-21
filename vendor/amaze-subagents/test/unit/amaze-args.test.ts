@@ -3,7 +3,6 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, describe, it } from "node:test";
-import { computeMcpServerHash } from "../../src/runs/shared/mcp-direct-tool-allowlist.ts";
 import { PATH_MEMORY_PACKET_ENV } from "../../src/harness/path-memory.ts";
 import { PATH_CONTRACT_ENV } from "../../src/harness/path-contract.ts";
 import {
@@ -39,68 +38,6 @@ const originalEnv = {
 };
 const originalCwd = process.cwd();
 const tempRoots: string[] = [];
-
-interface McpFixture {
-	root: string;
-	agentDir: string;
-	projectDir: string;
-}
-
-function createMcpFixture(): McpFixture {
-	const root = fs.mkdtempSync(path.join(os.tmpdir(), "amaze-args-mcp-"));
-	tempRoots.push(root);
-	const home = path.join(root, "home");
-	const agentDir = path.join(home, ".pi", "agent");
-	const projectDir = path.join(root, "project");
-	fs.mkdirSync(agentDir, { recursive: true });
-	fs.mkdirSync(projectDir, { recursive: true });
-	process.env.HOME = home;
-	process.env.USERPROFILE = home;
-	process.env.AMAZE_CODING_AGENT_DIR = agentDir;
-	process.chdir(projectDir);
-	return { root, agentDir, projectDir };
-}
-
-function writeJson(filePath: string, value: unknown): void {
-	fs.mkdirSync(path.dirname(filePath), { recursive: true });
-	fs.writeFileSync(filePath, JSON.stringify(value, null, 2), "utf-8");
-}
-
-function writeMcpFixture(
-	fixture: McpFixture,
-	options: {
-		serverName?: string;
-		definition?: Record<string, unknown>;
-		settings?: Record<string, unknown>;
-		tools?: Array<{ name: string; description?: string }>;
-		resources?: Array<{ name: string; uri: string; description?: string }>;
-		configPath?: string;
-		cachedAt?: number;
-	} = {},
-): void {
-	const serverName = options.serverName ?? "chrome-devtools";
-	const definition = { command: "npx", args: ["chrome-devtools-mcp"], ...(options.definition ?? {}) };
-	writeJson(options.configPath ?? path.join(fixture.agentDir, "mcp.json"), {
-		...(options.settings ? { settings: options.settings } : {}),
-		mcpServers: {
-			[serverName]: definition,
-		},
-	});
-	writeJson(path.join(fixture.agentDir, "mcp-cache.json"), {
-		version: 1,
-		servers: {
-			[serverName]: {
-				configHash: computeMcpServerHash(definition),
-				cachedAt: options.cachedAt ?? Date.now(),
-				tools: options.tools ?? [
-					{ name: "take_screenshot" },
-					{ name: "click" },
-				],
-				resources: options.resources ?? [],
-			},
-		},
-	});
-}
 
 afterEach(() => {
 	process.chdir(originalCwd);
@@ -286,7 +223,7 @@ describe("buildPiArgs system prompt mode wiring", () => {
 		assert.equal(env.PI_SUBAGENT_CHILD_INDEX, "2");
 	});
 
-	it("emits explicit builtin tool allowlists", () => {
+	it("does not pass builtin tool allowlists to child processes", () => {
 		const { args } = buildPiArgs({
 			baseArgs: ["-p"],
 			task: "hello",
@@ -296,14 +233,10 @@ describe("buildPiArgs system prompt mode wiring", () => {
 			tools: ["read", "grep", "find", "ls", "bash", "edit", "write", "contact_supervisor"],
 		});
 
-		const toolsArg = args[args.indexOf("--tools") + 1];
-		assert.equal(toolsArg, "read,grep,find,ls,bash,edit,write,contact_supervisor");
+		assert.equal(args.includes("--tools"), false);
 	});
 
-	it("augments explicit builtin allowlists with selected direct MCP tool names", () => {
-		const fixture = createMcpFixture();
-		writeMcpFixture(fixture);
-
+	it("does not pass MCP direct tool selections as child tool allowlists", () => {
 		const { args, env } = buildPiArgs({
 			baseArgs: ["-p"],
 			task: "hello",
@@ -314,14 +247,11 @@ describe("buildPiArgs system prompt mode wiring", () => {
 			mcpDirectTools: ["chrome-devtools"],
 		});
 
-		assert.equal(args[args.indexOf("--tools") + 1], "read,bash,chrome_devtools_take_screenshot,chrome_devtools_click");
+		assert.equal(args.includes("--tools"), false);
 		assert.equal(env.MCP_DIRECT_TOOLS, "chrome-devtools");
 	});
 
 	it("preserves no --tools for MCP-only agents", () => {
-		const fixture = createMcpFixture();
-		writeMcpFixture(fixture);
-
 		const { args, env } = buildPiArgs({
 			baseArgs: ["-p"],
 			task: "hello",
@@ -334,135 +264,7 @@ describe("buildPiArgs system prompt mode wiring", () => {
 		assert.equal(args.includes("--tools"), false);
 		assert.equal(env.MCP_DIRECT_TOOLS, "chrome-devtools");
 	});
-
-	it("supports direct MCP server/tool filters", () => {
-		const fixture = createMcpFixture();
-		writeMcpFixture(fixture, {
-			serverName: "github",
-			definition: { command: "github-mcp" },
-			tools: [{ name: "search_repositories" }, { name: "create_issue" }],
-		});
-
-		const { args } = buildPiArgs({
-			baseArgs: ["-p"],
-			task: "hello",
-			sessionEnabled: false,
-			inheritProjectContext: false,
-			inheritSkills: false,
-			tools: ["read"],
-			mcpDirectTools: ["github/search_repositories"],
-		});
-
-		assert.equal(args[args.indexOf("--tools") + 1], "read,github_search_repositories");
-	});
-
-	it("matches adapter prefix modes for direct MCP names", () => {
-		for (const [prefix, expected] of [
-			["server", "read,linear_mcp_list_issues"],
-			["short", "read,linear_list_issues"],
-			["none", "read,list_issues"],
-		] as const) {
-			const fixture = createMcpFixture();
-			writeMcpFixture(fixture, {
-				serverName: "linear-mcp",
-				settings: { toolPrefix: prefix },
-				tools: [{ name: "list_issues" }],
-			});
-
-			const { args } = buildPiArgs({
-				baseArgs: ["-p"],
-				task: "hello",
-				sessionEnabled: false,
-				inheritProjectContext: false,
-				inheritSkills: false,
-				tools: ["read"],
-				mcpDirectTools: ["linear-mcp"],
-			});
-
-			assert.equal(args[args.indexOf("--tools") + 1], expected);
-		}
-	});
-
-	it("includes resource tools and respects excludeTools", () => {
-		const fixture = createMcpFixture();
-		writeMcpFixture(fixture, {
-			serverName: "browser-mcp",
-			definition: { excludeTools: ["browser_click"] },
-			tools: [{ name: "click" }, { name: "navigate" }],
-			resources: [{ name: "Console Logs", uri: "resource://console" }],
-		});
-
-		const { args } = buildPiArgs({
-			baseArgs: ["-p"],
-			task: "hello",
-			sessionEnabled: false,
-			inheritProjectContext: false,
-			inheritSkills: false,
-			tools: ["read"],
-			mcpDirectTools: ["browser-mcp"],
-		});
-
-		assert.equal(args[args.indexOf("--tools") + 1], "read,browser_mcp_navigate,browser_mcp_get_console_logs");
-	});
-
-	it("falls back to explicit builtins when direct MCP cache or config is missing or invalid", () => {
-		const missingFixture = createMcpFixture();
-		writeJson(path.join(missingFixture.agentDir, "mcp.json"), {
-			mcpServers: { "chrome-devtools": { command: "npx", args: ["chrome-devtools-mcp"] } },
-		});
-		const missingCache = buildPiArgs({
-			baseArgs: ["-p"],
-			task: "hello",
-			sessionEnabled: false,
-			inheritProjectContext: false,
-			inheritSkills: false,
-			tools: ["read", "bash"],
-			mcpDirectTools: ["chrome-devtools"],
-		});
-		assert.equal(missingCache.args[missingCache.args.indexOf("--tools") + 1], "read,bash");
-
-		const invalidFixture = createMcpFixture();
-		writeMcpFixture(invalidFixture, { cachedAt: Date.now() - 8 * 24 * 60 * 60 * 1000 });
-		const staleCache = buildPiArgs({
-			baseArgs: ["-p"],
-			task: "hello",
-			sessionEnabled: false,
-			inheritProjectContext: false,
-			inheritSkills: false,
-			tools: ["read", "bash"],
-			mcpDirectTools: ["chrome-devtools"],
-		});
-		assert.equal(staleCache.args[staleCache.args.indexOf("--tools") + 1], "read,bash");
-	});
-
-	it("resolves project MCP config from the child cwd and expands AMAZE_CODING_AGENT_DIR", () => {
-		const fixture = createMcpFixture();
-		process.env.AMAZE_CODING_AGENT_DIR = "~/.pi/agent";
-		process.chdir(fixture.root);
-		writeMcpFixture(fixture, {
-			serverName: "project-mcp",
-			configPath: path.join(fixture.projectDir, ".mcp.json"),
-			tools: [{ name: "inspect" }],
-		});
-
-		const { args } = buildPiArgs({
-			baseArgs: ["-p"],
-			task: "hello",
-			sessionEnabled: false,
-			inheritProjectContext: false,
-			inheritSkills: false,
-			tools: ["read"],
-			mcpDirectTools: ["project-mcp"],
-			cwd: fixture.projectDir,
-		});
-
-		assert.equal(args[args.indexOf("--tools") + 1], "read,project_mcp_inspect");
-	});
-
-	it("keeps tool extension paths when explicit extensions are allowlisted", () => {
-		const fixture = createMcpFixture();
-		writeMcpFixture(fixture, { tools: [{ name: "take_screenshot" }] });
-
+	it("keeps tool extension paths without emitting a tool allowlist", () => {
 		const { args } = buildPiArgs({
 			baseArgs: ["-p"],
 			task: "hello",
@@ -475,7 +277,7 @@ describe("buildPiArgs system prompt mode wiring", () => {
 		});
 
 		const extensionArgs = args.filter((arg, index) => args[index - 1] === "--extension");
-		assert.equal(args[args.indexOf("--tools") + 1], "read,chrome_devtools_take_screenshot");
+		assert.equal(args.includes("--tools"), false);
 		assert.ok(extensionArgs.some((arg) => arg.endsWith(path.join("src", "runs", "shared", "subagent-prompt-runtime.ts"))));
 		assert.ok(extensionArgs.includes("./custom-tool.ts"));
 		assert.ok(extensionArgs.includes("./allowed-ext.ts"));
@@ -498,7 +300,7 @@ describe("buildPiArgs system prompt mode wiring", () => {
 		});
 
 		const extensionArgs = args.filter((arg, index) => args[index - 1] === "--extension");
-		assert.equal(args[args.indexOf("--tools") + 1], "read,subagent");
+		assert.equal(args.includes("--tools"), false);
 		assert.equal(env[SUBAGENT_FANOUT_CHILD_ENV], "1");
 		assert.equal(env[SUBAGENT_PARENT_EVENT_SINK_ENV], "/tmp/root/events");
 		assert.equal(env[SUBAGENT_PARENT_CONTROL_INBOX_ENV], "/tmp/root/control");
@@ -620,7 +422,7 @@ describe("buildPiArgs system prompt mode wiring", () => {
 		tempRoots.push(repo);
 		const memoryPath = path.join(repo, ".harness", "memory", "paths", "packages", "coding-agent", "src", "runtime");
 		fs.mkdirSync(memoryPath, { recursive: true });
-		fs.writeFileSync(path.join(memoryPath, "profile.md"), "Runtime specialist profile");
+		fs.writeFileSync(path.join(memoryPath, "conventions.md"), "Runtime execution convention");
 
 		const { env, tempDir } = buildPiArgs({
 			baseArgs: ["-p"],
@@ -643,10 +445,10 @@ describe("buildPiArgs system prompt mode wiring", () => {
 		const packetPath = env[PATH_MEMORY_PACKET_ENV];
 		assert.ok(packetPath);
 		assert.equal(path.dirname(packetPath), tempDir);
-		assert.match(fs.readFileSync(packetPath, "utf-8"), /Runtime specialist profile/);
+		assert.match(fs.readFileSync(packetPath, "utf-8"), /Runtime execution convention/);
 	});
 
-	it("writes path execution contract to a private temp file and exposes it through env", () => {
+	it("does not expose path execution contracts to child runtime env", () => {
 		const { env, tempDir } = buildPiArgs({
 			baseArgs: ["-p"],
 			task: "hello",
@@ -660,22 +462,11 @@ describe("buildPiArgs system prompt mode wiring", () => {
 			},
 		});
 
-		assert.ok(tempDir);
-		const contractPath = env[PATH_CONTRACT_ENV];
-		assert.ok(contractPath);
-		assert.equal(path.dirname(contractPath), tempDir);
-		assert.match(fs.readFileSync(contractPath, "utf-8"), /Path Execution Contract/);
-		assert.match(fs.readFileSync(contractPath, "utf-8"), /runtime-state-model/);
+		assert.equal(tempDir, undefined);
+		assert.equal(env[PATH_CONTRACT_ENV], "");
 	});
 
 	it("does not let direct MCP tools authorize child fanout", () => {
-		const fixture = createMcpFixture();
-		writeMcpFixture(fixture, {
-			serverName: "delegator",
-			definition: { command: "delegator-mcp" },
-			tools: [{ name: "subagent" }],
-		});
-
 		const { args, env } = buildPiArgs({
 			baseArgs: ["-p"],
 			task: "hello",
@@ -687,7 +478,7 @@ describe("buildPiArgs system prompt mode wiring", () => {
 		});
 
 		const extensionArgs = args.filter((arg, index) => args[index - 1] === "--extension");
-		assert.equal(args[args.indexOf("--tools") + 1], "read,delegator_subagent");
+		assert.equal(args.includes("--tools"), false);
 		assert.equal(env[SUBAGENT_FANOUT_CHILD_ENV], "0");
 		assert.ok(!extensionArgs.some((arg) => arg.endsWith(path.join("src", "extension", "fanout-child.ts"))));
 	});

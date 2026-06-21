@@ -7,7 +7,6 @@ import * as path from "node:path";
 import { afterEach, describe, it } from "node:test";
 import { createContractDagFromPlanner } from "../../src/harness/orchestrator/planner-gateway.ts";
 import { compileMissionPolicy, startMission, acceptPlannerOutput, rerouteMissionAtCheckpoint } from "../../src/harness/orchestrator/mission-orchestrator.ts";
-import { compileProfiledOrchestrationPlan, summarizeProfiledOrchestrationPlan } from "../../src/harness/orchestrator/profiled-orchestration-plan.ts";
 import { compileDelegationDecision } from "../../src/harness/orchestrator/delegation-decision.ts";
 import { missionStatePath, transitionMissionState } from "../../src/harness/orchestrator/mission-state-store.ts";
 import type { MissionOrchestratorRecord } from "../../src/harness/orchestrator/types.ts";
@@ -30,113 +29,112 @@ afterEach(() => {
 	}
 });
 
-describe("mission orchestrator profile routing", () => {
-	it("routes tiny README typo work to micro-direct docs with basic diff validation", () => {
+describe("mission orchestrator direct routing", () => {
+	it("classifies README typo work but keeps execution on direct agent routing", () => {
 		const result = compileMissionPolicy("README 오타 하나 고쳐줘", "mission-readme-typo");
+		const text = JSON.stringify(result);
 
 		assert.equal(result.classification.size, "micro");
 		assert.equal(result.classification.workPattern, "docs");
-		assert.equal(result.route.baseRuntime, "micro-direct");
-		assert.equal(result.route.validatorPack, "basic-diff");
-		assert.deepEqual(result.route.domainOverlays, []);
-		assert.equal(result.policy.plannerPolicy.maxInitialContracts, 1);
-		assert.equal(result.policy.researchPolicy.mode, "off");
-		assert.deepEqual(result.policy.plannerPolicy.workPatternSequence, ["locate_doc", "patch_doc", "diff_check"]);
+		assert.equal(result.route.mode, "agent_direct");
+		assert.equal(result.route.agent, "worker");
+		assert.equal(result.policy.contractTemplate.agent, result.route.agent);
+		assert.ok(result.policy.stopRules.some((rule) => rule.includes("direct agent only")));
+		assert.ok(!text.includes("FreshBootContract"));
 	});
 
-	it("keeps micro-direct profiled work in parent direct execution without child fanout", () => {
-		const result = compileProfiledOrchestrationPlan("README 오타 하나 고쳐줘", { missionId: "mission-readme-direct" });
-
-		assert.equal(result.route.baseRuntime, "micro-direct");
-		assert.equal(result.policy.plannerPolicy.mode, "direct_contract");
-		assert.equal(result.executionPlan.mode, "direct_profiled_execution");
-		assert.equal(result.executionPlan.childExecution, "parent_direct");
-		assert.deepEqual(result.executionPlan.steps, []);
-		assert.equal(result.executionPlan.directExecution?.owner, "parent");
-	});
-
-	it("returns a parent-direct delegation decision for micro work without child contracts", () => {
-		const result = compileDelegationDecision("README 오타 하나 고쳐줘", { missionId: "mission-readme-decision" });
+	it("returns a direct agent decision for micro work without child contracts", () => {
+		const result = compileDelegationDecision("README 오타 하나 고쳐줘", {
+			missionId: "mission-readme-decision",
+			agentCandidates: [
+				{ name: "reviewer", description: "Reviews code and plans" },
+				{ name: "worker", description: "Implements fixes and patches" },
+			],
+		});
 		const text = JSON.stringify(result);
 
-		assert.equal(result.mode, "parent_direct");
-		assert.equal(result.baseRuntime, "micro-direct");
-		assert.equal(result.validatorPack, "basic-diff");
-		assert.deepEqual(result.roles, []);
-		assert.ok(result.parentInstructions.some((item) => item.includes("parent session")));
+		assert.equal(result.mode, "agent_direct");
+		assert.equal(result.agent, "worker");
+		assert.equal(result.task, "README 오타 하나 고쳐줘");
+		assert.ok(result.parentInstructions.some((item) => item.includes("Invoke agent 'worker' directly")));
+		assert.ok(!text.includes("path_specialist"));
 		assert.ok(!text.includes("bootContract"));
 		assert.ok(!text.includes("FreshBootContract"));
+		assert.ok(!text.includes("delegate"));
 	});
 
-	it("returns a parent-guided delegation decision for standard work without model-specific child calls", () => {
-		const result = compileDelegationDecision("기능 구현해줘", { missionId: "mission-standard-decision" });
+	it("returns a direct custom-agent decision for standard work without role fanout", () => {
+		const result = compileDelegationDecision("기능 구현해줘", { missionId: "mission-standard-decision", agent: "worker" });
+		const text = JSON.stringify(result);
 
-		assert.equal(result.mode, "parent_guided_roles");
-		assert.equal(result.baseRuntime, "standard-contract");
-		assert.ok(result.roles.some((role) => role.role === "worker" && role.profile === "path_specialist"));
-		assert.ok(result.roles.some((role) => role.role === "reviewer"));
-		assert.ok(result.parentInstructions.some((item) => item.includes("Do not launch model-specific child agents")));
+		assert.equal(result.mode, "agent_direct");
+		assert.equal(result.agent, "worker");
+		assert.ok(!text.includes("\"roles\""));
+		assert.ok(!text.includes("path_specialist"));
 	});
 
-	it("recommends external delegation for large runtime work while keeping parent-guided fallback", () => {
-		const result = compileDelegationDecision("orchestrator runtime profile routing refactor 해줘", { missionId: "mission-large-decision" });
+	it("keeps large runtime work on the same direct agent decision path", () => {
+		const result = compileDelegationDecision("orchestrator runtime routing refactor 해줘", {
+			missionId: "mission-large-decision",
+			agentCandidates: [
+				{ name: "planner", description: "Creates implementation plans" },
+				{ name: "worker", description: "Implementation agent for normal tasks" },
+			],
+		});
+		const text = JSON.stringify(result);
 
-		assert.equal(result.mode, "external_delegation_recommended");
-		assert.equal(result.baseRuntime, "large-mission");
-		assert.ok(result.roles.some((role) => role.role === "scout"));
-		assert.ok(result.roles.some((role) => role.role === "planner"));
-		assert.ok(result.roles.some((role) => role.role === "worker" && role.profile === "path_specialist"));
-		assert.ok(result.parentInstructions.some((item) => item.includes("parent-guided workflow")));
+		assert.equal(result.mode, "agent_direct");
+		assert.equal(result.agent, "worker");
+		assert.ok(!text.includes("external_delegation_recommended"));
+		assert.ok(!text.includes("path_specialist"));
+		assert.ok(!text.includes("delegate"));
 	});
 
-	it("summarizes large profiled orchestration without embedding full boot contracts by default", () => {
-		const result = compileProfiledOrchestrationPlan("orchestrator runtime profile routing refactor 해줘", { missionId: "mission-large-summary" });
-		const summary = summarizeProfiledOrchestrationPlan(result);
-		const text = JSON.stringify(summary);
+	it("routes review-shaped direct work to reviewer when available", () => {
+		const result = compileDelegationDecision("이 패치 리뷰해줘", {
+			missionId: "mission-review-decision",
+			agentCandidates: [
+				{ name: "reviewer", description: "Versatile review specialist" },
+				{ name: "worker", description: "Implementation agent" },
+			],
+		});
 
-		assert.equal(summary.executionPlan.mode, "profiled_orchestration");
-		assert.equal(summary.executionPlan.childExecution, "harness_run_contract_only");
-		assert.ok(summary.executionPlan.steps.length > 0);
-		assert.ok(summary.executionPlan.steps.every((step) => typeof step.assignedPath === "string"));
-		assert.match(summary.fullPlanHint, /orchestrateOutput: 'full'/);
-		assert.ok(!text.includes("bootContract"));
-		assert.ok(!text.includes("FreshBootContract"));
-		assert.ok(text.length < 5000);
+		assert.equal(result.mode, "agent_direct");
+		assert.equal(result.agent, "reviewer");
 	});
 
-	it("routes Helm production resource policy work to infra-k8s with the k8s validator overlay", () => {
+	it("classifies high-risk Helm work without creating overlay routes", () => {
 		const result = compileMissionPolicy("Helm chart에 prod-safe resource policy 넣어줘", "mission-helm-prod");
+		const text = JSON.stringify(result);
 
 		assert.equal(result.classification.workPattern, "infra");
 		assert.equal(result.classification.riskLevel, "high");
-		assert.equal(result.route.baseRuntime, "infra-k8s");
-		assert.equal(result.route.validatorPack, "infra-k8s");
-		assert.deepEqual(result.route.domainOverlays, ["k8s-validator-operator"]);
-		assert.equal(result.policy.researchPolicy.mode, "required_if_version_unknown");
-		assert.equal(result.policy.plannerPolicy.maxInitialContracts, 3);
-		assert.deepEqual(result.policy.plannerPolicy.workPatternSequence, ["inventory", "patch", "render", "dry_run"]);
+		assert.equal(result.route.mode, "agent_direct");
+		assert.equal(result.route.agent, "worker");
+		assert.equal(result.policy.acceptanceLevel, "reviewed");
+		assert.equal(result.policy.validationLevel, "verified");
+		assert.ok(!text.includes("k8s-validator-operator"));
 	});
 
-	it("routes resumable agent runtime work to large mission with path-specialist runtime overlays", () => {
+	it("classifies resumable runtime work without path-specialist overlays", () => {
 		const result = compileMissionPolicy("에이전트 작업 중단 후 resume 가능한 runtime을 만들어줘", "mission-agent-resume");
+		const text = JSON.stringify(result);
 
 		assert.equal(result.classification.size, "large");
 		assert.equal(result.classification.workPattern, "feature");
-		assert.equal(result.route.baseRuntime, "large-mission");
-		assert.equal(result.route.validatorPack, "integration-heavy");
-		assert.deepEqual(result.route.domainOverlays, ["persistent-agent-runtime", "path-specialist-harness"]);
-		assert.equal(result.policy.plannerPolicy.mode, "contract_dag");
-		assert.equal(result.policy.plannerPolicy.maxInitialContracts, 5);
-		assert.deepEqual(result.policy.plannerPolicy.workPatternSequence, ["model_state", "integration", "consumer", "tests"]);
-		assert.equal(result.policy.contextPolicy.includePathMemory, true);
+		assert.equal(result.route.mode, "agent_direct");
+		assert.equal(result.policy.contractTemplate.agent, result.route.agent);
+		assert.ok(!text.includes("path-specialist-harness"));
+		assert.ok(!text.includes("contract_dag"));
 	});
 
-	it("limits active domain overlays to two even when many domain hints match", () => {
+	it("keeps many domain hints on the same direct route shape", () => {
 		const result = compileMissionPolicy("agent runtime resume memory mcp orchestrator contract router 구현", "mission-many-overlays");
+		const text = JSON.stringify(result);
 
-		assert.equal(result.route.baseRuntime, "large-mission");
-		assert.ok(result.route.domainOverlays.length <= 2);
-		assert.deepEqual(result.route.domainOverlays, ["persistent-agent-runtime", "path-specialist-harness"]);
+		assert.equal(result.route.mode, "agent_direct");
+		assert.equal(result.route.agent, "worker");
+		assert.ok(!text.includes("path-specialist-harness"));
 	});
 
 	it("persists mission intake state and accepts a bounded planner DAG", () => {
@@ -150,7 +148,8 @@ describe("mission orchestrator profile routing", () => {
 
 		assert.equal(started.record.status, "POLICY_COMPILED");
 		const saved = readJson<MissionOrchestratorRecord>(missionStatePath(repo, "mission-agent-resume"));
-		assert.equal(saved.execution_policy?.runtime, "large-mission");
+		assert.equal(saved.execution_policy?.route.mode, "agent_direct");
+		assert.equal(saved.execution_policy?.contractTemplate.agent, saved.final_route?.agent);
 
 		const accepted = acceptPlannerOutput(started.record, started.policy, {
 			mission_id: "mission-agent-resume",
@@ -195,10 +194,7 @@ describe("mission orchestrator profile routing", () => {
 		const started = startMission("README 오타 하나 고쳐줘", { missionId: "mission-readme-mutate", cwd: repo });
 		const mutatedPolicy = {
 			...started.policy,
-			plannerPolicy: {
-				...started.policy.plannerPolicy,
-				maxInitialContracts: 2,
-			},
+			validationLevel: "none" as const,
 		};
 
 		assert.throws(() => acceptPlannerOutput(started.record, mutatedPolicy, {
@@ -230,64 +226,44 @@ describe("mission orchestrator profile routing", () => {
 		checkpoint = transitionMissionState(checkpoint, "RUNNING", {}, repo, now);
 		checkpoint = transitionMissionState(checkpoint, "CHECKPOINTED", {}, repo, now);
 		const rerouted = rerouteMissionAtCheckpoint(checkpoint, {
-			reason: "scout found Helm chart impact",
-			rawRequest: "Helm chart에 prod-safe resource policy 넣어줘",
+			reason: "scout found high-risk auth impact",
+			rawRequest: "prod auth boundary 수정해줘",
 			cwd: repo,
 			now,
 		});
 
 		assert.equal(rerouted.record.status, "POLICY_COMPILED");
 		assert.equal(rerouted.record.route_changes, 1);
-		assert.equal(rerouted.policy.runtime, "infra-k8s");
-		assert.equal(rerouted.record.routing_history?.[0]?.from_runtime, "standard-contract");
-		assert.equal(rerouted.record.routing_history?.[0]?.to_runtime, "infra-k8s");
+		assert.equal(rerouted.policy.route.mode, "agent_direct");
+		assert.equal(rerouted.record.routing_history?.[0]?.from_agent, started.route.agent);
+		assert.equal(rerouted.record.routing_history?.[0]?.to_agent, rerouted.route.agent);
 
 		const exhausted: MissionOrchestratorRecord = {
 			...checkpoint,
+			final_route: { mode: "agent_direct", agent: "worker", confidence: 1, reason: "test fixture" },
 			route_changes: 2,
 		};
 		assert.throws(() => rerouteMissionAtCheckpoint(exhausted, {
 			reason: "third route change",
-			rawRequest: "에이전트 작업 중단 후 resume 가능한 runtime을 만들어줘",
+			rawRequest: "prod auth boundary 수정해줘",
 			cwd: repo,
 			now,
-		}), /exceeded runtime route change budget 2/);
+		}), /exceeded direct agent route change budget 2/);
 	});
 
-	it("covers non-default validator packs in compiled policies", () => {
+	it("covers direct policy acceptance levels", () => {
 		const standard = compileMissionPolicy("기능 구현해줘", "mission-standard");
 		const strict = compileMissionPolicy("prod auth boundary 수정해줘", "mission-strict");
 		const security = compileMissionPolicy("CVE 취약점 security audit 해줘", "mission-security");
 		const architecture = compileMissionPolicy("architecture 설계안 만들어줘", "mission-architecture");
 		const research = compileMissionPolicy("latest API version 확인해서 구현해줘", "mission-research");
 
-		assert.equal(standard.route.validatorPack, "standard-code");
-		assert.deepEqual(standard.policy.acceptance, {
-			level: "checked",
-			evidence: ["changed-files", "commands-run", "validation-output", "residual-risks"],
-		});
-		assert.equal(strict.route.validatorPack, "strict-boundary");
-		assert.deepEqual(strict.policy.acceptance, {
-			level: "checked",
-			criteria: [{ id: "boundary", must: "All writes remain inside assigned path or have an explicit change request.", evidence: ["changed-files", "manual-notes"] }],
-			evidence: ["changed-files", "validation-output"],
-		});
+		assert.equal(standard.policy.acceptanceLevel, "checked");
+		assert.equal(strict.policy.acceptanceLevel, "reviewed");
 		assert.equal(security.classification.workPattern, "security");
-		assert.equal(security.route.validatorPack, "security-audit");
-		assert.deepEqual(security.policy.acceptance, {
-			level: "reviewed",
-			evidence: ["changed-files", "review-findings", "validation-output", "residual-risks"],
-		});
-		assert.equal(architecture.route.validatorPack, "architecture-review");
-		assert.deepEqual(architecture.policy.acceptance, {
-			level: "attested",
-			evidence: ["manual-notes", "review-findings"],
-		});
-		assert.equal(research.route.validatorPack, "research-evidence");
-		assert.deepEqual(research.policy.acceptance, {
-			level: "checked",
-			evidence: ["manual-notes", "validation-output"],
-			criteria: [{ id: "research", must: "Record the source evidence that justifies the plan.", evidence: ["manual-notes"] }],
-		});
+		assert.equal(security.policy.acceptanceLevel, "checked");
+		assert.equal(architecture.policy.acceptanceLevel, "checked");
+		assert.equal(research.classification.requiresResearch, true);
+		assert.equal(research.policy.validationLevel, "checked");
 	});
 });

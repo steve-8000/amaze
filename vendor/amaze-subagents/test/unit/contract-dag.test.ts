@@ -64,7 +64,7 @@ describe("contract DAG planner", () => {
 			"folder.packages.coding_agent.src.session",
 		]);
 		assert.ok(registry.paths.every((entry) => (entry as { evidence?: { scan_id?: string } }).evidence?.scan_id === "scan-mission-resume-001"));
-		assert.ok(fs.existsSync(path.join(repo, ".harness", "memory", "paths", "packages", "coding-agent", "src", "runtime", "profile.md")));
+		assert.ok(!fs.existsSync(path.join(repo, ".harness", "memory", "paths", "packages", "coding-agent", "src", "runtime", "profile.md")));
 		assert.deepEqual(readJson<string[]>(path.join(repo, ".harness", "state", "queues", "pending.json")), [
 			"runtime-state-model",
 			"session-resume-bootstrap",

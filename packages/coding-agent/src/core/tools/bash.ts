@@ -248,7 +248,7 @@ function rebuildBashResultRenderComponent(
 			.map((line) => theme.fg("toolOutput", line))
 			.join("\n");
 
-		if (options.expanded) {
+		if (options.expanded && !truncation?.truncated && !fullOutputPath) {
 			component.addChild(new Text(`\n${styledOutput}`, 0, 0));
 		} else {
 			component.addChild({

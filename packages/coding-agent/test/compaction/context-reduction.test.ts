@@ -100,6 +100,8 @@ describe("compaction context reduction behavior", () => {
 				for (const tr of collapsedResults) {
 					const text = firstText(tr.content);
 					expect(text).toMatch(/^\[5 read results/);
+					expect(text).toContain("already read before compaction");
+					expect(text).toContain("do not repeat identical or overlapping read calls");
 					expect(text).not.toContain("AAAAAAAA");
 				}
 				expect(result.groups.length).toBe(1);
@@ -198,7 +200,10 @@ describe("compaction context reduction behavior", () => {
 				const toolResults = result.messages.filter((m): m is ToolResultMessage => m.role === "toolResult");
 				expect(toolResults.length).toBe(6);
 				for (let i = 0; i < 3; i++) {
-					expect(firstText(toolResults[i].content)).toBe("[tool result cleared]");
+					const text = firstText(toolResults[i].content);
+					expect(text).toContain("read result omitted by context compaction");
+					expect(text).toContain("the tool already ran");
+					expect(text).toContain("Re-read only if exact content is still required");
 				}
 				for (let i = 3; i < 6; i++) {
 					const text = firstText(toolResults[i].content);
@@ -269,6 +274,17 @@ describe("compaction context reduction behavior", () => {
 
 				// Then
 				expect(result.toolResultsCleared).toBe(5);
+				const clearedRead = result.messages.find(
+					(m): m is ToolResultMessage =>
+						m.role === "toolResult" &&
+						m.toolName === "read" &&
+						firstText(m.content).includes("omitted by context compaction"),
+				);
+				expect(clearedRead).toBeDefined();
+				const clearedReadText = firstText(clearedRead?.content ?? []);
+				expect(clearedReadText).toContain("read result omitted by context compaction");
+				expect(clearedReadText).toContain("the tool already ran");
+				expect(clearedReadText).toContain("Re-read only if exact content is still required");
 				const nonClearable = result.messages.find(
 					(m): m is ToolResultMessage => m.role === "toolResult" && m.toolName === "custom_tool",
 				);

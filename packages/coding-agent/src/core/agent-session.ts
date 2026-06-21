@@ -107,15 +107,7 @@ import type { SlashCommandInfo } from "./slash-commands.ts";
 import { createSyntheticSourceInfo, type SourceInfo } from "./source-info.ts";
 import { getSupportedThinkingLevels, supportsMax, supportsXhigh } from "./thinking-levels.ts";
 import { type BashOperations, createLocalBashOperations } from "./tools/bash.ts";
-import {
-	autoPrepareXenoniteCore,
-	createAllToolDefinitions,
-	isXenoniteCoreEnabled,
-	type RecalledMemory,
-	recallMemoryForTurn,
-	storeMemoryFact,
-	xenoniteToolNames,
-} from "./tools/index.ts";
+import { createAllToolDefinitions, isXenoniteCoreEnabled, xenoniteToolNames } from "./tools/index.ts";
 import { createToolDefinitionFromAgentTool } from "./tools/tool-definition-wrapper.ts";
 
 // ============================================================================
@@ -143,56 +135,6 @@ export function parseSkillBlock(text: string): ParsedSkillBlock | null {
 		content: match[3],
 		userMessage: match[4]?.trim() || undefined,
 	};
-}
-
-function formatRecalledMemoryForTurn(memory: RecalledMemory): string {
-	const lines = memory.context
-		? memory.context
-				.split("\n")
-				.map((line) => line.trim())
-				.filter(Boolean)
-		: memory.items.map((item) => (typeof item.text === "string" ? item.text.trim() : "")).filter(Boolean);
-	const unique = Array.from(new Set(lines)).slice(0, 5);
-	if (unique.length === 0) return "";
-	return [
-		"Durable memory recalled for this turn. Treat these as advisory context; current user instructions and source code evidence take priority.",
-		...unique.map((line) => `- ${line}`),
-	].join("\n");
-}
-
-export type MemoryReranker = (input: { query: string; memory: RecalledMemory }) => Promise<RecalledMemory | undefined>;
-
-export async function rerankRecalledMemoryForTurn(
-	memory: RecalledMemory,
-	query: string,
-	reranker: MemoryReranker | undefined,
-): Promise<RecalledMemory | undefined> {
-	if (!reranker) return memory;
-	try {
-		return await reranker({ query, memory });
-	} catch {
-		return memory;
-	}
-}
-
-function extractMemoryCandidates(text: string): string[] {
-	const marker = /memory candidate[s]?\s*:/i.exec(text);
-	if (!marker) return [];
-	const section = text.slice(marker.index + marker[0].length);
-	const nextHeading = /\n#{1,6}\s+\S/.exec(section);
-	const body = (nextHeading ? section.slice(0, nextHeading.index) : section).trim();
-	if (!body || /^(none|없음|n\/a)[\s.]*$/i.test(body)) return [];
-	return body
-		.split("\n")
-		.map((line) =>
-			line
-				.trim()
-				.replace(/^[-*]\s*/, "")
-				.trim(),
-		)
-		.filter((line) => line.length >= 20)
-		.filter((line) => !/^(none|없음|n\/a)[\s.]*$/i.test(line))
-		.slice(0, 5);
 }
 
 /** Session-specific events that extend the core AgentEvent */
@@ -265,15 +207,6 @@ export interface AgentSessionConfig {
 	extensionRunnerRef?: { current?: ExtensionRunner };
 	/** Session start event metadata emitted when extensions bind to this runtime. */
 	sessionStartEvent?: SessionStartEvent;
-	/**
-	 * Optional reranker for automatically recalled durable memory.
-	 *
-	 * This runs after Xenonite/vector retrieval and deterministic filtering, but before the
-	 * memory_context custom message is injected. Implementations may call a fast LLM, apply
-	 * policy, or return undefined to suppress memory injection for this turn. Failures fall
-	 * back to the deterministic recalled memory.
-	 */
-	memoryReranker?: MemoryReranker;
 }
 
 type SessionModelEntry = { model: Model<any>; thinkingLevel?: ThinkingLevel; serviceTier?: ServiceTier };
@@ -442,8 +375,6 @@ export class AgentSession {
 	private _extensionShutdownHandler?: ShutdownHandler;
 	private _extensionErrorListener?: ExtensionErrorListener;
 	private _extensionErrorUnsubscriber?: () => void;
-	private _storedMemoryCandidateKeys = new Set<string>();
-	private _memoryReranker?: AgentSessionConfig["memoryReranker"];
 
 	// Model registry for API key resolution
 	private _modelRegistry: ModelRegistry;
@@ -475,8 +406,6 @@ export class AgentSession {
 		this._excludedToolNames = config.excludedToolNames ? new Set(config.excludedToolNames) : undefined;
 		this._baseToolsOverride = config.baseToolsOverride;
 		this._sessionStartEvent = config.sessionStartEvent ?? { type: "session_start", reason: "startup" };
-		this._memoryReranker = config.memoryReranker;
-
 		const initialModel = this.agent.state.model;
 		if (initialModel) {
 			const scopedMatch = this._scopedModels.find((sm) => modelsAreEqual(sm.model, initialModel));
@@ -804,9 +733,6 @@ export class AgentSession {
 					});
 					this._retryAttempt = 0;
 				}
-				if (assistantMsg.stopReason !== "error") {
-					await this._storeMemoryCandidatesFromAssistant(assistantMsg);
-				}
 			}
 		}
 
@@ -846,25 +772,6 @@ export class AgentSession {
 		if (typeof content === "string") return content;
 		const textBlocks = content.filter((c) => c.type === "text");
 		return textBlocks.map((c) => (c as TextContent).text).join("");
-	}
-
-	private _getAssistantMessageText(message: AssistantMessage): string {
-		const content = message.content;
-		if (typeof content === "string") return content;
-		return content
-			.filter((c) => c.type === "text")
-			.map((c) => (c as TextContent).text)
-			.join("");
-	}
-
-	private async _storeMemoryCandidatesFromAssistant(message: AssistantMessage): Promise<void> {
-		const candidates = extractMemoryCandidates(this._getAssistantMessageText(message));
-		for (const candidate of candidates) {
-			const key = candidate.toLowerCase();
-			if (this._storedMemoryCandidateKeys.has(key)) continue;
-			this._storedMemoryCandidateKeys.add(key);
-			await storeMemoryFact(this._cwd, candidate, "verified_durable_fact");
-		}
 	}
 
 	/** Find the last assistant message in agent state (including aborted ones) */
@@ -1391,26 +1298,6 @@ export class AgentSession {
 				content: userContent,
 				timestamp: Date.now(),
 			});
-
-			const recalledMemory = await recallMemoryForTurn(this._cwd, expandedText);
-			if (recalledMemory) {
-				const rerankedMemory = await rerankRecalledMemoryForTurn(
-					recalledMemory,
-					expandedText,
-					this._memoryReranker,
-				);
-				const memoryText = rerankedMemory ? formatRecalledMemoryForTurn(rerankedMemory) : "";
-				if (memoryText) {
-					messages.push({
-						role: "custom",
-						customType: "memory_context",
-						content: memoryText,
-						display: true,
-						details: rerankedMemory,
-						timestamp: Date.now(),
-					});
-				}
-			}
 
 			// Inject any pending "nextTurn" messages as context alongside the user message
 			for (const msg of this._pendingNextTurnMessages) {
@@ -3000,13 +2887,21 @@ export class AgentSession {
 
 		const defaultActiveToolNames = this._baseToolsOverride
 			? Object.keys(this._baseToolsOverride)
-			: ["bash", "edit", "write", ...(isXenoniteCoreEnabled() ? xenoniteToolNames : [])];
+			: [
+					"read",
+					"grep",
+					"find",
+					"ls",
+					"bash",
+					"edit",
+					"write",
+					...(isXenoniteCoreEnabled() ? xenoniteToolNames : []),
+				];
 		const baseActiveToolNames = options.activeToolNames ?? defaultActiveToolNames;
 		this._refreshToolRegistry({
 			activeToolNames: baseActiveToolNames,
 			includeAllExtensionTools: options.includeAllExtensionTools,
 		});
-		void autoPrepareXenoniteCore(this._cwd).catch(() => undefined);
 	}
 
 	async reload(): Promise<void> {

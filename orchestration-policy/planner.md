@@ -1,9 +1,14 @@
-# Implementation Plan — Subagent-First Orchestration + Memory-Candidate Handling
+# Historical Implementation Plan — Superseded
+
+This document is retained as historical planning context only. It is not the active runtime policy.
+Current behavior is direct-agent orchestration with no profile fanout and no automatic memory recall/store middleware.
+
+# Original Plan — Subagent-First Orchestration + Memory-Candidate Handling
 
 ## Goal
 Encode, as durable instruction, two behaviors so the user never has to repeat them:
 1. **Subagent-first orchestration** — the orchestrator delegates non-trivial work through subagents and keeps a long-running coordinating section, instead of doing everything inline.
-2. **Memory-candidate handling that is tool-availability-aware** — recall/save when memory tools exist; always surface a Memory Candidate when they do not.
+2. **Memory-candidate handling that is tool-availability-aware** — superseded by current no-automatic-memory middleware behavior.
 
 ## Key findings that shape the plan (evidence)
 
@@ -12,7 +17,7 @@ Encode, as durable instruction, two behaviors so the user never has to repeat th
   - Its own Authority section states: *"This file is the single global rule set. Project-level `AGENTS.md` files are not read; project-specific knowledge comes from memory."*
   - `~/rocky/amaze/AGENTS.md` is **byte-identical** to the global file — it is a tracked mirror, not a separately-read source.
 - **The runtime dynamic prompt does NOT encode subagent policy.** `packages/coding-agent/test/dynamic-prompt/*` has zero references to `subagent|delegate|agent_run|orchestrat`. So orchestration behavior is governed only by AGENTS.md (always-on defaults) + vendor workflow prompts (slash commands). → AGENTS.md is the correct durable target; **no core runtime change is needed**.
-- **Subagents are enabled; memory tools are not.** `amaze.toml`: `[agents] enabled = true, max_parallel = 4`, but `[tools.mem] enabled = false` and `[services.xenonite] enabled = false`. The memory extension only registers `mem_recall`/`mem_search`/`skill_manage` when those flags are on. → This is exactly *why* memory "isn't being used": the tools are not present in this runtime. The instruction must therefore be conditional on tool availability and must fall back to surfacing Memory Candidates.
+- Historical note: earlier planning discussed memory tool availability. Current runtime policy does not rely on automatic memory recall/store middleware.
 - **The vendor workflow prompts already encode strong subagent orchestration** (`vendor/amaze-subagents/prompts/parallel-*.md`, `review-loop.md`, `gather-context-and-clarify.md`) and parent/child separation. They need **no change** — the gap is the *always-on default*, which lives in AGENTS.md.
 - The Report contract in AGENTS.md already ends every turn with **"Memory Candidate"**, giving a ready-made fallback channel when memory tools are absent.
 
@@ -43,14 +48,12 @@ Replace the current 3 bullets with subagent-first rules:
 - Keep sensitive, destructive, production, credential, and external-messaging work local until explicitly approved. Children must not spawn subagents unless an explicit fanout agent was selected.
 ```
 
-### 2. `## Memory` → make it tool-availability-aware
+### 2. Historical `## Memory` proposal
 Replace with:
 
 ```markdown
-## Memory (tool-availability-aware)
-- If memory tools are exposed (`mem_recall`/`mem_search`/`skill_manage`): recall relevant memory at the start of non-trivial work, and after verification save durable preferences, stable project facts, verified decisions, and reusable lessons.
-- If memory tools are NOT exposed in the current runtime: do not skip memory discipline — always surface a concrete, specific Memory Candidate in the final report so it can be persisted later. Absence of the tool is not an excuse to drop memory.
-- Never save or surface speculation, secrets, credentials, private data, or noisy state.
+## Memory
+- Superseded: do not add automatic memory recall/store middleware from this historical proposal.
 ```
 
 ### 3. `## Execution` → one-line nudge (optional but cheap)

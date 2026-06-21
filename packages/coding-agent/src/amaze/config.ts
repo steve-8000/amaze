@@ -23,6 +23,10 @@ export interface AmazeConfig {
 		compression: { enabled: boolean; engine: "amaze" | "flue" } & Record<string, unknown>;
 	};
 	services: {
+		rocky: {
+			enabled: boolean;
+			url: string;
+		} & Record<string, unknown>;
 		xenonite: {
 			enabled: boolean;
 			transport: "tool" | "http";
@@ -54,6 +58,10 @@ const DEFAULTS: AmazeConfig = {
 	sandbox: { enabled: false },
 	session: { compression: { enabled: true, engine: "amaze" } },
 	services: {
+		rocky: {
+			enabled: true,
+			url: "http://127.0.0.1:30000",
+		},
 		xenonite: {
 			enabled: true,
 			transport: "tool",
@@ -116,6 +124,7 @@ export function loadAmazeConfig(explicitPath?: string): AmazeConfig {
 	const session = (raw.session ?? {}) as Record<string, unknown>;
 	const compression = (session.compression ?? {}) as Record<string, unknown>;
 	const services = (raw.services ?? {}) as Record<string, unknown>;
+	const rocky = (services.rocky ?? {}) as Record<string, unknown>;
 	const xenonite = (services.xenonite ?? {}) as Record<string, unknown>;
 
 	return {
@@ -138,6 +147,11 @@ export function loadAmazeConfig(explicitPath?: string): AmazeConfig {
 			},
 		},
 		services: {
+			rocky: {
+				...rocky,
+				enabled: rocky.enabled === undefined ? DEFAULTS.services.rocky.enabled : Boolean(rocky.enabled),
+				url: typeof rocky.url === "string" ? rocky.url : DEFAULTS.services.rocky.url,
+			},
 			xenonite: {
 				...xenonite,
 				enabled: xenonite.enabled === undefined ? DEFAULTS.services.xenonite.enabled : Boolean(xenonite.enabled),

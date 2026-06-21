@@ -44,17 +44,15 @@ export function validatePlannerOutput(policy: ExecutionPolicy, input: PlanContra
 	if (!Array.isArray(input.contracts)) {
 		throw new Error("Planner output must include contracts array");
 	}
-	if (input.contracts.length > policy.plannerPolicy.maxInitialContracts) {
-		throw new Error(`Planner emitted ${input.contracts.length} contract(s), above maxInitialContracts=${policy.plannerPolicy.maxInitialContracts}`);
+	const maxInitialContracts = 1;
+	if (input.contracts.length > maxInitialContracts) {
+		throw new Error(`Planner emitted ${input.contracts.length} contract(s), above maxInitialContracts=${maxInitialContracts}`);
 	}
 	const warnings: string[] = [];
 	for (const contract of input.contracts) {
 		if (!isNonEmptyString(contract.contract_id)) throw new Error("Planner contract is missing contract_id");
 		if (!hasWriteScope(contract)) throw new Error(`Planner contract ${contract.contract_id} is missing assigned_path or write scope`);
-		if (policy.agentPolicy.writeScope === "owned_path_only" && !contract.write_allowed_paths?.length && !contract.owned_paths?.length && !contract.assigned_path) {
-			throw new Error(`Planner contract ${contract.contract_id} lacks owned write boundary`);
-		}
-		if (policy.plannerPolicy.requireChangeRequestsForCrossPath && (contract.write_allowed_paths?.length ?? 0) > 3) {
+		if ((contract.write_allowed_paths?.length ?? 0) > 3) {
 			warnings.push(`Contract ${contract.contract_id} has broad write scope; prefer change requests for cross-path expansion.`);
 		}
 	}

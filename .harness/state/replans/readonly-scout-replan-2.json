@@ -1,9 +1,9 @@
 {
   "type": "replan",
-  "created_at": "2026-06-18T05:03:14.171Z",
+  "created_at": "2026-06-20T10:31:23.883Z",
   "replan_request_id": "readonly-scout-replan-2",
   "source_contract_id": "readonly-scout",
-  "reason": "No API provider registered for api: openai-codex-responses",
+  "reason": "Path contract readonly-scout exceeded activity budget max_tokens=270000",
   "path_contract": {
     "contract_id": "readonly-scout",
     "assigned_worker": "scout",

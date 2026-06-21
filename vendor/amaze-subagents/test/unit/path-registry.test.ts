@@ -53,7 +53,7 @@ describe("path specialist registry", () => {
 		assert.equal(registry?.paths.length, 1);
 		assert.equal(registry?.paths[0]?.memory_path, ".harness/memory/paths/packages/coding-agent/src/runtime");
 		const memoryRoot = path.join(repo, ".harness", "memory", "paths", "packages", "coding-agent", "src", "runtime");
-		assert.match(fs.readFileSync(path.join(memoryRoot, "profile.md"), "utf-8"), /folder\.packages\.coding_agent\.src\.runtime/);
+		assert.ok(!fs.existsSync(path.join(memoryRoot, "profile.md")));
 		assert.ok(fs.existsSync(path.join(memoryRoot, "conventions.md")));
 		assert.ok(fs.existsSync(path.join(memoryRoot, "decisions.jsonl")));
 		assert.match(fs.readFileSync(path.join(memoryRoot, "contracts.jsonl"), "utf-8"), /runtime-state-model/);

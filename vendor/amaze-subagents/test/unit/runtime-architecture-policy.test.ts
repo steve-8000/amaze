@@ -25,33 +25,25 @@ const agents = [
 	{ name: "oracle", localName: "oracle", description: "oracle", systemPromptMode: "replace", inheritProjectContext: false, inheritSkills: false, systemPrompt: "", source: "project", filePath: "oracle.md", tools: ["read", "write"] },
 ] as any;
 
-test("runtime policy rejects write-capable work without an owned path", () => {
-	const result = applyRuntimeArchitecturePolicy({ agent: "worker", task: "Implement the feature" }, agents);
-	assert.match(result.error ?? "", /requires an assigned_path/);
+test("runtime policy does not require owned paths for write-capable work", () => {
+	const result = applyRuntimeArchitecturePolicy<any>({ agent: "worker", task: "Implement the feature" }, agents);
+	assert.equal(result.error, undefined);
+	assert.equal(result.params?.pathContract, undefined);
 });
 
-test("runtime policy attaches path contract, budget, and mandatory acceptance for owned writes", () => {
+test("runtime policy no longer attaches path contracts, budgets, memory, or mandatory acceptance", () => {
 	const result = applyRuntimeArchitecturePolicy<any>({ agent: "worker", task: "Fix src/runtime/foo.ts", acceptance: false }, agents);
 	assert.equal(result.error, undefined);
-	assert.equal(result.params?.pathContract?.assigned_path, "src/runtime/foo.ts");
-	assert.deepEqual(result.params?.pathContract?.read_allowed_paths, ["**/*"]);
-	assert.deepEqual(result.params?.pathContract?.write_allowed_paths, ["src/runtime/foo.ts"]);
-	assert.equal(result.params?.memoryPacket?.memory_scope.path_id, "folder.src.runtime.foo.ts");
-	assert.equal(result.params?.memoryPacket?.memory_scope.agent_id, "worker");
-	assert.equal(result.params?.memoryPacket?.memory_scope.xenonite_namespace, "path:src/runtime/foo.ts");
-	assert.equal(result.params?.memoryPacket?.memory_attachments?.[0]?.budget?.max_bytes, 12_000);
-	assert.equal(result.params?.pathContract?.activity_budget?.max_tokens, 270_000);
-	assert.notEqual(result.params?.acceptance, false);
+	assert.equal(result.params?.pathContract, undefined);
+	assert.equal(result.params?.memoryPacket, undefined);
+	assert.equal(result.params?.acceptance, false);
 });
 
-test("runtime policy gives read-only roles deny-all write contracts and blocks role drift", () => {
+test("runtime policy does not add read-only contracts or block role drift", () => {
 	const readOnly = applyRuntimeArchitecturePolicy<any>({ agent: "scout", task: "Scan the repo" }, agents);
 	assert.equal(readOnly.error, undefined);
-	assert.deepEqual(readOnly.params?.pathContract?.write_allowed_paths, []);
-	assert.deepEqual(readOnly.params?.pathContract?.write_denied_paths, ["**/*"]);
-	assert.equal(readOnly.params?.memoryPacket?.memory_scope.path_id, "folder.project");
-	assert.equal(readOnly.params?.memoryPacket?.memory_scope.agent_id, "scout");
-	assert.equal(readOnly.params?.memoryPacket?.memory_scope.xenonite_namespace, "path:project");
+	assert.equal(readOnly.params?.pathContract, undefined);
+	assert.equal(readOnly.params?.memoryPacket, undefined);
 
 	const drift = applyRuntimeArchitecturePolicy({
 		agent: "researcher",
@@ -62,7 +54,8 @@ test("runtime policy gives read-only roles deny-all write contracts and blocks r
 			write_allowed_paths: ["src/runtime/foo.ts"],
 		},
 	}, agents);
-	assert.match(drift.error ?? "", /blocks read-only role/);
+	assert.equal(drift.error, undefined);
+	assert.equal(drift.params?.pathContract, undefined);
 });
 
 test("runtime policy does not treat string false output as a memory path", () => {
@@ -72,9 +65,7 @@ test("runtime policy does not treat string false output as a memory path", () =>
 		output: "false",
 	}, agents);
 	assert.equal(result.error, undefined);
-	assert.equal(result.params?.memoryPacket?.memory_scope.path_id, "folder.project");
-	assert.equal(result.params?.memoryPacket?.memory_scope.xenonite_namespace, "path:project");
-	assert.notEqual(result.params?.memoryPacket?.memory_scope.path_id, "folder.false");
+	assert.equal(result.params?.memoryPacket, undefined);
 });
 
 test("runtime policy preserves explicit path memory packets", () => {
@@ -97,7 +88,7 @@ test("runtime policy preserves explicit path memory packets", () => {
 	assert.equal(result.params?.memoryPacket, explicit);
 });
 
-test("runtime policy keeps parent-managed output artifacts read-only for scouts", () => {
+test("runtime policy does not create read-only contracts for parent-managed output artifacts", () => {
 	const result = applyRuntimeArchitecturePolicy<any>({
 		agent: "scout",
 		task: "Scan the active config.\n\n---\n**Output:** Return your findings in the final response only. The parent runtime persists that response at the hidden output file: /Users/steve/.subagent-outputs/context.md. No filesystem action is required for this output artifact.",
@@ -105,12 +96,11 @@ test("runtime policy keeps parent-managed output artifacts read-only for scouts"
 	}, agents);
 
 	assert.equal(result.error, undefined);
-	assert.notEqual(result.params?.acceptance?.level, "checked");
-	assert.deepEqual(result.params?.pathContract?.write_allowed_paths, []);
-	assert.deepEqual(result.params?.pathContract?.write_denied_paths, ["**/*"]);
+	assert.equal(result.params?.acceptance, undefined);
+	assert.equal(result.params?.pathContract, undefined);
 });
 
-test("runtime policy keeps planning and audit agents read-only despite active wording", () => {
+test("runtime policy does not force planning and audit agents into read-only contracts", () => {
 	for (const agent of ["planner", "context-builder", "delegate", "oracle"]) {
 		const result = applyRuntimeArchitecturePolicy({
 			agent,
@@ -119,9 +109,8 @@ test("runtime policy keeps planning and audit agents read-only despite active wo
 		const params = result.params as any;
 
 		assert.equal(result.error, undefined, `${agent} should not require assigned_path`);
-		assert.notEqual(params?.acceptance?.level, "checked", `${agent} should not get write acceptance`);
-		assert.deepEqual(params?.pathContract?.write_allowed_paths, [], `${agent} should not get write paths`);
-		assert.deepEqual(params?.pathContract?.write_denied_paths, ["**/*"], `${agent} should deny writes`);
+		assert.equal(params?.acceptance, undefined, `${agent} should not get forced acceptance`);
+		assert.equal(params?.pathContract, undefined, `${agent} should not get forced path contract`);
 	}
 });
 

@@ -404,12 +404,12 @@ EXECUTION (use exactly ONE mode):
 • Optional context: { context: "fresh" | "fork" } (default: if any requested agent has defaultContext: "fork", the whole invocation uses fork; otherwise "fresh"; inspect agent defaults via { action: "list" })
 
 HARNESS CONTRACT EXECUTION:
-• { action: "orchestrate", task, orchestrateOutput?: "compact"|"full" } - compile a profiled mission workflow from the raw task; returns a compact profile/step summary by default. Use orchestrateOutput:"full" only when complete FreshBootContracts are required.
-• { action: "orchestrate_decision", task } - compile a Desktop-safe profile delegation decision only; does not create FreshBootContracts or call child agents.
+• { action: "orchestrate", task, agent? } - run the raw task directly through one agent (defaults to "delegate"); no intermediate routing layer or folder-level fanout.
+• { action: "orchestrate_decision", task, agent? } - return the direct agent dispatch decision without creating FreshBootContracts or child fanout.
 • { action: "harness_validate_contract", bootContract } - validate a FreshBootContract without starting a child process; returns validator_contract/errors/warnings
 • { action: "harness_run_contract", bootContract } - run a FreshBootContract as a fresh-only contract execution; agent/task are derived from execution_contract
 • { action: "harness_status", id? } - alias for contract-aware run status
-• Contract runs always boot fresh, disable parent context inheritance, derive path memory/Xenonite namespace from the contract, enforce path/budget boundaries, validate output_required, and commit memory_updates only after validation.
+• Contract runs always boot fresh, disable parent context inheritance, derive path-local attachment scope from the contract, enforce path/budget boundaries, validate output_required, and commit memory_updates only after validation.
 
 CHAIN TEMPLATE VARIABLES (use in task strings):
 • {task} - The original task/request from the user

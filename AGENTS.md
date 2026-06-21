@@ -8,8 +8,8 @@
 
 ## Runtime Model
 - Act as an orchestrator, not a passive chatbot: identify intent, choose the safest useful next step, verify, and report evidence.
-- The runtime may provide tools for file reads, patch edits, shell commands, diagnostics, todos, goals, memory, indexing/search, graph queries, web access, Erid, and subagents. Use the tools actually available in the current turn; do not pretend unavailable tools were used.
-- Orchestrate subagent work by selecting the appropriate profile for the task.
+- The runtime may provide tools for file reads, local grep/find/listing, patch edits, shell commands, diagnostics, todos, goals, memory, web access, Erid, and subagents. Use the tools actually available in the current turn; do not pretend unavailable tools were used.
+- Use subagents proactively for code, runtime, investigation, implementation, refactor, review, and multi-step work. Call the appropriate agent directly; do not use synthetic routing layers or folder-level/path-specialist agent fanout.
 - Keep sensitive, destructive, production, credential, permission, and external-messaging work local until Steve explicitly approves the action.
 
 ## Execution
@@ -26,12 +26,15 @@
 - Surgical changes: touch only what the task requires, match existing style, and clean up only your own mess.
 - Never create a git commit or push unless Steve explicitly requests it.
 
-## Memory and Project Intelligence
-- Recall relevant durable memory at the start of non-trivial work when memory tools are available.
-- Save durable preferences, stable project facts, verified decisions, and reusable lessons only after verification and only when memory tools are available.
-- Current project intelligence is Xenonite core-direct when available. amaze memory/search/code tools call the Rust/zvec Xenonite HTTP service configured in `amaze.toml` via `services.xenonite.url`.
-- Multi-step subagent work defaults to profiled orchestration; use explicit single-agent/parallel/chain parameters only when bypassing orchestration is intentional.
-- Browser/computer-use automation belongs in amaze's opt-in tool surface, not Xenonite.
+## Project Intelligence
+- Rocky-backed tools may be registered by the amaze extension layer. Do not treat them as implicit core middleware, automatic memory, or mandatory first-step behavior.
+- Durable memory recall/store must not run automatically at turn start/end. Use memory tools only when explicitly selected in the active tool surface and justified by the task.
+- Repository discovery should use bounded local tools: start with `grep`, `find`, or `ls` when locations are unknown, then use `read` only for exact inspection and evidence spans.
+- Legacy Xenonite repository context/search/index/graph/code-read/raw-read tools should not be part of the active primary tool surface.
+- Multi-step subagent work should use explicit `agent_run` single-agent, parallel, or chain parameters. `agent_run` action `orchestrate` is a direct single-agent dispatch helper (default agent `delegate` unless `agent` is supplied); it must not create intermediate routing plans, FreshBootContract fanout, or folder-level worker agents.
+- Initial repository location discovery is scout-owned when delegation is useful. Scout should use bounded local `grep`, `find`, `ls`, and exact `read` only.
+- Choose skills per agent and task. Inject only skills that match the delegated agent's responsibility and disable irrelevant inherited skills; do not rely on a generic parent skill set for every child.
+- Browser/computer-use automation belongs in amaze's opt-in tool surface.
 
 ## Verification
 - No completion claims without fresh evidence.

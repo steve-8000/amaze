@@ -278,6 +278,8 @@ describe("ToolExecutionComponent parity", () => {
 			undefined,
 			{} as never,
 		);
+		// Regression coverage: ToolExecutionComponent must respect bash renderer
+		// results that include fullOutputPath instead of dumping the entire output.
 		const component = new ToolExecutionComponent(
 			"bash",
 			"tool-bash-1b",

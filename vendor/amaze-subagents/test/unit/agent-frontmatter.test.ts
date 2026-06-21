@@ -65,30 +65,16 @@ Do work
 		}
 	});
 
-	it("loads packaged agents with shared Xenonite code engine tools", () => {
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "amaze-subagents-builtin-xenonite-tools-"));
+	it("loads packaged agents without built-in tool allowlists", () => {
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "amaze-subagents-builtin-local-memory-tools-"));
 		tempDirs.push(dir);
 		const agents = discoverAgentsAll(dir).builtin;
-		const xenoniteTools = [
-			"context_engine",
-			"index_status",
-			"search_query",
-			"graph_status",
-			"graph_query",
-			"graph_impact",
-			"graph_symbol",
-			"graph_symbols",
-			"graph_trace",
-			"graph_cycles",
-			"graph_stats",
-		];
 
 		for (const name of ["context-builder", "delegate", "oracle", "planner", "researcher", "reviewer", "scout", "worker"]) {
 			const agent = agents.find((candidate) => candidate.name === name);
 			assert.ok(agent, `${name} should be packaged`);
-			for (const tool of xenoniteTools) {
-				assert.ok(agent.tools?.includes(tool), `${name} should expose ${tool}`);
-			}
+			assert.equal(agent.tools, undefined, `${name} should not declare a tool allowlist`);
+			assert.equal(agent.mcpDirectTools, undefined, `${name} should not declare MCP direct tool allowlists`);
 		}
 	});
 });
@@ -364,7 +350,7 @@ Do work
 		assert.equal(worker?.inheritSkills, false);
 	});
 
-	it("builtin agents inherit project context by default", () => {
+	it("builtin agents keep their declared project context inheritance", () => {
 		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "amaze-subagents-builtin-default-prompt-settings-"));
 		const homeDir = fs.mkdtempSync(path.join(os.tmpdir(), "amaze-subagents-builtin-default-home-"));
 		tempDirs.push(dir);
@@ -382,7 +368,7 @@ Do work
 			const delegate = result.agents.find((agent) => agent.name === "delegate");
 			assert.equal(scout?.inheritProjectContext, true);
 			assert.equal(reviewer?.inheritProjectContext, true);
-			assert.equal(delegate?.inheritProjectContext, true);
+			assert.equal(delegate?.inheritProjectContext, false);
 		} finally {
 			if (previousHome === undefined) delete process.env.HOME;
 			else process.env.HOME = previousHome;
@@ -391,7 +377,7 @@ Do work
 		}
 	});
 
-	it("bundled agents all have explicit tool allowlists", () => {
+	it("bundled agents do not declare explicit tool allowlists", () => {
 		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "amaze-subagents-builtin-tools-"));
 		const homeDir = fs.mkdtempSync(path.join(os.tmpdir(), "amaze-subagents-builtin-tools-home-"));
 		tempDirs.push(dir);
@@ -405,7 +391,8 @@ Do work
 			const builtins = discoverAgentsAll(dir).builtin;
 			assert.ok(builtins.length > 0);
 			for (const agent of builtins) {
-				assert.ok(agent.tools && agent.tools.length > 0, `${agent.name} should have explicit tools frontmatter`);
+				assert.equal(agent.tools, undefined, `${agent.name} should not have explicit tools frontmatter`);
+				assert.equal(agent.mcpDirectTools, undefined, `${agent.name} should not have MCP direct tool frontmatter`);
 			}
 		} finally {
 			if (previousHome === undefined) delete process.env.HOME;
@@ -415,7 +402,7 @@ Do work
 		}
 	});
 
-	it("worker and delegate include the child-facing supervisor tool", () => {
+	it("worker and delegate rely on the full runtime tool surface", () => {
 		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "amaze-subagents-builtin-supervisor-tool-"));
 		const homeDir = fs.mkdtempSync(path.join(os.tmpdir(), "amaze-subagents-builtin-supervisor-tool-home-"));
 		tempDirs.push(dir);
@@ -430,9 +417,8 @@ Do work
 			for (const name of ["worker", "delegate"]) {
 				const agent = agents.find((candidate) => candidate.name === name);
 				assert.ok(agent, `${name} builtin should be discovered`);
-				for (const tool of ["read", "grep", "find", "ls", "bash", "edit", "write", "contact_supervisor"]) {
-					assert.ok(agent?.tools?.includes(tool), `${name} should include ${tool}`);
-				}
+				assert.equal(agent?.tools, undefined, `${name} should not restrict builtin tools`);
+				assert.equal(agent?.mcpDirectTools, undefined, `${name} should not restrict MCP tools`);
 			}
 		} finally {
 			if (previousHome === undefined) delete process.env.HOME;

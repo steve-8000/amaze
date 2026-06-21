@@ -71,10 +71,6 @@ export {
 	autoPrepareXenoniteCore,
 	createXenoniteToolDefinitions,
 	isXenoniteCoreEnabled,
-	type RecalledMemory,
-	type RecalledMemoryItem,
-	recallMemoryForTurn,
-	storeMemoryFact,
 	type XenoniteToolName,
 	xenoniteToolNames,
 } from "./xenonite.ts";
@@ -92,8 +88,8 @@ import { createXenoniteToolDefinitions, isXenoniteCoreEnabled, type XenoniteTool
 
 export type Tool = AgentTool<any>;
 export type ToolDef = ToolDefinition<any, any>;
-export type ToolName = "raw_read" | "bash" | "edit" | "write" | "grep" | "find" | "ls" | XenoniteToolName;
-export const allToolNames: Set<ToolName> = new Set(["raw_read", "bash", "edit", "write", "grep", "find", "ls"]);
+export type ToolName = "read" | "raw_read" | "bash" | "edit" | "write" | "grep" | "find" | "ls" | XenoniteToolName;
+export const allToolNames: Set<ToolName> = new Set(["read", "raw_read", "bash", "edit", "write", "grep", "find", "ls"]);
 
 export interface ToolsOptions {
 	read?: ReadToolOptions;
@@ -109,22 +105,19 @@ export interface ToolsOptions {
 
 export function createAllToolDefinitions(cwd: string, options?: ToolsOptions): Record<string, ToolDef> {
 	const definitions: Record<string, ToolDef> = {
+		read: createReadToolDefinition(cwd, options?.read),
 		bash: createBashToolDefinition(cwd, options?.bash),
 		edit: createEditToolDefinition(cwd, options?.edit),
 		write: createWriteToolDefinition(cwd, options?.write),
+		grep: createGrepToolDefinition(cwd, options?.grep),
+		find: createFindToolDefinition(cwd, options?.find),
+		ls: createLsToolDefinition(cwd, options?.ls),
 	};
 	if (options?.includeRawReadTool) {
 		definitions.raw_read = createReadToolDefinition(cwd, {
 			...options?.read,
 			toolName: "raw_read",
 			label: "raw_read",
-		});
-	}
-	if (options?.includeLegacyLocalSearchTools) {
-		Object.assign(definitions, {
-			grep: createGrepToolDefinition(cwd, options?.grep),
-			find: createFindToolDefinition(cwd, options?.find),
-			ls: createLsToolDefinition(cwd, options?.ls),
 		});
 	}
 	if (isXenoniteCoreEnabled()) {
@@ -187,7 +180,10 @@ export async function executeApiTool(
 
 export function createCodingTools(cwd: string, options?: ToolsOptions): Tool[] {
 	return [
-		createReadTool(cwd, { ...options?.read, toolName: "raw_read", label: "raw_read" }),
+		createReadTool(cwd, options?.read),
+		createGrepTool(cwd, options?.grep),
+		createFindTool(cwd, options?.find),
+		createLsTool(cwd, options?.ls),
 		createBashTool(cwd, options?.bash),
 		createEditTool(cwd, options?.edit),
 		createWriteTool(cwd, options?.write),
@@ -196,7 +192,7 @@ export function createCodingTools(cwd: string, options?: ToolsOptions): Tool[] {
 
 export function createReadOnlyTools(cwd: string, options?: ToolsOptions): Tool[] {
 	return [
-		createReadTool(cwd, { ...options?.read, toolName: "raw_read", label: "raw_read" }),
+		createReadTool(cwd, options?.read),
 		createGrepTool(cwd, options?.grep),
 		createFindTool(cwd, options?.find),
 		createLsTool(cwd, options?.ls),

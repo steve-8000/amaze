@@ -31,8 +31,6 @@ describe("categorizeTools", () => {
 			"index_status",
 			"graph_symbol",
 			"ctx_search",
-			"mem_recall",
-			"mem_optimize",
 		]);
 
 		expect(tools).toEqual([
@@ -42,8 +40,6 @@ describe("categorizeTools", () => {
 			{ name: "index_status", category: "search" },
 			{ name: "graph_symbol", category: "search" },
 			{ name: "ctx_search", category: "search" },
-			{ name: "mem_recall", category: "search" },
-			{ name: "mem_optimize", category: "search" },
 		]);
 	});
 
@@ -100,24 +96,11 @@ describe("getToolsPromptDisplay", () => {
 		expect(display).toBe("");
 	});
 
-	test("shows primary repository context and memory tools before agent orchestration", () => {
-		const tools = categorizeTools([
-			"grep",
-			"context_engine",
-			"search_query",
-			"index_status",
-			"mem_recall",
-			"mem_search",
-			"mem_store",
-			"mem_optimize",
-			"mem_delete",
-			"agent_run",
-		]);
+	test("shows primary repository context tools before agent orchestration", () => {
+		const tools = categorizeTools(["grep", "context_engine", "search_query", "index_status", "agent_run"]);
 		const display = getToolsPromptDisplay(tools);
 
-		expect(display).toBe(
-			"`context_engine`, `mem_recall`, `mem_search`, `mem_store`, `mem_optimize`, `mem_delete`, `agent_run`",
-		);
+		expect(display).toBe("`context_engine`, `agent_run`");
 	});
 
 	test("only displays primary trigger tools, not low-level search, lsp, or ast", () => {
@@ -152,17 +135,15 @@ describe("getFallbackToolsPromptDisplay", () => {
 			"graph_symbol",
 			"ctx_search",
 			"context_engine",
-			"mem_recall",
 		]);
 		const display = getFallbackToolsPromptDisplay(tools);
 
 		expect(display).toBe("`search_query`, `code_read`, `index_status`, `graph_symbol`, `ctx_search`, `grep`, `glob`");
 		expect(display).not.toContain("context_engine");
-		expect(display).not.toContain("mem_recall");
 	});
 
 	test("returns empty string when no fallback tools exist", () => {
-		const tools = categorizeTools(["context_engine", "mem_recall", "agent_run"]);
+		const tools = categorizeTools(["context_engine", "agent_run"]);
 
 		expect(getFallbackToolsPromptDisplay(tools)).toBe("");
 	});

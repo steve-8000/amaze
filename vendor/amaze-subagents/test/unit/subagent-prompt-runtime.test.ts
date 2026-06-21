@@ -128,13 +128,13 @@ describe("subagent prompt runtime", () => {
 		const rewritten = rewriteSubagentPrompt(BASE_PROMPT, {
 			inheritProjectContext: false,
 			inheritSkills: false,
-			pathMemoryPacket: "# Path Memory Packet\n\nRuntime path profile",
+			pathMemoryPacket: "# Path Memory Packet\n\nRuntime path convention",
 		});
 
 		assert.ok(rewritten.startsWith(CHILD_SUBAGENT_BOUNDARY_INSTRUCTIONS));
 		assert.ok(rewritten.includes("explicit path-local memory packet"));
 		assert.ok(rewritten.includes("# Path Memory Packet"));
-		assert.ok(rewritten.includes("Runtime path profile"));
+		assert.ok(rewritten.includes("Runtime path convention"));
 		assert.ok(!rewritten.includes("# Project Context"));
 		assert.ok(!rewritten.includes("<available_skills>"));
 	});

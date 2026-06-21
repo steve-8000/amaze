@@ -399,6 +399,10 @@ export async function runRpcMode(runtimeHost: AgentSessionRuntime): Promise<neve
 			// =================================================================
 
 			case "prompt": {
+				const wasStreaming = session.isStreaming;
+				if (wasStreaming) {
+					output(success(id, "prompt", { status: "queued" }));
+				}
 				// Start prompt handling immediately, but emit the authoritative response only after
 				// prompt preflight succeeds. Queued and immediately handled prompts also count as success.
 				let preflightSucceeded = false;
@@ -408,6 +412,9 @@ export async function runRpcMode(runtimeHost: AgentSessionRuntime): Promise<neve
 						streamingBehavior: command.streamingBehavior,
 						source: "rpc",
 						preflightResult: (didSucceed) => {
+							if (wasStreaming) {
+								return;
+							}
 							if (didSucceed) {
 								preflightSucceeded = true;
 								output(success(id, "prompt"));
@@ -415,7 +422,7 @@ export async function runRpcMode(runtimeHost: AgentSessionRuntime): Promise<neve
 						},
 					})
 					.catch((e) => {
-						if (!preflightSucceeded) {
+						if (!preflightSucceeded && !wasStreaming) {
 							output(error(id, "prompt", e.message));
 						}
 					});

@@ -289,6 +289,32 @@ Use `/settings` to modify common options, or edit JSON files directly:
 
 See [docs/settings.md](docs/settings.md) for all options.
 
+### Native Context Optimizer
+
+amaze runs a native context optimizer immediately before model streaming. It is
+enabled by default and does not start or depend on the external `headroom`
+runtime. The optimizer audits token savings, compresses large tool outputs,
+keeps recent tool results intact, and records a stable-prefix cache-alignment
+fingerprint without reordering messages.
+
+Configure it in global or project `settings.json`:
+
+```json
+{
+  "contextOptimizer": {
+    "mode": "optimize",
+    "compressToolResultsOverChars": 12000,
+    "compressedToolResultHeadChars": 2000,
+    "compressedToolResultTailChars": 1000,
+    "preserveRecentMessages": 8,
+    "preserveRecentToolResults": 8
+  }
+}
+```
+
+Set `"mode": "audit"` to collect optimizer audit data without changing the
+prompt, or `"mode": "off"` to disable it for a project.
+
 ### Project Trust
 
 On interactive startup, amaze asks before trusting a project folder that contains project-local settings, resources, or project `.agents/skills` and has no saved decision for the folder or a parent folder in `~/.amaze/agent/trust.json`. Trusting a project allows amaze to load `.amaze/settings.json` and `.amaze` resources, install missing project packages, and execute project extensions.
@@ -489,7 +515,7 @@ See [docs/rpc.md](docs/rpc.md) for the protocol.
 
 Pi is aggressively extensible so it doesn't have to dictate your workflow. Features that other tools bake in can be built with [extensions](#extensions), [skills](#skills), or installed from third-party [pi packages](#amaze-packages). This keeps the core minimal while letting you shape pi to fit how you work.
 
-**API-first integrations.** Memory, search, and code intelligence use the configured Xenonite HTTP API directly.
+**API-first integrations.** External intelligence and memory integrations belong in extensions or explicit tool surfaces, not automatic core middleware.
 
 **No sub-agents.** There's many ways to do this. Spawn pi instances via tmux, or build your own with [extensions](#extensions), or install a package that does it your way.
 

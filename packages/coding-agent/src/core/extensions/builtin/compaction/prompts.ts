@@ -15,6 +15,7 @@ R1. Quote user requests and constraints VERBATIM. Do not paraphrase.
 R2. If a section has no content, write "None." Never delete a section.
 R3. Where a previous summary is supplied, treat its User Requests, Final Goal, and Constraints fields as IMMUTABLE. Append, never rewrite, those three sections.
 R4. Preserve every session_id, file path, and identifier byte-for-byte.
+R5. Preserve protected Section Context Capsule fields as structured data: active todos, files read, files changed, commands run, verification evidence, risks, memory candidates, and exact next action. Do not flatten these fields into prose.
 
 Do NOT use tools. Output only the requested summary block.`;
 
@@ -66,6 +67,11 @@ Create a structured handoff summary of this conversation for seamless continuati
 - State the precise next action to take, directly in line with the user's most recent request.
 - Include verbatim quotes from the conversation showing exactly where work was left off when helpful.
 - Do not suggest tangential tasks.
+
+## 8. Section Context Capsule
+- Preserve active todos, files read, files changed, commands run, verification evidence, risks, memory candidates, and exact next action as structured bullets.
+- Do NOT summarize away file paths, command strings, failing test names, or next-action wording.
+- If a protected field is unknown, write "None" for that field instead of omitting it.
 
 </summary>
 
@@ -119,6 +125,11 @@ Update the structured handoff summary. The structured output portion MUST be wra
 - Update based on current state and the user's most recent request.
 - Keep this direct and immediately actionable.
 
+## 8. Section Context Capsule
+- Preserve active todos, files read, files changed, commands run, verification evidence, risks, memory candidates, and exact next action as structured bullets.
+- Do NOT summarize away file paths, command strings, failing test names, or next-action wording.
+- If a protected field is unknown, write "None" for that field instead of omitting it.
+
 </summary>
 
 IMPORTANT: Respond with ONLY the <summary>...</summary> block as your text output.`;
@@ -166,6 +177,11 @@ Create a structured branch handoff summary. The structured output portion MUST b
 - State the precise next action for returning to this branch.
 - Do not suggest tangential tasks.
 
+## 8. Section Context Capsule
+- Preserve active todos, files read, files changed, commands run, verification evidence, risks, memory candidates, and exact next action as structured bullets.
+- Do NOT summarize away file paths, command strings, failing test names, or next-action wording.
+- If a protected field is unknown, write "None" for that field instead of omitting it.
+
 </summary>
 
 IMPORTANT: Respond with ONLY the <summary>...</summary> block as your text output.`;
@@ -194,6 +210,11 @@ The structured output portion MUST be wrapped as \`<summary>...</summary>\` XML.
 
 ## 5. Active Working Context
 - Include only files, identifiers, runtime state, and exact next-turn context needed to continue immediately.
+
+## 6. Section Context Capsule
+- Preserve active todos, files read, files changed, commands run, verification evidence, risks, memory candidates, and exact next action as structured bullets.
+- Do NOT summarize away file paths, command strings, failing test names, or next-action wording.
+- If a protected field is unknown, write "None" for that field instead of omitting it.
 </summary>
 
 IMPORTANT: Respond with ONLY the <summary>...</summary> block as your text output.`;

@@ -3,14 +3,11 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { encodeNestedPathEnv, parseNestedPathEnv, type NestedPathEntry } from "./nested-path.ts";
-import { resolveMcpDirectToolNames } from "./mcp-direct-tool-allowlist.ts";
 import { STRUCTURED_OUTPUT_CAPTURE_ENV, STRUCTURED_OUTPUT_SCHEMA_ENV } from "./structured-output.ts";
 import { PATH_MEMORY_PACKET_ENV, renderPathMemoryPacket, type PathMemoryPacketInput } from "../../harness/path-memory.ts";
-import { PATH_CONTRACT_ENV, renderPathContract, type PathContract } from "../../harness/path-contract.ts";
+import { PATH_CONTRACT_ENV, type PathContract } from "../../harness/path-contract.ts";
 import {
 	FRESH_BOOT_CONTRACT_ENV,
-	freshBootContractToPathContract,
-	freshBootContractToPathMemoryPacket,
 	renderFreshBootContract,
 	type FreshBootContract,
 } from "../../harness/fresh-boot-contract.ts";
@@ -90,10 +87,7 @@ export function applyThinkingSuffix(model: string | undefined, thinking: string 
 
 export function buildPiArgs(input: BuildPiArgsInput): BuildPiArgsResult {
 	const args = [...input.baseArgs];
-	const bootMemoryPacket = input.bootContract ? freshBootContractToPathMemoryPacket(input.bootContract) : undefined;
-	const bootPathContract = input.bootContract ? freshBootContractToPathContract(input.bootContract) : undefined;
-	const effectiveMemoryPacket = bootMemoryPacket ?? input.memoryPacket;
-	const effectivePathContract = bootPathContract ?? input.pathContract;
+	const effectiveMemoryPacket = input.memoryPacket;
 
 	if (input.bootContract) {
 		args.push("--no-session");
@@ -123,17 +117,10 @@ export function buildPiArgs(input: BuildPiArgsInput): BuildPiArgsResult {
 	const fanoutAuthorized = !input.bootContract && declaredBuiltinTools.includes("subagent");
 	const toolExtensionPaths: string[] = [];
 	if (input.tools?.length) {
-		const builtinTools = [...declaredBuiltinTools];
 		for (const tool of input.tools) {
 			if (!declaredBuiltinTools.includes(tool) && (tool.includes("/") || tool.endsWith(".ts") || tool.endsWith(".js"))) {
 				toolExtensionPaths.push(tool);
 			}
-		}
-		if (builtinTools.length > 0) {
-			if (input.mcpDirectTools?.length) {
-				builtinTools.push(...resolveMcpDirectToolNames(input.mcpDirectTools, input.cwd));
-			}
-			args.push("--tools", builtinTools.join(","));
 		}
 	}
 
@@ -178,6 +165,7 @@ export function buildPiArgs(input: BuildPiArgsInput): BuildPiArgsResult {
 	const env: Record<string, string | undefined> = {};
 	env[SUBAGENT_CHILD_ENV] = "1";
 	env[SUBAGENT_FANOUT_CHILD_ENV] = fanoutAuthorized ? "1" : "0";
+	env[PATH_CONTRACT_ENV] = "";
 	const inheritedNestedRoute = Boolean(process.env[SUBAGENT_PARENT_EVENT_SINK_ENV] && process.env[SUBAGENT_PARENT_ROOT_RUN_ID_ENV] && process.env[SUBAGENT_PARENT_CAPABILITY_TOKEN_ENV]);
 	const parentRunId = input.parentRunId ?? input.runId ?? (inheritedNestedRoute ? process.env[SUBAGENT_RUN_ID_ENV] : undefined) ?? process.env[SUBAGENT_PARENT_RUN_ID_ENV] ?? "";
 	const parentChildIndex = input.parentChildIndex !== undefined
@@ -242,7 +230,8 @@ export function buildPiArgs(input: BuildPiArgsInput): BuildPiArgsResult {
 			tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-"));
 		}
 		const bootContractPath = path.join(tempDir, "fresh-boot-contract.md");
-		fs.writeFileSync(bootContractPath, renderFreshBootContract(input.bootContract), { mode: 0o600 });
+		const childBootContract = { ...input.bootContract, execution_contract: undefined } as unknown as FreshBootContract;
+		fs.writeFileSync(bootContractPath, renderFreshBootContract(childBootContract), { mode: 0o600 });
 		env[FRESH_BOOT_CONTRACT_ENV] = bootContractPath;
 	}
 	if (effectiveMemoryPacket) {
@@ -254,15 +243,6 @@ export function buildPiArgs(input: BuildPiArgsInput): BuildPiArgsResult {
 		fs.writeFileSync(memoryPacketPath, rendered.markdown, { mode: 0o600 });
 		env[PATH_MEMORY_PACKET_ENV] = memoryPacketPath;
 	}
-	if (effectivePathContract) {
-		if (!tempDir) {
-			tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-"));
-		}
-		const pathContractPath = path.join(tempDir, "path-contract.md");
-		fs.writeFileSync(pathContractPath, renderPathContract(effectivePathContract), { mode: 0o600 });
-		env[PATH_CONTRACT_ENV] = pathContractPath;
-	}
-
 	return { args, env, tempDir };
 }
 

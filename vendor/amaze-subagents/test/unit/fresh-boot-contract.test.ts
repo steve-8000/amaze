@@ -58,7 +58,6 @@ function contractInput(overrides: Record<string, unknown> = {}): Record<string, 
 			path_id: "folder.packages_coding_agent.src.runtime",
 			memory_path: ".harness/memory/paths/packages/coding-agent/src/runtime",
 			include: {
-				profile: true,
 				conventions: true,
 				recent_decisions: 10,
 				known_failures: 5,
@@ -154,7 +153,7 @@ describe("fresh boot contract", () => {
 		});
 	});
 
-	it("builds fresh-only child args and injects derived packet files", () => {
+	it("builds fresh-only child args without derived path contract or memory packets", () => {
 		const repo = makeTempDir();
 		const contract = makeContract();
 		const { args, env, tempDir } = buildPiArgs({
@@ -182,11 +181,10 @@ describe("fresh boot contract", () => {
 		assert.equal(env.PI_SUBAGENT_INHERIT_SKILLS, "0");
 		assert.equal(env.PI_SUBAGENT_FANOUT_CHILD, "0");
 		assert.ok(env[FRESH_BOOT_CONTRACT_ENV]);
-		assert.ok(env[PATH_MEMORY_PACKET_ENV]);
-		assert.ok(env[PATH_CONTRACT_ENV]);
+		assert.equal(env[PATH_MEMORY_PACKET_ENV], undefined);
+		assert.equal(env[PATH_CONTRACT_ENV], "");
 		assert.match(fs.readFileSync(env[FRESH_BOOT_CONTRACT_ENV]!, "utf-8"), /Harness Fresh Boot Contract/);
-		assert.match(fs.readFileSync(env[PATH_MEMORY_PACKET_ENV]!, "utf-8"), /Path Memory Packet/);
-		assert.match(fs.readFileSync(env[PATH_CONTRACT_ENV]!, "utf-8"), /Path Execution Contract/);
+		assert.doesNotMatch(fs.readFileSync(env[FRESH_BOOT_CONTRACT_ENV]!, "utf-8"), /execution_contract/);
 	});
 
 	it("renders the fresh boot packet into the child prompt without parent inheritance", () => {

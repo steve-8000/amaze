@@ -53,6 +53,7 @@ import { createJsonlWriter } from "../../shared/jsonl-writer.ts";
 import { attachPostExitStdioGuard, trySignalChild } from "../../shared/post-exit-stdio-guard.ts";
 import { applyThinkingSuffix, buildPiArgs, cleanupTempDir } from "../shared/amaze-args.ts";
 import { createStructuredOutputRuntime, readStructuredOutput } from "../shared/structured-output.ts";
+import { createRepeatedToolCallGuard } from "../shared/repeated-tool-call-guard.ts";
 import { captureSingleOutputSnapshot, formatSavedOutputReference, resolveSingleOutput, validateFileOnlyOutputMode, type SingleOutputSnapshot } from "../shared/single-output.ts";
 import {
 	buildModelCandidates,
@@ -74,6 +75,7 @@ import { acceptanceFailureMessage, evaluateAcceptance, formatAcceptancePrompt, r
 
 const artifactOutputByResult = new WeakMap<SingleResult, string>();
 const acceptanceOutputByResult = new WeakMap<SingleResult, string>();
+const REPEATED_TOOL_CALL_LIMIT = 3;
 
 function isObject(value: unknown): value is Record<string, unknown> {
 	return Boolean(value && typeof value === "object" && !Array.isArray(value));
@@ -405,6 +407,7 @@ async function runSingleAttempt(
 		let activeLongRunningNotified = false;
 		let pendingToolResult: { tool: string; path?: string; mutates: boolean; startedAt?: number } | undefined;
 		const mutatingFailures = createMutatingFailureState();
+		const repeatedToolCallGuard = createRepeatedToolCallGuard(REPEATED_TOOL_CALL_LIMIT);
 		const mutatingFailureWindowMs = 5 * 60_000;
 		const currentToolDurationMs = (now: number) => progress.currentToolStartedAt ? Math.max(0, now - progress.currentToolStartedAt) : undefined;
 		const emitNeedsAttention = (now: number, input: { message?: string; reason?: ControlEvent["reason"]; recentFailureSummary?: string; currentTool?: string; currentPath?: string; currentToolDurationMs?: number } = {}): boolean => {
@@ -522,6 +525,26 @@ async function runSingleAttempt(
 			return true;
 		};
 
+		const stopForRepeatedToolCall = (now: number, toolName: string, repeatCount: number): boolean => {
+			if (processClosed || settled || detached) return false;
+			result.error = `Repeated identical tool call detected: ${toolName} invoked ${repeatCount} times with the same arguments.`;
+			progress.status = "failed";
+			progress.error = result.error;
+			progress.durationMs = now - startTime;
+			emitNeedsAttention(now, {
+				message: result.error,
+				reason: "tool_failures",
+				currentTool: toolName,
+			});
+			forcedTerminationSignal = trySignalChild(proc, "SIGTERM") || forcedTerminationSignal;
+			setTimeout(() => {
+				if (settled || processClosed || detached) return;
+				forcedTerminationSignal = trySignalChild(proc, "SIGKILL") || forcedTerminationSignal;
+			}, 3000).unref?.();
+			fireUpdate();
+			return true;
+		};
+
 		if (typeof activityBudgetContract?.activity_budget?.max_elapsed_ms === "number") {
 			budgetElapsedTimer = setTimeout(() => {
 				stopForActivityBudget(Date.now());
@@ -560,6 +583,8 @@ async function runSingleAttempt(
 				const mutates = isMutatingTool(evt.toolName, toolArgs);
 				observedMutationAttempt = observedMutationAttempt || mutates;
 				pendingToolResult = { tool: evt.toolName ?? "tool", path: progress.currentPath, mutates, startedAt: now };
+				const repeated = repeatedToolCallGuard.record(evt.toolName, toolArgs, progress.toolCount);
+				if (repeated && stopForRepeatedToolCall(now, repeated.toolName, repeated.repeatCount)) return;
 				if (stopForActivityBudget(now)) return;
 				fireUpdate();
 			}

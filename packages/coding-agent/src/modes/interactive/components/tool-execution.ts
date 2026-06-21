@@ -21,7 +21,7 @@ type ToolExecutionResult = Omit<AgentToolResult<unknown>, "details"> & {
 const FALLBACK_STRING_MAX_LENGTH = 160;
 const FALLBACK_JSON_MAX_LENGTH = 2000;
 const PENDING_RENDER_FRAME_INTERVAL_MS = 80;
-const VISIBLE_XENONITE_RESULT_TOOL_NAMES = new Set(["mem_recall"]);
+const VISIBLE_XENONITE_RESULT_TOOL_NAMES = new Set<string>();
 
 function sanitizeFallbackString(value: string, maxLength = FALLBACK_STRING_MAX_LENGTH): string {
 	const sanitized = stripAnsi(value)
@@ -130,7 +130,7 @@ export class ToolExecutionComponent extends Container {
 		if (!this.toolDefinition) {
 			return this.builtInToolDefinition.renderResult;
 		}
-		return this.toolDefinition.renderResult ?? this.builtInToolDefinition.renderResult;
+		return this.toolDefinition.renderResult;
 	}
 
 	private hasRendererDefinition(): boolean {

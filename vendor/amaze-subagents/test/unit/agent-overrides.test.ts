@@ -107,7 +107,7 @@ describe("builtin agent overrides", () => {
 		assert.equal(reviewer?.thinking, "high");
 		assert.equal(oracle?.thinking, "high");
 		assert.equal(scout?.thinking, "low");
-		assert.equal(delegate?.thinking, "xhigh");
+		assert.equal(delegate?.thinking, "low");
 	});
 
 	it("does not replace explicit builtin thinking when settings do not define subagents", () => {
@@ -120,7 +120,7 @@ describe("builtin agent overrides", () => {
 		const delegate = agents.find((agent) => agent.name === "delegate");
 
 		assert.equal(scout?.thinking, "low");
-		assert.equal(delegate?.thinking, "xhigh");
+		assert.equal(delegate?.thinking, "low");
 	});
 
 	it("prefers project settings overrides over user settings overrides", () => {

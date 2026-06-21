@@ -35,7 +35,7 @@
 		"shrinkwrap:coding-agent": "node scripts/generate-coding-agent-shrinkwrap.mjs",
 		"preinstall": "node scripts/create-bin-stubs.mjs",
 		"prepare": "husky",
-		"verify:amaze": "node scripts/verify-all.mjs"
+		"verify:amaze": "node scripts/verify-agent-runtime-98.mjs"
 	},
 	"devDependencies": {
 		"@anthropic-ai/sandbox-runtime": "0.0.26",

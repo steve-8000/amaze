@@ -3,8 +3,11 @@
   "contract-delegate-Users_steve_rocky_amaze",
   "contract-planner-Users_steve_rocky_amaze",
   "contract-scout-Users_steve_rocky_amaze.",
+  "default-scout-activity-budget",
   "mission-default-scout",
   "readonly-context-builder",
   "readonly-oracle",
-  "readonly-reviewer"
+  "readonly-reviewer",
+  "readonly-scout",
+  "smoke-deny-all"
 ]

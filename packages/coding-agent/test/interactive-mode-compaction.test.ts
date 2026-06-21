@@ -93,7 +93,7 @@ describe("InteractiveMode compaction events", () => {
 		fakeThis.autoCompactionLoader?.stop();
 	});
 
-	test("rebuilds chat and appends a synthetic compaction summary at the bottom", async () => {
+	test("rebuilds chat from compacted session context without appending a synthetic summary", async () => {
 		const fakeThis = {
 			isInitialized: true,
 			footer: { invalidate: vi.fn() },
@@ -136,14 +136,7 @@ describe("InteractiveMode compaction events", () => {
 
 		expect(fakeThis.chatContainer.clear).toHaveBeenCalledTimes(1);
 		expect(fakeThis.rebuildChatFromMessages).toHaveBeenCalledTimes(1);
-		expect(fakeThis.addMessageToChat).toHaveBeenCalledTimes(1);
-		expect(fakeThis.addMessageToChat).toHaveBeenCalledWith(
-			expect.objectContaining({
-				role: "compactionSummary",
-				tokensBefore: 123,
-				summary: "summary",
-			}),
-		);
+		expect(fakeThis.addMessageToChat).not.toHaveBeenCalled();
 		expect(fakeThis.flushCompactionQueue).toHaveBeenCalledWith({ willRetry: false });
 	});
 

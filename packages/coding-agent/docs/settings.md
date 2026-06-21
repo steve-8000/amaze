@@ -115,6 +115,40 @@ Set `AMAZE_SKIP_VERSION_CHECK=1` to disable the amaze version update check. Use 
 }
 ```
 
+### Native Context Optimizer
+
+Runs immediately before model streaming, after extension context hooks and before
+messages are converted to provider payloads. It is enabled by default and does
+not depend on the external `headroom` runtime.
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `contextOptimizer.enabled` | boolean | `true` | Set to `false` to disable the optimizer |
+| `contextOptimizer.mode` | string | `"optimize"` | `"optimize"`, `"audit"`, or `"off"` |
+| `contextOptimizer.compressToolResultsOverChars` | number | `12000` | Compress non-error tool results larger than this many characters |
+| `contextOptimizer.compressedToolResultHeadChars` | number | `2000` | Leading characters to preserve for large tool result compression |
+| `contextOptimizer.compressedToolResultTailChars` | number | `1000` | Trailing characters to preserve for large tool result compression |
+| `contextOptimizer.preserveRecentMessages` | number | `8` | Recent messages never compressed by optimizer passes |
+| `contextOptimizer.preserveRecentToolResults` | number | `8` | Recent tool results preserved by the rolling-window pass |
+| `contextOptimizer.logAudit` | boolean | `false` | Log optimizer audit summaries to stdout |
+
+```json
+{
+  "contextOptimizer": {
+    "mode": "optimize",
+    "compressToolResultsOverChars": 12000,
+    "compressedToolResultHeadChars": 2000,
+    "compressedToolResultTailChars": 1000,
+    "preserveRecentMessages": 8,
+    "preserveRecentToolResults": 8
+  }
+}
+```
+
+Use `"mode": "audit"` to calculate optimizer savings and cache-alignment
+fingerprints without changing the model prompt. Error tool results are preserved
+verbatim so failure evidence is not hidden.
+
 ### Branch Summary
 
 | Setting | Type | Default | Description |

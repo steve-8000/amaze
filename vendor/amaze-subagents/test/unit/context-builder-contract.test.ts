@@ -51,7 +51,7 @@ describe("context-builder runtime instruction contract", () => {
 			"instructions",
 			"validation",
 			"permissions",
-			"memory",
+			"durable_notes",
 			"escalation",
 			"output_contract",
 			"handoff",
@@ -68,17 +68,17 @@ describe("context-builder runtime instruction contract", () => {
 		assert.match(source, /markdown prompt is the runtime-facing rendering/);
 	});
 
-	it("guards fresh narrow delegation and memory fallback policy", () => {
+	it("guards fresh narrow delegation and durable note fallback policy", () => {
 		const source = readContextBuilderAgent();
 		const contract = extractJsonExample(source);
 		const execution = contract.execution as { context_mode?: unknown; delegation_limits?: { token_budget?: unknown } };
-		const memory = contract.memory as { fallback_when_unavailable?: unknown };
+		const durableNotes = contract.durable_notes as { fallback_when_unavailable?: unknown };
 
 		assert.match(source, /Default delegated agents to `fresh`/);
 		assert.match(source, /pass required state through this JSON contract/);
 		assert.match(source, /Scout tasks should stay narrow/);
 		assert.equal(execution.context_mode, "fresh");
 		assert.match(String(execution.delegation_limits?.token_budget ?? ""), /do not inherit broad conversation context/);
-		assert.match(String(memory.fallback_when_unavailable ?? ""), /Report memory candidates/);
+		assert.match(String(durableNotes.fallback_when_unavailable ?? ""), /Report durable lesson candidates/);
 	});
 });

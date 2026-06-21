@@ -27,11 +27,6 @@ const XENONITE_SEARCH_TOOLS = new Set([
 	"ctx_search",
 	"ctx_add",
 	"ctx_drop",
-	"mem_recall",
-	"mem_search",
-	"mem_store",
-	"mem_optimize",
-	"mem_delete",
 ]);
 
 function getToolCategory(name: string): AvailableTool["category"] {
@@ -59,21 +54,6 @@ export function getToolsPromptDisplay(tools: AvailableTool[]): string {
 
 	if (tools.some((tool) => tool.category === "search" && tool.name === "context_engine")) {
 		displayNames.push("`context_engine`");
-	}
-	if (tools.some((tool) => tool.category === "search" && tool.name === "mem_recall")) {
-		displayNames.push("`mem_recall`");
-	}
-	if (tools.some((tool) => tool.category === "search" && tool.name === "mem_search")) {
-		displayNames.push("`mem_search`");
-	}
-	if (tools.some((tool) => tool.category === "search" && tool.name === "mem_store")) {
-		displayNames.push("`mem_store`");
-	}
-	if (tools.some((tool) => tool.category === "search" && tool.name === "mem_optimize")) {
-		displayNames.push("`mem_optimize`");
-	}
-	if (tools.some((tool) => tool.category === "search" && tool.name === "mem_delete")) {
-		displayNames.push("`mem_delete`");
 	}
 	if (tools.some((tool) => tool.name === "agent_run")) {
 		displayNames.push("`agent_run`");

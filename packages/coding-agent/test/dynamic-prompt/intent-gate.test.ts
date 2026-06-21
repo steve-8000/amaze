@@ -79,18 +79,6 @@ describe("buildIntentGate", () => {
 		expect(result).toContain("refactor");
 	});
 
-	test("keeps memory tools as primary triggers", () => {
-		const tools: AvailableTool[] = [
-			{ name: "mem_recall", category: "search" },
-			{ name: "mem_search", category: "search" },
-		];
-		const result = buildIntentGate({ tools });
-
-		expect(result).toContain("mem_recall");
-		expect(result).toContain("mem_search");
-		expect(result).toContain("Memory tools are a separate primary channel");
-	});
-
 	test("promotes agent_run orchestration as the default repository work decision layer when available", () => {
 		const tools: AvailableTool[] = [
 			{ name: "agent_run", category: "other" },

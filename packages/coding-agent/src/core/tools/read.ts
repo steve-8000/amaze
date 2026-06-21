@@ -214,9 +214,9 @@ export function createReadToolDefinition(
 	return {
 		name: toolName,
 		label: options?.label ?? toolName,
-		description: `Raw fallback file read. Prefer code_read for indexed code/text context; use ${toolName} only for images, binary/unindexed/generated files, explicit full-file requests, or after code_read/patch/diagnostics failure. Supports text files and images (jpg, png, gif, webp). Text output is truncated to ${DEFAULT_MAX_LINES} lines or ${DEFAULT_MAX_BYTES / 1024}KB.`,
-		promptSnippet: toolName === "read" ? "Raw file read fallback" : "Raw file read fallback",
-		promptGuidelines: [`Prefer code_read for code/text context. Use ${toolName} only as an explicit raw fallback.`],
+		description: `Read files directly from the local filesystem. Supports text files and images (jpg, png, gif, webp). Text output is truncated to ${DEFAULT_MAX_LINES} lines or ${DEFAULT_MAX_BYTES / 1024}KB.`,
+		promptSnippet: "Read local files",
+		promptGuidelines: [`Use ${toolName} for local file inspection before editing or citing repository contents.`],
 		parameters: readSchema,
 		async execute(
 			_toolCallId,

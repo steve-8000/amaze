@@ -4,7 +4,7 @@
 
 # amaze
 
-**A unified AI coding agent — orchestration, code intelligence, durable memory, tools, and verification in one terminal.**
+**A unified AI coding agent — orchestration, code intelligence, tools, and verification in one terminal.**
 
 </div>
 
@@ -15,11 +15,11 @@ amaze is the main repository for the local agent system. It works with two compa
 | Product | Repository | Role |
 |---|---|---|
 | **amaze** | <https://github.com/steve-8000/amaze> | CLI agent. Provides file, shell, code, language-server, subagent, sandbox, channel, and verification tools. |
-| **Xenonite** | <https://github.com/steve-8000/xenonite> | Always-on Docker/API project intelligence core. Owns durable memory, semantic code search, code graphs, realtime watchers, and context bundles. |
+| **Xenonite** | <https://github.com/steve-8000/xenonite> | Legacy Docker/API project intelligence core. Direct core tool execution is not part of the active default runtime. |
 | **rocky** | <https://github.com/steve-8000/rocky> | OpenAI-compatible local model server for chat and embeddings. |
 
 ```
-amaze (CLI) ──HTTP API──▶ Xenonite Docker server (memory + code intelligence) ──HTTP──▶ rocky (LLM + embeddings)
+amaze (CLI) ──local tools/subagents──▶ bounded repository inspection and verification
 ```
 
 ## Runtime workflow
@@ -27,23 +27,19 @@ amaze (CLI) ──HTTP API──▶ Xenonite Docker server (memory + code intell
 The intended end-to-end flow is:
 
 1. **Goal / user turn** — `/goal`, `create_goal`, or an ordinary user request enters the amaze CLI. Active goals are resumed by hidden continuation prompts that require a completion audit before `update_goal(status="complete")`.
-2. **Orchestrator** — multi-step `agent_run` work defaults to profiled orchestration. The orchestrator classifies the request, compiles an execution policy, and emits `harness_run_contract` FreshBoot child contracts.
-3. **FreshBoot child execution** — child agents boot fresh with parent conversation, parent system prompt, parent tools, and project context inheritance disabled. Child-local core tools, skills, and Xenonite remain available through the child's own runtime.
-4. **Path contracts and memory** — workers operate inside explicit read/write path boundaries. Path memory attachments use stable path ids and Xenonite namespaces; memory updates are read-only during execution and committed only after validation.
-5. **Xenonite intelligence** — `index_*`, `search_query`, `graph_*`, `ctx_*`, `mem_*`, and `mem_optimize` call Xenonite's HTTP API directly from amaze core tools.
-6. **rocky model services** — Xenonite uses rocky's OpenAI-compatible LLM endpoint for memory optimization/classification and rocky's embedding endpoint for vector search.
-7. **Verification** — validators and the parent agent must verify changed files, tests, and user-visible behavior before reporting completion.
+2. **Orchestrator** — `agent_run` uses direct agent invocation. Explicit single-agent, parallel, and chain calls are the primary orchestration surfaces; `action: "orchestrate"` is a convenience path that dispatches the raw task to one agent (`delegate` by default, or the supplied `agent`).
+3. **Direct child execution** — child agents run through the selected agent configuration. The runtime no longer creates intermediate mission plans, folder-level workers, or FreshBoot contract fanout for `orchestrate`.
+4. **Repository inspection** — runtime agents use bounded local `grep`, `find`, `ls`, and exact `read` calls for repository evidence.
+5. **Model services** — configured model providers handle chat and reasoning; Rocky-backed tools are registered through the amaze extension/tool layer, not automatic core memory middleware.
+6. **Verification** — validators and the parent agent must verify changed files, tests, and user-visible behavior before reporting completion.
 
 ## Features
 
 - **Multi-agent orchestration** — delegate bounded work to planner, reviewer, worker, researcher, scout, context-builder, oracle, and delegate agents.
 - **Code intelligence** — AST-aware structural search/rewrite, language-server diagnostics, jump-to-definition, and safe renames.
-- **Semantic search + graph** — index a codebase and search it by meaning; explore symbols, dependencies, and impact across files.
-- **Durable memory** — recall and store verified project facts and decisions through Xenonite.
-- **Scoped memory isolation** — global memory is for operator preferences/style only; project/repo facts and folder/path facts live in separate Xenonite scopes.
-- **Memory optimizer** — `mem_optimize` / `/v1/memory/optimize` dry-runs or applies sequential LLM-assisted dedupe, cleanup, and scope reclassification.
+- **Bounded repository inspection** — use local search/list/read tools for exact evidence; Rocky tools may be available through the extension/tool layer.
 - **Sandboxed execution** — run commands inside isolated local sandboxes.
-- **Xenonite API backend** — `index_*`, `search_query`, `graph_*`, `ctx_*`, `mem_*`, and `mem_optimize` are default amaze tools backed by Xenonite's always-on HTTP API.
+- **No automatic memory middleware** — memory recall/store is not injected at turn start/end by core runtime.
 - **Single amaze config** — local feature toggles live in `amaze.toml`; model and subagent routing live in `~/.amaze/agent`.
 
 ## Exact local-system install guide
@@ -188,7 +184,7 @@ Create `~/.config/amaze/amaze.toml`:
 ```bash
 mkdir -p ~/.config/amaze
 cat > ~/.config/amaze/amaze.toml <<'EOF'
-# amaze global config — all features wired to Xenonite + rocky
+# amaze global config
 [tools.file]
 enabled = true
 [tools.shell]
@@ -202,7 +198,7 @@ enabled = true
 [tools.search]
 enabled = true
 [tools.mem]
-enabled = true
+enabled = false
 
 [agents]
 enabled = true
@@ -283,104 +279,19 @@ cat > ~/.amaze/agent/settings.json <<'EOF'
     "agentOverrides": {
       "oracle": {
         "model": "gpt-5.5",
-        "thinking": "high",
-        "tools": [
-          "read",
-          "grep",
-          "find",
-          "ls",
-          "bash",
-          "intercom",
-          "index_status",
-          "graph_status",
-          "search_query",
-          "graph_query",
-          "graph_stats",
-          "graph_cycles",
-          "graph_impact",
-          "graph_trace",
-          "graph_symbol",
-          "graph_symbols",
-          "mem_recall",
-          "mem_search"
-        ]
+        "thinking": "high"
       },
       "planner": {
         "model": "gpt-5.5",
-        "thinking": "high",
-        "tools": [
-          "read",
-          "grep",
-          "find",
-          "ls",
-          "write",
-          "intercom",
-          "index_status",
-          "graph_status",
-          "search_query",
-          "graph_query",
-          "graph_stats",
-          "graph_cycles",
-          "graph_impact",
-          "graph_trace",
-          "graph_symbol",
-          "graph_symbols",
-          "mem_recall",
-          "mem_search"
-        ]
+        "thinking": "high"
       },
       "context-builder": {
         "model": "gpt-5.4-mini",
-        "thinking": "medium",
-        "tools": [
-          "read",
-          "grep",
-          "find",
-          "ls",
-          "bash",
-          "write",
-          "web_search",
-          "intercom",
-          "index_status",
-          "graph_status",
-          "search_query",
-          "graph_query",
-          "graph_stats",
-          "graph_cycles",
-          "graph_impact",
-          "graph_trace",
-          "graph_symbol",
-          "graph_symbols",
-          "ctx_search",
-          "mem_recall",
-          "mem_search"
-        ]
+        "thinking": "medium"
       },
       "worker": {
         "model": "gpt-5.5",
-        "thinking": "high",
-        "tools": [
-          "read",
-          "grep",
-          "find",
-          "ls",
-          "bash",
-          "edit",
-          "write",
-          "contact_supervisor",
-          "index_status",
-          "graph_status",
-          "search_query",
-          "graph_query",
-          "graph_stats",
-          "graph_cycles",
-          "graph_impact",
-          "graph_trace",
-          "graph_symbol",
-          "graph_symbols",
-          "mem_recall",
-          "mem_search"
-        ]
+        "thinking": "high"
       },
       "researcher": {
         "model": "gpt-5.3-codex-spark",
@@ -388,28 +299,7 @@ cat > ~/.amaze/agent/settings.json <<'EOF'
       },
       "scout": {
         "model": "gpt-5.4-mini",
-        "thinking": "low",
-        "tools": [
-          "read",
-          "grep",
-          "find",
-          "ls",
-          "bash",
-          "write",
-          "intercom",
-          "index_status",
-          "graph_status",
-          "search_query",
-          "graph_query",
-          "graph_stats",
-          "graph_cycles",
-          "graph_impact",
-          "graph_trace",
-          "graph_symbol",
-          "graph_symbols",
-          "mem_recall",
-          "mem_search"
-        ]
+        "thinking": "low"
       },
       "delegate": {
         "model": "gpt-5.5",
@@ -417,29 +307,7 @@ cat > ~/.amaze/agent/settings.json <<'EOF'
       },
       "reviewer": {
         "model": "gpt-5.5",
-        "thinking": "high",
-        "tools": [
-          "read",
-          "grep",
-          "find",
-          "ls",
-          "bash",
-          "edit",
-          "write",
-          "intercom",
-          "index_status",
-          "graph_status",
-          "search_query",
-          "graph_query",
-          "graph_stats",
-          "graph_cycles",
-          "graph_impact",
-          "graph_trace",
-          "graph_symbol",
-          "graph_symbols",
-          "mem_recall",
-          "mem_search"
-        ]
+        "thinking": "high"
       }
     }
   },
@@ -477,14 +345,12 @@ Useful first checks inside amaze:
 
 ```text
 Use index_status to confirm Xenonite indexing is reachable.
-Use mem_recall with a harmless query to confirm durable memory is reachable.
-Use mem_optimize with dryRun=true, useLlm=false to confirm the memory optimizer endpoint is reachable without rewriting data.
 Use agent_run list to confirm subagents are loaded.
 ```
 
-## Xenonite API backend
+## Legacy Xenonite API backend
 
-amaze's built-in memory/search tools use the always-on Xenonite HTTP API directly. Users do not define these tools in `AGENTS.md`; they are registered by builtin extensions the same way `read` is registered by the runtime.
+Rocky tools may be registered through the amaze extension/tool layer. Legacy Xenonite direct core tools should stay separate from normal agent tool availability unless explicitly re-enabled.
 
 ```bash
 cd ~/rocky/xenonite
@@ -498,42 +364,9 @@ curl -s http://127.0.0.1:8700/health
 curl -s http://127.0.0.1:8700/v1/config
 ```
 
-### Memory scope rules
-
-Durable memory is intentionally split by scope:
-
-| Scope | Use for | Storage intent |
-|---|---|---|
-| `global` / `common` / `operator` | Steve/operator preferences, reporting style, stable personal workflow preferences | Shared across projects |
-| `project` / `repo` | Repo-wide verified facts, architectural decisions, persistent project constraints | Isolated per project path |
-| `path` / `folder` | Folder/work-package decisions, known failures, contract summaries | Isolated per path namespace |
-
-Operational rules:
-
-- `mem_recall` and `mem_search` default to project scope from the current working directory.
-- Passing `path` or `pathId` selects path/folder scope.
-- `mem_store` only keeps `scope: "global"` when `source: "direct_user_request"`; verified project facts are forced back to project scope.
-- FreshBoot path memory uses stable path ids and Xenonite namespaces, and child memory updates are committed only after validation.
-
-### Memory optimizer
-
-Run a dry-run before applying memory cleanup:
-
-```text
-mem_optimize({ "dryRun": true, "maxFacts": 200, "batchSize": 8, "useLlm": true })
-```
-
-Apply only after reviewing the dry-run result:
-
-```text
-mem_optimize({ "apply": true, "maxFacts": 200, "batchSize": 8, "useLlm": true })
-```
-
-The optimizer processes batches sequentially through Xenonite's configured rocky LLM, deduplicates facts by topic, removes transient/test artifacts, and reclassifies facts into global/project/path scopes.
-
 ## Troubleshooting
 
-- If `mem_recall` says Xenonite is unreachable, start Xenonite:
+- If a legacy Xenonite check is needed, start Xenonite:
   ```bash
   cd ~/rocky/xenonite
   docker compose up -d

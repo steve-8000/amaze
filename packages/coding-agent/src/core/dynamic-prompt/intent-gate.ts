@@ -9,12 +9,16 @@ function buildKeyTriggers(tools: AvailableTool[]): string {
 		return "- No specialized trigger tools are available on this turn.";
 	}
 
+	const hasContextEngine = tools.some((tool) => tool.name === "context_engine");
 	const lines = [
 		`- Specialized triggers available this turn: ${triggerTools}.`,
-		"- For repository discovery, use `context_engine` first; treat its default `targets[]` as a read plan, not final source evidence.",
-		"- When `context_engine` returns targets, call `code_read` with the provided `targets[].readArgs` before citing code, patching, or claiming exact source evidence.",
-		'- Request `context_engine` inline content only with `outputMode: "inline"` when a compact answer can be completed without exact source evidence.',
-		"- Memory tools are a separate primary channel for durable preferences, project facts, prior decisions, and memory maintenance.",
+		...(hasContextEngine
+			? [
+					"- For repository discovery, use `context_engine` first; treat its default `targets[]` as a read plan, not final source evidence.",
+					"- When `context_engine` returns targets, call `code_read` with the provided `targets[].readArgs` before citing code, patching, or claiming exact source evidence.",
+					'- Request `context_engine` inline content only with `outputMode: "inline"` when a compact answer can be completed without exact source evidence.',
+				]
+			: []),
 		...(fallbackTools
 			? [
 					`- Low-level repository tools available only for fallback, diagnostics, exact evidence spans, or explicit search/listing tasks: ${fallbackTools}.`,
@@ -26,7 +30,7 @@ function buildKeyTriggers(tools: AvailableTool[]): string {
 		lines.push(
 			"- Use `agent_run` orchestration as the default decision layer for repository, code, runtime, investigation, implementation, refactor, and debugging work, even when the user did not explicitly name it.",
 			"- Route the raw task through orchestration first so the orchestrator can classify the request, select the profile, and decide whether the profile should execute directly or use child agents.",
-			"- Bypass `agent_run` only for self-contained conversational answers, explicit non-repository memory maintenance, or when `agent_run` is unavailable.",
+			"- Bypass `agent_run` only for self-contained conversational answers or when `agent_run` is unavailable.",
 		);
 	}
 	return lines.join("\n");

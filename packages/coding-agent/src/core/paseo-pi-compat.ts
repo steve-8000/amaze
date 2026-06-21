@@ -54,9 +54,6 @@ function mapToolCallForPaseo(name: string, args: unknown): { name: string; argum
 				arguments: { command: `agent_run ${agent}`, amazeToolName: name, amazeArguments: args },
 			};
 		}
-		case "mem_recall":
-		case "mem_search":
-		case "mem_store":
 		case "create_goal":
 		case "update_goal":
 		case "get_goal":

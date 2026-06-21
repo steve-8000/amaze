@@ -145,4 +145,32 @@ describe("SettingsManager - External Edit Preservation", () => {
 		const savedProjectSettings = JSON.parse(readFileSync(projectSettingsPath, "utf-8"));
 		expect(savedProjectSettings.extensions).toEqual(["./in-memory-extension.ts"]);
 	});
+
+	it("should read native context optimizer settings from project settings", () => {
+		const projectSettingsPath = join(projectDir, CONFIG_DIR_NAME, "settings.json");
+		writeFileSync(
+			projectSettingsPath,
+			JSON.stringify({
+				contextOptimizer: {
+					mode: "audit",
+					compressToolResultsOverChars: 1234,
+					compressedToolResultHeadChars: 111,
+					compressedToolResultTailChars: 222,
+					preserveRecentMessages: 3,
+					preserveRecentToolResults: 4,
+				},
+			}),
+		);
+
+		const manager = SettingsManager.create(projectDir, agentDir);
+
+		expect(manager.getContextOptimizerSettings()).toEqual({
+			mode: "audit",
+			compressToolResultsOverChars: 1234,
+			compressedToolResultHeadChars: 111,
+			compressedToolResultTailChars: 222,
+			preserveRecentMessages: 3,
+			preserveRecentToolResults: 4,
+		});
+	});
 });

@@ -1,11 +1,11 @@
 {
   "contract_id": "readonly-scout",
-  "status": "completed",
-  "created_at": "2026-06-19T18:54:07.237Z",
-  "updated_at": "2026-06-19T18:55:21.617Z",
-  "run_id": "e2c8b8bc",
+  "status": "failed",
+  "created_at": "2026-06-20T10:28:24.682Z",
+  "updated_at": "2026-06-20T10:31:23.883Z",
+  "run_id": "0ff18718",
   "agent": "scout",
-  "task": "Investigate the amaze source/config for why memory and orchestrator/subagent behavior only happen when explicitly requested. Focus on actual files and evidence: amaze.toml flags, tool registration gates for mem_recall/mem_search, agent_run/orchestrator auto-trigger policy, AGENTS.md/dynamic prompt assembly. Return concise findings with file paths and line-level evidence if possible; do not edit files.",
+  "task": "Locate the build and local install/reflection workflow for the amaze repo at /Users/steve/rocky/amaze. Report only relevant files, scripts, commands, and any caveats. Do not modify files.",
   "path_contract": {
     "contract_id": "readonly-scout",
     "assigned_worker": "scout",
@@ -22,5 +22,6 @@
     }
   },
   "locks": [],
-  "exit_code": 0
+  "exit_code": 1,
+  "error": "Path contract readonly-scout exceeded activity budget max_tokens=270000"
 }

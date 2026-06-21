@@ -47,7 +47,8 @@ const DEFAULT_PROTECT_RECENT_TOKENS = 2000;
 const DEFAULT_MAX_ASSISTANT_TEXT_TOKENS = 500;
 const DEFAULT_MIN_SAVINGS_TOKENS = 100;
 const DEFAULT_KEEP_RECENT_TOOL_RESULTS = 3;
-const DEFAULT_CLEARED_PLACEHOLDER = "[tool result cleared]";
+const DEFAULT_CLEARED_PLACEHOLDER =
+	"[{toolName} result omitted by context compaction; the tool already ran. Do not treat this as missing evidence. Re-read only if exact content is still required.]";
 const DEFAULT_REPLACEMENT_TEMPLATE = "[response shrunk — {original_tokens} → {shrunk_tokens} tokens]";
 
 const MAX_HINTS_IN_LABEL = 5;
@@ -101,6 +102,10 @@ export interface ClearOldToolResultsResult {
 	messages: AgentMessage[];
 	tokensSaved: number;
 	toolResultsCleared: number;
+}
+
+function clearedToolResultPlaceholder(toolName: string): string {
+	return DEFAULT_CLEARED_PLACEHOLDER.split("{toolName}").join(toolName);
 }
 
 export interface ReduceContextOptions {
@@ -264,10 +269,14 @@ function buildGroupLabel(type: CollapsedGroupKind, operations: CollapsibleOperat
 		if (op.hint && hints.length < MAX_HINTS_IN_LABEL) hints.push(op.hint);
 	}
 	const noun = type === "read" ? "read results" : type === "search" ? "search results" : "shell results";
-	if (hints.length === 0) return `[${operations.length} ${noun}]`;
+	const readGuard =
+		type === "read"
+			? "; already read before compaction, do not repeat identical or overlapping read calls unless a new unresolved fact requires exact content"
+			: "";
+	if (hints.length === 0) return `[${operations.length} ${noun}${readGuard}]`;
 	const more = operations.length - hints.length;
 	const moreSuffix = more > 0 ? `, and ${more} more` : "";
-	return `[${operations.length} ${noun}: ${hints.join(", ")}${moreSuffix}]`;
+	return `[${operations.length} ${noun}: ${hints.join(", ")}${moreSuffix}${readGuard}]`;
 }
 
 function collectCollapsibleOperations(
@@ -465,7 +474,7 @@ export function clearOldToolResults(
 ): ClearOldToolResultsResult {
 	const keepRecent = Math.max(0, options.keepRecent ?? DEFAULT_KEEP_RECENT_TOOL_RESULTS);
 	const clearable = new Set(options.clearableToolNames ?? DEFAULT_CLEARABLE_TOOL_NAMES);
-	const replacementText = options.replacementText ?? DEFAULT_CLEARED_PLACEHOLDER;
+	const replacementText = options.replacementText;
 
 	const clearableIndices: number[] = [];
 	for (let i = 0; i < messages.length; i += 1) {
@@ -483,7 +492,6 @@ export function clearOldToolResults(
 	const result = messages.slice();
 	let tokensSaved = 0;
 	let toolResultsCleared = 0;
-	const replacementTokens = approxTextTokens(replacementText);
 
 	for (let k = 0; k < clearUntil; k += 1) {
 		const idx = clearableIndices[k];
@@ -493,10 +501,12 @@ export function clearOldToolResults(
 		const originalText = extractContentText(original.content);
 		const originalTokens = approxTextTokens(originalText);
 		const images = original.content.filter((c): c is ImageContent => c.type === "image");
+		const clearedText = replacementText ?? clearedToolResultPlaceholder(original.toolName);
 		result[idx] = {
 			...original,
-			content: [{ type: "text", text: replacementText } as TextContent, ...images],
+			content: [{ type: "text", text: clearedText } as TextContent, ...images],
 		};
+		const replacementTokens = approxTextTokens(clearedText);
 		const savings = originalTokens - replacementTokens;
 		if (savings > 0) tokensSaved += savings;
 		toolResultsCleared += 1;

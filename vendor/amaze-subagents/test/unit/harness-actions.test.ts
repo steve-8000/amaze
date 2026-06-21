@@ -1,13 +1,10 @@
 /// <reference types="node" />
 
 import assert from "node:assert/strict";
-import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { describe, it } from "node:test";
 import { createSubagentExecutor } from "../../src/runs/foreground/subagent-executor.ts";
-import { validateHarnessValidatorContract } from "../../src/harness/validator-contract.ts";
-import { TEMP_ROOT_DIR } from "../../src/shared/types.ts";
 
 function createState() {
 	return {
@@ -159,7 +156,7 @@ describe("harness actions", () => {
 		assert.match(text(result), /requires bootContract/);
 	});
 
-	it("compiles mission profiles through the executor harness action", async () => {
+	it("compiles direct mission routing through the executor harness action", async () => {
 		const result = await createExecutor().execute("run-1", {
 			action: "harness_compile_mission",
 			id: "mission-docs",
@@ -169,127 +166,28 @@ describe("harness actions", () => {
 		assert.equal(result.isError, undefined);
 		const parsed = JSON.parse(text(result)) as {
 			missionId: string;
-			route: { baseRuntime: string; validatorPack: string };
-			policy: { runtime: string; validatorPack: string };
+			route: { mode: string; agent: string };
+			policy: { route: { mode: string; agent: string }; contractTemplate: { agent: string } };
 		};
 		assert.equal(parsed.missionId, "mission-docs");
-		assert.equal(parsed.route.baseRuntime, "micro-direct");
-		assert.equal(parsed.route.validatorPack, "basic-diff");
-		assert.equal(parsed.policy.runtime, "micro-direct");
+		assert.equal(parsed.route.mode, "agent_direct");
+		assert.equal(parsed.route.agent, "worker");
+		assert.equal(parsed.policy.contractTemplate.agent, "worker");
 	});
 
-	it("compiles profiled orchestration into FreshBootContract-only child invocations", async () => {
+	it("dispatches orchestrate directly to the default worker agent", async () => {
 		const result = await createExecutor().execute("run-1", {
 			action: "orchestrate",
 			orchestrateOutput: "full",
 			id: "mission-runtime",
-			task: "Fix the subagent runtime so profile orchestration creates worker and reviewer contracts",
+			task: "Fix the subagent runtime through direct agent dispatch",
 		}, new AbortController().signal, undefined, ctx());
 
-		assert.equal(result.isError, undefined);
-		const parsed = JSON.parse(text(result)) as {
-			missionId: string;
-			policy: { agentPolicy: { agentType: string } };
-			executionPlan: {
-				mode: string;
-				childExecution: string;
-				contextBoundary: {
-					freshBootOnly: boolean;
-					parentContextDisabled: boolean;
-					contextFilesDisabled: boolean;
-					skillsDisabled: boolean;
-				};
-				steps: Array<{
-					role: string;
-					action: string;
-					bootContract: {
-						boot_mode: string;
-						parent_context: {
-							inherit_conversation: boolean;
-							inherit_system_prompt: boolean;
-							inherit_tools: boolean;
-							inherit_skills: boolean;
-						};
-						execution_contract: {
-							assigned_specialist: string;
-							assigned_path: string;
-							output_required: string[];
-							tool_policy: {
-								xenonite_first: boolean;
-								core_tools_available: boolean;
-								skills_available: boolean;
-								parent_tool_inheritance: boolean;
-							};
-							coordination: {
-								irc_required: boolean;
-								orchestrator_contact: string;
-								goal_updates_allowed: boolean;
-							};
-						};
-					};
-				}>;
-			};
-		};
-		assert.equal(parsed.missionId, "mission-runtime");
-		assert.equal(parsed.executionPlan.mode, "profiled_orchestration");
-		assert.equal(parsed.executionPlan.childExecution, "harness_run_contract_only");
-		assert.deepEqual(parsed.executionPlan.contextBoundary, {
-			freshBootOnly: true,
-			parentContextDisabled: true,
-			contextFilesDisabled: true,
-			skillsDisabled: false,
-		});
-		assert.deepEqual(parsed.executionPlan.steps.map((step) => step.role), ["scout", "planner", "worker", "reviewer"]);
-		for (const step of parsed.executionPlan.steps) {
-			assert.equal(step.action, "harness_run_contract");
-			assert.equal(step.bootContract.boot_mode, "fresh");
-			assert.equal(validateHarnessValidatorContract(step.bootContract as any).status, "valid");
-			assert.deepEqual(step.bootContract.parent_context, {
-				inherit_conversation: false,
-				inherit_system_prompt: false,
-				inherit_tools: false,
-				inherit_skills: false,
-			});
-			assert.ok(step.bootContract.execution_contract.assigned_specialist);
-			assert.ok(step.bootContract.execution_contract.assigned_path);
-			assert.deepEqual(step.bootContract.execution_contract.tool_policy, {
-				xenonite_first: true,
-				core_tools_available: true,
-				skills_available: true,
-				parent_tool_inheritance: false,
-			});
-			assert.deepEqual(step.bootContract.execution_contract.coordination, {
-				irc_required: true,
-				orchestrator_contact: "intercom",
-				goal_updates_allowed: true,
-			});
-		assert.ok(step.bootContract.execution_contract.output_required.includes("memory_updates"));
-		}
+		assert.equal(result.isError, true);
+		assert.equal(text(result), "Unknown agent: worker");
 	});
 
-	it("stores profiled orchestration state under the temp harness root", async () => {
-		const repoCwd = path.join(os.tmpdir(), `amaze-harness-repo-${Date.now()}-${Math.random().toString(16).slice(2)}`);
-		const harnessRoot = path.join(TEMP_ROOT_DIR, "harness-state", ".harness", "state", "orchestrator");
-		fs.rmSync(repoCwd, { recursive: true, force: true });
-		fs.rmSync(harnessRoot, { recursive: true, force: true });
-		fs.mkdirSync(repoCwd, { recursive: true });
-
-		const result = await createExecutor().execute("run-1", {
-			action: "orchestrate",
-			orchestrateOutput: "full",
-			id: "mission-temp-state",
-			task: "Fix the subagent runtime so orchestration state is isolated",
-			cwd: repoCwd,
-		}, new AbortController().signal, undefined, ctx(repoCwd));
-
-		assert.equal(result.isError, undefined);
-		assert.equal(fs.existsSync(path.join(repoCwd, ".harness", "state", "orchestrator")), false);
-		assert.equal(fs.existsSync(path.join(harnessRoot, "mission-temp-state.json")), true);
-		assert.equal(fs.existsSync(path.join(harnessRoot, "events.jsonl")), true);
-		fs.rmSync(repoCwd, { recursive: true, force: true });
-	});
-
-	it("fans out workers by mentioned folder paths", async () => {
+	it("does not fan out workers by mentioned folder paths", async () => {
 		const result = await createExecutor().execute("run-1", {
 			action: "orchestrate",
 			orchestrateOutput: "full",
@@ -297,67 +195,47 @@ describe("harness actions", () => {
 			task: "Update packages/coding-agent/src/core and vendor/amaze-subagents/src/runs for orchestration",
 		}, new AbortController().signal, undefined, ctx());
 
-		assert.equal(result.isError, undefined);
-		const parsed = JSON.parse(text(result)) as {
-			executionPlan: {
-				steps: Array<{
-					role: string;
-					bootContract: { execution_contract: { assigned_path: string } };
-				}>;
-			};
-		};
-		const workerPaths = parsed.executionPlan.steps
-			.filter((step) => step.role === "worker")
-			.map((step) => step.bootContract.execution_contract.assigned_path);
-		assert.deepEqual(workerPaths, ["packages/coding-agent/src/core", "vendor/amaze-subagents/src/runs"]);
+		assert.equal(result.isError, true);
+		assert.equal(text(result), "Unknown agent: worker");
 	});
 
-	it("executes profiled orchestration by default for task-only subagent calls", async () => {
+	it("uses direct worker dispatch by default for task-only subagent calls", async () => {
 		const result = await createExecutor().execute("run-1", {
 			id: "mission-default",
-			task: "Fix the subagent runtime so profile orchestration is the default path",
+			task: "Fix the subagent runtime through direct agent dispatch",
 		}, new AbortController().signal, undefined, ctx());
 
 		assert.equal(result.isError, true);
-		const parsed = JSON.parse(text(result)) as {
-			missionId: string;
-			status: string;
-			failedStep: { role: string; profile: string; assignedPath: string };
-			results: Array<{ role: string; profile: string; assignedPath: string; exitCode: number }>;
-		};
-		assert.equal(parsed.missionId, "mission-default");
-		assert.equal(parsed.status, "failed");
-		assert.equal(parsed.failedStep.role, "scout");
-		assert.deepEqual(parsed.results.map((step) => step.role), ["scout"]);
-		assert.equal(parsed.results[0]?.exitCode, 1);
+		assert.equal(text(result), "Unknown agent: worker");
 	});
 
-	it("returns a Desktop-safe delegation decision without child contracts", async () => {
+	it("returns a direct agent dispatch decision without child contracts", async () => {
 		const result = await createExecutor().execute("run-1", {
 			action: "orchestrate_decision",
 			id: "mission-decision",
-			task: "Fix the subagent runtime so profile orchestration can decide delegation",
+			task: "Fix the subagent runtime through direct agent dispatch",
 		}, new AbortController().signal, undefined, ctx());
 
 		assert.equal(result.isError, undefined);
 		const parsed = JSON.parse(text(result)) as {
 			missionId: string;
 			mode: string;
-			baseRuntime: string;
-			roles: Array<{ role: string; profile: string }>;
+			agent: string;
+			task: string;
 			parentInstructions: string[];
 		};
 		const resultText = JSON.stringify(parsed);
 		assert.equal(parsed.missionId, "mission-decision");
-		assert.equal(parsed.mode, "external_delegation_recommended");
-		assert.equal(parsed.baseRuntime, "large-mission");
-		assert.ok(parsed.roles.some((role) => role.role === "worker" && role.profile === "path_specialist"));
-		assert.ok(parsed.parentInstructions.some((item) => item.includes("Do not require live child model calls")));
+		assert.equal(parsed.mode, "agent_direct");
+		assert.equal(parsed.agent, "worker");
+		assert.equal(parsed.task, "Fix the subagent runtime through direct agent dispatch");
+		assert.ok(parsed.parentInstructions.some((item) => item.includes("Invoke agent 'worker' directly")));
+		assert.ok(!resultText.includes("path_specialist"));
 		assert.ok(!resultText.includes("bootContract"));
 		assert.ok(!resultText.includes("FreshBootContract"));
 	});
 
-	it("starts mission profiles and persists mission state", async () => {
+	it("starts direct mission routing and persists mission state", async () => {
 		const tempDir = path.join(os.tmpdir(), `amaze-harness-mission-${Date.now()}-${Math.random().toString(16).slice(2)}`);
 		const result = await createExecutor().execute("run-1", {
 			action: "harness_start_mission",
@@ -369,12 +247,14 @@ describe("harness actions", () => {
 		assert.equal(result.isError, undefined);
 		const parsed = JSON.parse(text(result)) as {
 			missionId: string;
-			record: { status: string; final_route?: { baseRuntime: string; validatorPack: string } };
-			policy: { runtime: string; validatorPack: string };
+			record: { status: string; final_route?: { mode: string; agent: string } };
+			policy: { route: { mode: string; agent: string }; acceptanceLevel: string; validationLevel: string };
 		};
 		assert.equal(parsed.missionId, "mission-helm");
 		assert.equal(parsed.record.status, "POLICY_COMPILED");
-		assert.equal(parsed.record.final_route?.baseRuntime, "infra-k8s");
-		assert.equal(parsed.policy.validatorPack, "infra-k8s");
+		assert.equal(parsed.record.final_route?.mode, "agent_direct");
+		assert.equal(parsed.record.final_route?.agent, "worker");
+		assert.equal(parsed.policy.acceptanceLevel, "reviewed");
+		assert.equal(parsed.policy.validationLevel, "verified");
 	});
 });

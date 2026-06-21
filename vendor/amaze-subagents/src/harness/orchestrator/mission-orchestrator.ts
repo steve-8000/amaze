@@ -2,26 +2,25 @@
 
 import { createHash } from "node:crypto";
 import type { PlanContractDagInput } from "../contract-dag.ts";
-import { MAX_RUNTIME_ROUTE_CHANGES } from "./profile-catalog.ts";
+import { MAX_DIRECT_AGENT_ROUTE_CHANGES, routeDirectAgent } from "./agent-router.ts";
 import { compileExecutionPolicy } from "./policy-compiler.ts";
 import { createContractDagFromPlanner, type PlannerGatewayResult } from "./planner-gateway.ts";
 import { normalizeRequest } from "./request-normalizer.ts";
-import { routeProfiles } from "./profile-router.ts";
 import { createMissionState, transitionMissionState } from "./mission-state-store.ts";
 import { classifyMission } from "./task-classifier.ts";
 import type {
 	ExecutionPolicy,
+	DirectMissionRoute,
 	MissionClassification,
 	MissionOrchestratorRecord,
 	NormalizedRequest,
-	ProfileRoute,
 } from "./types.ts";
 
 export interface MissionPolicyCompileResult {
 	missionId: string;
 	normalized: NormalizedRequest;
 	classification: MissionClassification;
-	route: ProfileRoute;
+	route: DirectMissionRoute;
 	policy: ExecutionPolicy;
 }
 
@@ -55,7 +54,7 @@ function safeMissionId(rawRequest: string): string {
 export function compileMissionPolicy(rawRequest: string, missionId = safeMissionId(rawRequest)): MissionPolicyCompileResult {
 	const normalized = normalizeRequest(rawRequest);
 	const classification = classifyMission(normalized, missionId);
-	const route = routeProfiles(classification, normalized);
+	const route = routeDirectAgent({ classification, normalized });
 	const policy = compileExecutionPolicy(route, classification);
 	return {
 		missionId,
@@ -66,13 +65,10 @@ export function compileMissionPolicy(rawRequest: string, missionId = safeMission
 	};
 }
 
-function sameRoute(left: ProfileRoute | undefined, right: ProfileRoute): boolean {
+function sameRoute(left: DirectMissionRoute | undefined, right: DirectMissionRoute): boolean {
 	return Boolean(left)
-		&& left?.baseRuntime === right.baseRuntime
-		&& left.workPattern === right.workPattern
-		&& left.validatorPack === right.validatorPack
-		&& left.domainOverlays.length === right.domainOverlays.length
-		&& left.domainOverlays.every((overlay, index) => overlay === right.domainOverlays[index]);
+		&& left?.mode === right.mode
+		&& left.agent === right.agent;
 }
 
 function policiesMatch(left: ExecutionPolicy, right: ExecutionPolicy): boolean {
@@ -88,7 +84,7 @@ export function startMission(rawRequest: string, options: StartMissionOptions = 
 	record = transitionMissionState(record, "NORMALIZED", { normalized }, cwd, now);
 	const classification = classifyMission(normalized, missionId);
 	record = transitionMissionState(record, "CLASSIFIED", { classification }, cwd, now);
-	const preRoute = routeProfiles(classification, normalized);
+	const preRoute = routeDirectAgent({ classification, normalized });
 	record = transitionMissionState(record, "PRE_ROUTED", { pre_route: preRoute }, cwd, now);
 	const finalRoute = preRoute;
 	record = transitionMissionState(record, "FINAL_ROUTED", { final_route: finalRoute }, cwd, now);
@@ -116,10 +112,10 @@ export function rerouteMissionAtCheckpoint(
 	const rawRequest = options.rawRequest ?? record.raw_request;
 	const normalized = normalizeRequest(rawRequest);
 	const classification = classifyMission(normalized, record.mission_id);
-	const route = routeProfiles(classification, normalized);
+	const route = routeDirectAgent({ classification, normalized });
 	const routeChanged = !sameRoute(record.final_route, route);
-	if (routeChanged && record.route_changes >= MAX_RUNTIME_ROUTE_CHANGES) {
-		throw new Error(`Mission ${record.mission_id} exceeded runtime route change budget ${MAX_RUNTIME_ROUTE_CHANGES}`);
+	if (routeChanged && record.route_changes >= MAX_DIRECT_AGENT_ROUTE_CHANGES) {
+		throw new Error(`Mission ${record.mission_id} exceeded direct agent route change budget ${MAX_DIRECT_AGENT_ROUTE_CHANGES}`);
 	}
 	const timestamp = new Date(now()).toISOString();
 	const routeChanges = routeChanged ? record.route_changes + 1 : record.route_changes;
@@ -133,8 +129,8 @@ export function rerouteMissionAtCheckpoint(
 			{
 				timestamp,
 				reason: options.reason,
-				from_runtime: record.final_route?.baseRuntime,
-				to_runtime: route.baseRuntime,
+				from_agent: record.final_route?.agent,
+				to_agent: route.agent,
 			},
 		],
 	}, cwd, now);

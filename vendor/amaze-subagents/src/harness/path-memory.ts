@@ -8,7 +8,6 @@ import { validatePathMemoryUpdates } from "./memory-update-validator.ts";
 export const PATH_MEMORY_PACKET_ENV = "PI_SUBAGENT_PATH_MEMORY_PACKET";
 
 export interface PathMemoryInclude {
-	profile?: boolean;
 	conventions?: boolean;
 	recent_decisions?: number;
 	known_failures?: number;
@@ -81,7 +80,6 @@ export interface PathMemoryHistoryRecord extends PathMemoryUpdate {
 }
 
 const DEFAULT_INCLUDE: Required<PathMemoryInclude> = {
-	profile: true,
 	conventions: true,
 	recent_decisions: 8,
 	known_failures: 6,
@@ -97,7 +95,6 @@ function asObject(value: unknown): Record<string, unknown> | undefined {
 
 function normalizeInclude(include: PathMemoryInclude | undefined): Required<PathMemoryInclude> {
 	return {
-		profile: include?.profile ?? DEFAULT_INCLUDE.profile,
 		conventions: include?.conventions ?? DEFAULT_INCLUDE.conventions,
 		recent_decisions: include?.recent_decisions ?? DEFAULT_INCLUDE.recent_decisions,
 		known_failures: include?.known_failures ?? DEFAULT_INCLUDE.known_failures,
@@ -178,7 +175,6 @@ function renderAttachment(cwd: string, attachment: PathMemoryAttachment, warning
 	const include = normalizeInclude(attachment.include);
 	const memoryRoot = resolveMemoryPath(cwd, attachment.memory_path);
 	const sections: string[] = [];
-	if (include.profile) pushSection(sections, "profile.md", readTextFile(path.join(memoryRoot, "profile.md"), warnings));
 	if (include.conventions) pushSection(sections, "conventions.md", readTextFile(path.join(memoryRoot, "conventions.md"), warnings));
 	pushSection(sections, "decisions.jsonl", readJsonlTail(path.join(memoryRoot, "decisions.jsonl"), include.recent_decisions, warnings));
 	pushSection(sections, "known-failures.jsonl", readJsonlTail(path.join(memoryRoot, "known-failures.jsonl"), include.known_failures, warnings)

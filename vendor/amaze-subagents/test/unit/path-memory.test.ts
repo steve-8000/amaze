@@ -35,11 +35,10 @@ describe("path memory packet rendering", () => {
 		assert.equal(xenoniteNamespaceFromPath("./charts/my-service/"), "path:charts/my-service");
 	});
 
-	it("renders path-local profile, conventions, and bounded jsonl experience", () => {
+	it("renders path-local conventions and bounded jsonl experience", () => {
 		const repo = makeTempDir();
 		const memoryPath = path.join(repo, ".harness", "memory", "paths", "packages", "coding-agent", "src", "runtime");
 		fs.mkdirSync(memoryPath, { recursive: true });
-		fs.writeFileSync(path.join(memoryPath, "profile.md"), "Runtime path profile");
 		fs.writeFileSync(path.join(memoryPath, "conventions.md"), "Persist state before external execution.");
 		fs.writeFileSync(path.join(memoryPath, "decisions.jsonl"), [
 			JSON.stringify({ type: "decision", summary: "old decision" }),
@@ -65,7 +64,6 @@ describe("path memory packet rendering", () => {
 		assert.equal(packet.warnings.length, 0);
 		assert.match(packet.markdown, /# Path Memory Packet/);
 		assert.match(packet.markdown, /"xenonite_namespace": "path:packages\/coding-agent\/src\/runtime"/);
-		assert.match(packet.markdown, /Runtime path profile/);
 		assert.match(packet.markdown, /Persist state before external execution/);
 		assert.doesNotMatch(packet.markdown, /old decision/);
 		assert.match(packet.markdown, /new decision/);

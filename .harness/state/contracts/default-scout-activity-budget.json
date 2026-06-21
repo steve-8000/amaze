@@ -1,20 +1,20 @@
 {
   "contract_id": "default-scout-activity-budget",
-  "status": "completed",
-  "created_at": "2026-06-17T22:49:41.009Z",
-  "updated_at": "2026-06-17T22:50:05.237Z",
-  "run_id": "0778f64e",
+  "status": "failed",
+  "created_at": "2026-06-21T03:58:07.691Z",
+  "updated_at": "2026-06-21T04:00:40.642Z",
+  "run_id": "2a9e64ee",
   "agent": "scout",
-  "task": "Find the code and tests that render the terminal/TUI message boxes titled `AMAZE` and `User Prompt`. Do not edit. Return only file paths, functions/classes, and likely test command. Stop after exact locations.\n\n---\n**Output:** Write your findings to: /Users/steve/rocky/amaze/context.md",
+  "task": "Repository reconnaissance only, no edits. Find where amaze dispatches local tools/read/grep/find/bash, where runtime/tool policy gates live, and which tests cover tool dispatch. We need a minimal core Rocky-first guard that blocks first low-level repo exploration until rocky_search or rocky_context_build has been used, with exceptions for exact file read, Rocky unavailable/debugging, and existing Rocky evidence. Return concise file paths and recommended patch points.",
   "path_contract": {
     "contract_id": "default-scout-activity-budget",
     "assigned_worker": "scout",
     "activity_budget": {
-      "max_tool_uses": 80,
-      "max_tokens": 150000,
+      "max_tokens": 270000,
       "max_elapsed_ms": 300000
     }
   },
   "locks": [],
-  "exit_code": 0
+  "exit_code": 1,
+  "error": "Repeated identical tool call detected: grep invoked 3 times with the same arguments."
 }

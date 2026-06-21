@@ -35,7 +35,7 @@ describe("buildDynamicSystemPrompt", () => {
 		const prompt = buildDynamicSystemPrompt(baseOptions);
 
 		expect(prompt).toContain("## Parallel Tool Calls");
-		expect(prompt).toContain("Use one `context_engine` call first");
+		expect(prompt).toContain("Repository-context exploration is the exception");
 	});
 
 	test("prefers Xenonite context_engine before manual search fanout when available", () => {
