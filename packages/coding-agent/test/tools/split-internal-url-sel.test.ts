@@ -12,10 +12,18 @@ describe("splitInternalUrlSel", () => {
 		expect(splitInternalUrlSel("artifact://3:1-100")).toEqual({ path: "artifact://3", sel: "1-100" });
 		expect(splitInternalUrlSel("artifact://3:50+150")).toEqual({ path: "artifact://3", sel: "50+150" });
 		expect(splitInternalUrlSel("artifact://3:50-")).toEqual({ path: "artifact://3", sel: "50-" });
+		expect(splitInternalUrlSel("history://ContractMapper:149-260")).toEqual({
+			path: "history://ContractMapper",
+			sel: "149-260",
+		});
 	});
 
 	it("peels a `raw` selector", () => {
 		expect(splitInternalUrlSel("artifact://3:raw")).toEqual({ path: "artifact://3", sel: "raw" });
+		expect(splitInternalUrlSel("history://ContractMapper:raw")).toEqual({
+			path: "history://ContractMapper",
+			sel: "raw",
+		});
 	});
 
 	it("peels compound `raw:range` selectors in either order", () => {

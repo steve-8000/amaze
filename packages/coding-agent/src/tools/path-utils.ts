@@ -30,6 +30,7 @@ const INTERNAL_SCHEMES_WITH_SELECTORS: Record<string, true> = {
 	agent: true,
 	artifact: true,
 	issue: true,
+	history: true,
 	local: true,
 	memory: true,
 	amaze: true,

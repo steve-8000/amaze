@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Fixed `read history://<agentId>:<selector>` so line ranges and `:raw` are peeled before `history://` resolution instead of being treated as part of the agent id.
+
 ## [3.1.0] - 2026-06-25
 
 ### Added

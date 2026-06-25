@@ -12,11 +12,14 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import { Settings } from "@amaze/pi-coding-agent/config/settings";
 import { InternalUrlRouter } from "@amaze/pi-coding-agent/internal-urls";
 import { HistoryProtocolHandler } from "@amaze/pi-coding-agent/internal-urls/history-protocol";
 import { AgentRegistry } from "@amaze/pi-coding-agent/registry/agent-registry";
 import type { AgentSession } from "@amaze/pi-coding-agent/session/agent-session";
 import { CURRENT_SESSION_VERSION } from "@amaze/pi-coding-agent/session/session-entries";
+import type { ToolSession } from "@amaze/pi-coding-agent/tools";
+import { ReadTool } from "@amaze/pi-coding-agent/tools/read";
 
 async function withTempDir<T>(fn: (dir: string) => Promise<T>): Promise<T> {
 	const dir = await fs.mkdtemp(path.join(os.tmpdir(), "history-protocol-"));
@@ -29,6 +32,21 @@ async function withTempDir<T>(fn: (dir: string) => Promise<T>): Promise<T> {
 
 function fakeLiveSession(messages: unknown[]): AgentSession {
 	return { messages } as unknown as AgentSession;
+}
+
+function fakeToolSession(cwd: string): ToolSession {
+	return {
+		cwd,
+		hasUI: false,
+		settings: Settings.isolated(),
+	} as unknown as ToolSession;
+}
+
+function textOutput(result: { content: Array<{ type: string; text?: string }> }): string {
+	return result.content
+		.filter((part): part is { type: "text"; text: string } => part.type === "text")
+		.map(part => part.text)
+		.join("\n");
 }
 
 /** Minimal current-version session JSONL: header + a linear user/assistant chain. */
@@ -144,6 +162,31 @@ describe("history:// protocol", () => {
 			expect(resource.content).toContain("parked reply");
 			expect(resource.sourcePath).toBe(sessionFile);
 			expect(resource.notes?.join("\n")).toContain("read-only");
+		});
+	});
+
+	it("read tool applies selectors to history:// transcripts instead of agent ids", async () => {
+		await withTempDir(async dir => {
+			const sessionFile = path.join(dir, "parked.jsonl");
+			await Bun.write(sessionFile, sessionFixtureJsonl());
+			AgentRegistry.global().register({
+				id: "ContractMapper",
+				displayName: "finder",
+				kind: "sub",
+				session: null,
+				sessionFile,
+				status: "parked",
+			});
+
+			const read = new ReadTool(fakeToolSession(dir));
+			const ranged = textOutput(
+				await read.execute("read-history-range", { path: "history://ContractMapper:1-999" }),
+			);
+			const raw = textOutput(await read.execute("read-history-raw", { path: "history://ContractMapper:raw" }));
+
+			expect(ranged).toContain("parked hello");
+			expect(raw).toContain("# ContractMapper (parked)");
+			expect(raw).toContain("parked reply");
 		});
 	});
 
