@@ -123,7 +123,7 @@ cd rocky
 uv sync
 ```
 
-Rocky ships with the `rocky-codebase` backend wired as `bin/rocky-codebase` in the Rocky checkout. If that binary is present, no separate codebase repository is required. If it is missing, build or copy the engine following the Rocky repository instructions.
+Rocky ships with the `rocky-codebase` backend wired as `bin/rocky-codebase`. On macOS arm64 that file is a launcher that expands Rocky's bundled compressed C-engine archive on first use, so no separate codebase repository or maintainer-local checkout is required.
 
 ### 4. Start Rocky
 
