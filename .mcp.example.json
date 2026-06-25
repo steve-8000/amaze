@@ -3,23 +3,10 @@
   "mcpServers": {
     "rocky-skills": {
       "type": "http",
-      "url": "http://127.0.0.1:7777/mcp",
+      "url": "http://localhost:7777/mcp",
       "headers": {
-        "Authorization": "Bearer ${ROCKY_API_KEY}"
-      },
-      "timeout": 30000
-    },
-    "filesystem-example": {
-      "enabled": false,
-      "type": "stdio",
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-filesystem",
-        "${AMAZE_MCP_FILESYSTEM_ROOT:-.}"
-      ],
-      "timeout": 30000
+        "Authorization": "Bearer rocky-secret"
+      }
     }
-  },
-  "disabledServers": []
+  }
 }

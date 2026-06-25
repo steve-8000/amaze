@@ -276,6 +276,28 @@ Relevant Slack endpoints from Slack's docs:
 
 ## Common copy-paste examples
 
+### Rocky skills + codebase backend via HTTP
+
+This is the local Amaze + Rocky setup used by this repository:
+
+```json
+{
+  "$schema": "https://raw.githubusercontent.com/can1357/amaze-agent/main/packages/coding-agent/src/config/mcp-schema.json",
+  "mcpServers": {
+    "rocky-skills": {
+      "type": "http",
+      "url": "http://localhost:7777/mcp",
+      "headers": {
+        "Authorization": "Bearer rocky-secret"
+      }
+    }
+  }
+}
+```
+
+Use the server name `rocky-skills`; Amaze namespaces its tools as `mcp__rocky_skills_*`.
+
+
 ### Filesystem server via stdio
 
 ```json

@@ -4,13 +4,13 @@
 
 # Amaze + Rocky
 
-**Amaze is the agent. Rocky is the brain beside it.**
+**Amaze is the agent. Rocky is the local skills-registry + codebase backend beside it.**
 
-Amaze runs the terminal coding-agent: it reads files, edits code, runs commands, opens browsers, drives debuggers, spawns subagents, and verifies work. Rocky is the local intelligence backend that makes the agent useful on a real repository: it stores reusable skills and gives the agent graph-based codebase search before it starts opening random files.
+Amaze runs the terminal coding-agent: it reads files, edits code, runs commands, opens browsers, drives debuggers, spawns subagents, and verifies work. Rocky provides the local backend the agent uses before broad file reads: managed skill storage plus graph-based codebase tools.
 
 If you only remember one thing:
 
-> Install Amaze, run Rocky locally, connect Amaze to Rocky through `.mcp.json`, then tell the agent to index your project.
+> Install Amaze, run Rocky locally with `ROCKY_API_KEY=rocky-secret`, connect Amaze through `.mcp.json`, then tell the agent to search Rocky skills and use Rocky codebase tools before broad reads.
 
 ## What Rocky adds
 
@@ -123,40 +123,31 @@ cd rocky
 uv sync
 ```
 
-Rocky expects a codebase backend binary. In this workspace the paired codebase engine is kept beside it:
-
-```sh
-cd ~/amaze_s3
-git clone https://github.com/DeusData/amaze-codebase.git rocky-codebase
-```
-
-If Rocky already has `bin/rocky-codebase`, no extra step is needed. Otherwise build/copy the codebase binary according to the Rocky repository instructions.
+Rocky ships with the `rocky-codebase` backend wired as `bin/rocky-codebase` in the Rocky checkout. If that binary is present, no separate codebase repository is required. If it is missing, build or copy the engine following the Rocky repository instructions.
 
 ### 4. Start Rocky
 
-For a local no-auth development setup:
+Use the same local authenticated setup as this workspace:
 
 ```sh
 cd ~/amaze_s3/rocky
+ROCKY_API_KEY=rocky-secret \
 ROCKY_RUNTIME_ROOT=$PWD/.rocky \
 ROCKY_SKILLS_DIR=$HOME/.rocky/skills \
 uvicorn rocky.mcp_app:app --host 127.0.0.1 --port 7777
+```
+
+Equivalent CLI:
+
+```sh
+cd ~/amaze_s3/rocky
+uv run rocky serve --host 127.0.0.1 --port 7777 --api-key rocky-secret
 ```
 
 Health check:
 
 ```sh
 curl http://127.0.0.1:7777/healthz
-```
-
-For a shared or more locked-down setup, add a bearer token:
-
-```sh
-cd ~/amaze_s3/rocky
-ROCKY_API_KEY=change-this-token \
-ROCKY_RUNTIME_ROOT=$PWD/.rocky \
-ROCKY_SKILLS_DIR=$HOME/.rocky/skills \
-uvicorn rocky.mcp_app:app --host 127.0.0.1 --port 7777
 ```
 
 ### 5. Connect Amaze to Rocky
@@ -168,7 +159,7 @@ cd ~/amaze_s3/amaze
 cp .mcp.example.json .mcp.json
 ```
 
-Use this minimal `.mcp.json` when Rocky has no bearer token:
+The committed sample `.mcp.example.json` matches the local Rocky setup:
 
 ```json
 {
@@ -176,39 +167,21 @@ Use this minimal `.mcp.json` when Rocky has no bearer token:
   "mcpServers": {
     "rocky-skills": {
       "type": "http",
-      "url": "http://127.0.0.1:7777/mcp",
-      "timeout": 30000
-    }
-  },
-  "disabledServers": []
-}
-```
-
-Use this version when Rocky is started with `ROCKY_API_KEY`:
-
-```json
-{
-  "$schema": "https://raw.githubusercontent.com/can1357/amaze-agent/main/packages/coding-agent/src/config/mcp-schema.json",
-  "mcpServers": {
-    "rocky-skills": {
-      "type": "http",
-      "url": "http://127.0.0.1:7777/mcp",
+      "url": "http://localhost:7777/mcp",
       "headers": {
-        "Authorization": "Bearer ${ROCKY_API_KEY}"
-      },
-      "timeout": 30000
+        "Authorization": "Bearer rocky-secret"
+      }
     }
-  },
-  "disabledServers": []
+  }
 }
 ```
 
 Important:
 
-- Use the server name `rocky-skills`.
-- Keep `.mcp.json` private. It is ignored by git.
-- Commit only `.mcp.example.json` with placeholders.
-- If you use `${ROCKY_API_KEY}` in `.mcp.json`, export that variable before launching Amaze.
+- Use the server name `rocky-skills`; `rocky-codebase` is disabled by name in Amaze's MCP compatibility guard.
+- Rocky tools appear in Amaze as `mcp__rocky_skills_*`.
+- Keep `.mcp.json` private for machine-local endpoints or real tokens. Commit only `.mcp.example.json` with safe sample values.
+- If you choose a different `ROCKY_API_KEY`, update the `Authorization` header before launching Amaze.
 
 ### 6. Add model credentials
 
@@ -283,7 +256,7 @@ Use this loop for repository work:
 | Smoke test | `amaze --smoke-test` |
 | Full repo check | `bun run check` |
 | TypeScript check only | `bun run check:ts` |
-| Start Rocky | `uvicorn rocky.mcp_app:app --host 127.0.0.1 --port 7777` |
+| Start Rocky | `ROCKY_API_KEY=rocky-secret uvicorn rocky.mcp_app:app --host 127.0.0.1 --port 7777` |
 | Rocky health | `curl http://127.0.0.1:7777/healthz` |
 
 ## Private files and safe samples
