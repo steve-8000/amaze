@@ -1,10 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { prompt } from "@oh-my-pi/pi-utils";
+import { prompt } from "@amaze/pi-utils";
 import taskDescriptionTemplate from "../../src/prompts/tools/task.md" with { type: "text" };
 
-// Contract: the task tool description the model sees advertises the `role`
-// parameter (in both the batch and flat shapes) and steers toward tailored
-// specialists. Without this the `role` field added in #2467 stays dormant.
+// Contract: the task tool description the model sees advertises the optional
+// `role` parameter while routing primarily by the simple contract agent names.
 
 function render(batchEnabled: boolean): string {
 	return prompt.render(taskDescriptionTemplate, {
@@ -18,11 +17,11 @@ function render(batchEnabled: boolean): string {
 	});
 }
 
-describe("task tool description: role parameter", () => {
+describe("task tool description: contract agents", () => {
 	it("documents `role` in the batch parameter list", () => {
 		const out = render(true);
 		expect(out).toContain("`role`:");
-		expect(out).toMatch(/specialist identity/i);
+		expect(out).toMatch(/optional short specialization label/i);
 	});
 
 	it("documents `role` in the flat (single-spawn) parameter list", () => {
@@ -30,10 +29,13 @@ describe("task tool description: role parameter", () => {
 		expect(out).toContain("`role`:");
 	});
 
-	it("makes tailored specialists the default, not the exception, in the rules", () => {
+	it("makes the simple contract roster the routing default", () => {
 		const out = render(true);
-		// Stable invariant — tailoring tied to `role` on one directive line —
-		// rather than the exact copy-edited wording/capitalization.
-		expect(out).toMatch(/tailor[^\n]*role/i);
+		expect(out).toContain("`thinker`: hard judgment");
+		expect(out).toContain("`coder`: complex implementation");
+		expect(out).toContain("`finder`: read-only investigation");
+		expect(out).toContain("`fixer`: small, clear");
+		expect(out).toContain("`checker`: review");
+		expect(out).toContain("`helper`: cheap summarization");
 	});
 });

@@ -1,15 +1,10 @@
-import * as path from "node:path";
-import type { AgentTool, AgentToolResult } from "@oh-my-pi/pi-agent-core";
+import type { AgentTool, AgentToolResult } from "@amaze/pi-agent-core";
 import { type } from "arktype";
-import {
-	deleteManagedSkill,
-	getManagedSkillsDir,
-	sanitizeSkillName,
-	writeManagedSkill,
-} from "../autolearn/managed-skills";
+import { sanitizeSkillName } from "../autolearn/managed-skills";
 import { isNameClaimedByAuthoredSkill } from "../extensibility/skills";
 import manageSkillDescription from "../prompts/tools/manage-skill.md" with { type: "text" };
 import type { ToolSession } from ".";
+import { deleteRockyManagedSkill, writeRockyManagedSkill } from "./rocky-skill-backend";
 
 const manageSkillSchema = type({
 	action: "'create' | 'update' | 'delete'",
@@ -32,8 +27,8 @@ const manageSkillSchema = type({
 export type ManageSkillParams = typeof manageSkillSchema.infer;
 
 /**
- * Direct create/update/delete of isolated managed skills. Gated behind
- * `autolearn.enabled`; backend-independent (the skill side is standalone).
+ * Direct create/update/delete of Rocky-backed managed skills. Gated behind
+ * `autolearn.enabled`; Rocky owns the canonical skill store.
  */
 export class ManageSkillTool implements AgentTool<typeof manageSkillSchema> {
 	readonly name = "manage_skill";
@@ -43,20 +38,20 @@ export class ManageSkillTool implements AgentTool<typeof manageSkillSchema> {
 	readonly parameters = manageSkillSchema;
 	readonly strict = true;
 	readonly loadMode = "essential" as const;
-	readonly summary = "Create, update, or delete an isolated managed skill";
+	readonly summary = "Create, update, or delete a Rocky-backed managed skill";
 
-	// No session state needed: createIf reads settings; writes target the
-	// home-based managed-skills dir directly.
+	constructor(readonly session: ToolSession) {}
+
 	static createIf(session: ToolSession): ManageSkillTool | null {
 		if (!session.settings.get("autolearn.enabled")) return null;
-		return new ManageSkillTool();
+		return new ManageSkillTool(session);
 	}
 
 	async execute(_id: string, params: ManageSkillParams): Promise<AgentToolResult> {
 		if (params.action === "delete") {
-			await deleteManagedSkill(params.name);
+			await deleteRockyManagedSkill(this.session, params.name);
 			return {
-				content: [{ type: "text", text: `Deleted managed skill "${params.name}".` }],
+				content: [{ type: "text", text: `Deleted managed skill "${params.name}" from Rocky.` }],
 				details: { action: "delete", name: params.name },
 			};
 		}
@@ -67,33 +62,32 @@ export class ManageSkillTool implements AgentTool<typeof manageSkillSchema> {
 		if (!params.description || !params.body) {
 			throw new Error(`"${params.action}" requires both "description" and "body".`);
 		}
-		// A managed skill resolves below any authored skill of the same name
-		// (authored always wins in discovery), so creating one under a name an
-		// authored skill already claims writes a file that never surfaces. Refuse
-		// up front rather than report a false "Created". `sanitizeSkillName`
-		// normalizes to the on-disk name the discovery scan compares against.
+		// Refuse same-name creates while an authored skill is active. Even though
+		// Rocky is now the backing store, creating a managed skill under an authored
+		// name makes future skill lookup ambiguous and can hide the managed copy
+		// from Amaze's first-wins skill discovery.
 		if (params.action === "create" && isNameClaimedByAuthoredSkill(sanitizeSkillName(params.name))) {
 			return {
 				content: [
 					{
 						type: "text",
-						text: `Cannot create managed skill "${params.name}": an authored skill of that name already exists, and managed skills cannot override authored ones. Choose a different name.`,
+						text: `Cannot create managed skill "${params.name}": an authored skill of that name already exists. Choose a different name.`,
 					},
 				],
 				isError: true,
 				details: { action: "create", name: params.name, shadowed: true },
 			};
 		}
-		const { path: skillPath } = await writeManagedSkill({
+		const result = await writeRockyManagedSkill(this.session, {
 			action: params.action,
 			name: params.name,
 			description: params.description,
 			body: params.body,
 		});
-		const relativePath = path.relative(getManagedSkillsDir(), skillPath);
 		const verb = params.action === "create" ? "Created" : "Updated";
+		const version = result.version ? ` v${result.version}` : "";
 		return {
-			content: [{ type: "text", text: `${verb} managed skill "${params.name}" (managed-skills/${relativePath}).` }],
+			content: [{ type: "text", text: `${verb} managed skill "${params.name}" in Rocky${version}.` }],
 			details: { action: params.action, name: params.name },
 		};
 	}

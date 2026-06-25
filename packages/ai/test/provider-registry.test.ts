@@ -1,16 +1,16 @@
 import { Database } from "bun:sqlite";
 import { afterEach, describe, expect, test, vi } from "bun:test";
-import { AuthStorage, SqliteAuthCredentialStore } from "@oh-my-pi/pi-ai/auth-storage";
-import { PASTE_CODE_LOGIN_PROVIDERS } from "@oh-my-pi/pi-ai/registry";
+import { AuthStorage, SqliteAuthCredentialStore } from "@amaze/pi-ai/auth-storage";
+import { PASTE_CODE_LOGIN_PROVIDERS } from "@amaze/pi-ai/registry";
 import {
 	getOAuthProviders,
 	refreshOAuthToken,
 	registerOAuthProvider,
 	unregisterOAuthProviders,
-} from "@oh-my-pi/pi-ai/registry/oauth";
-import * as anthropicOauth from "@oh-my-pi/pi-ai/registry/oauth/anthropic";
-import type { OAuthCredentials, OAuthProvider } from "@oh-my-pi/pi-ai/registry/oauth/types";
-import { getEnvApiKey } from "@oh-my-pi/pi-ai/stream";
+} from "@amaze/pi-ai/registry/oauth";
+import * as anthropicOauth from "@amaze/pi-ai/registry/oauth/anthropic";
+import type { OAuthCredentials, OAuthProvider } from "@amaze/pi-ai/registry/oauth/types";
+import { getEnvApiKey } from "@amaze/pi-ai/stream";
 
 const FIXTURE_SOURCE = "provider-registry-test";
 const ENV_KEYS = [
@@ -19,6 +19,7 @@ const ENV_KEYS = [
 	"XAI_OAUTH_TOKEN",
 	"UMANS_AI_CODING_PLAN_API_KEY",
 	"LLAMA_CPP_API_KEY",
+	"GEMMA_12B_API_KEY",
 ] as const;
 const originalEnv = new Map(ENV_KEYS.map(key => [key, Bun.env[key]]));
 
@@ -45,6 +46,8 @@ describe("provider registry auth surface", () => {
 		expect(getEnvApiKey("umans")).toBe("umans-env");
 		Bun.env.LLAMA_CPP_API_KEY = "llama-env";
 		expect(getEnvApiKey("llama.cpp")).toBe("llama-env");
+		Bun.env.GEMMA_12B_API_KEY = "gemma-env";
+		expect(getEnvApiKey("gemma-12b")).toBe("gemma-env");
 		// Legacy search-tool key preserved (not a registry provider def).
 		expect(getEnvApiKey("exa")).toBe("exa-env");
 	});
@@ -60,6 +63,7 @@ describe("provider registry auth surface", () => {
 		expect(ids).toContain("kagi");
 		expect(ids).toContain("umans");
 		expect(ids).toContain("llama.cpp");
+		expect(ids).toContain("gemma-12b");
 		// openai has no interactive login flow.
 		expect(ids).not.toContain("openai");
 	});
@@ -110,5 +114,15 @@ describe("provider registry auth surface", () => {
 		await storage.login("llama.cpp", { onAuth: () => {}, onPrompt: async () => "" });
 
 		expect(store.getApiKey("llama.cpp")).toBe("llama-cpp-local");
+	});
+
+	test("gemma-12b login stores a local no-auth token when no key is entered", async () => {
+		const store = new SqliteAuthCredentialStore(new Database(":memory:"));
+		const storage = new AuthStorage(store);
+		await storage.reload();
+
+		await storage.login("gemma-12b", { onAuth: () => {}, onPrompt: async () => "" });
+
+		expect(store.getApiKey("gemma-12b")).toBe("gemma-12b-local");
 	});
 });

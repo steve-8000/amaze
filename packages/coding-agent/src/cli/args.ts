@@ -1,8 +1,8 @@
 /**
  * CLI argument parsing and help display
  */
-import { type Effort, THINKING_EFFORTS } from "@oh-my-pi/pi-catalog/effort";
-import { APP_NAME, CONFIG_DIR_NAME, logger } from "@oh-my-pi/pi-utils";
+import { type Effort, THINKING_EFFORTS } from "@amaze/pi-catalog/effort";
+import { APP_NAME, CONFIG_DIR_NAME, logger } from "@amaze/pi-utils";
 import chalk from "chalk";
 import { parseEffort } from "../thinking";
 import { BUILTIN_TOOL_NAMES } from "../tools/builtin-names";
@@ -49,7 +49,6 @@ export interface Args {
 	models?: string[];
 	tools?: string[];
 	noTools?: boolean;
-	noLsp?: boolean;
 	noPty?: boolean;
 	hooks?: string[];
 	extensions?: string[];
@@ -84,7 +83,7 @@ export interface Args {
 /**
  * Runtime dependencies the data-driven setters need. Constructed once at
  * module load and passed to every {@link STRING_SETTERS} call so the
- * setter table itself can stay free of `@oh-my-pi/pi-utils` runtime imports
+ * setter table itself can stay free of `@amaze/pi-utils` runtime imports
  * (which would otherwise trip the profile bootstrap's env-init ordering).
  */
 const PARSE_DEPS: ParseDeps = {
@@ -191,8 +190,6 @@ export function parseArgs(inputArgs: string[], extensionFlags?: Map<string, { ty
 			result.noSession = true;
 		} else if (arg === "--no-tools") {
 			result.noTools = true;
-		} else if (arg === "--no-lsp") {
-			result.noLsp = true;
 		} else if (arg === "--no-pty") {
 			result.noPty = true;
 		} else if (arg === "--hide-thinking") {
@@ -316,13 +313,15 @@ export function getExtraHelpText(): string {
 
   ${chalk.dim("# Configuration")}
   OMP_PROFILE                 - Named profile for isolated agent state (same as --profile)
-  Use \`omp --profile <name> --alias <command>\` to create a shell shortcut for a profile
-  PI_CODING_AGENT_DIR        - Session storage directory (default: ~/${CONFIG_DIR_NAME}/agent)
-  PI_PACKAGE_DIR             - Override package directory (for Nix/Guix store paths)
-  PI_SMOL_MODEL              - Override smol/fast model (see --smol)
-  PI_SLOW_MODEL              - Override slow/reasoning model (see --slow)
-  PI_PLAN_MODEL              - Override planning model (see --plan)
-  PI_NO_PTY                  - Disable PTY-based interactive bash execution
+  Use \`${APP_NAME} --profile <name> --alias <command>\` to create a shell shortcut for a profile
+  PI_CODING_AGENT_DIR         - Session storage directory (default: ~/${CONFIG_DIR_NAME}/agent)
+  PI_PACKAGE_DIR              - Override package directory (for Nix/Guix store paths)
+  AMAZE_SETTING_<PATH>        - Generic settings bridge for .env-backed config (e.g. AMAZE_SETTING_TASK_MAX_CONCURRENCY=2)
+  OMP_SETTING_<PATH>          - Legacy alias for AMAZE_SETTING_<PATH>
+  PI_SMOL_MODEL               - Override smol/fast model (see --smol)
+  PI_SLOW_MODEL               - Override slow/reasoning model (see --slow)
+  PI_PLAN_MODEL               - Override planning model (see --plan)
+  PI_NO_PTY                   - Disable PTY-based interactive bash execution
   For complete environment variable reference, see:
   ${chalk.dim("docs/environment-variables.md")}
 ${chalk.bold("Available Tools (default-enabled unless noted):")}
@@ -332,7 +331,6 @@ ${chalk.bold("Available Tools (default-enabled unless noted):")}
   write         - Write files (creates/overwrites)
   grep          - Search file contents
   find          - Find files by glob pattern
-  lsp           - Language server protocol (code intelligence)
   python        - Execute Python code (requires: ${APP_NAME} setup python)
   notebook      - Edit Jupyter notebooks
   inspect_image - Analyze images with a vision model
@@ -346,8 +344,8 @@ ${chalk.bold("Plugin Options:")}
   --plugin-dir <path>        Load plugin from directory (repeatable)
 
 ${chalk.bold("Useful Commands:")}
-  omp agents unpack           - Export bundled subagents to ~/.omp/agent/agents (default)
-  omp agents unpack --project - Export bundled subagents to ./.omp/agents`;
+  ${APP_NAME} agents unpack           - Export bundled subagents to ~/${CONFIG_DIR_NAME}/agent/agents (default)
+  ${APP_NAME} agents unpack --project - Export bundled subagents to ./${CONFIG_DIR_NAME}/agents`;
 }
 
 export function printHelp(): void {

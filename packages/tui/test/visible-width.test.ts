@@ -11,8 +11,8 @@
  * `Bun.stringWidth` width-table drift across Bun upgrades.
  */
 import { describe, expect, it } from "bun:test";
-import { visibleWidth as nativeVisibleWidth } from "@oh-my-pi/pi-natives";
-import { DEFAULT_TAB_WIDTH, visibleWidth } from "@oh-my-pi/pi-tui/utils";
+import { visibleWidth as nativeVisibleWidth } from "@amaze/pi-natives";
+import { DEFAULT_TAB_WIDTH, visibleWidth } from "@amaze/pi-tui/utils";
 
 const ESC = "\x1b";
 const ST = "\x1b\\";

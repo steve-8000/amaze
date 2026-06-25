@@ -9,17 +9,17 @@ import type {
 	ProviderSessionState,
 	ToolResultMessage,
 	Usage,
-} from "@oh-my-pi/pi-ai/types";
-import { createOpenAIResponsesHistoryPayload } from "@oh-my-pi/pi-ai/utils";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { createAgentSession } from "@oh-my-pi/pi-coding-agent/sdk";
-import type { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import type { SessionEntry, SessionMessageEntry } from "@oh-my-pi/pi-coding-agent/session/session-entries";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { Snowflake } from "@oh-my-pi/pi-utils";
+} from "@amaze/pi-ai/types";
+import { createOpenAIResponsesHistoryPayload } from "@amaze/pi-ai/utils";
+import { getBundledModel } from "@amaze/pi-catalog/models";
+import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
+import { Settings } from "@amaze/pi-coding-agent/config/settings";
+import { createAgentSession } from "@amaze/pi-coding-agent/sdk";
+import type { AgentSession } from "@amaze/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
+import type { SessionEntry, SessionMessageEntry } from "@amaze/pi-coding-agent/session/session-entries";
+import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
+import { Snowflake } from "@amaze/pi-utils";
 
 function createUsage(): Usage {
 	return {
@@ -243,7 +243,6 @@ async function createSessionHarness(
 		promptTemplates: [],
 		slashCommands: [],
 		enableMCP: false,
-		enableLsp: false,
 		// These tests exercise session reload/sanitization/provider-state, never tool
 		// execution, rule resolution, or the workspace-tree render. A minimal tool set
 		// plus empty rules and a prebuilt (empty) workspace tree skip the per-call

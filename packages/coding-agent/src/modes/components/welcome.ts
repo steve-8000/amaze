@@ -1,21 +1,6 @@
-import {
-	type Component,
-	padding,
-	replaceTabs,
-	TERMINAL,
-	truncateToWidth,
-	visibleWidth,
-	wrapTextWithAnsi,
-} from "@oh-my-pi/pi-tui";
-import { APP_NAME } from "@oh-my-pi/pi-utils";
+import { type Component, padding, TERMINAL, truncateToWidth, visibleWidth } from "@amaze/pi-tui";
+import { APP_NAME } from "@amaze/pi-utils";
 import { theme } from "../../modes/theme/theme";
-import tipsText from "./tips.txt" with { type: "text" };
-
-/** Tips embedded at build time, one per line; blanks dropped. */
-const TIPS: readonly string[] = tipsText
-	.split("\n")
-	.map(line => line.trim())
-	.filter(line => line.length > 0);
 
 /**
  * Fixed number of session rows in the welcome box so its height stays stable
@@ -23,127 +8,17 @@ const TIPS: readonly string[] = tipsText
  */
 export const WELCOME_SESSION_SLOTS = 4;
 
-/**
- * Fixed number of LSP-server rows, for the same reason. Overflow is sliced so
- * the box height is constant regardless of how many servers a project has.
- */
-export const WELCOME_LSP_SLOTS = 4;
-
-/** Trailing marker that flags a tip as a "what's new" callout. Stripped before
- *  wrapping (with any preceding whitespace) and replaced by {@link NEW_TAG_TEXT}
- *  painted as a shimmering rainbow. Non-global so `.test` stays stateless. */
-const NEW_TIP_MARKER = /\s*\[NEW\]\s*$/;
-
-/** Visible text rendered in place of {@link NEW_TIP_MARKER}. */
-const NEW_TAG_TEXT = "NEW!";
-
-/** Milliseconds for one full hue rotation of the rainbow "NEW!" tag. */
-const NEW_GLOW_PERIOD_MS = 1500;
-
-/** Selection weight for "[NEW]" tips; ordinary tips weigh 1, so a freshly added
- *  affordance surfaces this many times as often. */
-const NEW_TIP_WEIGHT = 4;
-
-/** Per-tip selection weights, parallel to {@link TIPS}. */
-const TIP_WEIGHTS: readonly number[] = TIPS.map(tip => (NEW_TIP_MARKER.test(tip) ? NEW_TIP_WEIGHT : 1));
-const TIP_WEIGHT_TOTAL = TIP_WEIGHTS.reduce((sum, weight) => sum + weight, 0);
-
-/** Pick a tip at random, biased toward "[NEW]" tips by {@link NEW_TIP_WEIGHT}.
- *  Returns "" when no tips are embedded. */
-function pickWeightedTip(): string {
-	if (TIPS.length === 0) return "";
-	let r = Math.random() * TIP_WEIGHT_TOTAL;
-	for (let i = 0; i < TIPS.length; i++) {
-		r -= TIP_WEIGHTS[i] ?? 1;
-		if (r < 0) return TIPS[i] ?? "";
-	}
-	return TIPS[TIPS.length - 1] ?? "";
-}
-
-type ColorEncoding = "ansi-16m" | "ansi-256";
-
-/** Paint each glyph of {@link NEW_TAG_TEXT} on a moving HSL rainbow. `phase`
- *  rotates the hue offset cyclically; successive renders with increasing phase
- *  shimmer, while a fixed phase yields a still rainbow. */
-function renderNewTag(phase: number, encoding: ColorEncoding): string {
-	const bold = "\x1b[1m";
-	const reset = "\x1b[0m";
-	const wrapped = ((phase % 1) + 1) % 1;
-	const chars = [...NEW_TAG_TEXT];
-	let out = bold;
-	let prev = "";
-	for (let i = 0; i < chars.length; i++) {
-		const hue = Math.round(((i / chars.length + wrapped) % 1) * 360);
-		const color = Bun.color(`hsl(${hue}, 95%, 60%)`, encoding) ?? "";
-		if (color !== prev) {
-			out += color;
-			prev = color;
-		}
-		out += chars[i];
-	}
-	return out + reset;
-}
-export function renderWelcomeTip(tip: string, boxWidth: number, phase = 0): string[] {
-	const label = "Tip: ";
-	const labelWidth = visibleWidth(label);
-	const bodyBudget = boxWidth - 1 - labelWidth; // 1 = leading indent
-	if (bodyBudget < 8) return [];
-
-	const isNew = NEW_TIP_MARKER.test(tip);
-	const body = isNew ? tip.replace(NEW_TIP_MARKER, "") : tip;
-
-	const wrappedBody = wrapTextWithAnsi(replaceTabs(body), bodyBudget);
-	if (wrappedBody.length === 0) return [];
-
-	const encoding: ColorEncoding = TERMINAL.trueColor ? "ansi-16m" : "ansi-256";
-	const purple = Bun.color("#b48cff", encoding) ?? "";
-	const lightBlue = Bun.color("#9ccfff", encoding) ?? "";
-	const italic = "\x1b[3m";
-	const dim = "\x1b[2m";
-	const reset = "\x1b[0m";
-	const continuationIndent = padding(labelWidth);
-
-	const lines = wrappedBody.map((line, index) =>
-		index === 0
-			? ` ${italic}${purple}${label}${dim}${lightBlue}${line}${reset}`
-			: ` ${italic}${continuationIndent}${dim}${lightBlue}${line}${reset}`,
-	);
-
-	if (isNew) {
-		// Append the rainbow tag to the final body line when it fits within the
-		// box; otherwise drop it onto its own indented continuation line so the
-		// styled glyphs never overflow or reflow the wrapped body.
-		const tag = renderNewTag(phase, encoding);
-		const tagWidth = 1 + visibleWidth(NEW_TAG_TEXT); // 1 = space separator
-		const lastLine = lines[lines.length - 1];
-		if (lastLine !== undefined && visibleWidth(lastLine) + tagWidth <= boxWidth) {
-			lines[lines.length - 1] = `${lastLine} ${tag}`;
-		} else {
-			lines.push(` ${continuationIndent}${tag}`);
-		}
-	}
-
-	return lines;
-}
-
 export interface RecentSession {
 	name: string;
 	timeAgo: string;
 }
 
-export interface LspServerInfo {
-	name: string;
-	status: "ready" | "error" | "connecting" | "available";
-	fileTypes: string[];
-}
-
 /**
- * Premium welcome screen with block-based OMP logo and two-column layout.
+ * Amaze welcome screen with an Erid orbital splash and two-column layout.
  */
 export class WelcomeComponent implements Component {
 	#animStart: number | null = null;
 	#animTimer: Timer | null = null;
-	#selectedTip: string | undefined;
 	// Render cache: the welcome box is the first transcript-area component, so
 	// returning a stable array reference keeps the whole frame prefix stable.
 	// Bypassed while the intro animation runs (every frame differs).
@@ -155,18 +30,7 @@ export class WelcomeComponent implements Component {
 		private modelName: string,
 		private providerName: string,
 		private recentSessions: RecentSession[] = [],
-		private lspServers: LspServerInfo[] = [],
 	) {}
-	get tip(): string | undefined {
-		if (this.#selectedTip === undefined) {
-			if (theme.getSymbolPreset() === "unicode" && Math.random() < 0.1) {
-				this.#selectedTip = "Please use nerdfont 😭.";
-			} else {
-				this.#selectedTip = pickWeightedTip();
-			}
-		}
-		return this.#selectedTip || undefined;
-	}
 
 	invalidate(): void {
 		this.#cachedWidth = -1;
@@ -212,11 +76,6 @@ export class WelcomeComponent implements Component {
 		this.invalidate();
 	}
 
-	setLspServers(servers: LspServerInfo[]): void {
-		this.lspServers = servers;
-		this.invalidate();
-	}
-
 	render(termWidth: number): readonly string[] {
 		const animating = this.#animStart != null;
 		if (!animating && this.#cachedLines && this.#cachedWidth === termWidth) {
@@ -246,7 +105,7 @@ export class WelcomeComponent implements Component {
 		const minRightCol = 20;
 		const leftMinContentWidth = Math.max(
 			minLeftCol,
-			visibleWidth("Welcome back!"),
+			visibleWidth("Erid in view"),
 			visibleWidth(this.modelName),
 			visibleWidth(this.providerName),
 		);
@@ -266,7 +125,7 @@ export class WelcomeComponent implements Component {
 		// Left column - centered content
 		const leftLines = [
 			"",
-			this.#centerText(theme.bold("Welcome back!"), leftCol),
+			this.#centerText(theme.bold("Erid in view"), leftCol),
 			"",
 			...logoColored.map(l => this.#centerText(l, leftCol)),
 			"",
@@ -274,14 +133,10 @@ export class WelcomeComponent implements Component {
 			this.#centerText(theme.fg("borderMuted", this.providerName), leftCol),
 		];
 
-		// Right column separator
-		const separatorWidth = Math.max(0, rightCol - 2); // padding on each side
-		const separator = ` ${theme.fg("dim", theme.boxRound.horizontal.repeat(separatorWidth))}`;
-
 		// Recent sessions content
 		const sessionLines: string[] = [];
 		if (this.recentSessions.length === 0) {
-			sessionLines.push(` ${theme.fg("dim", "No recent sessions")}`);
+			sessionLines.push(` ${theme.fg("dim", "No recent Amaze sessions")}`);
 		} else {
 			// Reserve width for the bullet prefix (" • ") and the trailing " (timeAgo)"
 			// so the relative time is never the part that gets truncated. The name
@@ -304,41 +159,14 @@ export class WelcomeComponent implements Component {
 			sessionLines.push("");
 		}
 
-		// LSP servers content
-		const lspLines: string[] = [];
-		if (this.lspServers.length === 0) {
-			lspLines.push(` ${theme.fg("dim", "No LSP servers")}`);
-		} else {
-			for (const server of this.lspServers.slice(0, WELCOME_LSP_SLOTS)) {
-				const icon =
-					server.status === "ready"
-						? theme.styledSymbol("status.enabled", "success")
-						: server.status === "available"
-							? theme.styledSymbol("status.enabled", "dim")
-							: server.status === "connecting"
-								? theme.styledSymbol("status.pending", "muted")
-								: theme.styledSymbol("status.error", "error");
-				const exts = server.fileTypes.slice(0, 3).join(" ");
-				lspLines.push(` ${icon} ${theme.fg("muted", server.name)} ${theme.fg("dim", exts)}`);
-			}
-		}
-		// Pad to the fixed slot count so the box height doesn't depend on server count.
-		while (lspLines.length < WELCOME_LSP_SLOTS) {
-			lspLines.push("");
-		}
-
 		// Right column
 		const rightLines = [
-			` ${theme.bold(theme.fg("accent", "Tips"))}`,
+			` ${theme.bold(theme.fg("accent", "Flight controls"))}`,
 			` ${theme.fg("dim", "?")}${theme.fg("muted", " for keyboard shortcuts")}`,
 			` ${theme.fg("dim", "#")}${theme.fg("muted", " for prompt actions")}`,
 			` ${theme.fg("dim", "/")}${theme.fg("muted", " for commands")}`,
 			` ${theme.fg("dim", "!")}${theme.fg("muted", " to run bash")}`,
 			` ${theme.fg("dim", "$")}${theme.fg("muted", " to run python")}`,
-			separator,
-			` ${theme.bold(theme.fg("accent", "LSP Servers"))}`,
-			...lspLines,
-			separator,
 			` ${theme.bold(theme.fg("accent", "Recent sessions"))}`,
 			...sessionLines,
 			"",
@@ -356,7 +184,7 @@ export class WelcomeComponent implements Component {
 		const lines: string[] = [];
 
 		// Top border with embedded title
-		const title = ` ${APP_NAME} v${this.version} `;
+		const title = ` ${APP_NAME.toUpperCase()} CLI · ERID ORBITAL INTERFACE · v${this.version} `;
 		const titlePrefixRaw = hChar.repeat(3);
 		const titleStyled = theme.fg("dim", titlePrefixRaw) + theme.fg("muted", title);
 		const titleVisLen = visibleWidth(titlePrefixRaw) + visibleWidth(title);
@@ -385,27 +213,7 @@ export class WelcomeComponent implements Component {
 		} else {
 			lines.push(bl + h.repeat(leftCol) + br);
 		}
-
-		// Randomly picked tip, rendered directly beneath the box.
-		lines.push(...this.#renderTip(boxWidth));
-
 		return lines;
-	}
-
-	/**
-	 * Render the per-instance tip line: a purple "Tip:" label followed by the
-	 * tip body in dimmed light blue, the whole line italicized. Returns `[]`
-	 * when no tip is available or the box is too narrow to be useful.
-	 */
-	#renderTip(boxWidth: number): string[] {
-		const tip = this.tip;
-		if (!tip) return [];
-		// A trailing "[NEW]" marker paints an animated rainbow "NEW!" tag. Derive
-		// its hue phase from wall-clock time so it shimmers across the welcome
-		// intro's re-render frames, then settles into a still rainbow once the box
-		// caches its resting frame. Non-"[NEW]" tips ignore the phase entirely.
-		const phase = NEW_TIP_MARKER.test(tip) ? performance.now() / NEW_GLOW_PERIOD_MS : 0;
-		return renderWelcomeTip(tip, boxWidth, phase);
 	}
 
 	/** Center text within a given width */
@@ -453,19 +261,26 @@ export class WelcomeComponent implements Component {
 	}
 }
 
-export const PI_LOGO = ["▀██████████▀", " ╘██    ██  ", "  ██    ██  ", "  ██    ██  ", " ▄██▄  ▄██▄ "];
+export const PI_LOGO = [
+	"    ████████    ",
+	"  ████████████  ",
+	" ██████████████ ",
+	"████████████████",
+	"████████████████",
+	" ██████████████ ",
+	"  ████████████  ",
+	"    ████████    ",
+];
 
-/** Multi-stop palette for the diagonal gradient. */
+/** Erid orbital palette for the diagonal gradient. */
 const GRADIENT_STOPS: ReadonlyArray<readonly [number, number, number]> = [
-	[255, 92, 200], // hot pink
-	[200, 110, 255], // violet
-	[120, 130, 255], // periwinkle
-	[60, 200, 255], // bright cyan
-	[120, 255, 220], // mint
+	[217, 162, 75], // amber alloy
+	[169, 179, 193], // mineral dust
+	[108, 199, 216], // resonance cyan
 ];
 
 /** 256-color ramp fallback when truecolor isn't available. */
-const GRADIENT_RAMP_256 = [199, 171, 135, 99, 75, 51, 87];
+const GRADIENT_RAMP_256 = [179, 144, 109, 74, 45, 51];
 
 /** Half-width of the shine highlight band, expressed in gradient-t units. */
 const SHINE_HALF_WIDTH = 0.18;

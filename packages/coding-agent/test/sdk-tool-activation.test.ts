@@ -2,17 +2,17 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:te
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { getBundledModel } from "@amaze/pi-catalog/models";
+import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
+import { Settings } from "@amaze/pi-coding-agent/config/settings";
 import {
 	type CreateAgentSessionOptions,
 	createAgentSession,
 	discoverAuthStorage,
 	type ExtensionFactory,
-} from "@oh-my-pi/pi-coding-agent/sdk";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { Snowflake } from "@oh-my-pi/pi-utils";
+} from "@amaze/pi-coding-agent/sdk";
+import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
+import { Snowflake } from "@amaze/pi-utils";
 import { type } from "arktype";
 
 const toolActivationExtension: ExtensionFactory = pi => {
@@ -81,7 +81,6 @@ describe("createAgentSession defaultInactive tool activation", () => {
 		promptTemplates: [],
 		slashCommands: [],
 		enableMCP: false,
-		enableLsp: false,
 		rules: [],
 		workspaceTree: { rootPath: tempDir, rendered: "", truncated: false, totalLines: 0, agentsMdFiles: [] },
 	});
@@ -140,7 +139,7 @@ describe("createAgentSession defaultInactive tool activation", () => {
 
 	it("activates the yield tool when requireYieldTool is set and toolNames is explicit", async () => {
 		// Regression for #1408: plan-mode subagents pass an explicit `toolNames` list
-		// (e.g. `["read", "search", "find", "lsp", "web_search"]`). Without this
+		// (e.g. `["read", "search", "find", "web_search"]`). Without this
 		// invariant, `yield` ended up registered but not active, and the model
 		// could not satisfy the idle-reminder contract that demands a `yield` call.
 		const tempDir = makeTempDir();

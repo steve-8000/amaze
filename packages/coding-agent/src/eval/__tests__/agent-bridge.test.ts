@@ -1,6 +1,6 @@
 import { afterAll, afterEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { TempDir } from "@amaze/pi-utils";
 import { Settings } from "../../config/settings";
 import type { PlanModeState } from "../../plan-mode/state";
 import * as taskDiscovery from "../../task/discovery";
@@ -16,21 +16,21 @@ import { disposeAllVmContexts } from "../js/context-manager";
 import { executeJs } from "../js/executor";
 import { disposeAllKernelSessions, executePython } from "../py/executor";
 
-const taskAgent = {
-	name: "task",
-	description: "Task agent",
-	systemPrompt: "Run the task.",
+const coderAgent = {
+	name: "coder",
+	description: "Coder agent",
+	systemPrompt: "Run the coding contract.",
 	source: "bundled",
 	spawns: "*",
-	model: ["pi/task"],
+	model: ["pi/coder"],
 } satisfies AgentDefinition;
 
-const reviewerAgent = {
-	name: "reviewer",
-	description: "Reviewer agent",
-	systemPrompt: "Review the task.",
+const checkerAgent = {
+	name: "checker",
+	description: "Checker agent",
+	systemPrompt: "Review the contract.",
 	source: "bundled",
-	model: ["pi/smol"],
+	model: ["pi/checker"],
 } satisfies AgentDefinition;
 
 interface SessionOptions {
@@ -41,7 +41,6 @@ interface SessionOptions {
 	depth?: number;
 	activeModel?: string;
 	modelString?: string;
-	enableLsp?: boolean;
 	settings?: Settings;
 	outputManager?: AgentOutputManager;
 	planMode?: boolean;
@@ -53,7 +52,6 @@ function makeSession(options: SessionOptions = {}): ToolSession {
 		Settings.isolated({
 			"async.enabled": false,
 			"task.isolation.mode": "none",
-			"task.enableLsp": true,
 		});
 	const artifactsDir = options.artifactsDir ?? null;
 	return {
@@ -61,7 +59,6 @@ function makeSession(options: SessionOptions = {}): ToolSession {
 		hasUI: false,
 		settings,
 		taskDepth: options.depth ?? 0,
-		enableLsp: options.enableLsp ?? true,
 		agentOutputManager: options.outputManager,
 		getSessionFile: () => options.sessionFile ?? null,
 		getSessionSpawns: () => options.spawns ?? "*",
@@ -80,7 +77,7 @@ function makeSession(options: SessionOptions = {}): ToolSession {
 	};
 }
 
-function mockAgents(agents: AgentDefinition[] = [taskAgent, reviewerAgent]): void {
+function mockAgents(agents: AgentDefinition[] = [coderAgent, checkerAgent]): void {
 	vi.spyOn(taskDiscovery, "discoverAgents").mockResolvedValue({ agents, projectAgentsDir: null });
 }
 
@@ -154,7 +151,7 @@ describe("runEvalAgent", () => {
 		vi.restoreAllMocks();
 	});
 
-	it("resolves the default task agent and agentType overrides", async () => {
+	it("resolves the default coder agent and agentType overrides", async () => {
 		mockAgents();
 		const runSpy = vi.spyOn(taskExecutor, "runSubprocess").mockImplementation(async options =>
 			singleResult(options, {
@@ -164,16 +161,16 @@ describe("runEvalAgent", () => {
 		const session = makeSession();
 
 		const defaultResult = await runEvalAgent({ prompt: "hello" }, { session });
-		const overrideResult = await runEvalAgent({ prompt: "hello", agentType: "reviewer" }, { session });
+		const overrideResult = await runEvalAgent({ prompt: "hello", agentType: "checker" }, { session });
 
-		expect(defaultResult.text).toBe("task");
-		expect(overrideResult.text).toBe("reviewer");
-		expect(runSpy.mock.calls[0]?.[0].agent.name).toBe("task");
-		expect(runSpy.mock.calls[1]?.[0].agent.name).toBe("reviewer");
+		expect(defaultResult.text).toBe("coder");
+		expect(overrideResult.text).toBe("checker");
+		expect(runSpy.mock.calls[0]?.[0].agent.name).toBe("coder");
+		expect(runSpy.mock.calls[1]?.[0].agent.name).toBe("checker");
 	});
 
 	it("throws for an unknown agent", async () => {
-		mockAgents([taskAgent]);
+		mockAgents([coderAgent]);
 		vi.spyOn(taskExecutor, "runSubprocess").mockImplementation(async options => singleResult(options));
 
 		await expect(runEvalAgent({ prompt: "hello", agentType: "missing" }, { session: makeSession() })).rejects.toThrow(
@@ -188,8 +185,8 @@ describe("runEvalAgent", () => {
 		await expect(runEvalAgent({ prompt: "hello" }, { session: makeSession({ spawns: "" }) })).rejects.toThrow(
 			"spawns disabled",
 		);
-		await expect(runEvalAgent({ prompt: "hello" }, { session: makeSession({ spawns: "reviewer" }) })).rejects.toThrow(
-			"Allowed: reviewer",
+		await expect(runEvalAgent({ prompt: "hello" }, { session: makeSession({ spawns: "checker" }) })).rejects.toThrow(
+			"Allowed: checker",
 		);
 		await expect(
 			runEvalAgent({ prompt: "hello" }, { session: makeSession({ depth: EVAL_AGENT_MAX_DEPTH }) }),
@@ -233,19 +230,6 @@ describe("runEvalAgent", () => {
 		expect(secondOptions.outputSchema).toBeUndefined();
 	});
 
-	it("forces LSP off for bridge subagents even when task.enableLsp is on", async () => {
-		mockAgents();
-		const runSpy = vi.spyOn(taskExecutor, "runSubprocess").mockImplementation(async options => singleResult(options));
-		// makeSession() defaults to enableLsp: true and task.enableLsp: true.
-		const session = makeSession();
-
-		await runEvalAgent({ prompt: "hello" }, { session });
-
-		const options = runSpy.mock.calls[0]?.[0];
-		if (!options) throw new Error("runSubprocess was not called");
-		expect(options.enableLsp).toBe(false);
-	});
-
 	it("maps successful and failed subagent results", async () => {
 		mockAgents();
 		const runSpy = vi.spyOn(taskExecutor, "runSubprocess");
@@ -268,7 +252,7 @@ describe("runEvalAgent", () => {
 		const result = await runEvalAgent({ prompt: "hello" }, { session: makeSession() });
 		expect(result).toEqual({
 			text: "done",
-			details: { agent: "task", id: "0-EvalAgent", model: "p/model", structured: false },
+			details: { agent: "coder", id: "0-EvalAgent", model: "p/model", structured: false },
 		});
 		await expect(runEvalAgent({ prompt: "fail" }, { session: makeSession() })).rejects.toThrow("boom");
 	});
@@ -320,7 +304,7 @@ describe("runEvalAgent", () => {
 		// Last resort: still produce a non-empty message even when nothing useful is set,
 		// so Python never falls back to `bridge call '__agent__' failed`.
 		await expect(runEvalAgent({ prompt: "blank" }, { session: makeSession() })).rejects.toThrow(
-			"agent() subagent 'task' failed.",
+			"agent() subagent 'coder' failed.",
 		);
 	});
 });
@@ -345,7 +329,7 @@ describe("agent() through eval runtimes", () => {
 	});
 
 	it("exposes agent() in JavaScript and parses structured output", async () => {
-		using tempDir = TempDir.createSync("@omp-eval-agent-js-");
+		using tempDir = TempDir.createSync("@amaze-eval-agent-js-");
 		const { session, sessionFile } = makeEvalSession(tempDir, "js-agent");
 		mockAgents();
 		vi.spyOn(taskExecutor, "runSubprocess").mockImplementation(async options =>
@@ -364,11 +348,10 @@ describe("agent() through eval runtimes", () => {
 	});
 
 	it("bounds JavaScript parallel() by the task.maxConcurrency setting while preserving order", async () => {
-		using tempDir = TempDir.createSync("@omp-eval-agent-js-parallel-");
+		using tempDir = TempDir.createSync("@amaze-eval-agent-js-parallel-");
 		const settings = Settings.isolated({
 			"async.enabled": false,
 			"task.isolation.mode": "none",
-			"task.enableLsp": true,
 			"task.maxConcurrency": 2,
 		});
 		const { session, sessionFile } = makeEvalSession(tempDir, "js-agent-parallel", settings);
@@ -387,7 +370,7 @@ describe("agent() through eval runtimes", () => {
 	});
 
 	it("propagates JavaScript parallel() rejections", async () => {
-		using tempDir = TempDir.createSync("@omp-eval-agent-js-reject-");
+		using tempDir = TempDir.createSync("@amaze-eval-agent-js-reject-");
 		const { session, sessionFile } = makeEvalSession(tempDir, "js-agent-reject");
 		mockAgents();
 		vi.spyOn(taskExecutor, "runSubprocess").mockImplementation(async options => {
@@ -409,7 +392,7 @@ describe("agent() through eval runtimes", () => {
 	});
 
 	it("exposes agent() in the Python runtime", async () => {
-		using tempDir = TempDir.createSync("@omp-eval-agent-py-");
+		using tempDir = TempDir.createSync("@amaze-eval-agent-py-");
 		const { session, sessionFile, sessionId } = makeEvalSession(tempDir, "py-agent");
 		mockAgents();
 		vi.spyOn(taskExecutor, "runSubprocess").mockImplementation(async options =>
@@ -433,11 +416,10 @@ describe("agent() through eval runtimes", () => {
 	});
 
 	it("bounds Python parallel() by the task.maxConcurrency setting while preserving order", async () => {
-		using tempDir = TempDir.createSync("@omp-eval-agent-py-parallel-");
+		using tempDir = TempDir.createSync("@amaze-eval-agent-py-parallel-");
 		const settings = Settings.isolated({
 			"async.enabled": false,
 			"task.isolation.mode": "none",
-			"task.enableLsp": true,
 			"task.maxConcurrency": 2,
 		});
 		const { session, sessionFile, sessionId } = makeEvalSession(tempDir, "py-agent-parallel", settings);
@@ -460,11 +442,10 @@ describe("agent() through eval runtimes", () => {
 	});
 
 	it("interrupting a Python parallel() fan-out settles the kernel cleanly and preserves session state", async () => {
-		using tempDir = TempDir.createSync("@omp-eval-agent-py-interrupt-");
+		using tempDir = TempDir.createSync("@amaze-eval-agent-py-interrupt-");
 		const settings = Settings.isolated({
 			"async.enabled": false,
 			"task.isolation.mode": "none",
-			"task.enableLsp": true,
 			"task.maxConcurrency": 6,
 		});
 		const { session, sessionFile, sessionId } = makeEvalSession(tempDir, "py-agent-interrupt", settings);
@@ -540,7 +521,7 @@ describe("agent() through eval runtimes", () => {
 	}, 30_000);
 
 	it("streams enriched agent progress through onStatus before the cell finishes", async () => {
-		using tempDir = TempDir.createSync("@omp-eval-agent-progress-");
+		using tempDir = TempDir.createSync("@amaze-eval-agent-progress-");
 		const { session, sessionFile } = makeEvalSession(tempDir, "js-agent-progress");
 		mockAgents();
 
@@ -632,7 +613,7 @@ describe("agent() through eval runtimes", () => {
 	});
 
 	it("pauses the idle watchdog while a quiet agent() runs past the budget", async () => {
-		using tempDir = TempDir.createSync("@omp-eval-agent-timeout-pause-");
+		using tempDir = TempDir.createSync("@amaze-eval-agent-timeout-pause-");
 		const { session } = makeEvalSession(tempDir, "js-agent-timeout-pause");
 		mockAgents();
 
@@ -691,7 +672,7 @@ describe("agent() through eval runtimes", () => {
 	});
 
 	it("keeps timeout paused despite agent() progress snapshots", async () => {
-		using tempDir = TempDir.createSync("@omp-eval-agent-progress-timeout-pause-");
+		using tempDir = TempDir.createSync("@amaze-eval-agent-progress-timeout-pause-");
 		const { session } = makeEvalSession(tempDir, "js-agent-progress-timeout-pause");
 		mockAgents();
 

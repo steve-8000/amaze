@@ -1,16 +1,16 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent, type AgentMessage, type AgentTool } from "@oh-my-pi/pi-agent-core";
-import { z } from "@oh-my-pi/pi-ai";
-import { createMockModel, type MockModel, type MockResponse } from "@oh-my-pi/pi-ai/providers/mock";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { type SettingPath, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { convertToLlm } from "@oh-my-pi/pi-coding-agent/session/messages";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import * as unexpectedStopClassifier from "@oh-my-pi/pi-coding-agent/session/unexpected-stop-classifier";
-import { logger, TempDir } from "@oh-my-pi/pi-utils";
+import { Agent, type AgentMessage, type AgentTool } from "@amaze/pi-agent-core";
+import { z } from "@amaze/pi-ai";
+import { createMockModel, type MockModel, type MockResponse } from "@amaze/pi-ai/providers/mock";
+import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
+import { type SettingPath, Settings } from "@amaze/pi-coding-agent/config/settings";
+import { AgentSession } from "@amaze/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
+import { convertToLlm } from "@amaze/pi-coding-agent/session/messages";
+import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
+import * as unexpectedStopClassifier from "@amaze/pi-coding-agent/session/unexpected-stop-classifier";
+import { logger, TempDir } from "@amaze/pi-utils";
 
 const recordToolSchema = z.object({ value: z.string() });
 
@@ -184,6 +184,24 @@ describe("AgentSession unexpected stop guard", () => {
 		await session.waitForIdle();
 
 		expect(spy).toHaveBeenCalledTimes(1);
+		expect(mock.calls).toHaveLength(1);
+		expect(reminderMessages(session.agent.state.messages)).toHaveLength(0);
+	});
+
+	it("does not classify a completed analysis that only offers optional follow-up", async () => {
+		const spy = vi.spyOn(unexpectedStopClassifier, "classifyUnexpectedStop").mockResolvedValue(true);
+		const { session, mock } = await createHarness(
+			[unexpectedStop("I've completed the analysis. If you'd like, I can outline the patch next.")],
+			{
+				"features.unexpectedStopDetection": true,
+				"providers.unexpectedStopModel": "online",
+			},
+		);
+
+		await session.prompt("summarize the root cause");
+		await session.waitForIdle();
+
+		expect(spy).not.toHaveBeenCalled();
 		expect(mock.calls).toHaveLength(1);
 		expect(reminderMessages(session.agent.state.messages)).toHaveLength(0);
 	});

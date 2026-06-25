@@ -22,8 +22,6 @@ export interface PersistedSubagentReviveContext {
 	authStorage: AuthStorage;
 	modelRegistry: ModelRegistry;
 	settings: Settings;
-	/** LSP policy of the top-level session; revived subagents inherit it rather than defaulting on. */
-	enableLsp: boolean;
 }
 
 /**
@@ -60,6 +58,7 @@ export function createPersistedSubagentReviverFactory(
 			return undefined;
 		}
 		const init = peek.init;
+		if (init.revivable === false) return undefined;
 		// taskDepth drives real capability gating (task-spawn allowance, memory
 		// startup, …); derive it from the persisted parent chain rather than
 		// assuming a fixed level.
@@ -93,6 +92,7 @@ export function createPersistedSubagentReviverFactory(
 				),
 				sessionManager: reopened,
 				agentId: ref.id,
+				agentName: init.agentName ?? ref.agentName,
 				agentDisplayName: ref.displayName,
 				parentTaskPrefix: ref.id,
 				parentAgentId: ref.parentId,
@@ -105,7 +105,6 @@ export function createPersistedSubagentReviverFactory(
 				// createAgentSession default to wildcard ("*").
 				spawns: init.spawns ?? "",
 				hasUI: false,
-				enableLsp: ctx.enableLsp,
 				enableMCP: !mcpManager,
 				mcpManager,
 				customTools: mcpProxyTools.length > 0 ? mcpProxyTools : undefined,

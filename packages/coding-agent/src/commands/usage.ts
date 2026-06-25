@@ -1,7 +1,7 @@
 /**
  * Show provider usage limits for every authenticated account.
  */
-import { Command, Flags } from "@oh-my-pi/pi-utils/cli";
+import { Command, Flags } from "@amaze/pi-utils/cli";
 import { runUsageCommand } from "../cli/usage-cli";
 
 export default class Usage extends Command {
@@ -23,11 +23,11 @@ export default class Usage extends Command {
 	};
 
 	static examples = [
-		"# Detailed per-account usage breakdown across all providers\n  omp usage",
-		"# Only Anthropic accounts\n  omp usage --provider anthropic",
-		"# Redact account identifiers for screenshots\n  omp usage --redact",
-		"# Machine-readable output\n  omp usage --json",
-		"# Usage-limit trend over the last 30 days\n  omp usage --history --days 30",
+		"# Detailed per-account usage breakdown across all providers\n  amaze usage",
+		"# Only Anthropic accounts\n  amaze usage --provider anthropic",
+		"# Redact account identifiers for screenshots\n  amaze usage --redact",
+		"# Machine-readable output\n  amaze usage --json",
+		"# Usage-limit trend over the last 30 days\n  amaze usage --history --days 30",
 	];
 
 	async run(): Promise<void> {

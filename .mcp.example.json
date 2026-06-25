@@ -1,0 +1,25 @@
+{
+  "$schema": "https://raw.githubusercontent.com/can1357/amaze-agent/main/packages/coding-agent/src/config/mcp-schema.json",
+  "mcpServers": {
+    "rocky-skills": {
+      "type": "http",
+      "url": "http://127.0.0.1:7777/mcp",
+      "headers": {
+        "Authorization": "Bearer ${ROCKY_API_KEY}"
+      },
+      "timeout": 30000
+    },
+    "filesystem-example": {
+      "enabled": false,
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "${AMAZE_MCP_FILESYSTEM_ROOT:-.}"
+      ],
+      "timeout": 30000
+    }
+  },
+  "disabledServers": []
+}

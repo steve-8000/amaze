@@ -1,15 +1,15 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { TaskTool, taskSchema } from "@oh-my-pi/pi-coding-agent/task";
-import * as discoveryModule from "@oh-my-pi/pi-coding-agent/task/discovery";
+import { Settings } from "@amaze/pi-coding-agent/config/settings";
+import { TaskTool, taskSchema } from "@amaze/pi-coding-agent/task";
+import * as discoveryModule from "@amaze/pi-coding-agent/task/discovery";
 import {
 	getTaskSchema,
 	oneLineLabel,
 	ROLE_INPUT_MAX,
 	resolveSubagentDisplayName,
-} from "@oh-my-pi/pi-coding-agent/task/types";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { prompt } from "@oh-my-pi/pi-utils";
+} from "@amaze/pi-coding-agent/task/types";
+import type { ToolSession } from "@amaze/pi-coding-agent/tools";
+import { prompt } from "@amaze/pi-utils";
 import { type } from "arktype";
 import subagentSystemPromptTemplate from "../../src/prompts/system/subagent-system-prompt.md" with { type: "text" };
 
@@ -75,13 +75,13 @@ describe("subagent system prompt role preamble", () => {
 		return prompt.render(subagentSystemPromptTemplate, { agent: "Base worker body.", role });
 	}
 
-	it("injects the specialization preamble when a role is provided", () => {
+	it("injects the optional specialization label when a role is provided", () => {
 		const out = render("Rust async-runtime specialist");
-		expect(out).toContain("specializing as: **Rust async-runtime specialist**");
+		expect(out).toContain("Specialization: Rust async-runtime specialist");
 	});
 
-	it("omits the preamble entirely when the role is blank", () => {
-		expect(render("")).not.toContain("specializing as");
+	it("omits the specialization line when the role is blank", () => {
+		expect(render("")).not.toContain("Specialization:");
 	});
 });
 

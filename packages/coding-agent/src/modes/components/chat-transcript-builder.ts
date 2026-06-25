@@ -11,10 +11,10 @@
  * entry count, but it cannot duplicate or misorder rows the way incremental
  * component reuse could.
  */
-import type { AgentMessage, AgentTool } from "@oh-my-pi/pi-agent-core";
-import type { Usage } from "@oh-my-pi/pi-ai";
-import { Text, type TUI } from "@oh-my-pi/pi-tui";
-import { formatBytes, formatDuration } from "@oh-my-pi/pi-utils";
+import type { AgentMessage, AgentTool } from "@amaze/pi-agent-core";
+import type { Usage } from "@amaze/pi-ai";
+import { Text, type TUI } from "@amaze/pi-tui";
+import { formatBytes, formatDuration } from "@amaze/pi-utils";
 import type { AdvisorMessageDetails } from "../../advisor";
 import { COLLAB_PROMPT_MESSAGE_TYPE, type CollabPromptDetails } from "../../collab/protocol";
 import { settings } from "../../config/settings";
@@ -23,7 +23,6 @@ import {
 	BACKGROUND_TAN_DISPATCH_MESSAGE_TYPE,
 	type CustomMessage,
 	isSilentAbort,
-	LSP_LATE_DIAGNOSTIC_MESSAGE_TYPE,
 	resolveAbortLabel,
 	SKILL_PROMPT_MESSAGE_TYPE,
 	type SkillPromptDetails,
@@ -45,7 +44,6 @@ import {
 } from "./compaction-summary-message";
 import { CustomMessageComponent } from "./custom-message";
 import { EvalExecutionComponent } from "./eval-execution";
-import { type LateDiagnosticsFile, LateDiagnosticsMessageComponent } from "./late-diagnostics-message";
 import { ReadToolGroupComponent, readArgsHaveTarget, readArgsTargetInternalUrl } from "./read-tool-group";
 import { SkillMessageComponent } from "./skill-message";
 import { ToolExecutionComponent } from "./tool-execution";
@@ -377,9 +375,16 @@ export class ChatTranscriptBuilder {
 				message as CustomMessage<{
 					jobId?: string;
 					type?: "bash" | "task";
+					status?: "running" | "completed" | "failed" | "cancelled";
 					label?: string;
 					durationMs?: number;
-					jobs?: Array<{ jobId?: string; type?: "bash" | "task"; label?: string; durationMs?: number }>;
+					jobs?: Array<{
+						jobId?: string;
+						type?: "bash" | "task";
+						status?: "running" | "completed" | "failed" | "cancelled";
+						label?: string;
+						durationMs?: number;
+					}>;
 				}>
 			).details;
 			const jobs =
@@ -389,12 +394,15 @@ export class ChatTranscriptBuilder {
 							{
 								jobId: details?.jobId,
 								type: details?.type,
+								status: details?.status,
 								label: details?.label,
 								durationMs: details?.durationMs,
 							},
 						];
+			const visibleJobs = jobs.filter(job => !(job.type === "task" && job.status === "completed"));
+			if (visibleJobs.length === 0) return;
 			const block = new TranscriptBlock();
-			for (const job of jobs) {
+			for (const job of visibleJobs) {
 				const jobId = job.jobId ?? "unknown";
 				const typeLabel = job.type ? `[${job.type}]` : "[job]";
 				const duration = typeof job.durationMs === "number" ? formatDuration(job.durationMs) : undefined;
@@ -409,13 +417,6 @@ export class ChatTranscriptBuilder {
 				block.addChild(new Text(line, 1, 0));
 			}
 			this.container.addChild(block);
-			return;
-		}
-		if (message.customType === LSP_LATE_DIAGNOSTIC_MESSAGE_TYPE) {
-			const details = (message as CustomMessage<{ files?: LateDiagnosticsFile[] }>).details;
-			const component = new LateDiagnosticsMessageComponent(details?.files ?? []);
-			this.#trackExpandable(component);
-			this.container.addChild(component);
 			return;
 		}
 		if (message.customType === COLLAB_PROMPT_MESSAGE_TYPE) {
@@ -434,7 +435,17 @@ export class ChatTranscriptBuilder {
 			message.customType === "irc:relay"
 		) {
 			const details = (
-				message as CustomMessage<{ from?: string; to?: string; message?: string; body?: string; replyTo?: string }>
+				message as CustomMessage<{
+					from?: string;
+					fromAgentName?: string;
+					fromDisplayName?: string;
+					to?: string;
+					toAgentName?: string;
+					toDisplayName?: string;
+					message?: string;
+					body?: string;
+					replyTo?: string;
+				}>
 			).details;
 			const kind =
 				message.customType === "irc:incoming"
@@ -446,7 +457,11 @@ export class ChatTranscriptBuilder {
 				{
 					kind,
 					from: details?.from,
+					fromAgentName: details?.fromAgentName,
+					fromDisplayName: details?.fromDisplayName,
 					to: details?.to,
+					toAgentName: details?.toAgentName,
+					toDisplayName: details?.toDisplayName,
 					body: kind === "incoming" ? details?.message : details?.body,
 					replyTo: details?.replyTo,
 					timestamp: message.timestamp,

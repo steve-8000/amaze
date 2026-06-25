@@ -1,4 +1,4 @@
-import { Box, type Component, Markdown } from "@oh-my-pi/pi-tui";
+import { Box, type Component, Markdown } from "@amaze/pi-tui";
 import { getMarkdownTheme, theme } from "../../modes/theme/theme";
 import type { BranchSummaryMessage, CompactionSummaryMessage, CustomMessage } from "../../session/messages";
 
@@ -41,10 +41,8 @@ class SummaryDividerComponent implements Component {
 	#divider(width: number): string {
 		const rule = theme.tree.horizontal;
 		const label = this.options.label();
-		// sep.dot ships pre-padded (" · "); trim so the hint joins with single spaces.
-		const hint = `${theme.sep.dot.trim()} ctrl+o`;
-		const plainWidth = Bun.stringWidth(`${label} ${hint}`, { countAnsiEscapeCodes: false });
-		// ` label hint ` framed by rules on both sides.
+		const hint = ` ${theme.sep.dot.trim()} ctrl+o`;
+		const plainWidth = Bun.stringWidth(`${label}${hint}`, { countAnsiEscapeCodes: false });
 		const remaining = width - plainWidth - 2;
 		if (remaining < 4) {
 			// Too narrow for a framed rule — emit the bare label.
@@ -54,7 +52,7 @@ class SummaryDividerComponent implements Component {
 		const right = remaining - left;
 		return (
 			theme.fg("dim", rule.repeat(left)) +
-			` ${theme.fg("muted", label)} ${theme.fg("dim", hint)} ` +
+			` ${theme.fg("muted", label)}${theme.fg("dim", hint)} ` +
 			theme.fg("dim", rule.repeat(right))
 		);
 	}

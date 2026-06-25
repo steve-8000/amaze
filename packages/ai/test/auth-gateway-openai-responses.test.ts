@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { encodeResponse, encodeStream, parseRequest } from "@oh-my-pi/pi-ai/providers/openai-responses-server";
-import type { AssistantMessage } from "@oh-my-pi/pi-ai/types";
-import { AssistantMessageEventStream } from "@oh-my-pi/pi-ai/utils/event-stream";
-import { Effort } from "@oh-my-pi/pi-catalog/effort";
+import { encodeResponse, encodeStream, parseRequest } from "@amaze/pi-ai/providers/openai-responses-server";
+import type { AssistantMessage } from "@amaze/pi-ai/types";
+import { AssistantMessageEventStream } from "@amaze/pi-ai/utils/event-stream";
+import { Effort } from "@amaze/pi-catalog/effort";
 
 function zeroUsage(): AssistantMessage["usage"] {
 	return {

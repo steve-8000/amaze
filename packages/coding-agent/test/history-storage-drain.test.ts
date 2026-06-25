@@ -2,11 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { HistoryStorage } from "@oh-my-pi/pi-coding-agent/session/history-storage";
+import { HistoryStorage } from "@amaze/pi-coding-agent/session/history-storage";
 
 let tempDir = "";
 
-async function freshStorage(prefix = "omp-history-drain-"): Promise<HistoryStorage> {
+async function freshStorage(prefix = "amaze-history-drain-"): Promise<HistoryStorage> {
 	tempDir = await fs.mkdtemp(path.join(os.tmpdir(), prefix));
 	const dbPath = path.join(tempDir, "history.db");
 	HistoryStorage.resetInstance();

@@ -1,5 +1,5 @@
-import type { Effort } from "@oh-my-pi/pi-catalog/effort";
-import { requireSupportedEffort } from "@oh-my-pi/pi-catalog/model-thinking";
+import type { Effort } from "@amaze/pi-catalog/effort";
+import { requireSupportedEffort } from "@amaze/pi-catalog/model-thinking";
 import type { Api, Model } from "../../types";
 
 /** Reasoning replay scope for the Codex Responses API (`reasoning.context`). */

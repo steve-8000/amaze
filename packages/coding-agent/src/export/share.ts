@@ -19,9 +19,9 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentState } from "@oh-my-pi/pi-agent-core";
-import { $which, logger } from "@oh-my-pi/pi-utils";
-import { DEFAULT_SHARE_URL } from "@oh-my-pi/pi-wire";
+import type { AgentState } from "@amaze/pi-agent-core";
+import { $which, logger } from "@amaze/pi-utils";
+import { DEFAULT_SHARE_URL } from "@amaze/pi-wire";
 import { $ } from "bun";
 import type { SecretObfuscator } from "../secrets/obfuscator";
 import type { SessionManager } from "../session/session-manager";
@@ -220,7 +220,7 @@ async function tryCreateGist(sealed: Uint8Array): Promise<{ id: string; url: str
 		return null;
 	}
 
-	const dir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-share-"));
+	const dir = await fs.mkdtemp(path.join(os.tmpdir(), "amaze-share-"));
 	try {
 		const file = path.join(dir, GIST_FILENAME);
 		await Bun.write(file, Buffer.from(sealed).toString("base64"));

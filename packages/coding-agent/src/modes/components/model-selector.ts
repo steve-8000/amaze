@@ -1,7 +1,7 @@
-import { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import type { Model } from "@oh-my-pi/pi-ai";
-import { getSupportedEfforts } from "@oh-my-pi/pi-catalog/model-thinking";
-import { modelsAreEqual } from "@oh-my-pi/pi-catalog/models";
+import { ThinkingLevel } from "@amaze/pi-agent-core";
+import type { Model } from "@amaze/pi-ai";
+import { getSupportedEfforts } from "@amaze/pi-catalog/model-thinking";
+import { modelsAreEqual } from "@amaze/pi-catalog/models";
 import {
 	Container,
 	fuzzyFilter,
@@ -15,8 +15,8 @@ import {
 	Text,
 	type TUI,
 	visibleWidth,
-} from "@oh-my-pi/pi-tui";
-import { formatNumber } from "@oh-my-pi/pi-utils";
+} from "@amaze/pi-tui";
+import { formatNumber } from "@amaze/pi-utils";
 import type { ModelRegistry } from "../../config/model-registry";
 import { getModelMatchPreferences, resolveModelRoleValue } from "../../config/model-resolver";
 import { getKnownRoleIds, getRoleInfo, MODEL_ROLE_IDS, MODEL_ROLES } from "../../config/model-roles";

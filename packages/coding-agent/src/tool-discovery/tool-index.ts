@@ -1,6 +1,6 @@
-import type { AgentTool } from "@oh-my-pi/pi-agent-core";
-import type { Tool as AiTool } from "@oh-my-pi/pi-ai";
-import { toolWireSchema } from "@oh-my-pi/pi-ai/utils/schema";
+import type { AgentTool } from "@amaze/pi-agent-core";
+import type { Tool as AiTool } from "@amaze/pi-ai";
+import { toolWireSchema } from "@amaze/pi-ai/utils/schema";
 
 // ─── Generic Tool Discovery Types ────────────────────────────────────────────
 

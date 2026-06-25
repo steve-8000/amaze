@@ -5,8 +5,8 @@ import type {
 	AgentToolContext,
 	AgentToolResult,
 	AgentToolUpdateCallback,
-} from "@oh-my-pi/pi-agent-core";
-import { escapeXmlText } from "@oh-my-pi/pi-utils";
+} from "@amaze/pi-agent-core";
+import { escapeXmlText } from "@amaze/pi-utils";
 import { type } from "arktype";
 import adviseDescription from "../prompts/advisor/advise-tool.md" with { type: "text" };
 

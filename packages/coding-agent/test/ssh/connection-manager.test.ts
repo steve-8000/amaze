@@ -2,10 +2,10 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import * as connectionManager from "@oh-my-pi/pi-coding-agent/ssh/connection-manager";
+import * as connectionManager from "@amaze/pi-coding-agent/ssh/connection-manager";
 
 async function withLooseKey<T>(run: (keyPath: string) => Promise<T>): Promise<T> {
-	const dir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-ssh-key-"));
+	const dir = await fs.mkdtemp(path.join(os.tmpdir(), "amaze-ssh-key-"));
 	const keyPath = path.join(dir, "id_ed25519");
 	await Bun.write(keyPath, "dummy-key");
 	await fs.chmod(keyPath, 0o666);
@@ -72,7 +72,7 @@ describe("buildRemoteCommand", () => {
 	});
 
 	it("still rejects missing identity files on Windows args", async () => {
-		const dir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-ssh-key-"));
+		const dir = await fs.mkdtemp(path.join(os.tmpdir(), "amaze-ssh-key-"));
 		const keyPath = path.join(dir, "missing_id_ed25519");
 		try {
 			await expect(
@@ -92,7 +92,7 @@ describe("buildRemoteCommand", () => {
 	});
 
 	it("still rejects directory identity paths on Windows args", async () => {
-		const keyPath = await fs.mkdtemp(path.join(os.tmpdir(), "omp-ssh-key-"));
+		const keyPath = await fs.mkdtemp(path.join(os.tmpdir(), "amaze-ssh-key-"));
 		try {
 			await expect(
 				connectionManager.buildRemoteCommand(

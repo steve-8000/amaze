@@ -3,10 +3,10 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { syncAllSessions } from "@oh-my-pi/omp-stats/aggregator";
-import { closeDb, getOverallStats, getRecentRequests } from "@oh-my-pi/omp-stats/db";
-import { parseSessionFile } from "@oh-my-pi/omp-stats/parser";
-import { getAgentDir, getSessionsDir, getStatsDbPath, setAgentDir, TempDir } from "@oh-my-pi/pi-utils";
+import { syncAllSessions } from "@amaze/amaze-stats/aggregator";
+import { closeDb, getOverallStats, getRecentRequests } from "@amaze/amaze-stats/db";
+import { parseSessionFile } from "@amaze/amaze-stats/parser";
+import { getAgentDir, getSessionsDir, getStatsDbPath, setAgentDir, TempDir } from "@amaze/pi-utils";
 
 const originalConfigDir = process.env.PI_CONFIG_DIR;
 const originalAgentDir = getAgentDir();

@@ -14,8 +14,8 @@
  * includes the sender, so a real turn could never happen in time).
  */
 
-import { logger, Snowflake } from "@oh-my-pi/pi-utils";
-import { AgentLifecycleManager } from "../registry/agent-lifecycle";
+import { logger, Snowflake } from "@amaze/pi-utils";
+import { AgentLifecycleManager, nonRevivableAgentMessage } from "../registry/agent-lifecycle";
 import { AgentRegistry, MAIN_AGENT_ID } from "../registry/agent-registry";
 import type { CustomMessage } from "../session/messages";
 
@@ -23,8 +23,12 @@ export interface IrcMessage {
 	id: string;
 	/** Sender agent id. */
 	from: string;
+	fromAgentName?: string;
+	fromDisplayName?: string;
 	/** Recipient agent id (resolved; "all" is expanded by the tool, not stored). */
 	to: string;
+	toAgentName?: string;
+	toDisplayName?: string;
 	body: string;
 	ts: number;
 	/** Message id being answered. */
@@ -93,8 +97,17 @@ export class IrcBus {
 	 * instead of stranding the sender until timeout.
 	 */
 	async send(msg: Omit<IrcMessage, "id" | "ts">, opts?: { expectsReply?: boolean }): Promise<IrcDeliveryReceipt> {
-		const message: IrcMessage = { ...msg, id: Snowflake.next(), ts: Date.now() };
-		const ref = this.#registry.get(message.to);
+		const fromRef = this.#registry.get(msg.from);
+		const ref = this.#registry.get(msg.to);
+		const message: IrcMessage = {
+			...msg,
+			fromAgentName: msg.fromAgentName ?? fromRef?.agentName,
+			fromDisplayName: msg.fromDisplayName ?? fromRef?.displayName,
+			toAgentName: msg.toAgentName ?? ref?.agentName,
+			toDisplayName: msg.toDisplayName ?? ref?.displayName,
+			id: Snowflake.next(),
+			ts: Date.now(),
+		};
 		if (!ref || ref.status === "aborted") {
 			return { to: message.to, outcome: "failed", error: `Unknown or terminated agent "${message.to}".` };
 		}
@@ -109,6 +122,13 @@ export class IrcBus {
 
 		let revived = false;
 		if (ref.status === "parked") {
+			if (ref.revivable === false) {
+				return {
+					to: message.to,
+					outcome: "failed",
+					error: nonRevivableAgentMessage(message.to),
+				};
+			}
 			try {
 				await this.#lifecycle().ensureLive(message.to);
 				revived = true;
@@ -297,7 +317,15 @@ export class IrcBus {
 			customType: "irc:relay",
 			content: `[IRC \`${message.from}\` → \`${message.to}\`]\n\n${message.body}`,
 			display: true,
-			details: { from: message.from, to: message.to, body: message.body },
+			details: {
+				from: message.from,
+				fromAgentName: message.fromAgentName,
+				fromDisplayName: message.fromDisplayName,
+				to: message.to,
+				toAgentName: message.toAgentName,
+				toDisplayName: message.toDisplayName,
+				body: message.body,
+			},
 			attribution: "agent",
 			timestamp: message.ts,
 		};

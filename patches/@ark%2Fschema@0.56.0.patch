@@ -13,7 +13,7 @@ index 80bd4ac7cb93deafa34af1595d320368c7cf1b90..4c7d64865edd612ed75698e0420d3435
 -        if (kind === "predicate")
 +        // and checked in the correct order; required/optional preserve authored
 +        // key order too so tool wire schemas stream in declaration order rather
-+        // than alphabetized-by-hash order (oh-my-pi patch)
++        // than alphabetized-by-hash order (amaze-agent patch)
 +        if (kind === "predicate" || kind === "required" || kind === "optional")
              return nodes;
          return nodes.sort((l, r) => (l.hash < r.hash ? -1 : 1));

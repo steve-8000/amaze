@@ -13,15 +13,15 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Patch, Patcher } from "@oh-my-pi/hashline";
-import type { AgentToolResult } from "@oh-my-pi/pi-agent-core";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { canonicalSnapshotKey, getFileSnapshotStore } from "@oh-my-pi/pi-coding-agent/edit/file-snapshot-store";
-import { HashlineFilesystem } from "@oh-my-pi/pi-coding-agent/edit/hashline/filesystem";
-import { writethroughNoop } from "@oh-my-pi/pi-coding-agent/lsp";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import type { ReadToolDetails } from "@oh-my-pi/pi-coding-agent/tools/read";
-import { ReadTool } from "@oh-my-pi/pi-coding-agent/tools/read";
+import { Patch, Patcher } from "@amaze/hashline";
+import type { AgentToolResult } from "@amaze/pi-agent-core";
+import { Settings } from "@amaze/pi-coding-agent/config/settings";
+import { writethroughNoop } from "@amaze/pi-coding-agent/edit";
+import { canonicalSnapshotKey, getFileSnapshotStore } from "@amaze/pi-coding-agent/edit/file-snapshot-store";
+import { HashlineFilesystem } from "@amaze/pi-coding-agent/edit/hashline/filesystem";
+import type { ToolSession } from "@amaze/pi-coding-agent/tools";
+import type { ReadToolDetails } from "@amaze/pi-coding-agent/tools/read";
+import { ReadTool } from "@amaze/pi-coding-agent/tools/read";
 
 const HASHLINE_HEADER_LINE = /^\[([^#\r\n]+)#([0-9A-F]{4})\]$/m;
 const COLUMN_CAP = 64;
@@ -46,7 +46,6 @@ function createSession(cwd: string): ToolSession {
 		getArtifactsDir: () => path.join(cwd, "artifacts"),
 		allocateOutputArtifact: async () => ({ id: "artifact-1", path: path.join(cwd, "artifact-1.log") }),
 		settings,
-		enableLsp: false,
 	};
 }
 

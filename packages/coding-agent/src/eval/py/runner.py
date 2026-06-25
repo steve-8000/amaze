@@ -1,4 +1,4 @@
-"""OMP Python runner — subprocess wrapper used by the coding-agent host.
+"""Amaze Python runner — subprocess wrapper used by the coding-agent host.
 
 NDJSON protocol over stdin/stdout. Host writes one JSON object per line;
 wrapper writes typed frames back.
@@ -231,7 +231,7 @@ def _drain_captured_stdout() -> None:
 def _start_capture_drain() -> None:
     if _CAPTURE_READ_FD is None:
         return
-    thread = threading.Thread(target=_drain_captured_stdout, name="omp-fd1-capture", daemon=True)
+    thread = threading.Thread(target=_drain_captured_stdout, name="amaze-fd1-capture", daemon=True)
     thread.start()
 
 
@@ -390,7 +390,7 @@ def cell_magic(name: str) -> Callable[[Callable[[str, str], Any]], Callable[[str
 
 
 def _emit_status(op: str, **data: Any) -> None:
-    bundle = {"application/x-omp-status": {"op": op, **data}}
+    bundle = {"application/x-amaze-status": {"op": op, **data}}
     rid = _CURRENT_RID.get()
     if rid is None:
         return
@@ -1008,7 +1008,7 @@ def _start_parent_watchdog() -> None:
                 return
             time.sleep(10)
 
-    thread = threading.Thread(target=watch, name="omp-parent-watchdog", daemon=True)
+    thread = threading.Thread(target=watch, name="amaze-parent-watchdog", daemon=True)
     thread.start()
 
 
@@ -1142,7 +1142,7 @@ async def _main_async() -> None:
     loop = asyncio.get_running_loop()
     _STATE.loop = loop
     queue: asyncio.Queue = asyncio.Queue()
-    reader = threading.Thread(target=_read_stdin, args=(loop, queue, stdin), name="omp-stdin-reader", daemon=True)
+    reader = threading.Thread(target=_read_stdin, args=(loop, queue, stdin), name="amaze-stdin-reader", daemon=True)
     reader.start()
 
     tasks: set[asyncio.Task] = set()

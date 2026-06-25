@@ -3,11 +3,10 @@
  *
  * These provide rich visualization for tool calls and results in the TUI.
  */
-import type { Component } from "@oh-my-pi/pi-tui";
+import type { Component } from "@amaze/pi-tui";
 import { editToolRenderer } from "../edit/renderer";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
 import { goalToolRenderer } from "../goals/tools/goal-tool";
-import { lspToolRenderer } from "../lsp/render";
 import type { Theme } from "../modes/theme/theme";
 import { taskToolRenderer } from "../task/render";
 import { webSearchToolRenderer } from "../web/search/render";
@@ -66,7 +65,6 @@ export const toolRenderers: Record<string, ToolRenderer> = {
 	apply_patch: editToolRenderer as ToolRenderer,
 	find: findToolRenderer as ToolRenderer,
 	search: searchToolRenderer as ToolRenderer,
-	lsp: lspToolRenderer as ToolRenderer,
 	inspect_image: inspectImageToolRenderer as ToolRenderer,
 	irc: ircToolRenderer as ToolRenderer,
 	read: readToolRenderer as ToolRenderer,

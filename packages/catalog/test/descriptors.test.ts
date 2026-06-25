@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { DEFAULT_MODEL_PER_PROVIDER, PROVIDER_DESCRIPTORS } from "@oh-my-pi/pi-catalog/provider-models";
+import { DEFAULT_MODEL_PER_PROVIDER, PROVIDER_DESCRIPTORS } from "@amaze/pi-catalog/provider-models";
 
 describe("catalog provider descriptors", () => {
 	test("descriptors cover standard model providers, excluding special-managed ones", () => {
@@ -8,6 +8,11 @@ describe("catalog provider descriptors", () => {
 		expect(zenmux?.defaultModel).toBe("anthropic/claude-opus-4.8");
 		// The descriptor factory carries the provider identity through.
 		expect(zenmux?.createModelManagerOptions({ apiKey: "k" }).providerId).toBe("zenmux");
+		const gemma12b = PROVIDER_DESCRIPTORS.find(descriptor => descriptor.providerId === "gemma-12b");
+		expect(gemma12b).toBeDefined();
+		expect(gemma12b?.defaultModel).toBe("gemma-3-12b-it");
+		expect(gemma12b?.allowUnauthenticated).toBe(true);
+		expect(gemma12b?.createModelManagerOptions({ baseUrl: "http://gemma.test/v1" }).providerId).toBe("gemma-12b");
 
 		// openai-codex is special-managed (bespoke runtime factory) → excluded from descriptors,
 		// but still a known model provider with a default.

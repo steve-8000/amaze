@@ -16,7 +16,7 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { $which, logger, Snowflake } from "@oh-my-pi/pi-utils";
+import { $which, logger, Snowflake } from "@amaze/pi-utils";
 import type { FileSink, Subprocess } from "bun";
 import { getToolPath } from "../utils/tools-manager";
 import { type PlayerCommand, playAudioFile } from "./player";
@@ -233,7 +233,7 @@ export class StreamingAudioPlayer {
 	}
 
 	async #playFile(pcm: Float32Array): Promise<void> {
-		const wavPath = path.join(os.tmpdir(), `omp-speech-${Snowflake.next()}.wav`);
+		const wavPath = path.join(os.tmpdir(), `amaze-speech-${Snowflake.next()}.wav`);
 		try {
 			await fs.writeFile(wavPath, encodeWav(this.#scaled(pcm), this.#sampleRate));
 			if (!this.#stopped) await playAudioFile(wavPath, { signal: this.#abortController.signal });

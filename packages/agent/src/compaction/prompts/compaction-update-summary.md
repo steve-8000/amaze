@@ -3,7 +3,8 @@ RULES:
 - MUST preserve all information from the previous summary
 - MUST add new progress, decisions, and context from new messages
 - MUST update Progress: move items from "In Progress" to "Done" when completed
-- MUST update "Next Steps" based on what was accomplished
+- MUST update "Next Steps" when unfinished executable work remains
+- MUST remove "Next Steps" when the latest turn fully completed the user's request and only optional follow-up ideas remain
 - MUST preserve exact file paths, function names, and error messages
 - You MAY remove anything no longer relevant
 

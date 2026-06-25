@@ -1570,6 +1570,17 @@ export function generateTaskName(): string {
 }
 
 /**
+ * Generate the default visible handle for an unnamed subagent spawn from its
+ * agent definition name. Uniqueness is handled by AgentOutputManager.
+ */
+export function generateSubagentName(agentName: string | undefined): string {
+	const raw = agentName?.trim() ?? "";
+	const parts = raw.split(/[^A-Za-z0-9]+/).filter(Boolean);
+	if (parts.length === 0) return "Agent";
+	return parts.map(capitalize).join("");
+}
+
+/**
  * Reset name generator state (for testing).
  */
 export function resetTaskNames(): void {

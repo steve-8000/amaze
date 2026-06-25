@@ -2,11 +2,11 @@ import * as nodeCrypto from "node:crypto";
 import * as fs from "node:fs";
 import { scheduler } from "node:timers/promises";
 import * as tls from "node:tls";
-import { isOfficialAnthropicApiUrl } from "@oh-my-pi/pi-catalog/compat/anthropic";
-import { mapEffortToAnthropicAdaptiveEffort } from "@oh-my-pi/pi-catalog/model-thinking";
-import { calculateCost } from "@oh-my-pi/pi-catalog/models";
-import { isAnthropicOAuthToken } from "@oh-my-pi/pi-catalog/utils";
-import { parseGitHubCopilotApiKey } from "@oh-my-pi/pi-catalog/wire/github-copilot";
+import { isOfficialAnthropicApiUrl } from "@amaze/pi-catalog/compat/anthropic";
+import { mapEffortToAnthropicAdaptiveEffort } from "@amaze/pi-catalog/model-thinking";
+import { calculateCost } from "@amaze/pi-catalog/models";
+import { isAnthropicOAuthToken } from "@amaze/pi-catalog/utils";
+import { parseGitHubCopilotApiKey } from "@amaze/pi-catalog/wire/github-copilot";
 import {
 	$env,
 	extractHttpStatusFromError,
@@ -16,7 +16,7 @@ import {
 	isUnexpectedSocketCloseMessage,
 	logger,
 	readSseEvents,
-} from "@oh-my-pi/pi-utils";
+} from "@amaze/pi-utils";
 import { isUsageLimitError } from "../rate-limit-utils";
 import { getEnvApiKey, OUTPUT_FALLBACK_BUFFER } from "../stream";
 import type {
@@ -635,8 +635,8 @@ export function generateClaudeCloakingUserId(): string {
 	return `user_${userHash}_account_${accountId}_session_${sessionId}`;
 }
 
-const CLAUDE_DEVICE_ID_INSTALL_HASH_DOMAIN = "omp-claude-device-id-v1:";
-const CLAUDE_DEVICE_ID_ACCOUNT_HASH_DOMAIN = "omp-claude-device-id-v2";
+const CLAUDE_DEVICE_ID_INSTALL_HASH_DOMAIN = "amaze-claude-device-id-v1:";
+const CLAUDE_DEVICE_ID_ACCOUNT_HASH_DOMAIN = "amaze-claude-device-id-v2";
 
 export function deriveClaudeDeviceId(installId: string, accountId?: string): string {
 	const hash = nodeCrypto.createHash("sha256");

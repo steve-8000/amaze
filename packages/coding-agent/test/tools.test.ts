@@ -4,22 +4,22 @@ import * as os from "node:os";
 import * as path from "node:path";
 import * as url from "node:url";
 import * as zlib from "node:zlib";
-import type { AgentToolContext } from "@oh-my-pi/pi-agent-core";
-import { AsyncJobManager } from "@oh-my-pi/pi-coding-agent/async";
-import { DEFAULT_BASH_INTERCEPTOR_RULES, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { EditTool } from "@oh-my-pi/pi-coding-agent/edit";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { BashTool } from "@oh-my-pi/pi-coding-agent/tools/bash";
-import { FindTool } from "@oh-my-pi/pi-coding-agent/tools/find";
-import { JobTool } from "@oh-my-pi/pi-coding-agent/tools/job";
-import { wrapToolWithMetaNotice } from "@oh-my-pi/pi-coding-agent/tools/output-meta";
-import { ReadTool } from "@oh-my-pi/pi-coding-agent/tools/read";
-import { DEFAULT_FILE_LIMIT, MULTI_FILE_PER_FILE_MATCHES, SearchTool } from "@oh-my-pi/pi-coding-agent/tools/search";
-import * as toolTimeouts from "@oh-my-pi/pi-coding-agent/tools/tool-timeouts";
-import { WriteTool } from "@oh-my-pi/pi-coding-agent/tools/write";
-import { unzip } from "@oh-my-pi/pi-coding-agent/utils/zip";
-import { $which, removeSyncWithRetries, Snowflake } from "@oh-my-pi/pi-utils";
+import type { AgentTool, AgentToolContext } from "@amaze/pi-agent-core";
+import { AsyncJobManager } from "@amaze/pi-coding-agent/async";
+import { DEFAULT_BASH_INTERCEPTOR_RULES, Settings } from "@amaze/pi-coding-agent/config/settings";
+import { EditTool } from "@amaze/pi-coding-agent/edit";
+import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
+import type { ToolSession } from "@amaze/pi-coding-agent/tools";
+import { BashTool } from "@amaze/pi-coding-agent/tools/bash";
+import { FindTool } from "@amaze/pi-coding-agent/tools/find";
+import { JobTool } from "@amaze/pi-coding-agent/tools/job";
+import { wrapToolWithMetaNotice } from "@amaze/pi-coding-agent/tools/output-meta";
+import { ReadTool } from "@amaze/pi-coding-agent/tools/read";
+import { DEFAULT_FILE_LIMIT, MULTI_FILE_PER_FILE_MATCHES, SearchTool } from "@amaze/pi-coding-agent/tools/search";
+import * as toolTimeouts from "@amaze/pi-coding-agent/tools/tool-timeouts";
+import { WriteTool } from "@amaze/pi-coding-agent/tools/write";
+import { unzip } from "@amaze/pi-coding-agent/utils/zip";
+import { $which, removeSyncWithRetries, Snowflake } from "@amaze/pi-utils";
 
 // Helper to extract text from content blocks
 function getTextOutput(result: any): string {
@@ -413,7 +413,7 @@ describe("Coding Agent Tools", () => {
 				nbformat_minor: 5,
 			};
 			fs.writeFileSync(notebookPath, JSON.stringify(notebook));
-			const noLspEditTool = wrapToolWithMetaNotice(new EditTool({ ...session, enableLsp: false }));
+			const noLspEditTool = wrapToolWithMetaNotice(new EditTool({ ...session }));
 
 			await noLspEditTool.execute("test-edit-ipynb", {
 				path: notebookPath,
@@ -1144,6 +1144,110 @@ function b() {
 
 			expect(getTextOutput(result)).toContain("test output");
 			expect(result.details?.timeoutSeconds).toBe(300);
+		});
+
+		it("should reroute exact tool-shaped commands to the intended tool", async () => {
+			const browserExecute = vi.fn(async () => ({
+				content: [{ type: "text" as const, text: 'Opened tab "main"' }],
+				details: { status: "ok" },
+			}));
+			const browserTool: AgentTool = {
+				name: "browser",
+				label: "Browser",
+				description: "Mock browser tool",
+				parameters: {} as never,
+				execute: browserExecute,
+			};
+			const reroutedBashTool = wrapToolWithMetaNotice(
+				new BashTool(
+					createTestToolSession(testDir, Settings.isolated(), {
+						getToolByName: name => (name === "browser" ? browserTool : undefined),
+					}),
+				),
+			);
+
+			const result = await reroutedBashTool.execute("test-call-rerouted-browser", {
+				command: 'browser {"action":"open","name":"main","url":"https://example.com"}',
+			});
+
+			expect(browserExecute).toHaveBeenCalledTimes(1);
+			const browserCall = browserExecute.mock.calls[0] as unknown[] | undefined;
+			expect(browserCall?.[0]).toBe("test-call-rerouted-browser");
+			expect(browserCall?.[1]).toEqual({
+				action: "open",
+				name: "main",
+				url: "https://example.com",
+			});
+			expect(getTextOutput(result)).toContain('Opened tab "main"');
+		});
+
+		it("should reroute tool-shaped commands despite empty bash env and noop cwd defaults", async () => {
+			const browserExecute = vi.fn(async () => ({
+				content: [{ type: "text" as const, text: 'Opened tab "main"' }],
+				details: { status: "ok" },
+			}));
+			const browserTool: AgentTool = {
+				name: "browser",
+				label: "Browser",
+				description: "Mock browser tool",
+				parameters: {} as never,
+				execute: browserExecute,
+			};
+			const reroutedBashTool = wrapToolWithMetaNotice(
+				new BashTool(
+					createTestToolSession(testDir, Settings.isolated(), {
+						getToolByName: name => (name === "browser" ? browserTool : undefined),
+					}),
+				),
+			);
+
+			const result = await reroutedBashTool.execute("test-call-rerouted-browser-defaults", {
+				command: 'browser {"action":"open","name":"main","url":"https://example.com"}',
+				env: {},
+				cwd: ".",
+			});
+
+			expect(browserExecute).toHaveBeenCalledTimes(1);
+			const browserCall = browserExecute.mock.calls[0] as unknown[] | undefined;
+			expect(browserCall?.[0]).toBe("test-call-rerouted-browser-defaults");
+			expect(browserCall?.[1]).toEqual({
+				action: "open",
+				name: "main",
+				url: "https://example.com",
+			});
+			expect(getTextOutput(result)).toContain('Opened tab "main"');
+		});
+
+		it("should reroute exact eval-shaped commands to the eval tool", async () => {
+			const evalExecute = vi.fn(async () => ({
+				content: [{ type: "text" as const, text: "eval ok" }],
+				details: { backend: "js" },
+			}));
+			const evalTool: AgentTool = {
+				name: "eval",
+				label: "Eval",
+				description: "Mock eval tool",
+				parameters: {} as never,
+				execute: evalExecute,
+			};
+			const reroutedBashTool = wrapToolWithMetaNotice(
+				new BashTool(
+					createTestToolSession(testDir, Settings.isolated(), {
+						getToolByName: name => (name === "eval" ? evalTool : undefined),
+					}),
+				),
+			);
+
+			const result = await reroutedBashTool.execute("test-call-rerouted-eval", {
+				command: 'eval {"cells":[{"language":"js","code":"1+1","title":"sum"}]}',
+			});
+
+			expect(evalExecute).toHaveBeenCalledTimes(1);
+			const evalCall = evalExecute.mock.calls[0] as unknown[] | undefined;
+			expect(evalCall?.[1]).toEqual({
+				cells: [{ language: "js", code: "1+1", title: "sum" }],
+			});
+			expect(getTextOutput(result)).toContain("eval ok");
 		});
 
 		it("should record wall time in text content and details", async () => {

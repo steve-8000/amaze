@@ -110,8 +110,8 @@ export const miscFixtures: Record<string, GalleryFixture> = {
 		},
 		args: {
 			host: "deploy@web-01",
-			command: "systemctl status omp-api --no-pager | head -n 12",
-			cwd: "/srv/omp",
+			command: "systemctl status amaze-api --no-pager | head -n 12",
+			cwd: "/srv/amaze",
 			timeout: 60,
 		},
 		result: {
@@ -119,14 +119,14 @@ export const miscFixtures: Record<string, GalleryFixture> = {
 				{
 					type: "text",
 					text: [
-						"● omp-api.service - Oh My Pi API",
-						"     Loaded: loaded (/etc/systemd/system/omp-api.service; enabled)",
+						"● amaze-api.service - Amaze Agent API",
+						"     Loaded: loaded (/etc/systemd/system/amaze-api.service; enabled)",
 						"     Active: active (running) since Sat 2026-06-06 09:14:02 UTC; 3h 21min ago",
 						"   Main PID: 4812 (bun)",
 						"      Tasks: 17 (limit: 4915)",
 						"     Memory: 142.6M",
 						"        CPU: 38.214s",
-						"     CGroup: /system.slice/omp-api.service",
+						"     CGroup: /system.slice/amaze-api.service",
 						"             └─4812 /usr/local/bin/bun run dist/server.js",
 					].join("\n"),
 				},
@@ -152,7 +152,7 @@ export const miscFixtures: Record<string, GalleryFixture> = {
 		args: {
 			op: "search_prs",
 			query: "is:open review-requested:@me sort:updated",
-			repo: "oh-my-pi/pi",
+			repo: "amaze-agent/pi",
 		},
 		result: {
 			content: [
@@ -173,7 +173,7 @@ export const miscFixtures: Record<string, GalleryFixture> = {
 			content: [
 				{
 					type: "text",
-					text: "gh: Could not resolve to a Repository with the name 'oh-my-pi/pi'. (HTTP 404)",
+					text: "gh: Could not resolve to a Repository with the name 'amaze-agent/pi'. (HTTP 404)",
 				},
 			],
 			isError: true,
@@ -223,10 +223,10 @@ export const miscFixtures: Record<string, GalleryFixture> = {
 	// (`#formatToolExecution`) path so its padded, state-tinted block is QA'd.
 	report_tool_issue: {
 		label: "Report Tool Issue",
-		streamingArgs: { tool: "lsp" },
+		streamingArgs: { tool: "bash" },
 		args: {
-			tool: "lsp",
-			report: "Rename returned no edit for an exported symbol that has 12 references",
+			tool: "bash",
+			report: "Command preview rendered stale arguments during streaming",
 		},
 		result: { content: [{ type: "text", text: "Noted, thanks!" }] },
 		errorResult: {

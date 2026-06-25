@@ -589,7 +589,7 @@ class RpcClientTests(unittest.TestCase):
 
     def test_command_builder_supports_common_rpc_options(self) -> None:
         client = RpcClient(
-            executable="omp",
+            executable="amaze",
             model="openrouter/anthropic/claude-sonnet-4.6",
             cwd="/tmp/workspace",
             thinking="high",
@@ -605,7 +605,7 @@ class RpcClientTests(unittest.TestCase):
         self.assertEqual(
             client.command,
             (
-                "omp",
+                "amaze",
                 "--mode",
                 "rpc",
                 "--model",
@@ -1131,12 +1131,12 @@ class StopUnblocksPromptAndWaitTests(unittest.TestCase):
 
 class TerminatesProcessGroupTests(unittest.TestCase):
     """Regression: stop() must reap descendants the agent spawned, not only
-    the omp leader.
+    the amaze leader.
 
     A `bun test` launched by the agent's `bash` tool runs as a grandchild of
-    the omp process. Before the fix, stop() signalled only the leader pid, so
+    the amaze process. Before the fix, stop() signalled only the leader pid, so
     such grandchildren reparented to the container init and kept running —
-    once ballooning to tens of GB of RAM. omp is now spawned in its own
+    once ballooning to tens of GB of RAM. amaze is now spawned in its own
     session and stop() tears down the whole process group.
     """
 
@@ -1171,7 +1171,7 @@ class TerminatesProcessGroupTests(unittest.TestCase):
 
         self.addCleanup(_reap_leaked_grandchild)
 
-        # Fake omp server: spawn the long-lived grandchild, signal ready, then
+        # Fake amaze server: spawn the long-lived grandchild, signal ready, then
         # idle until torn down (sleep past stdin EOF so the group is still
         # alive when stop() fires).
         server = textwrap.dedent(

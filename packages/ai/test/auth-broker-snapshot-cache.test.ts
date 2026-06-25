@@ -6,7 +6,7 @@ import {
 	readAuthBrokerSnapshotCache,
 	type SnapshotResponse,
 	writeAuthBrokerSnapshotCache,
-} from "@oh-my-pi/pi-ai/auth-broker";
+} from "@amaze/pi-ai/auth-broker";
 
 const TOKEN = "broker-cache-token";
 const URL = "http://127.0.0.1:8765";

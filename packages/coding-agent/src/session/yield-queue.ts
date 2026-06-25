@@ -1,5 +1,5 @@
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-import { logger } from "@oh-my-pi/pi-utils";
+import type { AgentMessage } from "@amaze/pi-agent-core";
+import { logger } from "@amaze/pi-utils";
 
 export interface YieldDispatcher<P> {
 	/** Drop entries already delivered through another path. Called per-entry at flush time. */
@@ -14,6 +14,7 @@ export interface YieldQueueOptions {
 	isStreaming: () => boolean;
 	injectStreaming?(msg: AgentMessage): void;
 	injectIdle(messages: AgentMessage[]): Promise<void>;
+	admitIdleFlush?: () => boolean;
 	scheduleIdleFlush(run: () => Promise<void>): void;
 }
 
@@ -80,6 +81,9 @@ export class YieldQueue {
 	async flush(mode: YieldFlushMode): Promise<void> {
 		if (mode === "idle") {
 			this.#idleFlushPending = false;
+			if (this.#options.admitIdleFlush && !this.#options.admitIdleFlush()) {
+				return;
+			}
 		}
 		const idleMessages: AgentMessage[] = [];
 		for (const [kind, dispatcher] of this.#dispatchers) {

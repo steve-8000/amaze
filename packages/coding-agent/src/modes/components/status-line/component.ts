@@ -1,9 +1,9 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-import type { AssistantMessage } from "@oh-my-pi/pi-ai";
-import { type Component, truncateToWidth, visibleWidth } from "@oh-my-pi/pi-tui";
-import { getProjectDir } from "@oh-my-pi/pi-utils";
+import type { AgentMessage } from "@amaze/pi-agent-core";
+import type { AssistantMessage } from "@amaze/pi-ai";
+import { type Component, truncateToWidth, visibleWidth } from "@amaze/pi-tui";
+import { getProjectDir } from "@amaze/pi-utils";
 import { $ } from "bun";
 import { settings } from "../../../config/settings";
 import type { AgentSession } from "../../../session/agent-session";
@@ -184,7 +184,7 @@ export class StatusLineComponent implements Component {
 	#gitWatcher: fs.FSWatcher | null = null;
 	#onBranchChange: (() => void) | null = null;
 	#disposed = false;
-	#autoCompactEnabled: boolean = true;
+	#autoCompactEnabled: boolean = false;
 	#hookStatuses: Map<string, string> = new Map();
 	#subagentCount: number = 0;
 	#sessionStartTime: number = Date.now();
@@ -924,10 +924,48 @@ export class StatusLineComponent implements Component {
 					}
 				}
 			}
-			while (totalWidth() > topFillWidth && left.length > 0) {
-				left.pop();
-				leftSegIds.pop();
+			const dropPriority: Partial<Record<StatusLineSegmentId, number>> = {
+				pi: 0,
+				hostname: 1,
+				session: 1,
+				collab: 2,
+				pr: 3,
+				subagents: 4,
+				token_in: 5,
+				token_out: 5,
+				token_total: 5,
+				token_rate: 5,
+				cache_read: 5,
+				cache_write: 5,
+				cache_hit: 5,
+				usage: 5,
+				cost: 6,
+				time_spent: 7,
+				time: 7,
+				session_name: 7,
+				mode: 8,
+				context_total: 9,
+				context_pct: 10,
+				git: 11,
+				path: 12,
+				model: 13,
+			};
+			const removeLeftAt = (index: number): void => {
+				left.splice(index, 1);
+				leftSegIds.splice(index, 1);
 				leftWidth = groupWidth(left, leftCapWidth, leftSepWidth);
+			};
+			while (totalWidth() > topFillWidth && left.length > 0) {
+				let dropIndex = left.length - 1;
+				let dropScore = dropPriority[leftSegIds[dropIndex]!] ?? 0;
+				for (let i = 0; i < leftSegIds.length; i++) {
+					const score = dropPriority[leftSegIds[i]!] ?? 0;
+					if (score < dropScore || (score === dropScore && i > dropIndex)) {
+						dropIndex = i;
+						dropScore = score;
+					}
+				}
+				removeLeftAt(dropIndex);
 			}
 		}
 

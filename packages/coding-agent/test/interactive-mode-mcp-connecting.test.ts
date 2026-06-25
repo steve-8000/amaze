@@ -1,25 +1,24 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@oh-my-pi/pi-agent-core";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { Agent } from "@amaze/pi-agent-core";
+import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
+import { resetSettingsForTest, Settings } from "@amaze/pi-coding-agent/config/settings";
 import {
 	formatMCPConnectionStatusMessage,
 	MCP_CONNECTION_STATUS_EVENT_CHANNEL,
 	type McpConnectionStatusEvent,
-} from "@oh-my-pi/pi-coding-agent/mcp/startup-events";
-import { InteractiveMode } from "@oh-my-pi/pi-coding-agent/modes/interactive-mode";
-import { initTheme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { EventBus } from "@oh-my-pi/pi-coding-agent/utils/event-bus";
-import { logger, TempDir } from "@oh-my-pi/pi-utils";
+} from "@amaze/pi-coding-agent/mcp/startup-events";
+import { InteractiveMode } from "@amaze/pi-coding-agent/modes/interactive-mode";
+import { initTheme } from "@amaze/pi-coding-agent/modes/theme/theme";
+import { AgentSession } from "@amaze/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
+import { EventBus } from "@amaze/pi-coding-agent/utils/event-bus";
+import { logger, TempDir } from "@amaze/pi-utils";
 
 /**
- * Behavioral wiring guard for MCP startup status (mirrors
- * interactive-mode-lsp-startup.test.ts). The SDK emits connection lifecycle
- * events, and InteractiveMode aggregates them into one live status line. This
+ * Behavioral wiring guard for MCP startup status. The SDK emits connection
+ * lifecycle events, and InteractiveMode aggregates them into one live status line. This
  * pins the constructor-time subscription and the update path that replaces the
  * stale "Connecting…" banner when servers connect or fail.
  */
@@ -69,7 +68,7 @@ describe("InteractiveMode MCP connection status", () => {
 			modelRegistry,
 		});
 		eventBus = new EventBus();
-		mode = new InteractiveMode(session, "test", undefined, () => {}, [], undefined, eventBus);
+		mode = new InteractiveMode(session, "test", undefined, () => {}, undefined, eventBus);
 		// This contract is the banner wiring, not git branch watching; a real
 		// fs.watch in a parallel Bun worker can trip an unrelated-worker SIGTRAP.
 		vi.spyOn(mode.statusLine, "watchBranch").mockImplementation(() => {});

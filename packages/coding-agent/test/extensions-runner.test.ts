@@ -5,18 +5,18 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { discoverAndLoadExtensions } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/loader";
+import type { AgentMessage } from "@amaze/pi-agent-core";
+import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
+import { discoverAndLoadExtensions } from "@amaze/pi-coding-agent/extensibility/extensions/loader";
 import {
 	EXTENSION_HANDLER_TIMEOUT_MS,
 	ExtensionRunner,
 	testSetExtensionHandlerTimeoutMs,
-} from "@oh-my-pi/pi-coding-agent/extensibility/extensions/runner";
-import { ExtensionToolWrapper } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/wrapper";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { getProjectAgentDir, logger, TempDir } from "@oh-my-pi/pi-utils";
+} from "@amaze/pi-coding-agent/extensibility/extensions/runner";
+import { ExtensionToolWrapper } from "@amaze/pi-coding-agent/extensibility/extensions/wrapper";
+import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
+import { getProjectAgentDir, logger, TempDir } from "@amaze/pi-utils";
 
 describe("ExtensionRunner", () => {
 	let tempDir: TempDir;
@@ -901,77 +901,6 @@ describe("ExtensionRunner", () => {
 			]);
 
 			warnSpy.mockRestore();
-		});
-	});
-
-	describe("memory context", () => {
-		it("exposes the lazy memory runtime after initialization", async () => {
-			const extCode = `
-				export default function(pi) {
-					pi.on("session_start", async (_event, ctx) => {
-						globalThis.__ompMemoryStatus = await ctx.memory.status();
-					});
-				}
-			`;
-			const explicitExtensionPath = path.join(tempDir.path(), "memory-context.ts");
-			fs.writeFileSync(explicitExtensionPath, extCode);
-			const globalState = globalThis as typeof globalThis & { __ompMemoryStatus?: unknown };
-			delete globalState.__ompMemoryStatus;
-
-			const result = await loadTestExtensions([explicitExtensionPath]);
-			const runner = new ExtensionRunner(
-				result.extensions,
-				result.runtime,
-				tempDir.path(),
-				sessionManager,
-				modelRegistry,
-				() => ({
-					status: async () => ({
-						backend: "mnemopi",
-						active: true,
-						writable: true,
-						searchable: true,
-					}),
-					search: async query => ({ backend: "mnemopi", query, count: 0, items: [] }),
-					save: async () => ({ backend: "mnemopi", stored: 1 }),
-				}),
-			);
-			runner.initialize(
-				{
-					sendMessage: () => {},
-					sendUserMessage: () => {},
-					appendEntry: () => {},
-					setLabel: () => {},
-					getActiveTools: () => [],
-					getAllTools: () => [],
-					setActiveTools: async () => {},
-					getCommands: () => [],
-					setModel: async () => false,
-					getThinkingLevel: () => undefined,
-					setThinkingLevel: () => {},
-					getSessionName: () => undefined,
-					setSessionName: async () => {},
-				},
-				{
-					getModel: () => undefined,
-					isIdle: () => true,
-					abort: () => {},
-					hasPendingMessages: () => false,
-					shutdown: () => {},
-					getContextUsage: () => undefined,
-					compact: async () => {},
-					getSystemPrompt: () => [],
-				},
-			);
-
-			await runner.emit({ type: "session_start" });
-
-			expect(globalState.__ompMemoryStatus).toMatchObject({
-				backend: "mnemopi",
-				active: true,
-				searchable: true,
-			});
-			delete globalState.__ompMemoryStatus;
 		});
 	});
 

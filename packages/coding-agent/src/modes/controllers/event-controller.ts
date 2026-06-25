@@ -1,7 +1,7 @@
-import type { ImageContent } from "@oh-my-pi/pi-ai";
-import { THINKING_LOOP_ERROR_MARKER } from "@oh-my-pi/pi-ai/utils/thinking-loop";
-import { type Component, Loader, TERMINAL } from "@oh-my-pi/pi-tui";
-import { INTENT_FIELD } from "@oh-my-pi/pi-wire";
+import type { ImageContent } from "@amaze/pi-ai";
+import { THINKING_LOOP_ERROR_MARKER } from "@amaze/pi-ai/utils/thinking-loop";
+import { type Component, Loader, TERMINAL } from "@amaze/pi-tui";
+import { INTENT_FIELD } from "@amaze/pi-wire";
 import { extractTextContent } from "../../commit/utils";
 import { settings } from "../../config/settings";
 import { getFileSnapshotStore } from "../../edit/file-snapshot-store";
@@ -1148,7 +1148,7 @@ export class EventController {
 		if (this.ctx.viewSession.isCompacting) return;
 
 		const idleSettings = settings.getGroup("compaction");
-		if (!idleSettings.idleEnabled) return;
+		if (!idleSettings.enabled || idleSettings.strategy === "off" || !idleSettings.idleEnabled) return;
 
 		// Only if input is empty
 		if (this.ctx.editor.getText().trim()) return;
@@ -1188,7 +1188,7 @@ export class EventController {
 
 		const sessionName = this.ctx.sessionManager.getSessionName();
 		TERMINAL.sendNotification({
-			title: sessionName || "Oh My Pi",
+			title: sessionName || "Amaze Agent",
 			body: "Complete",
 			type: "completion",
 			actions: "focus",

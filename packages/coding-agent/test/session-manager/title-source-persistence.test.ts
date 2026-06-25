@@ -2,10 +2,10 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { SessionHeader } from "@oh-my-pi/pi-coding-agent/session/session-entries";
-import { loadEntriesFromFile } from "@oh-my-pi/pi-coding-agent/session/session-loader";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { getConfigRootDir, setAgentDir } from "@oh-my-pi/pi-utils";
+import type { SessionHeader } from "@amaze/pi-coding-agent/session/session-entries";
+import { loadEntriesFromFile } from "@amaze/pi-coding-agent/session/session-loader";
+import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
+import { getConfigRootDir, setAgentDir } from "@amaze/pi-utils";
 
 import { makeAssistantMessage } from "./helpers";
 
@@ -23,7 +23,7 @@ describe("session title source persistence", () => {
 	const fallbackAgentDir = path.join(getConfigRootDir(), "agent");
 
 	beforeEach(() => {
-		testAgentDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-title-source-"));
+		testAgentDir = fs.mkdtempSync(path.join(os.tmpdir(), "amaze-title-source-"));
 		cwd = path.join(testAgentDir, "cwd");
 		fs.mkdirSync(cwd, { recursive: true });
 		setAgentDir(testAgentDir);

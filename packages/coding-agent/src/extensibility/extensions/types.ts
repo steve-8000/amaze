@@ -13,8 +13,8 @@ import type {
 	AgentToolUpdateCallback,
 	ThinkingLevel,
 	ToolApproval,
-} from "@oh-my-pi/pi-agent-core";
-import type { CompactionResult } from "@oh-my-pi/pi-agent-core/compaction";
+} from "@amaze/pi-agent-core";
+import type { CompactionResult } from "@amaze/pi-agent-core/compaction";
 import type {
 	Api,
 	AssistantMessageEvent,
@@ -28,10 +28,10 @@ import type {
 	Static,
 	TextContent,
 	TSchema,
-} from "@oh-my-pi/pi-ai";
-import type { OAuthCredentials, OAuthLoginCallbacks } from "@oh-my-pi/pi-ai/oauth/types";
-import type { AutocompleteItem, Component, EditorTheme, KeyId, TUI } from "@oh-my-pi/pi-tui";
-import type { logger as PiLogger } from "@oh-my-pi/pi-utils";
+} from "@amaze/pi-ai";
+import type { OAuthCredentials, OAuthLoginCallbacks } from "@amaze/pi-ai/oauth/types";
+import type { AutocompleteItem, Component, EditorTheme, KeyId, TUI } from "@amaze/pi-tui";
+import type { logger as PiLogger } from "@amaze/pi-utils";
 import type { Type as arktype } from "arktype";
 import type * as zod from "zod/v4";
 import type { KeybindingsManager } from "../../config/keybindings";
@@ -41,7 +41,6 @@ import type { PythonResult } from "../../eval/py/executor";
 import type { BashResult } from "../../exec/bash-executor";
 import type { ExecOptions, ExecResult } from "../../exec/exec";
 import type * as PiCodingAgent from "../../index";
-import type { MemoryRuntimeContext } from "../../memory-backend";
 import type { CustomEditor } from "../../modes/components/custom-editor";
 import type { Theme } from "../../modes/theme/theme";
 import type { CompactMode } from "../../session/compact-modes";
@@ -359,8 +358,6 @@ export interface ExtensionContext {
 	shutdown(): void;
 	/** Get the current effective system prompt. */
 	getSystemPrompt(): string[];
-	/** Structured memory runtime for status/search/save across the configured backend. */
-	memory?: MemoryRuntimeContext;
 }
 
 /**

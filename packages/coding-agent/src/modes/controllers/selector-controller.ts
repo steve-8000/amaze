@@ -1,10 +1,10 @@
-import { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import { PASTE_CODE_LOGIN_PROVIDERS } from "@oh-my-pi/pi-ai";
-import { getOAuthProviders } from "@oh-my-pi/pi-ai/oauth";
-import type { OAuthProvider } from "@oh-my-pi/pi-ai/oauth/types";
-import type { Component, OverlayHandle } from "@oh-my-pi/pi-tui";
-import { Input, Loader, Spacer, setTuiTight, Text } from "@oh-my-pi/pi-tui";
-import { getAgentDbPath, getProjectDir, normalizePathForComparison } from "@oh-my-pi/pi-utils";
+import { ThinkingLevel } from "@amaze/pi-agent-core";
+import { PASTE_CODE_LOGIN_PROVIDERS } from "@amaze/pi-ai";
+import { getOAuthProviders } from "@amaze/pi-ai/oauth";
+import type { OAuthProvider } from "@amaze/pi-ai/oauth/types";
+import type { Component, OverlayHandle } from "@amaze/pi-tui";
+import { Input, Loader, Spacer, setTuiTight, Text } from "@amaze/pi-tui";
+import { getAgentDbPath, getProjectDir, normalizePathForComparison } from "@amaze/pi-utils";
 import { formatModelSelectorValue } from "../../config/model-resolver";
 import { getRoleInfo } from "../../config/model-roles";
 import { settings } from "../../config/settings";
@@ -68,8 +68,6 @@ import { TreeSelectorComponent } from "../components/tree-selector";
 import { UserMessageSelectorComponent } from "../components/user-message-selector";
 import type { SessionObserverRegistry } from "../session-observer-registry";
 import { buildCopyTargets } from "../utils/copy-targets";
-
-const MANUAL_LOGIN_TIP = "Tip: You can complete pairing with /login <redirect URL>.";
 
 export class SelectorController {
 	constructor(private ctx: InteractiveModeContext) {}
@@ -983,10 +981,6 @@ export class SelectorController {
 					if (info.instructions) {
 						block.addChild(new Spacer(1));
 						block.addChild(new Text(theme.fg("warning", info.instructions), 1, 0));
-					}
-					if (useManualInput) {
-						block.addChild(new Spacer(1));
-						block.addChild(new Text(theme.fg("dim", MANUAL_LOGIN_TIP), 1, 0));
 					}
 					this.ctx.present(block);
 					this.ctx.openInBrowser(info.url);

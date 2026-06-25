@@ -19,9 +19,9 @@
  * and rebuild components from the accumulated entries.
  */
 import * as fs from "node:fs";
-import type { AgentTool } from "@oh-my-pi/pi-agent-core";
-import { type Component, Editor, matchesKey, parseSgrMouse, ScrollView, type TUI } from "@oh-my-pi/pi-tui";
-import { formatDuration, formatNumber, logger } from "@oh-my-pi/pi-utils";
+import type { AgentTool } from "@amaze/pi-agent-core";
+import { type Component, Editor, matchesKey, parseSgrMouse, ScrollView, type TUI } from "@amaze/pi-tui";
+import { formatDuration, formatNumber, logger } from "@amaze/pi-utils";
 import type { KeyId } from "../../config/keybindings";
 import type { MessageRenderer } from "../../extensibility/extensions/types";
 import type { AgentLifecycleManager } from "../../registry/agent-lifecycle";

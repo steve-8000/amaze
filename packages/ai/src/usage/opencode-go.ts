@@ -62,7 +62,7 @@ function buildWindowLimit(
 			unit: "usd",
 		},
 		status: resolveStatus(usedFraction),
-		notes: ["OMP-observed spend only; OpenCode usage outside OMP is not included."],
+		notes: ["Amaze-observed spend only; OpenCode usage outside Amaze is not included."],
 	};
 }
 
@@ -82,7 +82,7 @@ export const opencodeGoUsageProvider: UsageProvider = {
 			limits: OPENCODE_GO_LIMITS.map(limit => buildWindowLimit(limit, entries, nowMs)),
 			metadata: {
 				planType: "OpenCode Go",
-				source: "omp-observed-request-costs",
+				source: "amaze-observed-request-costs",
 			},
 		};
 	},

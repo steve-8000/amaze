@@ -1,11 +1,11 @@
-import { $env } from "@oh-my-pi/pi-utils";
+import { $env } from "@amaze/pi-utils";
 import type { ResponseInput, ResponseInputItem } from "./providers/openai-responses-wire";
 import type { CacheRetention, OpenAIResponsesHistoryPayload, ProviderPayload } from "./types";
 
 type OpenAIResponsesReplayItem = ResponseInput[number];
 const IMAGE_GENERATION_CALL_STATUSES = new Set<string>(["in_progress", "completed", "generating", "failed"]);
 
-export { isRecord } from "@oh-my-pi/pi-utils";
+export { isRecord } from "@amaze/pi-utils";
 export function normalizeSystemPrompts(systemPrompt: readonly string[] | string | undefined | null): string[] {
 	if (systemPrompt === undefined || systemPrompt === null) return [];
 	const prompts = Array.isArray(systemPrompt) ? systemPrompt : typeof systemPrompt === "string" ? [systemPrompt] : [];

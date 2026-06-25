@@ -3,13 +3,13 @@ import {
 	type InputItem,
 	type RequestBody,
 	transformRequestBody,
-} from "@oh-my-pi/pi-ai/providers/openai-codex/request-transformer";
+} from "@amaze/pi-ai/providers/openai-codex/request-transformer";
 import {
 	convertCodexResponsesMessages,
 	streamOpenAICodexResponses,
-} from "@oh-my-pi/pi-ai/providers/openai-codex-responses";
-import type { Context, FetchImpl } from "@oh-my-pi/pi-ai/types";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
+} from "@amaze/pi-ai/providers/openai-codex-responses";
+import type { Context, FetchImpl } from "@amaze/pi-ai/types";
+import { buildModel } from "@amaze/pi-catalog/build";
 import { createCodexModel } from "./helpers";
 
 function createCodexTestToken(accountId = "acc_test"): string {

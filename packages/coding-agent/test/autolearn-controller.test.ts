@@ -1,7 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { AutoLearnController, buildAutoLearnInstructions } from "@oh-my-pi/pi-coding-agent/autolearn/controller";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { AgentSession, AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import { AutoLearnController, buildAutoLearnInstructions } from "@amaze/pi-coding-agent/autolearn/controller";
+import { Settings } from "@amaze/pi-coding-agent/config/settings";
+import type { AgentSession, AgentSessionEvent } from "@amaze/pi-coding-agent/session/agent-session";
+import type { AutoTurnDecision, AutoTurnRequest } from "@amaze/pi-coding-agent/session/turn-scheduler";
 
 interface CapturedNudge {
 	message: { customType: string; content: string; display?: boolean; attribution?: string };
@@ -17,10 +18,40 @@ class FakeSession {
 	turnStarts = true;
 	/** Force the dispatch to reject (models a failed send). */
 	failSend = false;
+	autoTurns = 0;
 
 	subscribe(listener: (event: AgentSessionEvent) => void): () => void {
 		this.listeners.push(listener);
 		return () => {};
+	}
+
+	requestAutomaticTurn(request: Omit<AutoTurnRequest, "sessionId">): AutoTurnDecision {
+		if (this.autoTurns >= 3) {
+			return {
+				decision: "deny",
+				source: request.source,
+				sessionId: "fake",
+				dedupeKey: request.dedupeKey,
+				reason: "source session cap reached",
+				usedPerSession: this.autoTurns,
+				maxPerSession: request.maxPerSession,
+				usedConsecutive: this.autoTurns,
+				maxConsecutive: request.maxConsecutive,
+			};
+		}
+		this.autoTurns++;
+		return {
+			decision: "admit",
+			source: request.source,
+			sessionId: "fake",
+			dedupeKey: request.dedupeKey,
+			message: request.message,
+			triggerTurn: request.triggerTurn,
+			usedPerSession: this.autoTurns,
+			maxPerSession: request.maxPerSession,
+			usedConsecutive: this.autoTurns,
+			maxConsecutive: request.maxConsecutive,
+		};
 	}
 
 	async sendCustomMessage(message: CapturedNudge["message"], options?: CapturedNudge["options"]): Promise<boolean> {
@@ -194,6 +225,20 @@ describe("AutoLearnController", () => {
 		expect(session.sent).toHaveLength(2);
 	});
 
+	it("caps auto-continue capture turns through the session turn scheduler", () => {
+		const session = new FakeSession();
+		install(session, { "autolearn.autoContinue": true });
+
+		for (let i = 0; i < 7; i++) {
+			session.toolCalls(5);
+			session.agentEnd();
+		}
+
+		expect(session.autoTurns).toBe(3);
+		expect(session.sent).toHaveLength(3);
+		expect(session.sent.every(send => send.options?.triggerTurn === true)).toBe(true);
+	});
+
 	it("disarms suppression when the capture turn is deferred (not started)", async () => {
 		const session = new FakeSession();
 		// triggerTurn honored but downgraded to a queue: no synthetic agent_end.
@@ -236,17 +281,9 @@ describe("AutoLearnController", () => {
 describe("buildAutoLearnInstructions", () => {
 	it("returns null when manage_skill is not in the active tool set", () => {
 		expect(buildAutoLearnInstructions({ manageSkill: false, learn: false })).toBeNull();
-		// learn without manage_skill still yields no guidance (manage_skill gates it).
-		expect(buildAutoLearnInstructions({ manageSkill: false, learn: true })).toBeNull();
 	});
 
-	it("includes the learn addendum when the learn tool is present", () => {
-		const text = buildAutoLearnInstructions({ manageSkill: true, learn: true });
-		expect(text).toContain("manage_skill");
-		expect(text).toContain("long-term memory");
-	});
-
-	it("omits the learn addendum when only manage_skill is present", () => {
+	it("returns the managed-skill guidance when manage_skill is present", () => {
 		const text = buildAutoLearnInstructions({ manageSkill: true, learn: false });
 		expect(text).toContain("manage_skill");
 		expect(text).not.toContain("long-term memory");

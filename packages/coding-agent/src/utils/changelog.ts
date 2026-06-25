@@ -1,4 +1,4 @@
-import { getLastChangelogVersionPath, isEnoent, logger } from "@oh-my-pi/pi-utils";
+import { getLastChangelogVersionPath, isEnoent, logger } from "@amaze/pi-utils";
 
 export interface ChangelogEntry {
 	major: number;
@@ -14,7 +14,7 @@ export interface ChangelogEntry {
  * Returns `[]` when `changelogPath` is `undefined` (package directory not
  * resolvable — see `getChangelogPath`) or the file is missing. Callers MUST NOT
  * synthesize a fallback path from the host project's cwd; doing so caused issue
- * #1423 (the host project's `CHANGELOG.md` was rendered as omp's).
+ * #1423 (the host project's `CHANGELOG.md` was rendered as amaze's).
  */
 export async function parseChangelog(changelogPath: string | undefined): Promise<ChangelogEntry[]> {
 	if (!changelogPath) {
@@ -106,8 +106,8 @@ export function getNewEntries(entries: ChangelogEntry[], lastVersion: string): C
 export { getChangelogPath } from "../config";
 
 /**
- * Last omp version whose changelog the user has seen. Stored as a plain-text
- * marker file (`~/.omp/agent/last-changelog-version`) rather than in
+ * Last amaze version whose changelog the user has seen. Stored as a plain-text
+ * marker file (`~/.amaze/agent/last-changelog-version`) rather than in
  * `config.yml`, so version bumps never dirty user-tracked config files.
  */
 export async function readLastChangelogVersion(agentDir?: string): Promise<string | undefined> {

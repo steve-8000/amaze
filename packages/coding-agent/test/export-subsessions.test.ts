@@ -35,7 +35,7 @@ describe("collectSubSessions", () => {
 	let mainFile: string;
 
 	beforeEach(async () => {
-		root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-subsessions-"));
+		root = await fs.mkdtemp(path.join(os.tmpdir(), "amaze-subsessions-"));
 		mainFile = path.join(root, "main.jsonl");
 		await Bun.write(mainFile, sessionJsonl("main", ["m1"]));
 	});

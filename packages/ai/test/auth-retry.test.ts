@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { ApiKeyResolveContext, OAuthAccess, OAuthAccessSource } from "@oh-my-pi/pi-ai";
-import { isApiKeyResolver, isAuthRetryableError, resolveApiKeyOnce, withAuth, withOAuthAccess } from "@oh-my-pi/pi-ai";
+import type { ApiKeyResolveContext, OAuthAccess, OAuthAccessSource } from "@amaze/pi-ai";
+import { isApiKeyResolver, isAuthRetryableError, resolveApiKeyOnce, withAuth, withOAuthAccess } from "@amaze/pi-ai";
 
 function authError(status = 401): Error & { status: number } {
 	return Object.assign(new Error(`${status} authentication_error`), { status });

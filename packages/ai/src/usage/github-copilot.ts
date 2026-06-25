@@ -4,8 +4,8 @@
  * Normalizes Copilot quota usage into the shared UsageReport schema.
  */
 
-import { toBoolean, toNumber } from "@oh-my-pi/pi-catalog/utils";
-import { OPENCODE_HEADERS } from "@oh-my-pi/pi-catalog/wire/github-copilot";
+import { toBoolean, toNumber } from "@amaze/pi-catalog/utils";
+import { OPENCODE_HEADERS } from "@amaze/pi-catalog/wire/github-copilot";
 import type {
 	UsageAmount,
 	UsageFetchContext,

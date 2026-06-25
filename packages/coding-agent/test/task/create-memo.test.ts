@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { TaskTool } from "@oh-my-pi/pi-coding-agent/task";
-import * as discoveryModule from "@oh-my-pi/pi-coding-agent/task/discovery";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import { Settings } from "@amaze/pi-coding-agent/config/settings";
+import { TaskTool } from "@amaze/pi-coding-agent/task";
+import * as discoveryModule from "@amaze/pi-coding-agent/task/discovery";
+import type { ToolSession } from "@amaze/pi-coding-agent/tools";
 
 const TEST_AGENTS = [
 	{
@@ -46,7 +46,7 @@ describe("TaskTool.create discovery memo", () => {
 			.mockResolvedValue({ agents: TEST_AGENTS, projectAgentsDir: null });
 
 		await TaskTool.create(createSession("/tmp"));
-		await TaskTool.create(createSession("/tmp/omp-memo-other"));
+		await TaskTool.create(createSession("/tmp/amaze-memo-other"));
 
 		expect(spy).toHaveBeenCalledTimes(2);
 	});

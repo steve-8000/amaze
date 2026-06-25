@@ -1,13 +1,13 @@
 import { beforeAll, describe, expect, test, vi } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import type { Model } from "@oh-my-pi/pi-ai";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import type { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { ModelSelectorComponent } from "@oh-my-pi/pi-coding-agent/modes/components/model-selector";
-import { getThemeByName, setThemeInstance } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import type { TUI } from "@oh-my-pi/pi-tui";
+import type { Model } from "@amaze/pi-ai";
+import { buildModel } from "@amaze/pi-catalog/build";
+import { getBundledModel } from "@amaze/pi-catalog/models";
+import type { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
+import { Settings } from "@amaze/pi-coding-agent/config/settings";
+import { ModelSelectorComponent } from "@amaze/pi-coding-agent/modes/components/model-selector";
+import { getThemeByName, setThemeInstance } from "@amaze/pi-coding-agent/modes/theme/theme";
+import type { TUI } from "@amaze/pi-tui";
 
 function normalizeRenderedText(text: string): string {
 	return stripVTControlCharacters(text).replace(/\s+/g, " ").trim();

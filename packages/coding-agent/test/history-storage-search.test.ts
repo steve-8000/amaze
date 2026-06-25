@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { HistoryStorage } from "@oh-my-pi/pi-coding-agent/session/history-storage";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { HistoryStorage } from "@amaze/pi-coding-agent/session/history-storage";
+import { TempDir } from "@amaze/pi-utils";
 
 let tempDir: TempDir | null = null;
 
 async function freshStorage(): Promise<HistoryStorage> {
-	tempDir = TempDir.createSync("@omp-history-search-");
+	tempDir = TempDir.createSync("@amaze-history-search-");
 	HistoryStorage.resetInstance();
 	return HistoryStorage.open(tempDir.join("history.db"));
 }

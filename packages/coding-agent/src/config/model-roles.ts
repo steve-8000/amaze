@@ -14,8 +14,13 @@ export type ModelRole =
 	| "designer"
 	| "commit"
 	| "title"
-	| "task"
-	| "advisor";
+	| "advisor"
+	| "thinker"
+	| "coder"
+	| "finder"
+	| "fixer"
+	| "checker"
+	| "helper";
 
 export interface ModelRoleInfo {
 	tag?: string;
@@ -34,8 +39,13 @@ export const MODEL_ROLES: Record<ModelRole, ModelRoleInfo> = {
 	designer: { tag: "DESIGNER", name: "Designer", color: "muted" },
 	commit: { tag: "COMMIT", name: "Commit", color: "dim" },
 	title: { tag: "TITLE", name: "Title", color: "dim", hidden: true },
-	task: { tag: "TASK", name: "Subtask", color: "muted" },
 	advisor: { tag: "ADVISOR", name: "Advisor", color: "accent" },
+	thinker: { tag: "THINK", name: "Thinker", color: "accent" },
+	coder: { tag: "CODE", name: "Coder", color: "success" },
+	finder: { tag: "FIND", name: "Finder", color: "muted" },
+	fixer: { tag: "FIX", name: "Fixer", color: "warning" },
+	checker: { tag: "CHECK", name: "Checker", color: "error" },
+	helper: { tag: "HELP", name: "Helper", color: "dim" },
 };
 
 export const MODEL_ROLE_IDS: ModelRole[] = [
@@ -47,8 +57,13 @@ export const MODEL_ROLE_IDS: ModelRole[] = [
 	"designer",
 	"commit",
 	"title",
-	"task",
 	"advisor",
+	"thinker",
+	"coder",
+	"finder",
+	"fixer",
+	"checker",
+	"helper",
 ];
 
 export type RoleInfo = ModelRoleInfo;
@@ -61,10 +76,10 @@ export type RoleInfo = ModelRoleInfo;
  * entries across settings.
  */
 export function getKnownRoleIds(settings: Settings): string[] {
-	const roles = MODEL_ROLE_IDS.filter(role => !MODEL_ROLES[role as ModelRole]?.hidden) as string[];
+	const roles = MODEL_ROLE_IDS.filter(role => !MODEL_ROLES[role]?.hidden) as string[];
 	const seen = new Set<string>(roles);
 	const addRole = (role: string) => {
-		if (seen.has(role)) return;
+		if (seen.has(role) || getRoleInfo(role, settings).hidden) return;
 		seen.add(role);
 		roles.push(role);
 	};

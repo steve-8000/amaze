@@ -1,18 +1,18 @@
 {
 	"type": "module",
-	"name": "@oh-my-pi/omp-stats",
-	"version": "16.1.11",
+	"name": "@amaze/amaze-stats",
+	"version": "3.1.0",
 	"description": "Local observability dashboard for pi AI usage statistics",
-	"homepage": "https://omp.sh",
+	"homepage": "https://amaze",
 	"author": "Can Boluk",
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/can1357/oh-my-pi.git",
+		"url": "git+https://github.com/can1357/amaze-agent.git",
 		"directory": "packages/stats"
 	},
 	"bugs": {
-		"url": "https://github.com/can1357/oh-my-pi/issues"
+		"url": "https://github.com/can1357/amaze-agent/issues"
 	},
 	"keywords": [
 		"ai",
@@ -25,7 +25,7 @@
 	"main": "./src/index.ts",
 	"types": "./src/index.ts",
 	"bin": {
-		"omp-stats": "./src/index.ts"
+		"amaze-stats": "./src/index.ts"
 	},
 	"scripts": {
 		"build": "bun run build.ts",
@@ -37,9 +37,9 @@
 		"fmt": "biome format --write ."
 	},
 	"dependencies": {
-		"@oh-my-pi/pi-ai": "catalog:",
-		"@oh-my-pi/pi-catalog": "catalog:",
-		"@oh-my-pi/pi-utils": "catalog:",
+		"@amaze/pi-ai": "catalog:",
+		"@amaze/pi-catalog": "catalog:",
+		"@amaze/pi-utils": "catalog:",
 		"@tailwindcss/node": "catalog:",
 		"chart.js": "catalog:",
 		"date-fns": "catalog:",

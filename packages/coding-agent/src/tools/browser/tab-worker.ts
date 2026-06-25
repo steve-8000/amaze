@@ -2,7 +2,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 
-import { Snowflake, untilAborted } from "@oh-my-pi/pi-utils";
+import { Snowflake, untilAborted } from "@amaze/pi-utils";
 import type { HTMLElement } from "linkedom";
 import type {
 	Browser,
@@ -1168,7 +1168,7 @@ export class WorkerCore {
 						session.browserScreenshotDir,
 						`screenshot-${new Date().toISOString().replace(/[:.]/g, "-").slice(0, -1)}.${ext}`,
 					)
-				: path.join(os.tmpdir(), `omp-sshots-${Snowflake.next()}.${ext}`));
+				: path.join(os.tmpdir(), `amaze-sshots-${Snowflake.next()}.${ext}`));
 		await fs.promises.mkdir(path.dirname(dest), { recursive: true });
 		await Bun.write(dest, savedBuffer);
 		const info: ScreenshotResult = {

@@ -2,20 +2,20 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { resetActiveSkillsForTests, setActiveSkills } from "@oh-my-pi/pi-coding-agent/extensibility/skills";
+import { Settings } from "@amaze/pi-coding-agent/config/settings";
+import { resetActiveSkillsForTests, setActiveSkills } from "@amaze/pi-coding-agent/extensibility/skills";
 import {
 	type InternalResource,
 	type InternalUrl,
 	InternalUrlRouter,
 	LocalProtocolHandler,
 	type ProtocolHandler,
-} from "@oh-my-pi/pi-coding-agent/internal-urls";
-import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { FindTool } from "@oh-my-pi/pi-coding-agent/tools/find";
-import { ReadTool } from "@oh-my-pi/pi-coding-agent/tools/read";
-import { SearchTool } from "@oh-my-pi/pi-coding-agent/tools/search";
+} from "@amaze/pi-coding-agent/internal-urls";
+import { AgentRegistry } from "@amaze/pi-coding-agent/registry/agent-registry";
+import type { ToolSession } from "@amaze/pi-coding-agent/tools";
+import { FindTool } from "@amaze/pi-coding-agent/tools/find";
+import { ReadTool } from "@amaze/pi-coding-agent/tools/read";
+import { SearchTool } from "@amaze/pi-coding-agent/tools/search";
 
 function getResultText(result: { content: Array<{ type: string; text?: string }> }): string {
 	return result.content
@@ -223,31 +223,31 @@ describe("SearchTool internal URL resolution", () => {
 		expect(text).not.toContain("needle outside range");
 	});
 
-	it("expands omp:// root to grep embedded documentation files", async () => {
+	it("expands amaze:// root to grep embedded documentation files", async () => {
 		const session = createSession();
 		const tool = new SearchTool(session);
 
 		const result = await tool.execute("test-call", {
 			pattern: "Search file contents with a regex across files",
-			paths: ["omp://"],
+			paths: ["amaze://"],
 		});
 
 		const text = getResultText(result);
-		expect(text).toContain("# omp://tools/search.md");
+		expect(text).toContain("# amaze://tools/search.md");
 		expect(text).toContain("Search file contents with a regex across files");
 	});
 
-	it("expands omp://docs to grep embedded documentation files", async () => {
+	it("expands amaze://docs to grep embedded documentation files", async () => {
 		const session = createSession();
 		const tool = new SearchTool(session);
 
 		const result = await tool.execute("test-call", {
 			pattern: "Read files, directories, archives",
-			paths: ["omp://docs"],
+			paths: ["amaze://docs"],
 		});
 
 		const text = getResultText(result);
-		expect(text).toContain("# omp://tools/read.md");
+		expect(text).toContain("# amaze://tools/read.md");
 		expect(text).toContain("Read files, directories, archives");
 	});
 

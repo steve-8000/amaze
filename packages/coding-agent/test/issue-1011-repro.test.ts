@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import * as path from "node:path";
 
 /**
- * Regression for https://github.com/can1357/oh-my-pi/issues/1011
+ * Regression for https://github.com/can1357/amaze-agent/issues/1011
  *
  * In v14.5.13 `spawnTabWorker` (in `src/tools/browser/tab-supervisor.ts`)
  * resolved the worker entry as `new URL("./tab-worker-entry.ts", import.meta.url)`
@@ -16,7 +16,7 @@ import * as path from "node:path";
  * relative imports inside the compiled binary, so the worker still failed
  * to load (issue #1027 was the same root cause, retriggered).
  *
- * The current contract is simpler: when the process was started from the omp
+ * The current contract is simpler: when the process was started from the amaze
  * CLI (source, npm bundle, or compiled binary), spawn sites re-enter the
  * declared worker-host entry — `new Worker(workerHostEntry(), { argv })` — and
  * the CLI dispatches the hidden argv selector. Outside a CLI host (bun test,

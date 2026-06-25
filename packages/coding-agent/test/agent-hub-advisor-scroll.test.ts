@@ -10,15 +10,15 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { AgentTranscriptViewer } from "@oh-my-pi/pi-coding-agent/modes/components/agent-transcript-viewer";
-import { initTheme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
-import { CURRENT_SESSION_VERSION } from "@oh-my-pi/pi-coding-agent/session/session-entries";
+import { resetSettingsForTest, Settings } from "@amaze/pi-coding-agent/config/settings";
+import { AgentTranscriptViewer } from "@amaze/pi-coding-agent/modes/components/agent-transcript-viewer";
+import { initTheme } from "@amaze/pi-coding-agent/modes/theme/theme";
+import { AgentRegistry } from "@amaze/pi-coding-agent/registry/agent-registry";
+import { CURRENT_SESSION_VERSION } from "@amaze/pi-coding-agent/session/session-entries";
 
 const TS = new Date().toISOString();
 
-function buildJsonl(): string {
+function buildJsonl(options: { includeAsyncResult?: boolean } = {}): string {
 	const usage = {
 		input: 1,
 		output: 1,
@@ -39,6 +39,30 @@ function buildJsonl(): string {
 			message: { role: "user", synthetic: true, attribution: "agent", content: "PROMPTMARKER", timestamp: 0 },
 		}),
 	);
+	if (options.includeAsyncResult) {
+		lines.push(
+			JSON.stringify({
+				type: "message",
+				id: "async-result",
+				parentId: null,
+				timestamp: TS,
+				message: {
+					role: "custom",
+					customType: "async-result",
+					content: "Background result",
+					display: true,
+					attribution: "agent",
+					details: {
+						jobs: [
+							{ jobId: "task-job", type: "task", status: "completed" },
+							{ jobId: "bash-job", type: "bash", status: "completed" },
+						],
+					},
+					timestamp: 0,
+				},
+			}),
+		);
+	}
 	for (let i = 0; i < 40; i++) {
 		lines.push(
 			JSON.stringify({
@@ -92,10 +116,10 @@ function gutter(line: string): number {
 	return stripped.length - stripped.trimStart().length;
 }
 
-function withViewer(fn: (viewer: AgentTranscriptViewer) => void): void {
+function withViewer(fn: (viewer: AgentTranscriptViewer) => void, jsonl = buildJsonl()): void {
 	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "adv-view-"));
 	const file = path.join(dir, "__advisor.jsonl");
-	fs.writeFileSync(file, buildJsonl());
+	fs.writeFileSync(file, jsonl);
 	try {
 		fn(makeViewer(file));
 	} finally {
@@ -151,6 +175,22 @@ describe("AgentTranscriptViewer", () => {
 			expect(atTop).toContain("PROMPTMARKER");
 			expect(atBottom).not.toContain("PROMPTMARKER");
 		});
+	});
+
+	it("hides successful task completion banners while keeping bash ones in archived transcripts", () => {
+		withViewer(
+			viewer => {
+				viewer.render(80);
+				viewer.handleInput("g");
+				const body = viewer
+					.render(80)
+					.map(l => Bun.stripANSI(l))
+					.join("\n");
+				expect(body).toContain("Background job completed [bash] bash-job");
+				expect(body).not.toContain("task-job");
+			},
+			buildJsonl({ includeAsyncResult: true }),
+		);
 	});
 
 	it("clears stale content when the transcript file is deleted while open", async () => {

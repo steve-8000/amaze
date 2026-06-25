@@ -1,8 +1,8 @@
 import { beforeAll, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { initTheme, theme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import { Settings } from "@amaze/pi-coding-agent/config/settings";
+import { initTheme, theme } from "@amaze/pi-coding-agent/modes/theme/theme";
+import type { ToolSession } from "@amaze/pi-coding-agent/tools";
 import {
 	resolveTodoMarkdownPath,
 	selectStickyTodoWindow,
@@ -13,8 +13,8 @@ import {
 	TodoTool,
 	todoMatchesAnyDescription,
 	todoToolRenderer,
-} from "@oh-my-pi/pi-coding-agent/tools";
-import type { Component } from "@oh-my-pi/pi-tui";
+} from "@amaze/pi-coding-agent/tools";
+import type { Component } from "@amaze/pi-tui";
 
 function createSession(initialPhases: TodoPhase[] = []): ToolSession {
 	let phases = initialPhases;
@@ -549,7 +549,7 @@ describe("todoToolRenderer.renderCall malformed-args regression (#2005)", () => 
 			],
 		};
 		const component = todoToolRenderer.renderCall(args, renderOptions, theme);
-		// `Text(text, 0, 0)` from `@oh-my-pi/pi-tui` exposes the content via .render().
+		// `Text(text, 0, 0)` from `@amaze/pi-tui` exposes the content via .render().
 		const rendered = Bun.stripANSI(component.render(120).join("\n"));
 		expect(rendered).toContain("init");
 		expect(rendered).toContain("3 items");

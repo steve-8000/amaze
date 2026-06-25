@@ -16,7 +16,7 @@
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
+import type { AgentMessage } from "@amaze/pi-agent-core";
 import {
 	type Component,
 	Container,
@@ -33,8 +33,8 @@ import {
 	truncateToWidth,
 	visibleWidth,
 	wrapTextWithAnsi,
-} from "@oh-my-pi/pi-tui";
-import { isEnoent, prompt } from "@oh-my-pi/pi-utils";
+} from "@amaze/pi-tui";
+import { isEnoent, prompt } from "@amaze/pi-utils";
 import { YAML } from "bun";
 import { getConfigDirs } from "../../config";
 import type { ModelRegistry } from "../../config/model-registry";
@@ -716,7 +716,6 @@ export class AgentDashboard extends Container {
 			model: selectedModel,
 			systemPrompt: [systemPrompt],
 			hasUI: false,
-			enableLsp: false,
 			enableMCP: false,
 			disableExtensionDiscovery: true,
 			toolNames: ["__none__"],

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { buildCoordinationAdvisory, composeSpawnAdvisory } from "@oh-my-pi/pi-coding-agent/task";
-import type { TaskItem } from "@oh-my-pi/pi-coding-agent/task/types";
-import { prompt } from "@oh-my-pi/pi-utils";
+import { buildCoordinationAdvisory, composeSpawnAdvisory } from "@amaze/pi-coding-agent/task";
+import type { TaskItem } from "@amaze/pi-coding-agent/task/types";
+import { prompt } from "@amaze/pi-utils";
 import subagentSystemPromptTemplate from "../../src/prompts/system/subagent-system-prompt.md" with { type: "text" };
 
 // Contract: a multi-sibling spawn with spawn capacity and IRC available draws
@@ -42,14 +42,13 @@ describe("subagent COOP irc guidance", () => {
 	});
 });
 
-// Contract: TaskTool.execute composes the specialization nudge with the
-// coordination suggestion, gating the latter to the async path (sync siblings
-// have already finished). composeSpawnAdvisory is the seam that decision flows
-// through, so the gating is pinned here rather than only inside the builders.
+// Contract: TaskTool.execute appends only the async coordination suggestion.
+// Sync siblings have already finished, so composeSpawnAdvisory must stay silent
+// there even when the same worker fanout would coordinate on the async path.
 describe("composeSpawnAdvisory", () => {
 	const worker = (role?: string): TaskItem => ({ assignment: "x", role });
 
-	it("joins the specialization tip and the irc coordination suggestion for an async generic fanout", () => {
+	it("returns the irc coordination suggestion for an async fanout", () => {
 		const advisory = composeSpawnAdvisory({
 			agentName: "task",
 			items: [worker(), worker()],
@@ -57,32 +56,31 @@ describe("composeSpawnAdvisory", () => {
 			ircEnabled: true,
 			willRunAsync: true,
 		});
-		expect(advisory).toContain("`role`");
 		expect(advisory).toContain("Coordinate:");
 	});
 
-	it("drops the coordination suggestion on the sync path but keeps the specialization tip", () => {
-		const advisory = composeSpawnAdvisory({
-			agentName: "task",
-			items: [worker(), worker()],
-			depthCapacity: true,
-			ircEnabled: true,
-			willRunAsync: false,
-		});
-		expect(advisory).toContain("`role`");
-		expect(advisory).not.toContain("Coordinate:");
+	it("drops the coordination suggestion on the sync path", () => {
+		expect(
+			composeSpawnAdvisory({
+				agentName: "task",
+				items: [worker(), worker()],
+				depthCapacity: true,
+				ircEnabled: true,
+				willRunAsync: false,
+			}),
+		).toBeUndefined();
 	});
 
 	it("omits coordination when irc is unavailable, even async", () => {
-		const advisory = composeSpawnAdvisory({
-			agentName: "task",
-			items: [worker(), worker()],
-			depthCapacity: true,
-			ircEnabled: false,
-			willRunAsync: true,
-		});
-		expect(advisory).toContain("`role`");
-		expect(advisory).not.toContain("Coordinate:");
+		expect(
+			composeSpawnAdvisory({
+				agentName: "task",
+				items: [worker(), worker()],
+				depthCapacity: true,
+				ircEnabled: false,
+				willRunAsync: true,
+			}),
+		).toBeUndefined();
 	});
 
 	it("returns undefined for a single named spawn", () => {

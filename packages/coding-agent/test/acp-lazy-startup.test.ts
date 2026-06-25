@@ -10,14 +10,14 @@ import {
 	type RequestPermissionResponse,
 	type SessionNotification,
 } from "@agentclientprotocol/sdk";
-import type { Model } from "@oh-my-pi/pi-ai";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { createAcpConnection } from "@oh-my-pi/pi-coding-agent/modes/acp/acp-mode";
-import type { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import type { Model } from "@amaze/pi-ai";
+import { buildModel } from "@amaze/pi-catalog/build";
+import { Settings } from "@amaze/pi-coding-agent/config/settings";
+import { createAcpConnection } from "@amaze/pi-coding-agent/modes/acp/acp-mode";
+import type { AgentSession } from "@amaze/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
+import { TempDir } from "@amaze/pi-utils";
 
 const TEST_MODEL: Model = buildModel({
 	id: "claude-sonnet-4-20250514",
@@ -157,7 +157,7 @@ async function closeTransport(writable: WritableStream<unknown>): Promise<void> 
 
 describe("ACP lazy startup", () => {
 	it("applies schema defaults for ACP background jobs and preserves explicit overrides", async () => {
-		const { runRootCommand } = await import("@oh-my-pi/pi-coding-agent/main");
+		const { runRootCommand } = await import("@amaze/pi-coding-agent/main");
 
 		type ObservedBackgroundSettings = {
 			asyncEnabled: boolean;
@@ -167,7 +167,7 @@ describe("ACP lazy startup", () => {
 		};
 
 		const runAcpStartup = async (settings: Settings): Promise<ObservedBackgroundSettings> => {
-			using tempDir = TempDir.createSync("@omp-acp-background-settings-");
+			using tempDir = TempDir.createSync("@amaze-acp-background-settings-");
 			const cwd = tempDir.path();
 			const authStorage = await AuthStorage.create(path.join(cwd, "auth.db"));
 			let observed: ObservedBackgroundSettings | undefined;
@@ -183,7 +183,6 @@ describe("ACP lazy startup", () => {
 						noSkills: true,
 						noRules: true,
 						noTools: true,
-						noLsp: true,
 						sessionDir: cwd,
 					},
 					[],
@@ -243,7 +242,7 @@ describe("ACP lazy startup", () => {
 	});
 
 	it("default-disables advisor for protocol hosts", async () => {
-		const { runRootCommand } = await import("@oh-my-pi/pi-coding-agent/main");
+		const { runRootCommand } = await import("@amaze/pi-coding-agent/main");
 
 		type ObservedAdvisorSettings = {
 			enabled: boolean;
@@ -253,7 +252,7 @@ describe("ACP lazy startup", () => {
 		};
 
 		const runProtocolStartup = async (mode: "rpc" | "rpc-ui" | "acp"): Promise<ObservedAdvisorSettings> => {
-			using tempDir = TempDir.createSync("@omp-protocol-advisor-settings-");
+			using tempDir = TempDir.createSync("@amaze-protocol-advisor-settings-");
 			const cwd = tempDir.path();
 			const authStorage = await AuthStorage.create(path.join(cwd, "auth.db"));
 			const settings = Settings.isolated({
@@ -276,7 +275,6 @@ describe("ACP lazy startup", () => {
 						noSkills: true,
 						noRules: true,
 						noTools: true,
-						noLsp: true,
 						noExtensions: true,
 						sessionDir: cwd,
 					},
@@ -329,7 +327,7 @@ describe("ACP lazy startup", () => {
 	});
 
 	it("honors explicit todo settings for protocol hosts", async () => {
-		const { runRootCommand } = await import("@oh-my-pi/pi-coding-agent/main");
+		const { runRootCommand } = await import("@amaze/pi-coding-agent/main");
 
 		type ObservedTodoSettings = {
 			enabled: boolean;
@@ -338,7 +336,7 @@ describe("ACP lazy startup", () => {
 		};
 
 		const runProtocolStartup = async (mode: "rpc" | "rpc-ui" | "acp"): Promise<ObservedTodoSettings> => {
-			using tempDir = TempDir.createSync("@omp-protocol-todo-settings-");
+			using tempDir = TempDir.createSync("@amaze-protocol-todo-settings-");
 			const cwd = tempDir.path();
 			const authStorage = await AuthStorage.create(path.join(cwd, "auth.db"));
 			const settings = Settings.isolated({
@@ -368,7 +366,6 @@ describe("ACP lazy startup", () => {
 						noSkills: true,
 						noRules: true,
 						noTools: true,
-						noLsp: true,
 						noExtensions: true,
 						sessionDir: cwd,
 					},
@@ -434,7 +431,7 @@ describe("ACP lazy startup", () => {
 			expect(initializeResponse).toEqual(
 				expect.objectContaining({
 					protocolVersion: 1,
-					agentInfo: expect.objectContaining({ name: "oh-my-pi" }),
+					agentInfo: expect.objectContaining({ name: "amaze-agent" }),
 				}),
 			);
 			expect(createCalls).toBe(0);
@@ -454,7 +451,7 @@ describe("ACP lazy startup", () => {
 	});
 
 	it("applies CLI runtime API keys after ACP lazy session creation resolves extension models", async () => {
-		using tempDir = TempDir.createSync("@omp-acp-lazy-api-key-");
+		using tempDir = TempDir.createSync("@amaze-acp-lazy-api-key-");
 		const cwd = tempDir.path();
 
 		await Bun.write(
@@ -481,8 +478,8 @@ describe("ACP lazy startup", () => {
 		const authStorage = await AuthStorage.create(path.join(cwd, "auth.db"));
 		try {
 			const settings = Settings.isolated({ "marketplace.autoUpdate": "off" });
-			const { runRootCommand } = await import("@oh-my-pi/pi-coding-agent/main");
-			const { createAgentSession } = await import("@oh-my-pi/pi-coding-agent/sdk");
+			const { runRootCommand } = await import("@amaze/pi-coding-agent/main");
+			const { createAgentSession } = await import("@amaze/pi-coding-agent/sdk");
 			let session: AgentSession | undefined;
 
 			const stopped = runRootCommand(
@@ -496,7 +493,6 @@ describe("ACP lazy startup", () => {
 					noSkills: true,
 					noRules: true,
 					noTools: true,
-					noLsp: true,
 					sessionDir: cwd,
 					extensions: [path.join(cwd, "runtime-provider.ts")],
 					model: "runtime-provider/runtime-model",

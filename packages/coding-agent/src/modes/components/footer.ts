@@ -1,9 +1,9 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { stripVTControlCharacters } from "node:util";
-import { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import { type Component, padding, truncateToWidth, visibleWidth } from "@oh-my-pi/pi-tui";
-import { formatNumber, getProjectDir } from "@oh-my-pi/pi-utils";
+import { ThinkingLevel } from "@amaze/pi-agent-core";
+import { type Component, padding, truncateToWidth, visibleWidth } from "@amaze/pi-tui";
+import { formatNumber, getProjectDir } from "@amaze/pi-utils";
 import { settings } from "../../config/settings";
 import { theme } from "../../modes/theme/theme";
 import type { AgentSession } from "../../session/agent-session";
@@ -19,7 +19,7 @@ export class FooterComponent implements Component {
 	#cachedBranch: string | null | undefined = undefined; // undefined = not checked yet, null = not in git repo, string = branch name
 	#gitWatcher: fs.FSWatcher | null = null;
 	#onBranchChange: (() => void) | null = null;
-	#autoCompactEnabled: boolean = true;
+	#autoCompactEnabled: boolean = false;
 	#extensionStatuses: Map<string, string> = new Map();
 
 	constructor(private readonly session: AgentSession) {}

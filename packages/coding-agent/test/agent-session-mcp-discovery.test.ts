@@ -8,14 +8,14 @@ import {
 	type AgentToolContext,
 	type AgentToolResult,
 	ThinkingLevel,
-} from "@oh-my-pi/pi-agent-core";
-import { Effort, type Model } from "@oh-my-pi/pi-ai";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { CustomTool } from "@oh-my-pi/pi-coding-agent/extensibility/custom-tools/types";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import type { OutputMeta } from "@oh-my-pi/pi-coding-agent/tools/output-meta";
+} from "@amaze/pi-agent-core";
+import { Effort, type Model } from "@amaze/pi-ai";
+import { buildModel } from "@amaze/pi-catalog/build";
+import { Settings } from "@amaze/pi-coding-agent/config/settings";
+import type { CustomTool } from "@amaze/pi-coding-agent/extensibility/custom-tools/types";
+import { AgentSession } from "@amaze/pi-coding-agent/session/agent-session";
+import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
+import type { OutputMeta } from "@amaze/pi-coding-agent/tools/output-meta";
 import { type } from "arktype";
 
 function createModel(): Model<"openai-responses"> {
@@ -193,6 +193,42 @@ describe("AgentSession MCP discovery", () => {
 		const refreshedIndex = session.getDiscoverableToolSearchIndex();
 		expect(refreshedIndex).not.toBe(firstIndex);
 		expect(refreshedIndex.documents.map(document => document.tool.name)).toEqual(["mcp__pager_list"]);
+	});
+
+	it("hides codebase graph MCP tools while keeping normal MCP tools discoverable", async () => {
+		const readTool = createBasicTool("read", "Read");
+		const toolRegistry = new Map([[readTool.name, readTool]]);
+		const agent = new Agent({
+			initialState: {
+				model: createModel(),
+				systemPrompt: ["initial"],
+				tools: [readTool],
+				messages: [],
+			},
+		});
+		const session = new AgentSession({
+			agent,
+			sessionManager: SessionManager.inMemory(),
+			settings: Settings.isolated({ "mcp.discoveryMode": true }),
+			modelRegistry: {} as never,
+			toolRegistry,
+			mcpDiscoveryEnabled: true,
+			rebuildSystemPrompt: async toolNames => ({
+				systemPrompt: [`tools:${toolNames.join(",")}`],
+			}),
+		});
+		sessions.push(session);
+
+		await session.refreshMCPTools([
+			createMcpCustomTool("mcp__amaze_codebase_search_graph", "rocky-codebase", "search_graph", "Graph search", [
+				"query",
+			]),
+			createMcpCustomTool("mcp__docs_search", "docs", "search", "Search internal docs", ["query"]),
+		]);
+
+		expect(session.getToolByName("mcp__amaze_codebase_search_graph")).toBeUndefined();
+		expect(session.getToolByName("mcp__docs_search")).toBeDefined();
+		expect(session.getDiscoverableTools({ source: "mcp" }).map(tool => tool.name)).toEqual(["mcp__docs_search"]);
 	});
 
 	it("reports only currently active MCP tools in non-discovery sessions", async () => {

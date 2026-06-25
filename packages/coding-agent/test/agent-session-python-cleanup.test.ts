@@ -1,15 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "bun:test";
 import * as fs from "node:fs";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import * as pythonExecutor from "@oh-my-pi/pi-coding-agent/eval/py/executor";
-import type { PythonKernel as PythonKernelInstance } from "@oh-my-pi/pi-coding-agent/eval/py/kernel";
-import * as pythonKernel from "@oh-my-pi/pi-coding-agent/eval/py/kernel";
-import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
-import { createAgentSession, type ExtensionFactory, type WorkspaceTree } from "@oh-my-pi/pi-coding-agent/sdk";
-import { AgentStorage } from "@oh-my-pi/pi-coding-agent/session/agent-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { Snowflake, TempDir } from "@oh-my-pi/pi-utils";
+import { getBundledModel } from "@amaze/pi-catalog/models";
+import { Settings } from "@amaze/pi-coding-agent/config/settings";
+import * as pythonExecutor from "@amaze/pi-coding-agent/eval/py/executor";
+import type { PythonKernel as PythonKernelInstance } from "@amaze/pi-coding-agent/eval/py/kernel";
+import * as pythonKernel from "@amaze/pi-coding-agent/eval/py/kernel";
+import { AgentRegistry } from "@amaze/pi-coding-agent/registry/agent-registry";
+import { createAgentSession, type ExtensionFactory, type WorkspaceTree } from "@amaze/pi-coding-agent/sdk";
+import { AgentStorage } from "@amaze/pi-coding-agent/session/agent-storage";
+import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
+import { Snowflake, TempDir } from "@amaze/pi-utils";
 
 const OK_EXECUTION = { status: "ok", cancelled: false, timedOut: false, stdinRequested: false } as const;
 
@@ -130,7 +130,6 @@ const createSession = async (
 			workspaceTree: emptyWorkspaceTree(cwd),
 			slashCommands: [],
 			enableMCP: false,
-			enableLsp: false,
 			toolNames: ["eval"],
 		})
 	).session;
@@ -214,7 +213,6 @@ describe("AgentSession python cleanup", () => {
 				promptTemplates: [],
 				slashCommands: [],
 				enableMCP: false,
-				enableLsp: false,
 				toolNames: ["eval"],
 				workspaceTree: emptyWorkspaceTree(cwd),
 			}),
@@ -272,7 +270,7 @@ describe("AgentSession python cleanup", () => {
 				cwd,
 				agentDir: createAgentDir(),
 				sessionManager: SessionManager.inMemory(cwd),
-				settings: Settings.isolated({ "python.kernelMode": "session", "memory.backend": "local" }),
+				settings: Settings.isolated({ "python.kernelMode": "session" }),
 				model: getModel(),
 				disableExtensionDiscovery: true,
 				skills: [],
@@ -281,7 +279,6 @@ describe("AgentSession python cleanup", () => {
 				promptTemplates: [],
 				slashCommands: [],
 				enableMCP: false,
-				enableLsp: false,
 				toolNames: ["eval"],
 				workspaceTree: emptyWorkspaceTree(cwd),
 				agentRegistry: throwingRegistry,

@@ -1,14 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@oh-my-pi/pi-agent-core";
-import type { AssistantMessage, TextContent, ToolCall } from "@oh-my-pi/pi-ai";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { AgentSession, type AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { TempDir, withTimeout } from "@oh-my-pi/pi-utils";
+import { Agent } from "@amaze/pi-agent-core";
+import type { AssistantMessage, TextContent, ToolCall } from "@amaze/pi-ai";
+import { createMockModel } from "@amaze/pi-ai/providers/mock";
+import { getBundledModel } from "@amaze/pi-catalog/models";
+import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
+import { Settings } from "@amaze/pi-coding-agent/config/settings";
+import { AgentSession, type AgentSessionEvent } from "@amaze/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
+import { convertToLlm } from "@amaze/pi-coding-agent/session/messages";
+import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
+import { TempDir, withTimeout } from "@amaze/pi-utils";
 
 /**
  * Regression coverage for issue #2590: `#checkTodoCompletion` used to schedule
@@ -209,5 +211,53 @@ describe("AgentSession todo reminder self-continuation suppression", () => {
 
 		// 1/3 fires, agent does work, 2/3 fires, agent acks → suppressed, no 3/3.
 		expect(reminderAttempts).toEqual([1, 2]);
+	});
+
+	it("caps todo reminder continuations across direct user turns", async () => {
+		await session.dispose();
+
+		const model = getBundledModel("anthropic", "claude-sonnet-4-5");
+		if (!model) throw new Error("Expected built-in anthropic model to exist");
+		const mock = createMockModel({ handler: () => ({ content: ["paused"] }) });
+		const agent = new Agent({
+			getApiKey: () => "test-key",
+			initialState: {
+				model,
+				systemPrompt: ["Test"],
+				tools: [],
+				messages: [],
+			},
+			streamFn: mock.stream,
+			convertToLlm,
+		});
+		session = new AgentSession({
+			agent,
+			sessionManager,
+			settings: Settings.isolated({
+				"compaction.enabled": false,
+				"todo.enabled": true,
+				"todo.reminders": true,
+				"todo.reminders.max": 2,
+			}),
+			modelRegistry,
+		});
+		reminderAttempts = [];
+		session.subscribe((event: AgentSessionEvent) => {
+			if (event.type === "todo_reminder") reminderAttempts.push(event.attempt);
+		});
+		session.setTodoPhases([
+			{
+				name: "Pending review",
+				tasks: [{ content: "Slice 81", status: "pending" }],
+			},
+		]);
+
+		for (let i = 0; i < 3; i++) {
+			await session.prompt(`Pause ${i}`);
+			await session.waitForIdle();
+		}
+
+		expect(reminderAttempts).toEqual([1, 1]);
+		expect(mock.calls).toHaveLength(5);
 	});
 });

@@ -1,21 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@oh-my-pi/pi-agent-core";
-import type { TextContent } from "@oh-my-pi/pi-ai";
-import { AssistantMessageEventStream } from "@oh-my-pi/pi-ai/utils/event-stream";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { WORKFLOW_NOTICE } from "@oh-my-pi/pi-coding-agent/modes/workflow";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
+import { Agent } from "@amaze/pi-agent-core";
+import type { TextContent } from "@amaze/pi-ai";
+import { AssistantMessageEventStream } from "@amaze/pi-ai/utils/event-stream";
+import { getBundledModel } from "@amaze/pi-catalog/models";
+import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
+import { Settings } from "@amaze/pi-coding-agent/config/settings";
+import { WORKFLOW_NOTICE } from "@amaze/pi-coding-agent/modes/workflow";
+import { AgentSession } from "@amaze/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
 import {
 	convertToLlm,
 	SKILL_PROMPT_MESSAGE_TYPE,
 	type SkillPromptDetails,
-} from "@oh-my-pi/pi-coding-agent/session/messages";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { TempDir } from "@oh-my-pi/pi-utils";
+} from "@amaze/pi-coding-agent/session/messages";
+import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
+import { TempDir } from "@amaze/pi-utils";
 import { createAssistantMessage } from "./helpers/agent-session-setup";
 
 type ObservedSkillTurn = {

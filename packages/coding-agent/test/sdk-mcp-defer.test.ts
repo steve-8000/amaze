@@ -2,13 +2,13 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { AuthStorage } from "@oh-my-pi/pi-ai";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { createAgentSession } from "@oh-my-pi/pi-coding-agent/sdk";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { Snowflake } from "@oh-my-pi/pi-utils";
+import { AuthStorage } from "@amaze/pi-ai";
+import { getBundledModel } from "@amaze/pi-catalog/models";
+import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
+import { Settings } from "@amaze/pi-coding-agent/config/settings";
+import { createAgentSession } from "@amaze/pi-coding-agent/sdk";
+import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
+import { Snowflake } from "@amaze/pi-utils";
 
 // Contract for B1 (interactive MCP deferral): when `hasUI` is true, MCP
 // discovery is deferred off the first-paint path, so an explicitly requested
@@ -38,7 +38,6 @@ describe("createAgentSession MCP deferral (B1)", () => {
 		contextFiles: [],
 		promptTemplates: [],
 		slashCommands: [],
-		enableLsp: false,
 		skipPythonPreflight: true,
 		// No .mcp.json in tempDir, so no real MCP server can ever back this name.
 		enableMCP: true,

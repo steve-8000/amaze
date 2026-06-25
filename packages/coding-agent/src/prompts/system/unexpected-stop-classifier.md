@@ -10,6 +10,10 @@ Not an unexpected stop:
 - "I've completed the task."
 - "Is there anything else I can help with?"
 - "The fix is done and tests pass."
+- "Here's the root cause. If you'd like, I can outline the patch next."
+- "The analysis is complete; I can implement it if you want."
+
+Optional follow-up offers or suggested next steps after a completed answer are NOT unexpected stops.
 
 Message:
 {{message}}

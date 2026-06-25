@@ -1,15 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@oh-my-pi/pi-agent-core";
-import type { AssistantMessage, ToolResultMessage } from "@oh-my-pi/pi-ai";
-import { createMockModel } from "@oh-my-pi/pi-ai/providers/mock";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { Agent } from "@amaze/pi-agent-core";
+import type { AssistantMessage, ToolResultMessage } from "@amaze/pi-ai";
+import { createMockModel } from "@amaze/pi-ai/providers/mock";
+import { getBundledModel } from "@amaze/pi-catalog/models";
+import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
+import { Settings } from "@amaze/pi-coding-agent/config/settings";
+import { AgentSession } from "@amaze/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
+import { TempDir } from "@amaze/pi-utils";
 
 /**
  * Regression: a steer can land on an idle session — the submit path checks
@@ -121,6 +121,21 @@ describe("AgentSession steer idle drain", () => {
 		vi.advanceTimersByTime(200);
 		await session.waitForIdle();
 		expect(continueSpy).toHaveBeenCalledTimes(1);
+	});
+
+	it("caps consecutive idle queued-message drain continuations", async () => {
+		await createSession([{ role: "user", content: "hello", timestamp: Date.now() }, createAssistantMessage()]);
+		const continueSpy = vi.spyOn(session.agent, "continue").mockImplementation(async () => {
+			session.agent.clearAllQueues();
+		});
+
+		for (let index = 0; index < 4; index++) {
+			await session.steer(`queued steer ${index}`);
+			vi.advanceTimersByTime(200);
+			await session.waitForIdle();
+		}
+
+		expect(continueSpy).toHaveBeenCalledTimes(3);
 	});
 
 	it("round-trips queued images through clearQueue for editor restoration", async () => {

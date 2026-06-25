@@ -6,10 +6,10 @@ import type {
 	AgentToolUpdateCallback,
 	RenderResultOptions,
 	ToolApprovalDecision,
-} from "@oh-my-pi/pi-agent-core";
-import type { ToolExample } from "@oh-my-pi/pi-ai";
-import { type Component, Text } from "@oh-my-pi/pi-tui";
-import { isEnoent, prompt } from "@oh-my-pi/pi-utils";
+} from "@amaze/pi-agent-core";
+import type { ToolExample } from "@amaze/pi-ai";
+import { type Component, Text } from "@amaze/pi-tui";
+import { isEnoent, prompt } from "@amaze/pi-utils";
 import { type } from "arktype";
 import {
 	type DapBreakpointRecord,

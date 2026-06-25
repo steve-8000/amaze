@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { type Component, CURSOR_MARKER, type NativeScrollbackLiveRegion, TUI } from "@oh-my-pi/pi-tui";
+import { type Component, CURSOR_MARKER, type NativeScrollbackLiveRegion, TUI } from "@amaze/pi-tui";
 import { VirtualTerminal } from "./virtual-terminal";
 
-// Regression test for https://github.com/can1357/oh-my-pi/issues/1974
+// Regression test for https://github.com/can1357/amaze-agent/issues/1974
 //
 // Inside tmux (and other multiplexers), a long streamed reply that grows past
 // the viewport lost its scrolled-off head from pane history and, after a
@@ -40,7 +40,7 @@ class LineList implements Component {
 }
 
 /**
- * Minimal append-only live region. Models the real omp setup where
+ * Minimal append-only live region. Models the real amaze setup where
  * `TranscriptContainer` wraps an `AssistantMessageComponent` that reports
  * itself as `isTranscriptBlockAppendOnly() === true`.
  */
@@ -245,7 +245,7 @@ describe("issue #1974: tmux scrollback rendering", () => {
 	});
 
 	it("does not push chrome below the live block into pane history", async () => {
-		// Models a real omp frame: streamed assistant reply on top, persistent
+		// Models a real amaze frame: streamed assistant reply on top, persistent
 		// chrome (status line / editor) below. The live region ends mid-frame,
 		// so the renderer must push only sealed rows of the live block into
 		// pane history while keeping the chrome rows transient and confined to

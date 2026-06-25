@@ -2,18 +2,12 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import {
-	type AssistantMessageEventStream,
-	clearCustomApis,
-	Effort,
-	type FetchImpl,
-	getCustomApi,
-} from "@oh-my-pi/pi-ai";
-import { getOAuthProviders, unregisterOAuthProviders } from "@oh-my-pi/pi-ai/oauth";
-import type { OAuthCredentials } from "@oh-my-pi/pi-ai/oauth/types";
-import { ModelRegistry, type ProviderConfigInput } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { Snowflake } from "@oh-my-pi/pi-utils";
+import { type AssistantMessageEventStream, clearCustomApis, Effort, type FetchImpl, getCustomApi } from "@amaze/pi-ai";
+import { getOAuthProviders, unregisterOAuthProviders } from "@amaze/pi-ai/oauth";
+import type { OAuthCredentials } from "@amaze/pi-ai/oauth/types";
+import { ModelRegistry, type ProviderConfigInput } from "@amaze/pi-coding-agent/config/model-registry";
+import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
+import { Snowflake } from "@amaze/pi-utils";
 
 describe("ModelRegistry runtime provider registration", () => {
 	let tempDir: string;

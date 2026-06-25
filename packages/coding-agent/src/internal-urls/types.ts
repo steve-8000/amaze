@@ -1,7 +1,7 @@
 /**
  * Types for the internal URL routing system.
  *
- * Internal URLs (`agent://`, `artifact://`, `history://`, `issue://`, `local://`, `mcp://`, `memory://`, `omp://`, `pr://`, `rule://`, `skill://`, and `vault://`) are resolved by tools like read,
+ * Internal URLs (`agent://`, `artifact://`, `history://`, `issue://`, `local://`, `mcp://`, `amaze://`, `pr://`, `rule://`, `skill://`, and `vault://`) are resolved by tools like read,
  * providing access to agent outputs and server resources without exposing filesystem paths.
  */
 
@@ -87,7 +87,7 @@ export interface ResolveContext {
 	 * Required for correctness in multi-session hosts (cmux/ACP, embedded SDK
 	 * consumers) where multiple sessions are registered as `main` and the
 	 * "first one wins" lookup picks the wrong artifacts directory — see
-	 * [#1608](https://github.com/can1357/oh-my-pi/issues/1608).
+	 * [#1608](https://github.com/can1357/amaze-agent/issues/1608).
 	 */
 	localProtocolOptions?: LocalProtocolOptions;
 }
@@ -107,7 +107,7 @@ export interface WriteContext {
 }
 
 /**
- * Handler for a specific internal URL scheme (e.g., agent://, memory://, skill://, mcp://).
+ * Handler for a specific internal URL scheme (e.g., agent://, skill://, mcp://).
  */
 export interface ProtocolHandler {
 	/** The scheme this handler processes (without trailing ://) */

@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import { CURSOR_MARKER } from "@oh-my-pi/pi-tui";
-import { CombinedAutocompleteProvider } from "@oh-my-pi/pi-tui/autocomplete";
-import { Editor } from "@oh-my-pi/pi-tui/components/editor";
-import { KeybindingsManager, setKeybindings, TUI_KEYBINDINGS } from "@oh-my-pi/pi-tui/keybindings";
-import { setKittyProtocolActive } from "@oh-my-pi/pi-tui/keys";
-import { visibleWidth } from "@oh-my-pi/pi-tui/utils";
+import { CURSOR_MARKER } from "@amaze/pi-tui";
+import { CombinedAutocompleteProvider } from "@amaze/pi-tui/autocomplete";
+import { Editor } from "@amaze/pi-tui/components/editor";
+import { KeybindingsManager, setKeybindings, TUI_KEYBINDINGS } from "@amaze/pi-tui/keybindings";
+import { setKittyProtocolActive } from "@amaze/pi-tui/keys";
+import { visibleWidth } from "@amaze/pi-tui/utils";
 import { defaultEditorTheme } from "./test-themes";
 
 describe("Editor component", () => {
@@ -745,11 +745,10 @@ describe("Editor component", () => {
 			// Cursor should be at end (after B)
 			const lines = editor.render(width);
 
-			// The software cursor should be visible without SGR blink; Ghostty/cmux
-			// can leave afterimages for blinking cells during rapid row repaints.
+			// Match the reference bottom input: the software cursor is the terminal
+			// blink-styled input cursor while preserving visible width.
 			const contentLine = lines[1]!;
-			expect(contentLine).toContain(defaultEditorTheme.symbols.inputCursor);
-			expect(contentLine).not.toContain("\x1b[5m");
+			expect(contentLine).toContain(`\x1b[5m${defaultEditorTheme.symbols.inputCursor}\x1b[0m`);
 			// Line should still be correct width
 			expect(visibleWidth(contentLine)).toBeLessThanOrEqual(width);
 		});
@@ -837,13 +836,13 @@ describe("Editor component", () => {
 			let lines = editor.render(2);
 			expect(lines).toHaveLength(2);
 			expect(lines[0]).toBe("> ");
-			expect(lines[1]).toBe(` ${defaultEditorTheme.symbols.inputCursor}${CURSOR_MARKER}`);
+			expect(lines[1]).toBe(` \x1b[5m${defaultEditorTheme.symbols.inputCursor}\x1b[0m${CURSOR_MARKER}`);
 
 			editor.handleInput("\x1b[A");
 
 			expect(editor.getCursor()).toEqual({ line: 1, col: 1 });
 			lines = editor.render(2);
-			expect(lines).toEqual([`>${defaultEditorTheme.symbols.inputCursor}${CURSOR_MARKER}`, "  "]);
+			expect(lines).toEqual([`>\x1b[5m${defaultEditorTheme.symbols.inputCursor}\x1b[0m${CURSOR_MARKER}`, "  "]);
 		});
 
 		it("keeps the prompt gutter visible at the borderless width limit", () => {

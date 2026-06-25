@@ -5,10 +5,10 @@ import type {
 	AgentToolResult,
 	AgentToolUpdateCallback,
 	ToolApprovalDecision,
-} from "@oh-my-pi/pi-agent-core";
-import type { Component } from "@oh-my-pi/pi-tui";
-import { ImageProtocol, TERMINAL } from "@oh-my-pi/pi-tui";
-import { getProjectDir, isEnoent, logger, prompt } from "@oh-my-pi/pi-utils";
+} from "@amaze/pi-agent-core";
+import type { Component } from "@amaze/pi-tui";
+import { ImageProtocol, TERMINAL } from "@amaze/pi-tui";
+import { getProjectDir, isEnoent, logger, prompt } from "@amaze/pi-utils";
 import { type } from "arktype";
 import { type BashResult, executeBash } from "../exec/bash-executor";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
@@ -257,6 +257,37 @@ function unescapePartialJsonString(value: string): string {
 		}
 	}
 	return output;
+}
+
+function parseMisroutedToolInvocation(
+	command: string,
+	session: ToolSession,
+): { tool: AgentTool; args: unknown } | undefined {
+	const trimmed = command.trim();
+	if (!trimmed) return undefined;
+	const firstWhitespace = trimmed.search(/\s/);
+	if (firstWhitespace <= 0) return undefined;
+	const toolName = trimmed.slice(0, firstWhitespace);
+	if (toolName === "bash") return undefined;
+	const payload = trimmed.slice(firstWhitespace).trim();
+	if (!(payload.startsWith("{") || payload.startsWith("["))) return undefined;
+	const tool = session.getToolByName?.(toolName);
+	if (!tool) return undefined;
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(payload);
+	} catch {
+		return undefined;
+	}
+	return { tool, args: parsed };
+}
+function isNoopMisroutedToolCwd(cwd: string | undefined, sessionCwd: string): boolean {
+	if (!cwd) return true;
+	try {
+		return resolveToCwd(cwd, sessionCwd) === sessionCwd;
+	} catch {
+		return false;
+	}
 }
 
 function extractPartialBashEnv(partialJson: string | undefined): Record<string, string> | undefined {
@@ -706,6 +737,12 @@ export class BashTool implements AgentTool<typeof bashSchemaBase | typeof bashSc
 		}
 		if (asyncRequested && !this.#asyncEnabled) {
 			throw new ToolError("Async bash execution is disabled. Enable async.enabled to use async mode.");
+		}
+		if (!env && isNoopMisroutedToolCwd(cwd, this.session.cwd) && !asyncRequested && !pty) {
+			const rerouted = parseMisroutedToolInvocation(command, this.session);
+			if (rerouted) {
+				return await rerouted.tool.execute(_toolCallId, rerouted.args as never, signal, onUpdate, ctx);
+			}
 		}
 
 		// Check both the original command and the cwd-normalized command so

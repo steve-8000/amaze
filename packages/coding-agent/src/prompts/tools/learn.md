@@ -1,7 +1,9 @@
-Capture a reusable lesson into long-term memory, and optionally mint or enhance a managed skill in the same call.
+Capture a reusable lesson by persisting it as a managed skill.
 
 Use after solving something whose insight will pay off again: a non-obvious fix, a project convention you had to discover, a workflow that worked.
 
-Provide the optional `skill` object when the lesson is a repeatable *procedure* worth codifying as a `SKILL.md` (not just a fact). Managed skills are written to an isolated directory (`~/.omp/agent/managed-skills`) and are surfaced like normal skills next session. They NEVER touch user-authored skills. Frontmatter is generated from `name` and `description`.
+`skill` is required. Use it to create or update the managed skill that should preserve the lesson. If `skill.body` is omitted, the lesson text becomes the generated `SKILL.md` body (with optional context added).
+
+Managed skills are written through Rocky MCP into Rocky's canonical skill store (`ROCKY_SKILLS_DIR` or `~/.rocky/skills`). They do not write Amaze's legacy `~/.amaze/agent/managed-skills` store.
 
 Capture sparingly and specifically. One strong, reusable lesson beats several vague ones.

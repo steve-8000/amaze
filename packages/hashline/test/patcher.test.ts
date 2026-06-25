@@ -7,7 +7,7 @@ import {
 	MismatchError,
 	Patch,
 	Patcher,
-} from "@oh-my-pi/hashline";
+} from "@amaze/hashline";
 
 const PATH = "a.ts";
 

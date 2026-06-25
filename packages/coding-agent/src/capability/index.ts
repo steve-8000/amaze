@@ -8,7 +8,7 @@
  */
 import * as os from "node:os";
 import * as path from "node:path";
-import { getProjectDir, logger } from "@oh-my-pi/pi-utils";
+import { getProjectDir, logger } from "@amaze/pi-utils";
 
 import type { Settings } from "../config/settings";
 import { clearCache as clearFsCache, findRepoRoot, cacheStats as fsCacheStats, invalidate as invalidateFs } from "./fs";
@@ -38,6 +38,9 @@ const providerMeta = new Map<string, { displayName: string; description: string 
 
 /** Disabled providers (by ID) */
 const disabledProviders = new Set<string>();
+
+/** Disabled capabilities (by ID) — short-circuits loading entirely, across all providers */
+const disabledCapabilities = new Set<string>();
 
 /** Settings manager for persistence (if set) */
 let settings: Settings | null = null;
@@ -231,6 +234,10 @@ export async function loadCapability<T>(capabilityId: string, options: LoadOptio
 		throw new Error(`Unknown capability: "${capabilityId}"`);
 	}
 
+	if (!options.includeDisabled && disabledCapabilities.has(capabilityId)) {
+		return { items: [], all: [], warnings: [], providers: [] };
+	}
+
 	const cwd = options.cwd ?? getProjectDir();
 	const home = os.homedir();
 	const repoRoot = await findRepoRoot(cwd);
@@ -255,6 +262,12 @@ export function initializeWithSettings(activeSettings: Settings): void {
 	disabledProviders.clear();
 	for (const id of disabled) {
 		disabledProviders.add(id);
+	}
+	// Load disabled capabilities from settings
+	const disabledCaps = settings.get("disabledCapabilities");
+	disabledCapabilities.clear();
+	for (const id of disabledCaps) {
+		disabledCapabilities.add(id);
 	}
 }
 
@@ -288,6 +301,13 @@ export function enableProvider(providerId: string): void {
  */
 export function isProviderEnabled(providerId: string): boolean {
 	return !disabledProviders.has(providerId);
+}
+
+/**
+ * Check if an entire capability is disabled (suppressed across all providers).
+ */
+export function isCapabilityDisabled(capabilityId: string): boolean {
+	return disabledCapabilities.has(capabilityId);
 }
 
 /**

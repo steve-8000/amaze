@@ -7,8 +7,8 @@ import {
 	AuthStorage,
 	type CredentialDisabledEvent,
 	SqliteAuthCredentialStore,
-} from "@oh-my-pi/pi-ai/auth-storage";
-import * as oauthUtils from "@oh-my-pi/pi-ai/registry/oauth";
+} from "@amaze/pi-ai/auth-storage";
+import * as oauthUtils from "@amaze/pi-ai/registry/oauth";
 import { withEnv } from "./helpers";
 
 const SUPPRESS_ANTHROPIC_ENV = {
@@ -49,7 +49,7 @@ describe("AuthStorage OAuth refresh race", () => {
 		if (!authStorage || !store) throw new Error("test setup failed");
 
 		// Seed the shared DB with one expired OAuth credential; this simulates the
-		// state two cooperating omp processes both load from the persisted row.
+		// state two cooperating amaze processes both load from the persisted row.
 		await authStorage.set("anthropic", [
 			{
 				type: "oauth",

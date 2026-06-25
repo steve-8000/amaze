@@ -7,10 +7,10 @@
  * Bun's native `HTTPS_PROXY` support.
  */
 
-import type { Effort } from "@oh-my-pi/pi-catalog/effort";
-import { mapEffortToAnthropicAdaptiveEffort, requireSupportedEffort } from "@oh-my-pi/pi-catalog/model-thinking";
-import { calculateCost } from "@oh-my-pi/pi-catalog/models";
-import { $env, $flag, extractHttpStatusFromError, fetchWithRetry } from "@oh-my-pi/pi-utils";
+import type { Effort } from "@amaze/pi-catalog/effort";
+import { mapEffortToAnthropicAdaptiveEffort, requireSupportedEffort } from "@amaze/pi-catalog/model-thinking";
+import { calculateCost } from "@amaze/pi-catalog/models";
+import { $env, $flag, extractHttpStatusFromError, fetchWithRetry } from "@amaze/pi-utils";
 import { ProviderHttpError } from "../errors";
 import type {
 	Api,

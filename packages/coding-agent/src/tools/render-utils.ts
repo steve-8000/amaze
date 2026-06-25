@@ -7,19 +7,19 @@
 
 import * as os from "node:os";
 import * as path from "node:path";
-import type { ToolCallContext } from "@oh-my-pi/pi-agent-core";
-import type { Ellipsis } from "@oh-my-pi/pi-natives";
-import type { Component } from "@oh-my-pi/pi-tui";
-import { getKeybindings, replaceTabs, truncateToWidth } from "@oh-my-pi/pi-tui";
-import { pluralize } from "@oh-my-pi/pi-utils";
+import type { ToolCallContext } from "@amaze/pi-agent-core";
+import type { Ellipsis } from "@amaze/pi-natives";
+import type { Component } from "@amaze/pi-tui";
+import { getKeybindings, replaceTabs, truncateToWidth } from "@amaze/pi-tui";
+import { pluralize } from "@amaze/pi-utils";
 import { formatKeyHints, type KeyId } from "../config/keybindings";
 import { settings } from "../config/settings";
 import type { Theme } from "../modes/theme/theme";
 import { Hasher } from "../tui/utils";
 import { formatDimensionNote, type ResizedImage } from "../utils/image-resize";
 
-export { Ellipsis } from "@oh-my-pi/pi-natives";
-export { replaceTabs, truncateToWidth, wrapTextWithAnsi } from "@oh-my-pi/pi-tui";
+export { Ellipsis } from "@amaze/pi-natives";
+export { replaceTabs, truncateToWidth, wrapTextWithAnsi } from "@amaze/pi-tui";
 
 // =============================================================================
 // Standardized Display Constants
@@ -119,7 +119,7 @@ export function getDomain(url: string): string {
 // Formatting Utilities
 // =============================================================================
 
-export { formatAge, formatBytes, formatCount, formatDuration, pluralize } from "@oh-my-pi/pi-utils";
+export { formatAge, formatBytes, formatCount, formatDuration, pluralize } from "@amaze/pi-utils";
 
 // =============================================================================
 // Theme Helper Utilities
@@ -870,26 +870,30 @@ export function formatParseErrorsCountLabel(parseErrors: readonly string[], tota
 }
 
 // =============================================================================
-// LSP Batching
+// Write-through batching
 // =============================================================================
 
-const LSP_BATCH_TOOLS = new Set(["edit", "write"]);
+const WRITETHROUGH_BATCH_TOOLS = new Set(["edit", "write"]);
 
-export interface LspBatchRequest {
+export interface WritethroughBatchRequest {
 	id: string;
 	flush: boolean;
 }
 
-export function getLspBatchRequest(toolCall: ToolCallContext | undefined): LspBatchRequest | undefined {
+export function getWritethroughBatchRequest(
+	toolCall: ToolCallContext | undefined,
+): WritethroughBatchRequest | undefined {
 	if (!toolCall) {
 		return undefined;
 	}
 	const hasOtherWrites = toolCall.toolCalls.some(
-		(call, index) => index !== toolCall.index && LSP_BATCH_TOOLS.has(call.name),
+		(call, index) => index !== toolCall.index && WRITETHROUGH_BATCH_TOOLS.has(call.name),
 	);
 	if (!hasOtherWrites) {
 		return undefined;
 	}
-	const hasLaterWrites = toolCall.toolCalls.slice(toolCall.index + 1).some(call => LSP_BATCH_TOOLS.has(call.name));
+	const hasLaterWrites = toolCall.toolCalls
+		.slice(toolCall.index + 1)
+		.some(call => WRITETHROUGH_BATCH_TOOLS.has(call.name));
 	return { id: toolCall.batchId, flush: !hasLaterWrites };
 }

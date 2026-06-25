@@ -4,12 +4,12 @@ import {
 	compact,
 	createFileOps,
 	DEFAULT_COMPACTION_SETTINGS,
-} from "@oh-my-pi/pi-agent-core/compaction";
-import { buildOpenAiNativeHistory, requestOpenAiRemoteCompaction } from "@oh-my-pi/pi-agent-core/compaction/openai";
-import * as ai from "@oh-my-pi/pi-ai";
-import type { AssistantMessage, FetchImpl, Model, ToolResultMessage } from "@oh-my-pi/pi-ai/types";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import type { ModelSpec } from "@oh-my-pi/pi-catalog/types";
+} from "@amaze/pi-agent-core/compaction";
+import { buildOpenAiNativeHistory, requestOpenAiRemoteCompaction } from "@amaze/pi-agent-core/compaction/openai";
+import * as ai from "@amaze/pi-ai";
+import type { AssistantMessage, FetchImpl, Model, ToolResultMessage } from "@amaze/pi-ai/types";
+import { buildModel } from "@amaze/pi-catalog/build";
+import type { ModelSpec } from "@amaze/pi-catalog/types";
 
 function makeOpenAiModel(overrides: Partial<ModelSpec<"openai-responses">> = {}): Model<"openai-responses"> {
 	return buildModel({

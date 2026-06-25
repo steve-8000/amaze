@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { getRoleInfo } from "@oh-my-pi/pi-coding-agent/config/model-roles";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { getKnownRoleIds, getRoleInfo } from "@amaze/pi-coding-agent/config/model-roles";
+import { Settings } from "@amaze/pi-coding-agent/config/settings";
 
 describe("getRoleInfo", () => {
 	test("returns built-in role info", () => {
@@ -62,5 +62,21 @@ describe("getRoleInfo", () => {
 			name: "My Smol",
 			color: "success",
 		});
+	});
+
+	test("omits hidden custom roles from known role ids", () => {
+		const settings = Settings.isolated({
+			cycleOrder: ["custom-visible", "custom-hidden"],
+			modelRoles: {
+				"custom-visible": "openai/gpt-4o",
+				"custom-hidden": "openai/gpt-4o-mini",
+			},
+			modelTags: {
+				"custom-hidden": { name: "Hidden Custom", hidden: true },
+			},
+		});
+
+		expect(getKnownRoleIds(settings)).toContain("custom-visible");
+		expect(getKnownRoleIds(settings)).not.toContain("custom-hidden");
 	});
 });

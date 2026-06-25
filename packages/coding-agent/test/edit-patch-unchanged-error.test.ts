@@ -2,10 +2,10 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { DEFAULT_FUZZY_THRESHOLD, executePatchSingle } from "@oh-my-pi/pi-coding-agent/edit";
-import type { FileDiagnosticsResult } from "@oh-my-pi/pi-coding-agent/lsp";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import { resetSettingsForTest, Settings } from "@amaze/pi-coding-agent/config/settings";
+import type { FileDiagnosticsResult } from "@amaze/pi-coding-agent/edit";
+import { DEFAULT_FUZZY_THRESHOLD, executePatchSingle } from "@amaze/pi-coding-agent/edit";
+import type { ToolSession } from "@amaze/pi-coding-agent/tools";
 
 function makeSession(cwd: string): ToolSession {
 	return {
@@ -13,7 +13,6 @@ function makeSession(cwd: string): ToolSession {
 		hasUI: false,
 		getSessionFile: () => null,
 		getSessionSpawns: () => "*",
-		enableLsp: false,
 		settings: Settings.isolated({ "edit.mode": "patch" }),
 		getArtifactsDir: () => null,
 		getSessionId: () => null,
@@ -28,7 +27,7 @@ const noopBeginDeferred = (_p: string) => ({
 });
 
 /**
- * Simulates an LSP host integration that claims success without persisting the
+ * Simulates a host integration that claims success without persisting the
  * write — the failure mode the post-write verification block in `patch.ts` is
  * defending against. Unlike `writethroughNoop`, this really doesn't touch the
  * filesystem.
@@ -41,7 +40,7 @@ let tempDir: string;
 
 beforeEach(async () => {
 	resetSettingsForTest();
-	tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-patch-unchanged-"));
+	tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "amaze-patch-unchanged-"));
 	await Settings.init({ inMemory: true, cwd: tempDir });
 });
 

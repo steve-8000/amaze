@@ -5,7 +5,7 @@
  */
 import * as fs from "node:fs/promises";
 import * as url from "node:url";
-import { getWorkProfile } from "@oh-my-pi/pi-natives";
+import { getWorkProfile } from "@amaze/pi-natives";
 import {
 	Container,
 	isNotificationSuppressed,
@@ -16,8 +16,8 @@ import {
 	TERMINAL,
 	type TerminalNotification,
 	Text,
-} from "@oh-my-pi/pi-tui";
-import { getSessionsDir } from "@oh-my-pi/pi-utils";
+} from "@amaze/pi-tui";
+import { getSessionsDir } from "@amaze/pi-utils";
 import { DynamicBorder } from "../modes/components/dynamic-border";
 import { TranscriptBlock } from "../modes/components/transcript-container";
 import { getSelectListTheme, getSymbolTheme, theme } from "../modes/theme/theme";
@@ -435,7 +435,7 @@ export class DebugSelectorComponent extends Container {
 		if (!suppressed) {
 			const sessionName = this.ctx.sessionManager.getSessionName();
 			const notification: TerminalNotification = {
-				title: sessionName || "Oh My Pi",
+				title: sessionName || "Amaze Agent",
 				body: "Terminal protocol test",
 				type: "test",
 				actions: "focus",

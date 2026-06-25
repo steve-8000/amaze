@@ -1,7 +1,7 @@
 /**
  * Client half of the pi-native auth-gateway protocol.
  *
- * Dispatches a {@link streamSimple}-shaped request to an `omp auth-gateway`
+ * Dispatches a {@link streamSimple}-shaped request to an `amaze auth-gateway`
  * via `POST /v1/pi/stream`, reads the SSE event stream back, and pushes the
  * parsed events into a local {@link AssistantMessageEventStream} — the same
  * stream type every other provider client produces. Callers downstream of
@@ -11,11 +11,11 @@
  *
  * Activated when a {@link Model} has `transport: "pi-native"` set; the
  * dispatch hook lives in `streamSimple()` (see `../stream.ts`). Used by
- * containerized omp deployments (robomp slots, the swarm extension) that
+ * containerized amaze deployments (robomp slots, the swarm extension) that
  * route every LLM call through a credential-holding sidecar so the slot
  * itself stays credential-free.
  */
-import { readSseJson } from "@oh-my-pi/pi-utils";
+import { readSseJson } from "@amaze/pi-utils";
 import { ProviderHttpError } from "../errors";
 import type {
 	Api,
@@ -124,7 +124,7 @@ function buildHeaders(model: Model<Api>, apiKey: string | undefined): Record<str
 }
 
 /**
- * Stream a turn through an `omp auth-gateway` over the pi-native protocol.
+ * Stream a turn through an `amaze auth-gateway` over the pi-native protocol.
  *
  * The returned {@link AssistantMessageEventStream} receives each parsed
  * `AssistantMessageEvent` verbatim from the gateway; the terminal `done` /

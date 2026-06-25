@@ -6,7 +6,7 @@
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { getPluginsLockfile, getPluginsNodeModules, getPluginsPackageJson, isEnoent } from "@oh-my-pi/pi-utils";
+import { getPluginsLockfile, getPluginsNodeModules, getPluginsPackageJson, isEnoent } from "@amaze/pi-utils";
 import { getConfigDirPaths } from "../../config";
 import { installLegacyPiSpecifierShim } from "./legacy-pi-compat";
 import { normalizePluginRuntimeConfig } from "./runtime-config";
@@ -21,7 +21,7 @@ installLegacyPiSpecifierShim();
 /**
  * Load plugin runtime config from lock file.
  *
- * `home` controls which `<plugins>/omp-plugins.lock.json` is read — pass it
+ * `home` controls which `<plugins>/amaze-plugins.lock.json` is read — pass it
  * through whenever the caller is loading plugins for a tempdir-rooted
  * scenario (tests, discovery sub-surfaces that need to mirror an alternate
  * `LoadContext.home`).
@@ -37,7 +37,7 @@ async function loadRuntimeConfig(home?: string): Promise<PluginRuntimeConfig> {
 }
 
 /**
- * Load project-local plugin overrides (checks .omp and .pi directories).
+ * Load project-local plugin overrides (checks .amaze and .pi directories).
  */
 async function loadProjectOverrides(cwd: string): Promise<ProjectPluginOverrides> {
 	for (const overridesPath of getConfigDirPaths("plugin-overrides.json", { user: false, cwd })) {
@@ -55,7 +55,7 @@ async function loadProjectOverrides(cwd: string): Promise<ProjectPluginOverrides
  *
  * Respects both global runtime config and project overrides. Iterates the
  * union of `<plugins>/package.json#dependencies` (`bun install`-installed
- * packages) and `<plugins>/omp-plugins.lock.json#plugins` (so locally
+ * packages) and `<plugins>/amaze-plugins.lock.json#plugins` (so locally
  * `plugin link`-symlinked extensions, which never get a dependency entry,
  * are still discovered). The optional `home` parameter pins the plugins
  * root for callers that need to enumerate plugins relative to a non-default
@@ -95,7 +95,7 @@ export async function getEnabledPlugins(cwd: string, opts: { home?: string } = {
 	const plugins: InstalledPlugin[] = [];
 	for (const name of names) {
 		const pluginPkgPath = path.join(nodeModulesPath, name, "package.json");
-		let pluginPkg: { version: string; omp?: PluginManifest; pi?: PluginManifest };
+		let pluginPkg: { version: string; amaze?: PluginManifest; pi?: PluginManifest };
 		try {
 			pluginPkg = await Bun.file(pluginPkgPath).json();
 		} catch (err) {
@@ -105,9 +105,9 @@ export async function getEnabledPlugins(cwd: string, opts: { home?: string } = {
 			throw err;
 		}
 
-		const manifest: PluginManifest | undefined = pluginPkg.omp || pluginPkg.pi;
+		const manifest: PluginManifest | undefined = pluginPkg.amaze || pluginPkg.pi;
 		if (!manifest) {
-			// Not an omp plugin, skip
+			// Not an amaze plugin, skip
 			continue;
 		}
 		manifest.version = pluginPkg.version;
@@ -164,14 +164,14 @@ function findDirectoryIndex(dir: string): string | null {
 }
 
 interface DeclaredManifestEntries {
-	/** True when the directory's package.json declares a non-empty `omp`/`pi` `extensions` array. */
+	/** True when the directory's package.json declares a non-empty `amaze`/`pi` `extensions` array. */
 	declared: boolean;
 	/** Resolved, existing module files for the declared entries (may be empty when declared files are missing). */
 	files: string[];
 }
 
 /**
- * Read the extension entries declared by `dir`'s own package.json `omp`/`pi`
+ * Read the extension entries declared by `dir`'s own package.json `amaze`/`pi`
  * manifest. `declared` distinguishes "a manifest explicitly lists extensions"
  * (authoritative — callers must not fall back to index/scan, so a missing
  * declared file surfaces as a missing entry instead of silently loading a stale
@@ -187,13 +187,13 @@ function readDeclaredManifestEntries(dir: string): DeclaredManifestEntries {
 	} catch {
 		return { declared: false, files: [] };
 	}
-	let pkg: { omp?: { extensions?: unknown }; pi?: { extensions?: unknown } };
+	let pkg: { amaze?: { extensions?: unknown }; pi?: { extensions?: unknown } };
 	try {
-		pkg = JSON.parse(raw) as { omp?: { extensions?: unknown }; pi?: { extensions?: unknown } };
+		pkg = JSON.parse(raw) as { amaze?: { extensions?: unknown }; pi?: { extensions?: unknown } };
 	} catch {
 		return { declared: false, files: [] };
 	}
-	const declared = (pkg.omp ?? pkg.pi)?.extensions;
+	const declared = (pkg.amaze ?? pkg.pi)?.extensions;
 	if (!Array.isArray(declared) || declared.length === 0) {
 		return { declared: false, files: [] };
 	}
@@ -220,7 +220,7 @@ function readDeclaredManifestEntries(dir: string): DeclaredManifestEntries {
 /**
  * Resolve a directory to its loadable extension module files, mirroring the
  * configured-directory (`-e`) scanner in extensions/loader.ts:
- *   1. the directory's own package.json `omp`/`pi` `extensions` entries —
+ *   1. the directory's own package.json `amaze`/`pi` `extensions` entries —
  *      authoritative: a manifest that lists extensions suppresses the index/scan
  *      fallback, so a missing declared file is reported rather than silently
  *      replaced by a decoy index
@@ -271,12 +271,12 @@ function resolveDirectoryEntries(dir: string): string[] {
  * - a file entry → that file
  * - a directory:
  *   - when `expandDirectory` (the `extensions` key), resolved by
- *     {@link resolveDirectoryEntries} — its own package.json `omp`/`pi`
+ *     {@link resolveDirectoryEntries} — its own package.json `amaze`/`pi`
  *     `extensions`, then a direct index, then a one-level scan of
  *     sub-extensions — matching the pi `extensions/<name>/index.ts` convention
- *     and OMP's configured-directory (`-e`) extension loader
+ *     and Amaze's configured-directory (`-e`) extension loader
  *   - otherwise (tools/hooks/commands) only a direct index.{ts,js,mjs,cjs}.
- *     The sub-extension scan and the `omp`/`pi` `extensions` manifest are
+ *     The sub-extension scan and the `amaze`/`pi` `extensions` manifest are
  *     extensions-specific and must not hijack a non-extension directory entry
  *     (e.g. a `tools: "."` entry must still resolve `./index.ts`).
  *

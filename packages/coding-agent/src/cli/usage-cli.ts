@@ -1,7 +1,7 @@
 /**
  * Usage CLI command handler.
  *
- * Handles `omp usage` — fetches provider usage reports for every
+ * Handles `amaze usage` — fetches provider usage reports for every
  * authenticated account and prints a detailed per-account breakdown
  * (limits, windows, reset times, plan metadata). Accounts whose
  * credentials produced no usage report are listed too, so the output
@@ -14,8 +14,8 @@ import {
 	type UsageLimit,
 	type UsageReport,
 	type UsageUnit,
-} from "@oh-my-pi/pi-ai";
-import { formatDuration, formatNumber } from "@oh-my-pi/pi-utils";
+} from "@amaze/pi-ai";
+import { formatDuration, formatNumber } from "@amaze/pi-utils";
 import chalk from "chalk";
 import { ModelRegistry } from "../config/model-registry";
 import { discoverAuthStorage } from "../sdk";
@@ -703,7 +703,7 @@ export async function runUsageCommand(cmd: UsageCommandArgs): Promise<void> {
 				const scope = cmd.provider ? ` for provider "${cmd.provider}"` : "";
 				process.stderr.write(
 					chalk.yellow(
-						`No usage history recorded${scope} yet. Snapshots accumulate whenever usage is fetched (TUI footer, /usage, omp usage).\n`,
+						`No usage history recorded${scope} yet. Snapshots accumulate whenever usage is fetched (TUI footer, /usage, amaze usage).\n`,
 					),
 				);
 				process.exitCode = 1;
@@ -761,7 +761,7 @@ export async function runUsageCommand(cmd: UsageCommandArgs): Promise<void> {
 		if (filteredReports.length === 0 && accounts.length === 0) {
 			const scope = cmd.provider ? ` for provider "${cmd.provider}"` : "";
 			process.stderr.write(
-				chalk.yellow(`No credentials found${scope}. Run \`omp\` and use /login to add accounts.\n`),
+				chalk.yellow(`No credentials found${scope}. Run \`amaze\` and use /login to add accounts.\n`),
 			);
 			process.exitCode = 1;
 			return;

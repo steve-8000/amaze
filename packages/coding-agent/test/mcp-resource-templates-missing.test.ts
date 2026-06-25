@@ -75,7 +75,7 @@ describe("MCPManager loads resources for a templates-less server", () => {
 	let workDir: string;
 
 	beforeEach(() => {
-		workDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-mcp-templates-"));
+		workDir = fs.mkdtempSync(path.join(os.tmpdir(), "amaze-mcp-templates-"));
 	});
 
 	afterEach(() => {

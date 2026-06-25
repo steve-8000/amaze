@@ -1,7 +1,7 @@
-import type { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import type { Api, ApiKey, AssistantMessage, Model } from "@oh-my-pi/pi-ai";
-import { completeSimple, validateToolCall } from "@oh-my-pi/pi-ai";
-import { prompt } from "@oh-my-pi/pi-utils";
+import type { ThinkingLevel } from "@amaze/pi-agent-core";
+import type { Api, ApiKey, AssistantMessage, Model } from "@amaze/pi-ai";
+import { completeSimple, validateToolCall } from "@amaze/pi-ai";
+import { prompt } from "@amaze/pi-utils";
 import { type } from "arktype";
 import changelogSystemPrompt from "../../commit/prompts/changelog-system.md" with { type: "text" };
 import changelogUserPrompt from "../../commit/prompts/changelog-user.md" with { type: "text" };

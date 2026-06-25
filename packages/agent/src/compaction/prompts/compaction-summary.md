@@ -1,6 +1,7 @@
 You MUST summarize the conversation above into a structured handoff summary for another LLM to resume the task.
 
 IMPORTANT: If the conversation ends with an unanswered question or a request awaiting user response (e.g., "Please run command and paste output"), you MUST preserve that exact question/request.
+IMPORTANT: Omit `## Next Steps` when the latest turn already completed the user's request and only optional follow-up ideas remain.
 
 You MUST use this format (sections can be omitted if not applicable):
 

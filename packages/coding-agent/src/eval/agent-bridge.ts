@@ -4,7 +4,7 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { prompt, Snowflake } from "@oh-my-pi/pi-utils";
+import { prompt, Snowflake } from "@amaze/pi-utils";
 import { type } from "arktype";
 import { resolveAgentModelPatterns } from "../config/model-resolver";
 import type { LocalProtocolOptions } from "../internal-urls";
@@ -28,7 +28,7 @@ export const EVAL_AGENT_BRIDGE_NAME = "__agent__";
 /** Hard recursion limit for eval-driven subagents. */
 export const EVAL_AGENT_MAX_DEPTH = 3;
 
-const DEFAULT_AGENT_TYPE = "task";
+const DEFAULT_AGENT_TYPE = "coder";
 const DEFAULT_AGENT_LABEL = "EvalAgent";
 
 const agentArgsSchema = type({
@@ -135,7 +135,7 @@ async function getArtifacts(session: ToolSession): Promise<{
 }> {
 	const sessionFile = session.getSessionFile();
 	const sessionArtifactsDir = sessionFile ? sessionFile.slice(0, -6) : null;
-	const artifactsDir = sessionArtifactsDir ?? path.join(os.tmpdir(), `omp-eval-agent-${Snowflake.next()}`);
+	const artifactsDir = sessionArtifactsDir ?? path.join(os.tmpdir(), `amaze-eval-agent-${Snowflake.next()}`);
 	await fs.mkdir(artifactsDir, { recursive: true });
 	return { sessionFile, artifactsDir };
 }
@@ -258,12 +258,6 @@ export async function runEvalAgent(args: unknown, options: EvalAgentBridgeOption
 			sessionFile,
 			persistArtifacts: Boolean(sessionFile),
 			artifactsDir,
-			// Eval `agent()` subagents are short-lived programmatic helpers (data
-			// collection, structured output, parallel() fan-out). LSP server
-			// cold-start costs tens of seconds and is pure overhead here, so it is
-			// forced off regardless of the `task.enableLsp` setting — that knob only
-			// governs LSP-aware delegation through the `task` tool.
-			enableLsp: false,
 			signal: options.signal,
 			eventBus: options.session.eventBus,
 			onProgress: progress => emitProgressStatus(options.emitStatus, progress),
@@ -284,8 +278,6 @@ export async function runEvalAgent(args: unknown, options: EvalAgentBridgeOption
 			promptTemplates: options.session.promptTemplates,
 			localProtocolOptions,
 			parentArtifactManager,
-			parentHindsightSessionState: options.session.getHindsightSessionState?.(),
-			parentMnemopiSessionState: options.session.getMnemopiSessionState?.(),
 			parentTelemetry: options.session.getTelemetry?.(),
 			parentAgentId: options.session.getAgentId?.() ?? MAIN_AGENT_ID,
 			// Deliberately omit parentEvalSessionId: the parent's Python kernel is

@@ -2,18 +2,18 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { AuthStorage, type completeSimple, type ImageContent, type Model } from "@oh-my-pi/pi-ai";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { getThemeByName } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import { createAgentSession } from "@oh-my-pi/pi-coding-agent/sdk";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { InspectImageTool } from "@oh-my-pi/pi-coding-agent/tools/inspect-image";
-import { inspectImageToolRenderer } from "@oh-my-pi/pi-coding-agent/tools/inspect-image-renderer";
-import { toolRenderers } from "@oh-my-pi/pi-coding-agent/tools/renderers";
-import { sanitizeText } from "@oh-my-pi/pi-utils";
+import { AuthStorage, type completeSimple, type ImageContent, type Model } from "@amaze/pi-ai";
+import { buildModel } from "@amaze/pi-catalog/build";
+import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
+import { Settings } from "@amaze/pi-coding-agent/config/settings";
+import { getThemeByName } from "@amaze/pi-coding-agent/modes/theme/theme";
+import { createAgentSession } from "@amaze/pi-coding-agent/sdk";
+import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
+import type { ToolSession } from "@amaze/pi-coding-agent/tools";
+import { InspectImageTool } from "@amaze/pi-coding-agent/tools/inspect-image";
+import { inspectImageToolRenderer } from "@amaze/pi-coding-agent/tools/inspect-image-renderer";
+import { toolRenderers } from "@amaze/pi-coding-agent/tools/renderers";
+import { sanitizeText } from "@amaze/pi-utils";
 import { type } from "arktype";
 
 const TINY_PNG_BASE64 =
@@ -125,7 +125,7 @@ describe("InspectImageTool", () => {
 	let testDir: string;
 
 	beforeEach(() => {
-		testDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-inspect-image-"));
+		testDir = fs.mkdtempSync(path.join(os.tmpdir(), "amaze-inspect-image-"));
 	});
 
 	afterEach(() => {
@@ -252,7 +252,6 @@ describe("InspectImageTool", () => {
 				promptTemplates: [],
 				slashCommands: [],
 				enableMCP: false,
-				enableLsp: false,
 				toolNames: ["inspect_image"],
 			});
 			try {

@@ -22,7 +22,7 @@ import {
 	isEnoent,
 	logger,
 	procmgr,
-} from "@oh-my-pi/pi-utils";
+} from "@amaze/pi-utils";
 import { JSONC, YAML } from "bun";
 import { type Settings as SettingsCapabilityItem, settingsCapability } from "../capability/settings";
 import type { ModelRole } from "../config/model-roles";
@@ -36,6 +36,8 @@ import {
 	type GroupPrefix,
 	type GroupTypeMap,
 	getDefault,
+	getSettingPathFromEnvName,
+	parseSettingStringValue,
 	SETTINGS_SCHEMA,
 	type SettingPath,
 	type SettingValue,
@@ -201,11 +203,13 @@ export class Settings {
 	#global: RawSettings = {};
 	/** Project settings from .claude/settings.yml etc */
 	#project: RawSettings = {};
+	/** Settings sourced from process env / .env files */
+	#env: RawSettings = {};
 	/** Extra config.yml-style overlays passed by CLI */
 	#configOverlay: RawSettings = {};
 	/** Runtime overrides (not persisted) */
 	#overrides: RawSettings = {};
-	/** Merged view (global + project + overrides) */
+	/** Merged view (global + project + env + config overlays + overrides) */
 	#merged: RawSettings = {};
 	/** Cached resolved values from the merged view, including defaults/path scoping */
 	#resolvedCache = new Map<SettingPath, unknown>();
@@ -297,7 +301,7 @@ export class Settings {
 
 	/**
 	 * Get a setting value (sync).
-	 * Returns the merged value from global + project + overrides, or the default.
+	 * Returns the merged value from global + project + env + config overlays + overrides, or the default.
 	 */
 	get<P extends SettingPath>(path: P): SettingValue<P> {
 		if (this.#resolvedCache.has(path)) {
@@ -402,6 +406,7 @@ export class Settings {
 		cloned.#storage = this.#storage;
 		cloned.#global = structuredClone(this.#global);
 		cloned.#project = this.#persist ? await cloned.#loadProjectSettings() : structuredClone(this.#project);
+		cloned.#env = structuredClone(this.#env);
 		cloned.#configFiles = [...this.#configFiles];
 		cloned.#configOverlay = structuredClone(this.#configOverlay);
 		cloned.#overrides = structuredClone(this.#overrides);
@@ -575,9 +580,10 @@ export class Settings {
 		}
 
 		this.#project = await projectPromise;
+		this.#env = this.#loadEnvSettings();
 		this.#configOverlay = await this.#loadConfigOverlays();
 
-		// Build merged view (global → project → overrides; project wins over global)
+		// Build merged view (global → project → env → config overlays → overrides)
 		this.#rebuildMerged();
 		this.#fireAllHooks();
 		return this;
@@ -596,6 +602,25 @@ export class Settings {
 			logger.warn("Settings: failed to load", { path: filePath, error: String(error) });
 			return {};
 		}
+	}
+
+	#loadEnvSettings(env: NodeJS.ProcessEnv = process.env): RawSettings {
+		const merged: RawSettings = {};
+		for (const [name, rawValue] of Object.entries(env)) {
+			if (typeof rawValue !== "string") continue;
+			const settingPath = getSettingPathFromEnvName(name);
+			if (!settingPath) continue;
+			try {
+				setByPath(merged, settingPath.split("."), parseSettingStringValue(settingPath, rawValue));
+			} catch (error) {
+				logger.warn("Settings: invalid env-backed setting", {
+					env: name,
+					settingPath,
+					error: String(error),
+				});
+			}
+		}
+		return this.#migrateRawSettings(merged);
 	}
 
 	async #loadProjectSettings(): Promise<RawSettings> {
@@ -855,60 +880,6 @@ export class Settings {
 			raw["codexResets.autoRedeem"] = raw["codexResets.autoRedeem"] ? "yes" : "no";
 		}
 
-		// Map legacy `memories.enabled` boolean to the explicit `memory.backend`
-		// enum if the latter hasn't been set yet. Idempotent: subsequent
-		// migrations are no-ops once memory.backend is materialised.
-		const memoryBackendObj = raw.memory as Record<string, unknown> | undefined;
-		const memoryBackendSet = memoryBackendObj && typeof memoryBackendObj.backend === "string";
-		const memoriesObj = raw.memories as Record<string, unknown> | undefined;
-		if (!memoryBackendSet && memoriesObj && typeof memoriesObj.enabled === "boolean") {
-			const next = memoriesObj.enabled ? "local" : "off";
-			const memoryRoot = (memoryBackendObj ?? {}) as Record<string, unknown>;
-			memoryRoot.backend = next;
-			raw.memory = memoryRoot;
-		}
-
-		// Rename the legacy local `mnemosyne` memory backend to `mnemopi`.
-		// - `memory.backend: "mnemosyne"` now selects the renamed backend.
-		// - the top-level `mnemosyne` settings object becomes `mnemopi`.
-		// Idempotent: skips the object move once `mnemopi` is materialised.
-		if (memoryBackendObj && memoryBackendObj.backend === "mnemosyne") {
-			memoryBackendObj.backend = "mnemopi";
-		}
-		if ("mnemosyne" in raw && !("mnemopi" in raw)) {
-			raw.mnemopi = raw.mnemosyne;
-			delete raw.mnemosyne;
-		}
-
-		// hindsight: dynamicBankId/agentName -> scoping enum + bankId
-		// - dynamicBankId=true  → scoping="per-project" (closest semantic match;
-		//   the legacy `agent::project::channel::user` tuple was per-project in
-		//   practice — the channel/user env vars were rarely set).
-		// - hindsight.agentName was only used as the agent slot in the legacy
-		//   dynamic tuple; if the user customised it we surface it as the new
-		//   bankId base when no explicit bankId is set.
-		const hindsightObj = raw.hindsight as Record<string, unknown> | undefined;
-		if (hindsightObj) {
-			if ("dynamicBankId" in hindsightObj) {
-				if (!("scoping" in hindsightObj) && hindsightObj.dynamicBankId === true) {
-					hindsightObj.scoping = "per-project";
-				}
-				delete hindsightObj.dynamicBankId;
-			}
-			if ("agentName" in hindsightObj) {
-				const agentName = hindsightObj.agentName;
-				if (
-					!("bankId" in hindsightObj) &&
-					typeof agentName === "string" &&
-					agentName.trim().length > 0 &&
-					agentName !== "omp"
-				) {
-					hindsightObj.bankId = agentName;
-				}
-				delete hindsightObj.agentName;
-			}
-		}
-
 		// power.preventIdleSleep / power.preventSystemSleep / power.declareUserActive
 		// / power.preventDisplaySleep (four booleans) → power.sleepPrevention enum.
 		// The enum is cumulative: each level adds the flags of all lower levels.
@@ -1032,6 +1003,7 @@ export class Settings {
 
 	#rebuildMerged(): void {
 		this.#merged = this.#deepMerge(this.#deepMerge({}, this.#global), this.#project);
+		this.#merged = this.#deepMerge(this.#merged, this.#env);
 		this.#merged = this.#deepMerge(this.#merged, this.#configOverlay);
 		this.#merged = this.#deepMerge(this.#merged, this.#overrides);
 		this.#resolvedCache.clear();
@@ -1101,10 +1073,8 @@ class SettingSignal<A extends unknown[] = []> {
 
 	/**
 	 * Invoke every listener with `args`. Iterates a snapshot so a listener may
-	 * (un)subscribe mid-fire without re-entrancy — the Hindsight backend
-	 * re-registers the fresh state's listener on every rebuild — and wraps each
-	 * call so a throwing listener is logged and skipped instead of aborting the
-	 * rest.
+	 * (un)subscribe mid-fire without re-entrancy, and wraps each call so a
+	 * throwing listener is logged and skipped instead of aborting the rest.
 	 */
 	fire(...args: A): void {
 		for (const cb of [...this.#listeners]) {
@@ -1147,9 +1117,6 @@ const SETTING_HOOKS: Partial<Record<SettingPath, SettingHook<any>>> = {
 			appendOnlyModeSignal.fire(value);
 		}
 	},
-	"hindsight.bankId": () => hindsightScopeSignal.fire(),
-	"hindsight.bankIdPrefix": () => hindsightScopeSignal.fire(),
-	"hindsight.scoping": () => hindsightScopeSignal.fire(),
 };
 /** Fires when `provider.appendOnlyContext` changes at runtime. */
 const appendOnlyModeSignal = new SettingSignal<[value: string]>("provider.appendOnlyContext");
@@ -1169,21 +1136,6 @@ const statusLineSessionAccentSignal = new SettingSignal("statusLine.sessionAccen
  * Returns an unsubscribe function. Callers should re-read settings in the callback.
  */
 export const onStatusLineSessionAccentChanged = (cb: () => void) => statusLineSessionAccentSignal.on(cb);
-
-/** Fires when any `hindsight.bankId` / `bankIdPrefix` / `scoping` value changes. */
-const hindsightScopeSignal = new SettingSignal("hindsight scope");
-
-/**
- * Subscribe to changes in the Hindsight bank-scoping settings. Lets the
- * Hindsight backend rebuild the active `HindsightSessionState` when the
- * operator switches `hindsight.bankId`, `hindsight.bankIdPrefix`, or
- * `hindsight.scoping` mid-session so subsequent retain/recall calls land in
- * the new bank instead of the one selected at session start.
- *
- * Returns an unsubscribe function. The callback receives no arguments — the
- * caller is expected to re-read the relevant settings via `Settings.get`.
- */
-export const onHindsightScopeChanged = (cb: () => void) => hindsightScopeSignal.on(cb);
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Global Singleton

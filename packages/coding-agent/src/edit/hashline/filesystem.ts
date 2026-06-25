@@ -8,17 +8,16 @@
  * - Reads go through `readEditFileText` (notebook-aware) and the
  *   auto-generated-file guard.
  * - Writes go through `serializeEditFileText` (notebook-aware) and the
- *   LSP writethrough, with FS-scan cache invalidation on success. The
- *   resulting `FileDiagnosticsResult` is captured per-path so the
+ *   configured writethrough, with FS-scan cache invalidation on success.
+ *   Any resulting `FileDiagnosticsResult` is captured per-path so the
  *   orchestrator can attach it to the tool result.
  *
  * Construct one per `executeHashlineSingle` call: per-section state
  * (batch request, diagnostics) lives on the instance and isn't safe to
  * share across concurrent edit tools.
  */
-import { Filesystem, NotFoundError, type WriteResult } from "@oh-my-pi/hashline";
-import { isEnoent } from "@oh-my-pi/pi-utils";
-import type { FileDiagnosticsResult, WritethroughCallback, WritethroughDeferredHandle } from "../../lsp";
+import { Filesystem, NotFoundError, type WriteResult } from "@amaze/hashline";
+import { isEnoent } from "@amaze/pi-utils";
 import type { ToolSession } from "../../tools";
 import { routeWriteThroughBridge } from "../../tools/acp-bridge";
 import { assertEditableFileContent } from "../../tools/auto-generated-guard";
@@ -26,7 +25,8 @@ import { invalidateFsScanAfterWrite } from "../../tools/fs-cache-invalidation";
 import { enforcePlanModeWrite, resolvePlanPath } from "../../tools/plan-mode-guard";
 import { canonicalSnapshotKey } from "../file-snapshot-store";
 import { readEditFileText, serializeEditFileText } from "../read-file";
-import type { LspBatchRequest } from "../renderer";
+import type { WritethroughBatchRequest } from "../renderer";
+import type { FileDiagnosticsResult, WritethroughCallback, WritethroughDeferredHandle } from "../writethrough";
 
 export interface HashlineFilesystemOptions {
 	session: ToolSession;
@@ -34,11 +34,11 @@ export interface HashlineFilesystemOptions {
 	beginDeferredDiagnosticsForPath: (path: string) => WritethroughDeferredHandle;
 	signal?: AbortSignal;
 	/**
-	 * Outer LSP batch request inherited from the tool-call context. The
+	 * Outer write-through batch request inherited from the tool-call context. The
 	 * orchestrator narrows this per-section (flush only on the final write)
 	 * via {@link HashlineFilesystem.setBatchRequest}.
 	 */
-	batchRequest?: LspBatchRequest;
+	batchRequest?: WritethroughBatchRequest;
 }
 
 export class HashlineFilesystem extends Filesystem {
@@ -46,7 +46,7 @@ export class HashlineFilesystem extends Filesystem {
 	readonly #writethrough: WritethroughCallback;
 	readonly #beginDeferredDiagnosticsForPath: (path: string) => WritethroughDeferredHandle;
 	readonly #signal: AbortSignal | undefined;
-	#batchRequest: LspBatchRequest | undefined;
+	#batchRequest: WritethroughBatchRequest | undefined;
 	#diagnosticsByPath = new Map<string, FileDiagnosticsResult | undefined>();
 
 	constructor(options: HashlineFilesystemOptions) {
@@ -59,11 +59,11 @@ export class HashlineFilesystem extends Filesystem {
 	}
 
 	/**
-	 * Set the LSP batch request used for the next {@link writeText} call.
+	 * Set the write-through batch request used for the next {@link writeText} call.
 	 * Multi-section orchestrators flip the `flush` flag to true before the
-	 * final section so LSP diagnostics flush in one round-trip.
+	 * final section.
 	 */
-	setBatchRequest(batchRequest: LspBatchRequest | undefined): void {
+	setBatchRequest(batchRequest: WritethroughBatchRequest | undefined): void {
 		this.#batchRequest = batchRequest;
 	}
 

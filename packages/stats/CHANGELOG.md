@@ -43,7 +43,7 @@
 
 ### Fixed
 
-- Fixed the stats dashboard's SQLite init never setting `PRAGMA busy_timeout`, so a concurrent `omp` startup hitting WAL recovery could crash `initDb()` with `SQLITE_BUSY` instead of waiting through it. The busy handler is now installed before `PRAGMA journal_mode=WAL` ([#2421](https://github.com/can1357/oh-my-pi/issues/2421)).
+- Fixed the stats dashboard's SQLite init never setting `PRAGMA busy_timeout`, so a concurrent `amaze` startup hitting WAL recovery could crash `initDb()` with `SQLITE_BUSY` instead of waiting through it. The busy handler is now installed before `PRAGMA journal_mode=WAL` ([#2421](https://github.com/can1357/amaze-agent/issues/2421)).
 
 ## [15.11.0] - 2026-06-10
 
@@ -60,14 +60,14 @@
 
 ### Changed
 
-- Bundled-model lookups (`getBundledModel`, `GeneratedProvider`) now import from the new `@oh-my-pi/pi-catalog` package instead of the `@oh-my-pi/pi-ai` barrel, which no longer re-exports catalog values
-- The session-sync worker re-enters the host CLI entry (`workerHostEntry()` + `__omp_stats_sync_worker` argv selector) when running inside omp — source, npm bundle, or compiled binary — and keeps loading its own `sync-worker.ts` module directly for standalone `omp-stats`, bun test, and SDK hosts
+- Bundled-model lookups (`getBundledModel`, `GeneratedProvider`) now import from the new `@amaze/pi-catalog` package instead of the `@amaze/pi-ai` barrel, which no longer re-exports catalog values
+- The session-sync worker re-enters the host CLI entry (`workerHostEntry()` + `__omp_stats_sync_worker` argv selector) when running inside amaze — source, npm bundle, or compiled binary — and keeps loading its own `sync-worker.ts` module directly for standalone `amaze-stats`, bun test, and SDK hosts
 
 ## [15.1.6] - 2026-05-19
 
 ### Fixed
 
-- Fixed `omp stats` crashing on first session sync in published `omp-{linux,darwin,windows}-*` binaries with `BuildMessage: ModuleNotFound resolving "./packages/stats/src/sync-worker.ts"`; the release build script now lists the stats sync, browser tab, and JS eval workers as explicit `--compile` entrypoints so Bun emits them into bunfs, matching the dev build script and the AGENTS.md worker spawn contract. ([#1150](https://github.com/can1357/oh-my-pi/issues/1150))
+- Fixed `amaze stats` crashing on first session sync in published `amaze-{linux,darwin,windows}-*` binaries with `BuildMessage: ModuleNotFound resolving "./packages/stats/src/sync-worker.ts"`; the release build script now lists the stats sync, browser tab, and JS eval workers as explicit `--compile` entrypoints so Bun emits them into bunfs, matching the dev build script and the AGENTS.md worker spawn contract. ([#1150](https://github.com/can1357/amaze-agent/issues/1150))
 
 ## [15.1.0] - 2026-05-15
 
@@ -83,7 +83,7 @@
 
 ### Changed
 
-- Changed the "Premium Reqs" dashboard card to also include OpenAI priority service-tier requests (`serviceTier: "priority"`), counting each as 1 premium request alongside GitHub Copilot premium calls. Pre-existing sessions are backfilled on the next `omp stats` run: a one-shot `premium_requests_priority_v1` sentinel wipes `file_offsets` so every session re-parses, and `insertMessageStats` now `UPSERT`s `premium_requests` (other columns untouched) using the `service_tier_change` entries already in the session log to retroactively credit priority traffic.
+- Changed the "Premium Reqs" dashboard card to also include OpenAI priority service-tier requests (`serviceTier: "priority"`), counting each as 1 premium request alongside GitHub Copilot premium calls. Pre-existing sessions are backfilled on the next `amaze stats` run: a one-shot `premium_requests_priority_v1` sentinel wipes `file_offsets` so every session re-parses, and `insertMessageStats` now `UPSERT`s `premium_requests` (other columns untouched) using the `service_tier_change` entries already in the session log to retroactively credit priority traffic.
 
 ## [14.9.9] - 2026-05-12
 
@@ -93,7 +93,7 @@
 
 ### Fixed
 
-- Fixed `omp stats` in compiled binaries by using the serial sync path instead of spawning a raw file-asset worker that cannot import bundled parser code.
+- Fixed `amaze stats` in compiled binaries by using the serial sync path instead of spawning a raw file-asset worker that cannot import bundled parser code.
 - Fixed behavior backfills after failed compiled-binary sync attempts by marking the backfill sentinel only after a successful full sync.
 
 ## [14.9.7] - 2026-05-12
@@ -140,7 +140,7 @@
 ### Fixed
 
 - Fixed handling of unknown `range` values by falling back to the last 24h instead of returning unscoped data
-- Fixed `omp stats` failing to build the client on globally-installed installs by promoting `tailwindcss` from `devDependencies` to `dependencies` (the client build runs at runtime)
+- Fixed `amaze stats` failing to build the client on globally-installed installs by promoting `tailwindcss` from `devDependencies` to `dependencies` (the client build runs at runtime)
 
 ## [14.5.4] - 2026-04-28
 
@@ -152,4 +152,4 @@
 
 ### Fixed
 
-- Include subtask session files in usage stats ([#250](https://github.com/can1357/oh-my-pi/issues/250))
+- Include subtask session files in usage stats ([#250](https://github.com/can1357/amaze-agent/issues/250))

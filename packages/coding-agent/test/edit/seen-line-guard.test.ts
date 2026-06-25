@@ -2,12 +2,12 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { type ExecuteHashlineSingleOptions, executeHashlineSingle } from "@oh-my-pi/pi-coding-agent/edit";
-import { canonicalSnapshotKey, getFileSnapshotStore } from "@oh-my-pi/pi-coding-agent/edit/file-snapshot-store";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { ReadTool } from "@oh-my-pi/pi-coding-agent/tools/read";
-import { SearchTool } from "@oh-my-pi/pi-coding-agent/tools/search";
+import { Settings } from "@amaze/pi-coding-agent/config/settings";
+import { type ExecuteHashlineSingleOptions, executeHashlineSingle } from "@amaze/pi-coding-agent/edit";
+import { canonicalSnapshotKey, getFileSnapshotStore } from "@amaze/pi-coding-agent/edit/file-snapshot-store";
+import type { ToolSession } from "@amaze/pi-coding-agent/tools";
+import { ReadTool } from "@amaze/pi-coding-agent/tools/read";
+import { SearchTool } from "@amaze/pi-coding-agent/tools/search";
 
 function createSession(cwd: string): ToolSession {
 	return {
@@ -18,7 +18,6 @@ function createSession(cwd: string): ToolSession {
 		getArtifactsDir: () => path.join(cwd, "artifacts"),
 		allocateOutputArtifact: async () => ({ id: "artifact-1", path: path.join(cwd, "artifact-1.log") }),
 		settings: Settings.isolated(),
-		enableLsp: false,
 	} as ToolSession;
 }
 
@@ -194,7 +193,6 @@ describe("search → edit seen-line guard", () => {
 			allocateOutputArtifact: async () => ({ id: "artifact-1", path: path.join(cwd, "artifact-1.log") }),
 			// Zero context so the seen set is exactly the matched lines.
 			settings: Settings.isolated({ "search.contextBefore": 0, "search.contextAfter": 0 }),
-			enableLsp: false,
 		} as ToolSession;
 	}
 

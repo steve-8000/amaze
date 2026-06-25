@@ -1,4 +1,4 @@
-"""Harbor agent that runs the LOCAL oh-my-pi (`omp`) build inside task containers.
+"""Harbor agent that runs the LOCAL amaze-agent (`amaze`) build inside task containers.
 
 Unlike Harbor's built-in `pi` agent (which `npm i -g @mariozechner/pi-coding-agent`),
 this installs the working tree at `/work/pi`:
@@ -8,7 +8,7 @@ this installs the working tree at `/work/pi`:
   * we upload it, install Bun, `bun install` the bundle's external deps + the
     platform native addon, and run `bun .../dist/cli.js`.
 
-Auth never enters the container: a generated `~/.omp/agent/models.yml` routes the
+Auth never enters the container: a generated `~/.amaze/agent/models.yml` routes the
 configured providers' `baseUrl` at the host's pm2 auth-gateway (default
 `http://host.docker.internal:4000`, `transport: pi-native`), so the gateway
 resolves credentials host-side. No provider API keys are passed in.
@@ -85,10 +85,10 @@ def _patch_harbor_cleanup_cancellation() -> None:
 _patch_harbor_cleanup_cancellation()
 
 # Container-side staging paths (absolute; never depend on $HOME at write time).
-_TARBALL_DST = "/tmp/omp-local.tgz"
-_MODELS_DST = "/tmp/omp-models.yml"
-_CONFIG_DST = "/tmp/omp-config.yml"
-_OUTPUT_FILENAME = "omp.txt"
+_TARBALL_DST = "/tmp/amaze-local.tgz"
+_MODELS_DST = "/tmp/amaze-models.yml"
+_CONFIG_DST = "/tmp/amaze-config.yml"
+_OUTPUT_FILENAME = "amaze.txt"
 _ADVISOR_FILENAME = "advisor.jsonl"
 
 # Provider → host env vars used in --no-gateway (direct-auth) mode only.
@@ -189,17 +189,17 @@ class OmpLocal(BaseInstalledAgent):
         # off by default so search-using tasks don't false-negative on 401s.
         self._web_search = _truthy(_env("OMP_TB_WEB_SEARCH", "0"))
         # Extra env (PI_* dialect knobs, explicit --env) the runner forwards into
-        # the in-container omp run, JSON-encoded in OMP_TB_FORWARD_ENV.
+        # the in-container amaze run, JSON-encoded in OMP_TB_FORWARD_ENV.
         self._forward_env = self._parse_forward_env()
         # Resolved during install(); reused by version + run commands.
         self._home = "/root"
         self._bun = "/root/.bun/bin/bun"
-        self._cli = "/root/.omp-bench/app/dist/cli.js"
+        self._cli = "/root/.amaze-bench/app/dist/cli.js"
 
     @staticmethod
     @override
     def name() -> str:
-        return "omp"
+        return "amaze"
 
     @override
     def version(self) -> str | None:
@@ -218,7 +218,7 @@ class OmpLocal(BaseInstalledAgent):
     def _wrap(self, command: str) -> str:
         """Prefix a command with the Bun runtime on PATH.
 
-        omp spawns Bun worker subprocesses at runtime, so `bun` must resolve on
+        amaze spawns Bun worker subprocesses at runtime, so `bun` must resolve on
         PATH during `run()` too — not just for the entrypoint.
         """
         return (
@@ -237,7 +237,7 @@ class OmpLocal(BaseInstalledAgent):
                 "if command -v apt-get >/dev/null 2>&1; then "
                 "  apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y curl unzip ca-certificates tar; "
                 "elif command -v apk >/dev/null 2>&1; then "
-                "  echo 'ERROR: Alpine/musl base image; @oh-my-pi/pi-natives ships no musl prebuilt' >&2; exit 3; "
+                "  echo 'ERROR: Alpine/musl base image; @amaze/pi-natives ships no musl prebuilt' >&2; exit 3; "
                 "elif command -v dnf >/dev/null 2>&1; then dnf install -y curl unzip tar; "
                 "elif command -v yum >/dev/null 2>&1; then yum install -y curl unzip tar; "
                 "fi"
@@ -265,7 +265,7 @@ class OmpLocal(BaseInstalledAgent):
         else:
             self._cli = await self._install_local(environment)
 
-        # 3) Auth + model config under $HOME/.omp/agent.
+        # 3) Auth + model config under $HOME/.amaze/agent.
         if self._gateway_on:
             # Gateway routing — no provider keys ever enter the container.
             await self._write_models_yaml(environment)
@@ -275,7 +275,7 @@ class OmpLocal(BaseInstalledAgent):
         if not self._tarball:
             raise RuntimeError("OMP_TB_INSTALL=local requires OMP_TB_TARBALL (host tarball path)")
         await environment.upload_file(self._tarball, _TARBALL_DST)
-        app = f"{self._home}/.omp-bench/app"
+        app = f"{self._home}/.amaze-bench/app"
         await self.exec_as_agent(
             environment,
             command=self._wrap(
@@ -292,16 +292,16 @@ class OmpLocal(BaseInstalledAgent):
                 # Native leaf MUST match the bundle version exactly (loader/API skew
                 # otherwise). Read it straight from the packed package.json.
                 'ver=$(bun -e "process.stdout.write(require(\\"./package.json\\").version)"); '
-                'echo "pinning native @oh-my-pi/pi-natives-linux-$na@$ver"; '
-                'bun add --production "@oh-my-pi/pi-natives-linux-$na@$ver"'
+                'echo "pinning native @amaze/pi-natives-linux-$na@$ver"; '
+                'bun add --production "@amaze/pi-natives-linux-$na@$ver"'
             ),
             timeout_sec=900,
         )
         return f"{app}/dist/cli.js"
 
     async def _install_published(self, environment: BaseEnvironment) -> str:
-        app = f"{self._home}/.omp-bench/app"
-        spec = f"@oh-my-pi/pi-coding-agent@{self._pkg_version}"
+        app = f"{self._home}/.amaze-bench/app"
+        spec = f"@amaze/pi-coding-agent@{self._pkg_version}"
         await self.exec_as_agent(
             environment,
             command=self._wrap(
@@ -312,7 +312,7 @@ class OmpLocal(BaseInstalledAgent):
             ),
             timeout_sec=900,
         )
-        return f"{app}/node_modules/@oh-my-pi/pi-coding-agent/dist/cli.js"
+        return f"{app}/node_modules/@amaze/pi-coding-agent/dist/cli.js"
 
     async def _write_models_yaml(self, environment: BaseEnvironment) -> None:
         if self._models_yaml_path and os.path.isfile(self._models_yaml_path):
@@ -326,8 +326,8 @@ class OmpLocal(BaseInstalledAgent):
         await self.exec_as_agent(
             environment,
             command=(
-                f'mkdir -p "$HOME/.omp/agent"; '
-                f'cp {shlex.quote(staged)} "$HOME/.omp/agent/models.yml"'
+                f'mkdir -p "$HOME/.amaze/agent"; '
+                f'cp {shlex.quote(staged)} "$HOME/.amaze/agent/models.yml"'
             ),
         )
 
@@ -344,7 +344,7 @@ class OmpLocal(BaseInstalledAgent):
         return "\n".join(lines)
 
     async def _write_config(self, environment: BaseEnvironment) -> None:
-        """Write $HOME/.omp/agent/config.yml: web_search toggle + optional advisor.
+        """Write $HOME/.amaze/agent/config.yml: web_search toggle + optional advisor.
 
         The advisor is a separate model with its own spend; its turns are written
         to <session>/__advisor.jsonl (requires a persisted session, see run()).
@@ -369,8 +369,8 @@ class OmpLocal(BaseInstalledAgent):
         await self.exec_as_agent(
             environment,
             command=(
-                f'mkdir -p "$HOME/.omp/agent"; '
-                f'cp {shlex.quote(_CONFIG_DST)} "$HOME/.omp/agent/config.yml"'
+                f'mkdir -p "$HOME/.amaze/agent"; '
+                f'cp {shlex.quote(_CONFIG_DST)} "$HOME/.amaze/agent/config.yml"'
             ),
         )
 
@@ -438,13 +438,13 @@ class OmpLocal(BaseInstalledAgent):
         # mounted agent log dir; populate_context_post_run parses it on the host.
         run = " ".join(parts) + f" > /logs/agent/{_OUTPUT_FILENAME} 2>&1"
         if self._advisor_model:
-            # Preserve omp's exit code, then collect advisor spend into the mounted dir.
+            # Preserve amaze's exit code, then collect advisor spend into the mounted dir.
             run += (
                 "; rc=$?; "
-                f'find "$HOME/.omp/agent/sessions" -name __advisor.jsonl -exec cat {{}} + '
+                f'find "$HOME/.amaze/agent/sessions" -name __advisor.jsonl -exec cat {{}} + '
                 f"> /logs/agent/{_ADVISOR_FILENAME} 2>/dev/null || true; exit $rc"
             )
-        # Exec env for the omp run. Direct-auth (no-gateway) mode contributes the
+        # Exec env for the amaze run. Direct-auth (no-gateway) mode contributes the
         # selected providers' keys (via exec env, never argv); forwarded PI_* /
         # --env knobs apply last so an explicit --env always wins.
         run_env: dict[str, str] = {}
@@ -475,7 +475,7 @@ class OmpLocal(BaseInstalledAgent):
         }
 
     def _sum_main(self, path: Path, acc: "_Usage") -> None:
-        """Sum assistant `message_end` usage from omp's stdout JSONL."""
+        """Sum assistant `message_end` usage from amaze's stdout JSONL."""
         if not path.exists():
             return
         for line in path.read_text(errors="replace").splitlines():

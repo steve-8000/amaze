@@ -10,13 +10,13 @@ import type {
 	AgentToolExecFn,
 	AgentToolResult,
 	AgentToolUpdateCallback,
-} from "@oh-my-pi/pi-agent-core";
-import type { ImageContent, TextContent } from "@oh-my-pi/pi-ai";
-import { logger } from "@oh-my-pi/pi-utils";
+} from "@amaze/pi-agent-core";
+import type { ImageContent, TextContent } from "@amaze/pi-ai";
+import { logger } from "@amaze/pi-utils";
 import { getDefault, type Settings } from "../config/settings";
-import { formatGroupedDiagnosticMessages } from "../lsp/utils";
 import type { Theme } from "../modes/theme/theme";
 import { type OutputSummary, type TruncationResult, truncateMiddle, truncateTail } from "../session/streaming-output";
+import { formatGroupedFiles } from "./grouped-file-output";
 import { formatBytes, wrapBrackets } from "./render-utils";
 import { renderError } from "./tool-errors";
 
@@ -55,7 +55,7 @@ export type SourceMeta =
 	| { type: "internal"; value: string };
 
 /**
- * LSP diagnostic info (for edit/write tools).
+ * Diagnostic info (for edit/write tools).
  */
 export interface DiagnosticMeta {
 	summary: string;
@@ -359,7 +359,7 @@ export class OutputMetaBuilder {
 		return this;
 	}
 
-	/** Add LSP diagnostics. No-op if no messages. */
+	/** Add diagnostics. No-op if no messages. */
 	diagnostics(summary: string, messages: string[]): this {
 		if (messages.length === 0) return this;
 		this.#meta.diagnostics = { summary, messages };
@@ -438,6 +438,45 @@ export function formatStyledArtifactReference(artifactId: string, theme: Theme):
 	return theme.fg("warning", formatFullOutputReference(artifactId));
 }
 
+function formatGroupedDiagnosticMessages(messages: string[]): string {
+	const diagnosticsByFile = new Map<string, string[]>();
+	const fileOrder: string[] = [];
+	const ungrouped: string[] = [];
+	const diagPathPattern = /^(.+?):(\d+:\d+\s+.*)$/;
+
+	for (const msg of messages) {
+		const match = diagPathPattern.exec(msg);
+		if (!match) {
+			ungrouped.push(msg);
+			continue;
+		}
+
+		const [, rawFilePath, rest] = match;
+		const filePath = rawFilePath.replace(/\\/g, "/");
+		if (!diagnosticsByFile.has(filePath)) {
+			diagnosticsByFile.set(filePath, []);
+			fileOrder.push(filePath);
+		}
+		diagnosticsByFile.get(filePath)?.push(rest);
+	}
+
+	if (diagnosticsByFile.size === 0) {
+		return ungrouped.join("\n");
+	}
+
+	const grouped = formatGroupedFiles(fileOrder, filePath => ({
+		modelLines: (diagnosticsByFile.get(filePath) ?? []).map(diagnostic => `  ${diagnostic}`),
+	}));
+	const lines = grouped.model;
+
+	if (ungrouped.length > 0) {
+		lines.push("");
+		lines.push(...ungrouped);
+	}
+
+	return lines.join("\n");
+}
+
 /**
  * Format notices from OutputMeta for LLM consumption.
  * Returns empty string if no notices needed.
@@ -461,6 +500,7 @@ export function formatOutputNotice(meta: OutputMeta | undefined): string {
 		const l = meta.limits.resultLimit;
 		parts.push(`${l.reached} results limit reached. Use limit=${l.suggestion} for more`);
 	}
+
 	if (meta.limits?.headLimit) {
 		const l = meta.limits.headLimit;
 		parts.push(`${l.reached} results limit reached. Use limit=${l.suggestion} for more`);
@@ -473,7 +513,7 @@ export function formatOutputNotice(meta: OutputMeta | undefined): string {
 	let diagnosticsNotice = "";
 	if (meta.diagnostics && meta.diagnostics.messages.length > 0) {
 		const d = meta.diagnostics;
-		diagnosticsNotice = `\n\nLSP Diagnostics (${d.summary}):\n${formatGroupedDiagnosticMessages(d.messages)}`;
+		diagnosticsNotice = `\n\nDiagnostics (${d.summary}):\n${formatGroupedDiagnosticMessages(d.messages)}`;
 	}
 
 	const notice = parts.length ? `\n\n[${parts.join(". ")}]` : "";

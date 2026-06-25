@@ -113,7 +113,7 @@ export class LocalModuleLoader {
 		const version = this.#moduleVersions.get(modulePath) ?? 1;
 		this.#moduleVersions.set(modulePath, version);
 		const fileUrl = pathToFileURL(modulePath).href;
-		const identifier = `${fileUrl}?omp-session=${this.#sessionTag}&v=${version}`;
+		const identifier = `${fileUrl}?amaze-session=${this.#sessionTag}&v=${version}`;
 		const wrappedSource = buildModuleSource(stripped, modulePath);
 		const module = new vm.SourceTextModule(wrappedSource, {
 			context: this.#context,

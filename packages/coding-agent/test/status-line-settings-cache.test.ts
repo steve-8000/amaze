@@ -3,12 +3,12 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { stripVTControlCharacters } from "node:util";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { StatusLineComponent, type StatusLineSettings } from "@oh-my-pi/pi-coding-agent/modes/components/status-line";
-import { STATUS_LINE_PRESETS } from "@oh-my-pi/pi-coding-agent/modes/components/status-line/presets";
-import { initTheme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import * as git from "@oh-my-pi/pi-coding-agent/utils/git";
-import { setProjectDir } from "@oh-my-pi/pi-utils";
+import { Settings } from "@amaze/pi-coding-agent/config/settings";
+import { StatusLineComponent, type StatusLineSettings } from "@amaze/pi-coding-agent/modes/components/status-line";
+import { STATUS_LINE_PRESETS } from "@amaze/pi-coding-agent/modes/components/status-line/presets";
+import { initTheme } from "@amaze/pi-coding-agent/modes/theme/theme";
+import * as git from "@amaze/pi-coding-agent/utils/git";
+import { setProjectDir } from "@amaze/pi-utils";
 import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "./helpers/settings-test-state";
 
 let settingsState: SettingsTestState | undefined;
@@ -16,7 +16,7 @@ let projectDir = "";
 
 beforeEach(async () => {
 	settingsState = beginSettingsTest();
-	projectDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-status-line-settings-cache-"));
+	projectDir = fs.mkdtempSync(path.join(os.tmpdir(), "amaze-status-line-settings-cache-"));
 	setProjectDir(projectDir);
 	await Settings.init({ inMemory: true, cwd: projectDir });
 	await initTheme();

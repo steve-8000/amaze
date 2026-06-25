@@ -13,14 +13,14 @@ In the TUI, `/marketplace` with no arguments opens the interactive plugin browse
 
 ## Concepts
 
-A **marketplace** is a Git repository (or local directory) containing a catalog file at `.omp-plugin/marketplace.json` (preferred) or `.claude-plugin/marketplace.json` (Claude Code-compatible fallback). The catalog lists available plugins with their sources, descriptions, and metadata.
+A **marketplace** is a Git repository (or local directory) containing a catalog file at `.amaze-plugin/marketplace.json` (preferred) or `.claude-plugin/marketplace.json` (Claude Code-compatible fallback). The catalog lists available plugins with their sources, descriptions, and metadata.
 
-A **plugin** is a directory containing Claude/OMP plugin content such as skills, commands, agents, hooks, tools, MCP servers, or LSP servers. Extension modules (`package.json` `omp.extensions` entry points) are not loaded from marketplace installs — they only load for npm-installed or `omp plugin link`ed plugins. Plugins are identified by `name@marketplace` (e.g. `code-review@claude-plugins-official`).
+A **plugin** is a directory containing Claude/Amaze plugin content such as skills, commands, agents, hooks, tools, MCP servers, or LSP servers. Extension modules (`package.json` `amaze.extensions` entry points) are not loaded from marketplace installs — they only load for npm-installed or `amaze plugin link`ed plugins. Plugins are identified by `name@marketplace` (e.g. `code-review@claude-plugins-official`).
 
 **Scopes**: marketplace plugins can be installed at two scopes:
 
-- **user** (default) -- available in all projects, stored in `~/.omp/plugins/installed_plugins.json`
-- **project** -- available only in the active project, stored in the nearest project `.omp/plugins/installed_plugins.json`
+- **user** (default) -- available in all projects, stored in `~/.amaze/plugins/installed_plugins.json`
+- **project** -- available only in the active project, stored in the nearest project `.amaze/plugins/installed_plugins.json`
 
 Enabled project-scoped installs shadow enabled user-scoped installs of the same plugin. A disabled project install does not shadow the user install.
 
@@ -59,16 +59,16 @@ Enabled project-scoped installs shadow enabled user-scoped installs of the same 
 The same operations are available from the command line:
 
 ```
-omp plugin marketplace add <source>
-omp plugin marketplace remove <name>
-omp plugin marketplace update [name]
-omp plugin marketplace list
-omp plugin discover [marketplace]
-omp plugin install [--force] [--scope user|project] name@marketplace
-omp plugin uninstall [--scope user|project] name@marketplace
-omp plugin upgrade [--scope user|project] [name@marketplace]
-omp plugin enable [--scope user|project] name@marketplace
-omp plugin disable [--scope user|project] name@marketplace
+amaze plugin marketplace add <source>
+amaze plugin marketplace remove <name>
+amaze plugin marketplace update [name]
+amaze plugin marketplace list
+amaze plugin discover [marketplace]
+amaze plugin install [--force] [--scope user|project] name@marketplace
+amaze plugin uninstall [--scope user|project] name@marketplace
+amaze plugin upgrade [--scope user|project] [name@marketplace]
+amaze plugin enable [--scope user|project] name@marketplace
+amaze plugin disable [--scope user|project] name@marketplace
 ```
 
 ## Marketplace sources
@@ -83,11 +83,11 @@ When you run `/marketplace add <source>`, the system classifies the source:
 | `git@...` / `ssh://...`         | Git repository                                     | `git@github.com:org/repo.git`          |
 | `./path` or `~/path` or `/path` | Local directory                                    | `./my-marketplace`                     |
 
-Git and local sources must contain a catalog at `.omp-plugin/marketplace.json` (preferred) or `.claude-plugin/marketplace.json` (Claude Code-compatible fallback). Direct catalog URLs cache only the JSON catalog; plugins in URL-sourced catalogs cannot use relative string sources like `"./plugins/foo"`.
+Git and local sources must contain a catalog at `.amaze-plugin/marketplace.json` (preferred) or `.claude-plugin/marketplace.json` (Claude Code-compatible fallback). Direct catalog URLs cache only the JSON catalog; plugins in URL-sourced catalogs cannot use relative string sources like `"./plugins/foo"`.
 
 ## Catalog format (marketplace.json)
 
-A marketplace catalog lives at `.omp-plugin/marketplace.json` in the repository root. When omp is the only intended consumer, prefer this path. To remain Claude Code-compatible (omp loads the same shape from either path), publish at `.claude-plugin/marketplace.json` instead — omp uses it as a fallback when `.omp-plugin/marketplace.json` is absent. A repository may ship both: omp reads the `.omp-plugin/` copy, Claude Code reads the `.claude-plugin/` copy. Same catalog format either way:
+A marketplace catalog lives at `.amaze-plugin/marketplace.json` in the repository root. When amaze is the only intended consumer, prefer this path. To remain Claude Code-compatible (amaze loads the same shape from either path), publish at `.claude-plugin/marketplace.json` instead — amaze uses it as a fallback when `.amaze-plugin/marketplace.json` is absent. A repository may ship both: amaze reads the `.amaze-plugin/` copy, Claude Code reads the `.claude-plugin/` copy. Same catalog format either way:
 
 ```json
 {
@@ -204,7 +204,7 @@ Current installer behavior rejects npm marketplace sources with `npm plugin sour
 ## On-disk layout
 
 ```
-~/.omp/
+~/.amaze/
   marketplaces.json              # Registry of added marketplaces
   plugins/
     installed_plugins.json       # User-scoped marketplace plugins (version: 2)
@@ -212,7 +212,7 @@ Current installer behavior rejects npm marketplace sources with `npm plugin sour
       marketplaces/<name>/       # Cached marketplace clone/catalog
       plugins/<marketplace>___<plugin>___<version>/  # Cached plugin directories
 
-<project>/.omp/
+<project>/.amaze/
   plugins/
     installed_plugins.json       # Project-scoped marketplace plugins (version: 2)
 ```

@@ -7,10 +7,10 @@
  * SQLite store, never POSTs the broker sentinel to an OpenAI token endpoint.
  */
 import * as os from "node:os";
-import { type AuthStorage, type FetchImpl, type OAuthAccess, withOAuthAccess } from "@oh-my-pi/pi-ai";
-import { decodeJwt } from "@oh-my-pi/pi-ai/oauth/openai-codex";
-import { getBundledModels } from "@oh-my-pi/pi-catalog/models";
-import { $env, readSseJson } from "@oh-my-pi/pi-utils";
+import { type AuthStorage, type FetchImpl, type OAuthAccess, withOAuthAccess } from "@amaze/pi-ai";
+import { decodeJwt } from "@amaze/pi-ai/oauth/openai-codex";
+import { getBundledModels } from "@amaze/pi-catalog/models";
+import { $env, readSseJson } from "@amaze/pi-utils";
 import packageJson from "../../../../package.json" with { type: "json" };
 import type { SearchResponse, SearchSource } from "../../../web/search/types";
 import { SearchProviderError } from "../../../web/search/types";
@@ -498,7 +498,7 @@ export async function searchCodex(params: SearchParams): Promise<SearchResponse>
 	const seed = await findCodexAuth(params.authStorage, params.sessionId, params.signal);
 	if (!seed) {
 		throw new Error(
-			"No Codex OAuth credentials found. Login with 'omp /login openai-codex' to enable Codex web search.",
+			"No Codex OAuth credentials found. Login with 'amaze /login openai-codex' to enable Codex web search.",
 		);
 	}
 

@@ -4,9 +4,8 @@
  * Provides both character-level and line-level fuzzy matching with progressive
  * fallback strategies for finding text in files.
  */
-import type { AgentToolResult } from "@oh-my-pi/pi-agent-core";
+import type { AgentToolResult } from "@amaze/pi-agent-core";
 import { type } from "arktype";
-import type { FileDiagnosticsResult, WritethroughCallback, WritethroughDeferredHandle } from "../../lsp";
 import type { ToolSession } from "../../tools";
 import { routeWriteThroughBridge } from "../../tools/acp-bridge";
 import { invalidateFsScanAfterWrite } from "../../tools/fs-cache-invalidation";
@@ -23,7 +22,8 @@ import {
 	stripBom,
 } from "../normalize";
 import { readEditFileText, serializeEditFileText } from "../read-file";
-import type { EditToolDetails, LspBatchRequest } from "../renderer";
+import type { EditToolDetails, WritethroughBatchRequest } from "../renderer";
+import type { FileDiagnosticsResult, WritethroughCallback, WritethroughDeferredHandle } from "../writethrough";
 
 export interface FuzzyMatch {
 	actualText: string;
@@ -1030,7 +1030,7 @@ export interface ExecuteReplaceSingleOptions {
 	path: string;
 	params: ReplaceEditEntry;
 	signal?: AbortSignal;
-	batchRequest?: LspBatchRequest;
+	batchRequest?: WritethroughBatchRequest;
 	allowFuzzy: boolean;
 	fuzzyThreshold: number;
 	writethrough: WritethroughCallback;

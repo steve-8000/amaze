@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 
-import { rewriteImports, wrapCode } from "@oh-my-pi/pi-coding-agent/eval/js/context-manager";
-import { indirectEval } from "@oh-my-pi/pi-coding-agent/eval/js/shared/indirect-eval";
+import { rewriteImports, wrapCode } from "@amaze/pi-coding-agent/eval/js/context-manager";
+import { indirectEval } from "@amaze/pi-coding-agent/eval/js/shared/indirect-eval";
 
 // Test fixtures embed user-supplied `import(...)` syntax that the rewriter must
 // transform. The strings are split so static-analysis heuristics don't read them
@@ -87,7 +87,7 @@ describe("rewriteImports", () => {
 		const out = await rewriteImports(`const load = async () => await ${dyn('("node:path")')}; load;`);
 		const globals = globalThis as Record<string, unknown>;
 		const hasOriginal = "__omp_import__" in globals;
-		const originalOmpImport = globals.__omp_import__;
+		const originalAmazeImport = globals.__omp_import__;
 		if (hasOriginal) {
 			delete globals.__omp_import__;
 		}
@@ -113,7 +113,7 @@ describe("rewriteImports", () => {
 			expect(typeof mod.join).toBe("function");
 		} finally {
 			if (hasOriginal) {
-				globals.__omp_import__ = originalOmpImport;
+				globals.__omp_import__ = originalAmazeImport;
 			} else {
 				delete globals.__omp_import__;
 			}

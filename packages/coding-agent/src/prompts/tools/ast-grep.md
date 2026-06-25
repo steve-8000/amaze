@@ -2,6 +2,7 @@ Structural code search via ast-grep.
 
 <instruction>
 - Use when syntax shape matters more than text (calls, declarations, language constructs)
+- Use as a cheap syntax-aware outline before broad code reads: first map a file or directory's declarations, imports, exports, and direct members, then read the smallest useful range
 - Narrow each call to one language
 - `pat` is ONE AST pattern; separate calls for unrelated patterns
 - `$NAME` captures one node; `$_` matches one without binding; `$$$NAME` captures zero-or-more; `$$$` matches zero-or-more without binding. Use `$$$NAME`, NOT `$$NAME` — the two-dollar form is invalid
@@ -21,5 +22,5 @@ Structural code search via ast-grep.
 <critical>
 - AVOID repo-root scans — narrow `paths` first
 - Parse issues = query failure, not absence: fix the pattern or tighten `paths` before concluding "no matches"
-- Broad cross-subsystem exploration: you SHOULD use the Task tool + explore subagent first
+- Broad cross-subsystem exploration: you SHOULD use the Task tool + `finder` subagent first
 </critical>

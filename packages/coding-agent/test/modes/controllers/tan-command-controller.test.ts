@@ -1,15 +1,15 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import type { AssistantMessage, Model } from "@oh-my-pi/pi-ai";
-import type { AsyncJobRegisterOptions } from "@oh-my-pi/pi-coding-agent/async/job-manager";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { TanCommandController } from "@oh-my-pi/pi-coding-agent/modes/controllers/tan-command-controller";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { AgentRegistry, MAIN_AGENT_ID } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
-import type { CreateAgentSessionResult } from "@oh-my-pi/pi-coding-agent/sdk";
-import * as sdkModule from "@oh-my-pi/pi-coding-agent/sdk";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import type { AssistantMessage, Model } from "@amaze/pi-ai";
+import type { AsyncJobRegisterOptions } from "@amaze/pi-coding-agent/async/job-manager";
+import { Settings } from "@amaze/pi-coding-agent/config/settings";
+import { TanCommandController } from "@amaze/pi-coding-agent/modes/controllers/tan-command-controller";
+import type { InteractiveModeContext } from "@amaze/pi-coding-agent/modes/types";
+import { AgentRegistry, MAIN_AGENT_ID } from "@amaze/pi-coding-agent/registry/agent-registry";
+import type { CreateAgentSessionResult } from "@amaze/pi-coding-agent/sdk";
+import * as sdkModule from "@amaze/pi-coding-agent/sdk";
+import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
+import { TempDir } from "@amaze/pi-utils";
 
 interface CapturedJobRunContext {
 	jobId: string;
@@ -47,7 +47,7 @@ function createContext(overrides?: {
 	agentId?: string;
 	register?: (run: CapturedJobRun, options?: AsyncJobRegisterOptions) => string;
 }) {
-	const tempDir = TempDir.createSync("@omp-tan-controller-");
+	const tempDir = TempDir.createSync("@amaze-tan-controller-");
 	const parentFile = path.join(tempDir.path(), "parent.jsonl");
 	// The clone nests inside the parent's artifact directory, like a subagent.
 	const cloneFile = path.join(parentFile.slice(0, -6), "clone.jsonl");
@@ -89,7 +89,7 @@ function createContext(overrides?: {
 	const ctx = {
 		session,
 		sessionManager,
-		settings: Settings.isolated({ "task.enableLsp": true }),
+		settings: Settings.isolated({}),
 		showStatus: vi.fn(),
 		showWarning: vi.fn(),
 		showError: vi.fn(),

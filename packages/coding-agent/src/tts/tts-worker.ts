@@ -1,12 +1,12 @@
 import { createRequire } from "node:module";
 import * as path from "node:path";
-import type { ProgressInfo, RawAudio } from "@huggingface/transformers";
 import {
 	ensureRuntimeInstalled,
 	getTinyModelsCacheDir,
 	installRuntimeModuleResolver,
 	resolveRuntimeModule,
-} from "@oh-my-pi/pi-utils";
+} from "@amaze/pi-utils";
+import type { ProgressInfo, RawAudio } from "@huggingface/transformers";
 import { resolveTinyModelDevicePreference, type TinyModelDevice, tinyModelDeviceLoadOrder } from "../tiny/device";
 import { resolveTinyModelDtypeOverride, type TinyModelDtype } from "../tiny/dtype";
 import { getTtsLocalModelSpec, resolveTtsVoice, type TtsLocalModelKey, type TtsLocalModelSpec } from "./models";
@@ -183,7 +183,7 @@ async function loadKokoroRuntime(
 			onPhase: phase => sendRuntimeInstallProgress(transport, requestId, modelKey, phase),
 		});
 		const nodeModules = path.join(runtimeDir, "node_modules");
-		const sharpStub = path.join(runtimeDir, "omp-sharp-stub.cjs");
+		const sharpStub = path.join(runtimeDir, "amaze-sharp-stub.cjs");
 		await Bun.write(sharpStub, "module.exports = {};\n");
 		installRuntimeModuleResolver({ runtimeNodeModules: nodeModules, stubs: { sharp: sharpStub } });
 		const kokoroEntry = resolveRuntimeModule(nodeModules, KOKORO_PACKAGE);

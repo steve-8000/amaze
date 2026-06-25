@@ -1,18 +1,18 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-import { KeybindingsManager } from "@oh-my-pi/pi-coding-agent/config/keybindings";
-import { ExtensionList } from "@oh-my-pi/pi-coding-agent/modes/components/extensions/extension-list";
-import type { Extension } from "@oh-my-pi/pi-coding-agent/modes/components/extensions/types";
-import { HistorySearchComponent } from "@oh-my-pi/pi-coding-agent/modes/components/history-search";
-import { SessionSelectorComponent } from "@oh-my-pi/pi-coding-agent/modes/components/session-selector";
-import { TreeSelectorComponent } from "@oh-my-pi/pi-coding-agent/modes/components/tree-selector";
-import { UserMessageSelectorComponent } from "@oh-my-pi/pi-coding-agent/modes/components/user-message-selector";
-import { initTheme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import { HistoryStorage } from "@oh-my-pi/pi-coding-agent/session/history-storage";
-import type { SessionTreeNode } from "@oh-my-pi/pi-coding-agent/session/session-entries";
-import type { SessionInfo } from "@oh-my-pi/pi-coding-agent/session/session-listing";
-import { setKeybindings } from "@oh-my-pi/pi-tui";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import type { AgentMessage } from "@amaze/pi-agent-core";
+import { KeybindingsManager } from "@amaze/pi-coding-agent/config/keybindings";
+import { ExtensionList } from "@amaze/pi-coding-agent/modes/components/extensions/extension-list";
+import type { Extension } from "@amaze/pi-coding-agent/modes/components/extensions/types";
+import { HistorySearchComponent } from "@amaze/pi-coding-agent/modes/components/history-search";
+import { SessionSelectorComponent } from "@amaze/pi-coding-agent/modes/components/session-selector";
+import { TreeSelectorComponent } from "@amaze/pi-coding-agent/modes/components/tree-selector";
+import { UserMessageSelectorComponent } from "@amaze/pi-coding-agent/modes/components/user-message-selector";
+import { initTheme } from "@amaze/pi-coding-agent/modes/theme/theme";
+import { HistoryStorage } from "@amaze/pi-coding-agent/session/history-storage";
+import type { SessionTreeNode } from "@amaze/pi-coding-agent/session/session-entries";
+import type { SessionInfo } from "@amaze/pi-coding-agent/session/session-listing";
+import { setKeybindings } from "@amaze/pi-tui";
+import { TempDir } from "@amaze/pi-utils";
 
 const CTRL_N = "\x0e";
 const CTRL_P = "\x10";
@@ -82,7 +82,7 @@ function createExtension(id: string, displayName: string): Extension {
 }
 
 async function createHistoryStorage(prompts: string[]): Promise<HistoryStorage> {
-	const dir = TempDir.createSync("@omp-history-nav-");
+	const dir = TempDir.createSync("@amaze-history-nav-");
 	tempDirs.push(dir);
 	HistoryStorage.resetInstance();
 	const storage = HistoryStorage.open(dir.join("history.db"));

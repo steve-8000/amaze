@@ -3,17 +3,8 @@
  *
  * Interactive multi-step wizard for adding MCP servers.
  */
-import {
-	Container,
-	Input,
-	matchesKey,
-	replaceTabs,
-	Spacer,
-	Text,
-	TruncatedText,
-	truncateToWidth,
-} from "@oh-my-pi/pi-tui";
-import { getMCPConfigPath, getProjectDir } from "@oh-my-pi/pi-utils";
+import { Container, Input, matchesKey, replaceTabs, Spacer, Text, TruncatedText, truncateToWidth } from "@amaze/pi-tui";
+import { getMCPConfigPath, getProjectDir } from "@amaze/pi-utils";
 import { validateServerName } from "../../mcp/config-writer";
 import { analyzeAuthError, discoverOAuthEndpoints } from "../../mcp/oauth-discovery";
 import type { MCPHttpServerConfig, MCPServerConfig, MCPSseServerConfig, MCPStdioServerConfig } from "../../mcp/types";
@@ -1244,21 +1235,6 @@ export class MCPAddWizard extends Container {
 			this.#contentContainer.addChild(new Spacer(1));
 			this.#contentContainer.addChild(new Text(errorMsg, 0, 0));
 			this.#contentContainer.addChild(new Spacer(1));
-
-			// Provide helpful tips based on error type
-			if (errorMsg.includes("timeout") || errorMsg.includes("timed out")) {
-				this.#contentContainer.addChild(
-					new Text(theme.fg("muted", "Tip: Complete authorization faster next time"), 0, 0),
-				);
-			} else if (errorMsg.includes("Invalid OAuth URLs")) {
-				this.#contentContainer.addChild(
-					new Text(theme.fg("muted", "Tip: Check that the OAuth URLs are correct"), 0, 0),
-				);
-			} else if (errorMsg.includes("ECONNREFUSED")) {
-				this.#contentContainer.addChild(
-					new Text(theme.fg("muted", "Tip: Verify the OAuth server is accessible"), 0, 0),
-				);
-			}
 
 			this.#contentContainer.addChild(new Spacer(1));
 			this.#contentContainer.addChild(new Text(`${theme.fg("accent", "→ ")}Retry`, 0, 0));

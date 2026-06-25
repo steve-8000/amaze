@@ -2,17 +2,17 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import { AuthStorage, Effort, type Model } from "@oh-my-pi/pi-ai";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { CustomTool } from "@oh-my-pi/pi-coding-agent/extensibility/custom-tools/types";
-import { createAgentSession } from "@oh-my-pi/pi-coding-agent/sdk";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { TOOL_DISCOVERY_AUTO_THRESHOLD } from "@oh-my-pi/pi-coding-agent/tool-discovery/mode";
-import { Snowflake } from "@oh-my-pi/pi-utils";
+import { ThinkingLevel } from "@amaze/pi-agent-core";
+import { AuthStorage, Effort, type Model } from "@amaze/pi-ai";
+import { buildModel } from "@amaze/pi-catalog/build";
+import { getBundledModel } from "@amaze/pi-catalog/models";
+import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
+import { Settings } from "@amaze/pi-coding-agent/config/settings";
+import type { CustomTool } from "@amaze/pi-coding-agent/extensibility/custom-tools/types";
+import { createAgentSession } from "@amaze/pi-coding-agent/sdk";
+import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
+import { TOOL_DISCOVERY_AUTO_THRESHOLD } from "@amaze/pi-coding-agent/tool-discovery/mode";
+import { Snowflake } from "@amaze/pi-utils";
 import { type } from "arktype";
 
 function createMcpCustomTool(name: string, serverName: string, mcpToolName: string): CustomTool {
@@ -96,7 +96,6 @@ describe("createAgentSession MCP discovery prompt gating", () => {
 			promptTemplates: [],
 			slashCommands: [],
 			enableMCP: false,
-			enableLsp: false,
 			toolNames: ["read"],
 			customTools: [createMcpCustomTool("mcp__github_create_issue", "github", "create_issue")],
 		});
@@ -124,7 +123,6 @@ describe("createAgentSession MCP discovery prompt gating", () => {
 			promptTemplates: [],
 			slashCommands: [],
 			enableMCP: false,
-			enableLsp: false,
 			customTools: mcpTools,
 		});
 
@@ -149,7 +147,6 @@ describe("createAgentSession MCP discovery prompt gating", () => {
 			promptTemplates: [],
 			slashCommands: [],
 			enableMCP: false,
-			enableLsp: false,
 		});
 
 		const prompt = session.systemPrompt.join("\n");
@@ -173,7 +170,6 @@ describe("createAgentSession MCP discovery prompt gating", () => {
 			promptTemplates: [],
 			slashCommands: [],
 			enableMCP: false,
-			enableLsp: false,
 		});
 
 		expect(session.getActiveToolNames()).toContain("task");
@@ -194,7 +190,6 @@ describe("createAgentSession MCP discovery prompt gating", () => {
 			promptTemplates: [],
 			slashCommands: [],
 			enableMCP: false,
-			enableLsp: false,
 		});
 
 		expect(session.getActiveToolNames()).not.toContain("task");
@@ -215,7 +210,6 @@ describe("createAgentSession MCP discovery prompt gating", () => {
 			promptTemplates: [],
 			slashCommands: [],
 			enableMCP: false,
-			enableLsp: false,
 			toolNames: ["read", "mcp__github_create_issue", "search_tool_bm25"],
 			customTools: [
 				createMcpCustomTool("mcp__github_create_issue", "github", "create_issue"),
@@ -252,7 +246,6 @@ describe("createAgentSession MCP discovery prompt gating", () => {
 			promptTemplates: [],
 			slashCommands: [],
 			enableMCP: false,
-			enableLsp: false,
 			toolNames: ["read", "search_tool_bm25"],
 			customTools: [
 				createMcpCustomTool("mcp__github_create_issue", "github", "create_issue"),
@@ -284,7 +277,6 @@ describe("createAgentSession MCP discovery prompt gating", () => {
 			promptTemplates: [],
 			slashCommands: [],
 			enableMCP: false,
-			enableLsp: false,
 			toolNames: ["read", "search_tool_bm25"],
 			customTools: [createMcpCustomTool("mcp__github_create_issue", "github", "create_issue")],
 		});
@@ -308,7 +300,6 @@ describe("createAgentSession MCP discovery prompt gating", () => {
 			promptTemplates: [],
 			slashCommands: [],
 			enableMCP: false,
-			enableLsp: false,
 		});
 
 		expect(await session.activateDiscoveredTools(["search"])).toEqual(["search"]);
@@ -340,7 +331,6 @@ describe("createAgentSession MCP discovery prompt gating", () => {
 			promptTemplates: [],
 			slashCommands: [],
 			enableMCP: false,
-			enableLsp: false,
 			toolNames: ["read", "search_tool_bm25"],
 			customTools: [
 				createMcpCustomTool("mcp__github_create_issue", "github", "create_issue"),
@@ -377,7 +367,6 @@ describe("createAgentSession MCP discovery prompt gating", () => {
 			promptTemplates: [],
 			slashCommands: [],
 			enableMCP: false,
-			enableLsp: false,
 			toolNames: ["read", "search_tool_bm25"],
 			customTools: [
 				createMcpCustomTool("mcp__github_create_issue", "github", "create_issue"),
@@ -431,7 +420,6 @@ describe("createAgentSession MCP discovery prompt gating", () => {
 			promptTemplates: [],
 			slashCommands: [],
 			enableMCP: false,
-			enableLsp: false,
 			toolNames: ["read", "search_tool_bm25"],
 			customTools: [
 				createMcpCustomTool("mcp__github_create_issue", "github", "create_issue"),
@@ -468,7 +456,6 @@ describe("createAgentSession MCP discovery prompt gating", () => {
 			promptTemplates: [],
 			slashCommands: [],
 			enableMCP: false,
-			enableLsp: false,
 			toolNames: ["read", "search_tool_bm25", "mcp__github_create_issue"],
 			customTools: [
 				createMcpCustomTool("mcp__github_create_issue", "github", "create_issue"),
@@ -496,7 +483,6 @@ describe("createAgentSession MCP discovery prompt gating", () => {
 			promptTemplates: [],
 			slashCommands: [],
 			enableMCP: false,
-			enableLsp: false,
 			toolNames: ["read", "search_tool_bm25", "mcp__github_create_issue"],
 			customTools: [
 				createMcpCustomTool("mcp__github_create_issue", "github", "create_issue"),

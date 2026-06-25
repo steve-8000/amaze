@@ -1,5 +1,5 @@
 /**
- * Regression for https://github.com/can1357/oh-my-pi/issues/1906
+ * Regression for https://github.com/can1357/amaze-agent/issues/1906
  *
  * The `github` discovery provider previously registered only context-files and
  * instructions, leaving `.github/skills/<name>/SKILL.md` — the layout GitHub
@@ -13,11 +13,11 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { loadCapability } from "@oh-my-pi/pi-coding-agent/capability";
-import { clearCache } from "@oh-my-pi/pi-coding-agent/capability/fs";
-import type { Skill } from "@oh-my-pi/pi-coding-agent/capability/skill";
-import "@oh-my-pi/pi-coding-agent/capability/skill";
-import "@oh-my-pi/pi-coding-agent/discovery/github";
+import { loadCapability } from "@amaze/pi-coding-agent/capability";
+import { clearCache } from "@amaze/pi-coding-agent/capability/fs";
+import type { Skill } from "@amaze/pi-coding-agent/capability/skill";
+import "@amaze/pi-coding-agent/capability/skill";
+import "@amaze/pi-coding-agent/discovery/github";
 
 function writeSkill(root: string, name: string, description: string | null): void {
 	const skillDir = path.join(root, name);

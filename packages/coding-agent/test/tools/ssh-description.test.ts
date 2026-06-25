@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import type { SSHHost } from "@oh-my-pi/pi-coding-agent/capability/ssh";
-import type { SourceMeta } from "@oh-my-pi/pi-coding-agent/capability/types";
-import * as discovery from "@oh-my-pi/pi-coding-agent/discovery";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { loadSshTool } from "@oh-my-pi/pi-coding-agent/tools";
+import type { SSHHost } from "@amaze/pi-coding-agent/capability/ssh";
+import type { SourceMeta } from "@amaze/pi-coding-agent/capability/types";
+import * as discovery from "@amaze/pi-coding-agent/discovery";
+import type { ToolSession } from "@amaze/pi-coding-agent/tools";
+import { loadSshTool } from "@amaze/pi-coding-agent/tools";
 
 const SOURCE: SourceMeta = {
 	provider: "test",
@@ -14,8 +14,8 @@ const SOURCE: SourceMeta = {
 
 // Unique names so no persisted host-info cache file can exist for them.
 const RUN_ID = `${Date.now()}-${process.pid}`;
-const HOST_A: SSHHost = { name: `a-omp-test-${RUN_ID}`, host: "alpha.example.com", _source: SOURCE };
-const HOST_B: SSHHost = { name: `b-omp-test-${RUN_ID}`, host: "beta.example.com", _source: SOURCE };
+const HOST_A: SSHHost = { name: `a-amaze-test-${RUN_ID}`, host: "alpha.example.com", _source: SOURCE };
+const HOST_B: SSHHost = { name: `b-amaze-test-${RUN_ID}`, host: "beta.example.com", _source: SOURCE };
 
 function mockHosts(hosts: SSHHost[]): void {
 	vi.spyOn(discovery, "loadCapability").mockResolvedValue({

@@ -131,7 +131,7 @@ def _process_group_id(process: subprocess.Popen[Any]) -> int | None:
 def _terminate_process_group(process: subprocess.Popen[Any], pgid: int | None) -> None:
     """Terminate the subprocess *and* every descendant sharing its group.
 
-    omp is spawned with `start_new_session=True`, so it leads a session/group
+    amaze is spawned with `start_new_session=True`, so it leads a session/group
     that also contains children spawned by the agent's `bash` tool (e.g. a
     `bun test` run). Signalling only the leader pid would orphan those
     grandchildren: they reparent to the container init and keep running
@@ -336,7 +336,7 @@ class RpcClient:
         self,
         *,
         command: Sequence[str] | None = None,
-        executable: str = "omp",
+        executable: str = "amaze",
         provider: str | None = None,
         model: str | None = None,
         session_dir: str | Path | None = None,
@@ -500,10 +500,10 @@ class RpcClient:
         self._pgid = _process_group_id(process)
 
         self._stdout_thread = threading.Thread(
-            target=self._read_stdout_loop, name="omp-rpc-stdout", daemon=True
+            target=self._read_stdout_loop, name="amaze-rpc-stdout", daemon=True
         )
         self._stderr_thread = threading.Thread(
-            target=self._read_stderr_loop, name="omp-rpc-stderr", daemon=True
+            target=self._read_stderr_loop, name="amaze-rpc-stderr", daemon=True
         )
         self._stdout_thread.start()
         self._stderr_thread.start()
@@ -1295,7 +1295,7 @@ class RpcClient:
                 self._pending_host_tool_calls.pop(request_id, None)
 
         threading.Thread(
-            target=run_tool, name=f"omp-rpc-host-tool:{tool_name}", daemon=True
+            target=run_tool, name=f"amaze-rpc-host-tool:{tool_name}", daemon=True
         ).start()
 
     def _handle_host_tool_cancel(self, payload: JsonObject) -> None:
@@ -1397,7 +1397,7 @@ class RpcClient:
                 self._pending_host_uri_requests.pop(request_id, None)
 
         threading.Thread(
-            target=run, name=f"omp-rpc-host-uri:{scheme}:{operation}", daemon=True
+            target=run, name=f"amaze-rpc-host-uri:{scheme}:{operation}", daemon=True
         ).start()
 
     def _handle_host_uri_cancel(self, payload: JsonObject) -> None:

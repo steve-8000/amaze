@@ -1,18 +1,18 @@
 {
 	"type": "module",
-	"name": "@oh-my-pi/pi-utils",
-	"version": "16.1.11",
+	"name": "@amaze/pi-utils",
+	"version": "3.1.0",
 	"description": "Shared utilities for pi packages",
-	"homepage": "https://omp.sh",
+	"homepage": "https://amaze",
 	"author": "Can Boluk",
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/can1357/oh-my-pi.git",
+		"url": "git+https://github.com/can1357/amaze-agent.git",
 		"directory": "packages/utils"
 	},
 	"bugs": {
-		"url": "https://github.com/can1357/oh-my-pi/issues"
+		"url": "https://github.com/can1357/amaze-agent/issues"
 	},
 	"keywords": [
 		"utilities",
@@ -31,7 +31,7 @@
 		"fmt": "biome format --write ."
 	},
 	"dependencies": {
-		"@oh-my-pi/pi-natives": "catalog:",
+		"@amaze/pi-natives": "catalog:",
 		"handlebars": "catalog:",
 		"winston": "catalog:",
 		"winston-daily-rotate-file": "catalog:"

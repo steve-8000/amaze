@@ -6,7 +6,7 @@ import {
 	type AgentTool,
 	AppendOnlyContextManager,
 	type ThinkingLevel,
-} from "@oh-my-pi/pi-agent-core";
+} from "@amaze/pi-agent-core";
 import {
 	type Context,
 	type CredentialDisabledEvent,
@@ -14,16 +14,16 @@ import {
 	type Model,
 	type SimpleStreamOptions,
 	streamSimple,
-} from "@oh-my-pi/pi-ai";
-import type { Dialect } from "@oh-my-pi/pi-ai/dialect";
+} from "@amaze/pi-ai";
+import type { Dialect } from "@amaze/pi-ai/dialect";
 import {
 	getOpenAICodexTransportDetails,
 	prewarmOpenAICodexResponses,
-} from "@oh-my-pi/pi-ai/providers/openai-codex-responses";
-import { FALLBACK_DIALECT, preferredDialect } from "@oh-my-pi/pi-catalog/identity";
-import type { Component } from "@oh-my-pi/pi-tui";
-import { $env, $flag, getAgentDir, getProjectDir, logger, postmortem, prompt, Snowflake } from "@oh-my-pi/pi-utils";
-import { INTENT_FIELD } from "@oh-my-pi/pi-wire";
+} from "@amaze/pi-ai/providers/openai-codex-responses";
+import { FALLBACK_DIALECT, preferredDialect } from "@amaze/pi-catalog/identity";
+import type { Component } from "@amaze/pi-tui";
+import { $env, $flag, getAgentDir, getProjectDir, logger, postmortem, prompt, Snowflake } from "@amaze/pi-utils";
+import { INTENT_FIELD } from "@amaze/pi-wire";
 import { ADVISOR_READONLY_TOOL_NAMES, discoverWatchdogFiles } from "./advisor";
 import { type AsyncJob, AsyncJobManager } from "./async";
 import { AutoLearnController, buildAutoLearnInstructions } from "./autolearn/controller";
@@ -76,11 +76,12 @@ import {
 	setActiveSkills,
 } from "./extensibility/skills";
 import { type FileSlashCommand, loadSlashCommands as loadSlashCommandsInternal } from "./extensibility/slash-commands";
-import type { HindsightSessionState } from "./hindsight/state";
 import { LocalProtocolHandler, type LocalProtocolOptions } from "./internal-urls";
-import { LSP_STARTUP_EVENT_CHANNEL, type LspStartupEvent } from "./lsp/startup-events";
 import {
 	discoverAndLoadMCPTools,
+	filterAmazeCodebaseLoadedTools,
+	filterAmazeCodebaseMcpTools,
+	isAmazeCodebaseMcpTool,
 	type MCPLoadResult,
 	MCPManager,
 	MCPToolCache,
@@ -88,10 +89,7 @@ import {
 	parseMCPToolName,
 } from "./mcp";
 import { MCP_CONNECTION_STATUS_EVENT_CHANNEL, type McpConnectionStatusEvent } from "./mcp/startup-events";
-import { createSessionMemoryRuntimeContext, resolveMemoryBackend } from "./memory-backend";
-import type { MnemopiSessionState } from "./mnemopi/state";
 import asyncResultTemplate from "./prompts/tools/async-result.md" with { type: "text" };
-import lateDiagnosticTemplate from "./prompts/tools/lsp-late-diagnostic.md" with { type: "text" };
 import { AgentLifecycleManager } from "./registry/agent-lifecycle";
 import { AgentRegistry, MAIN_AGENT_ID } from "./registry/agent-registry";
 import {
@@ -105,13 +103,7 @@ import {
 import { AgentSession } from "./session/agent-session";
 import { discoverAuthStorage as discoverAuthStorageFromConfig } from "./session/auth-broker-config";
 import type { AuthStorage } from "./session/auth-storage";
-import {
-	type CustomMessage,
-	convertToLlm,
-	LSP_LATE_DIAGNOSTIC_MESSAGE_TYPE,
-	USER_INTERRUPT_LABEL,
-	wrapSteeringForModel,
-} from "./session/messages";
+import { type CustomMessage, convertToLlm, USER_INTERRUPT_LABEL, wrapSteeringForModel } from "./session/messages";
 import { getRestorableSessionModels } from "./session/session-context";
 import { SessionManager } from "./session/session-manager";
 import { SnapcompactInlineTransformer } from "./session/snapcompact-inline";
@@ -150,8 +142,6 @@ import {
 	BUILTIN_TOOLS,
 	computeEssentialBuiltinNames,
 	createTools,
-	type DeferredDiagnosticsEntry,
-	discoverStartupLspServers,
 	EditTool,
 	EvalTool,
 	FindTool,
@@ -161,7 +151,6 @@ import {
 	isImageProviderPreference,
 	isSearchProviderId,
 	isSearchProviderPreference,
-	type LspStartupServerInfo,
 	loadSshTool,
 	ReadTool,
 	ResolveTool,
@@ -175,7 +164,6 @@ import {
 	type ToolSession,
 	WebSearchTool,
 	WriteTool,
-	warmupLspServers,
 } from "./tools";
 import { ToolContextStore } from "./tools/context";
 import { getImageGenTools } from "./tools/image-gen";
@@ -196,6 +184,7 @@ type AsyncResultEntry = {
 type AsyncResultJobDetails = {
 	jobId: string;
 	type?: "bash" | "task";
+	status?: "running" | "completed" | "failed" | "cancelled";
 	label?: string;
 	durationMs?: number;
 };
@@ -215,6 +204,7 @@ function buildAsyncResultBatchMessage(entries: AsyncResultEntry[]): CustomMessag
 		jobId: entry.jobId,
 		result: entry.result,
 		type: entry.job?.type,
+		status: entry.job?.status,
 		label: entry.job?.label,
 		durationMs: entry.durationMs,
 	}));
@@ -222,6 +212,7 @@ function buildAsyncResultBatchMessage(entries: AsyncResultEntry[]): CustomMessag
 		jobs: jobs.map(job => ({
 			jobId: job.jobId,
 			type: job.type,
+			status: job.status,
 			label: job.label,
 			durationMs: job.durationMs,
 		})),
@@ -232,42 +223,6 @@ function buildAsyncResultBatchMessage(entries: AsyncResultEntry[]): CustomMessag
 		content: prompt.render(asyncResultTemplate, {
 			multiple: jobs.length > 1,
 			jobs,
-		}),
-		display: true,
-		attribution: "agent",
-		details,
-		timestamp: Date.now(),
-	};
-}
-
-type LateDiagnosticsDetails = {
-	files: Array<{ path: string; summary: string; errored: boolean; messages: string[] }>;
-};
-
-function buildLateDiagnosticsBatchMessage(
-	entries: DeferredDiagnosticsEntry[],
-): CustomMessage<LateDiagnosticsDetails> | null {
-	if (entries.length === 0) return null;
-	const files = entries.map(entry => ({
-		path: entry.path,
-		summary: entry.summary,
-		messages: entry.messages,
-		errored: entry.errored,
-	}));
-	const details: LateDiagnosticsDetails = {
-		files: files.map(file => ({
-			path: file.path,
-			summary: file.summary,
-			errored: file.errored,
-			messages: file.messages,
-		})),
-	};
-	return {
-		role: "custom",
-		customType: LSP_LATE_DIAGNOSTIC_MESSAGE_TYPE,
-		content: prompt.render(lateDiagnosticTemplate, {
-			multiple: files.length > 1,
-			files,
 		}),
 		display: true,
 		attribution: "agent",
@@ -344,13 +299,19 @@ function collectPendingMCPToolNames(
 	const names = new Set<string>();
 	for (const name of explicitToolNames ?? []) {
 		const normalized = name.toLowerCase();
-		if (isMCPToolName(normalized)) names.add(normalized);
+		if (isMCPToolName(normalized) && !isAmazeCodebaseMcpTool({ name: normalized })) names.add(normalized);
 	}
 	for (const name of restoredSelectedToolNames) {
 		const normalized = name.toLowerCase();
-		if (isMCPToolName(normalized)) names.add(normalized);
+		if (isMCPToolName(normalized) && !isAmazeCodebaseMcpTool({ name: normalized })) names.add(normalized);
 	}
 	return [...names];
+}
+
+function visibleMCPToolNames(tools: readonly { name?: string; mcpServerName?: string }[]): string[] {
+	return filterAmazeCodebaseMcpTools(tools)
+		.map(tool => tool.name)
+		.filter((name): name is string => typeof name === "string");
 }
 
 function logMCPLoadErrors(errors: MCPLoadResult["errors"]): void {
@@ -369,7 +330,7 @@ function applyMCPEnvironment(result: { exaApiKeys: string[] }): void {
 export interface CreateAgentSessionOptions {
 	/** Working directory for project-local discovery. Default: getProjectDir() */
 	cwd?: string;
-	/** Global config directory. Default: ~/.omp/agent */
+	/** Global config directory. Default: ~/.amaze/agent */
 	agentDir?: string;
 	/** Spawns to allow. Default: "*" */
 	spawns?: string;
@@ -436,7 +397,7 @@ export interface CreateAgentSessionOptions {
 	 */
 	preloadedExtensionPaths?: string[];
 	/**
-	 * Pre-discovered custom-tool source paths from `.omp/tools/`, `.claude/tools/`,
+	 * Pre-discovered custom-tool source paths from `.amaze/tools/`, `.claude/tools/`,
 	 * plugins, etc. When provided, the filesystem-scan inside
 	 * `discoverCustomToolPaths()` is skipped — subagents inherit the parent's
 	 * scan result and call `loadCustomTools()` themselves so each session binds
@@ -447,6 +408,11 @@ export interface CreateAgentSessionOptions {
 	 * parent — wrong for isolated tasks and for pending-action routing.
 	 */
 	preloadedCustomToolPaths?: ToolPathWithSource[];
+	/**
+	 * Whether extension context and before-provider hooks may mutate model-visible
+	 * context. Defaults to true for main sessions; contract subagents pass false.
+	 */
+	allowExtensionContextHooks?: boolean;
 
 	/** Shared event bus for tool/extension communication. Default: creates new bus. */
 	eventBus?: EventBus;
@@ -459,18 +425,18 @@ export interface CreateAgentSessionOptions {
 	contextFiles?: Array<{ path: string; content: string }>;
 	/** Pre-built workspace tree (skips re-scanning; passed by parents to subagents). */
 	workspaceTree?: WorkspaceTree;
-	/** Prompt templates. Default: discovered from cwd/.omp/prompts/ + agentDir/prompts/ */
+	/** Prompt templates. Default: discovered from cwd/.amaze/prompts/ + agentDir/prompts/ */
 	promptTemplates?: PromptTemplate[];
 	/** File-based slash commands. Default: discovered from commands/ directories */
 	slashCommands?: FileSlashCommand[];
 
 	/** Enable MCP server discovery from .mcp.json files. Default: true */
 	enableMCP?: boolean;
+	/** @deprecated Deprecated no-op retained for SDK compatibility after LSP removal. */
+	enableLsp?: boolean;
 	/** Existing MCP manager to reuse (skips discovery, propagates to toolSession). */
 	mcpManager?: MCPManager;
 
-	/** Enable LSP integration (tool, formatting, diagnostics, warmup). Default: true */
-	enableLsp?: boolean;
 	/** Skip Python kernel availability check and prelude warmup */
 	skipPythonPreflight?: boolean;
 	/** Tool names explicitly requested (enables disabled-by-default tools) */
@@ -482,12 +448,10 @@ export interface CreateAgentSessionOptions {
 	requireYieldTool?: boolean;
 	/** Task recursion depth (for subagent sessions). Default: 0 */
 	taskDepth?: number;
-	/** Parent Hindsight state to alias for subagent memory tools. */
-	parentHindsightSessionState?: HindsightSessionState;
-	/** Parent Mnemopi state to alias for subagent memory tools. */
-	parentMnemopiSessionState?: MnemopiSessionState;
 	/** Pre-allocated agent identity for IRC routing. Default: "Main" for top-level, parentTaskPrefix-derived for sub. */
 	agentId?: string;
+	/** Concrete subagent definition name for observability/IRC labels (for example: finder, coder, checker). */
+	agentName?: string;
 	/** Display name for the agent in IRC. Default: "main" or "sub". */
 	agentDisplayName?: string;
 	/** Optional shared agent registry for IRC routing. Default: AgentRegistry.global(). */
@@ -559,8 +523,6 @@ export interface CreateAgentSessionResult {
 	mcpManager?: MCPManager;
 	/** Warning if session was restored with a different model than saved */
 	modelFallbackMessage?: string;
-	/** LSP servers detected for startup; warmup may continue in the background */
-	lspServers?: LspStartupServerInfo[];
 	/** Shared event bus for tool/extension communication */
 	eventBus: EventBus;
 }
@@ -690,11 +652,11 @@ export async function loadSessionExtensions(
 /**
  * Load discovered/configured extensions and register their providers into
  * `modelRegistry`, then discover the dynamic provider catalogs. One-shot CLIs
- * (`omp bench`, dry-balance) build a bare {@link ModelRegistry} that only knows
+ * (`amaze bench`, dry-balance) build a bare {@link ModelRegistry} that only knows
  * built-in catalog providers; without this, providers contributed by an
  * extension (e.g. a custom OpenAI-compatible provider under
- * `~/.omp/agent/extensions/`) never reach model resolution. Mirrors the
- * session / `omp models` path: drain the queued provider registrations, then
+ * `~/.amaze/agent/extensions/`) never reach model resolution. Mirrors the
+ * session / `amaze models` path: drain the queued provider registrations, then
  * `refreshRuntimeProviders` so dynamically-discovered models exist before
  * selectors are resolved.
  */
@@ -1051,7 +1013,7 @@ function buildMCPPromptCommands(manager: MCPManager): LoadedCustomCommand[] {
  * const { session } = await createAgentSession();
  *
  * // With explicit model
- * import { getModel } from '@oh-my-pi/pi-ai';
+ * import { getModel } from '@amaze/pi-ai';
  * const { session } = await createAgentSession({
  *   model: getModel('anthropic', 'claude-opus-4-5'),
  *   thinkingLevel: 'high',
@@ -1394,7 +1356,6 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 	let session!: AgentSession;
 	let hasSession = false;
 	let hasRegistered = false;
-	const enableLsp = options.enableLsp ?? true;
 	const asyncMaxJobs = Math.min(100, Math.max(1, settings.get("async.maxJobs") ?? 100));
 	const ASYNC_INLINE_RESULT_MAX_CHARS = 12_000;
 	const ASYNC_PREVIEW_MAX_CHARS = 4_000;
@@ -1481,7 +1442,6 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 				return sessionManager.getCwd();
 			},
 			hasUI: options.hasUI ?? false,
-			enableLsp,
 			get hasEditTool() {
 				const requestedToolNames = options.toolNames
 					? [...new Set(options.toolNames.map(name => name.toLowerCase()))]
@@ -1505,8 +1465,6 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 			trackEvalExecution: (execution, abortController) =>
 				session ? session.trackEvalExecution(execution, abortController) : execution,
 			getSessionId: () => sessionManager.getSessionId?.() ?? null,
-			getHindsightSessionState: () => session?.getHindsightSessionState(),
-			getMnemopiSessionState: () => session?.getMnemopiSessionState(),
 			getAgentId: () => resolvedAgentId,
 			getToolByName: name => session?.getToolByName(name),
 			agentRegistry,
@@ -1523,7 +1481,6 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 			getTurnBudget: () => sessionManager.getTurnBudget(),
 			recordEvalSubagentUsage: output => sessionManager.recordEvalSubagentOutput(output),
 			getClientBridge: () => session?.clientBridge,
-			queueDeferredDiagnostics: entry => session?.yieldQueue.enqueue(LSP_LATE_DIAGNOSTIC_MESSAGE_TYPE, entry),
 			bumpFileMutationVersion: path => {
 				const next = (fileMutationVersions.get(path) ?? 0) + 1;
 				fileMutationVersions.set(path, next);
@@ -1678,7 +1635,7 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 								const nonMCPToolNames = [...toolRegistry.keys()].filter(name => !isMCPToolName(name));
 								const projectedMode = resolveEffectiveToolDiscoveryMode(
 									settings,
-									countToolsForAutoDiscovery([...nonMCPToolNames, ...mcpResult.tools.map(tool => tool.name)]),
+									countToolsForAutoDiscovery([...nonMCPToolNames, ...visibleMCPToolNames(mcpResult.tools)]),
 								);
 								if (projectedMode !== "off") {
 									effectiveDiscoveryMode = projectedMode;
@@ -1699,7 +1656,7 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 									]);
 								}
 							}
-							await liveSession.refreshMCPTools(mcpResult.tools, { activateAll });
+							await liveSession.refreshMCPTools(filterAmazeCodebaseMcpTools(mcpResult.tools), { activateAll });
 							if (activation.explicitlyRequestedMCPToolNames.length > 0) {
 								if (discoveryEnabled && !activation.mcpDiscoveryEnabled) {
 									// Discovery flipped on mid-flight: route the explicit request
@@ -1739,9 +1696,9 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 					logger.error("MCP tool load failed", { path, error });
 				}
 
-				if (mcpResult.tools.length > 0) {
-					// MCP tools are LoadedCustomTool, extract the tool property
-					customTools.push(...mcpResult.tools.map(loaded => loaded.tool));
+				const visibleLoadedMCPTools = filterAmazeCodebaseLoadedTools(mcpResult.tools);
+				if (visibleLoadedMCPTools.length > 0) {
+					customTools.push(...visibleLoadedMCPTools.map(loaded => loaded.tool));
 				}
 			}
 		}
@@ -1766,7 +1723,7 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 			customTools.push(...getSearchTools());
 		}
 
-		// Discover custom tools from `.omp/tools/`, `.claude/tools/`, plugins, etc.
+		// Discover custom tools from `.amaze/tools/`, `.claude/tools/`, plugins, etc.
 		// Subagents reuse the parent's scan via `preloadedCustomToolPaths` to skip
 		// the FS walk, but ALWAYS re-call `loadCustomTools` here so factories bind
 		// to THIS session's `CustomToolAPI` (cwd, exec, pushPendingAction, UI).
@@ -1979,7 +1936,6 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 			cwd,
 			sessionManager,
 			modelRegistry,
-			() => (hasSession ? createSessionMemoryRuntimeContext(session, agentDir, cwd) : undefined),
 			settings,
 		);
 
@@ -2142,14 +2098,11 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 			const promptTools = buildSystemPromptToolMetadata(tools, {
 				search_tool_bm25: { description: renderSearchToolBm25Description(discoverableToolsForDesc) },
 			});
-			const memoryBackend = await resolveMemoryBackend(settings);
-			const memoryInstructions = await memoryBackend.buildDeveloperInstructions(agentDir, settings, session);
-
-			// Build combined append prompt: memory instructions + auto-learn guidance
-			// + MCP server instructions. For UI sessions MCP discovery is deferred, so
-			// `getServerInstructions()` is empty until the background connect completes;
-			// the rebuild that `refreshMCPTools` triggers post-discovery then picks up
-			// the now-connected servers' instructions, so they join the prompt for the
+			// Build combined append prompt: auto-learn guidance + MCP server instructions.
+			// For UI sessions MCP discovery is deferred, so `getServerInstructions()`
+			// is empty until the background connect completes; the rebuild that
+			// `refreshMCPTools` triggers post-discovery then picks up the
+			// now-connected servers' instructions, so they join the prompt for the
 			// rest of the session.
 			const serverInstructions = mcpManager?.getServerInstructions();
 			// Drive guidance off the auto-learn BUILTINS that createTools actually built
@@ -2162,10 +2115,7 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 				manageSkill: builtInToolNames.includes("manage_skill"),
 				learn: builtInToolNames.includes("learn"),
 			});
-			const appendParts: string[] = [];
-			if (memoryInstructions) appendParts.push(memoryInstructions);
-			if (autoLearnInstructions) appendParts.push(autoLearnInstructions);
-			let appendPrompt: string | undefined = appendParts.length > 0 ? appendParts.join("\n\n") : undefined;
+			let appendPrompt: string | undefined = autoLearnInstructions ?? undefined;
 			if (serverInstructions && serverInstructions.size > 0) {
 				const parts: string[] = [];
 				if (appendPrompt) parts.push(appendPrompt);
@@ -2211,7 +2161,6 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 				secretsEnabled,
 				workspaceTree: workspaceTreePromise,
 				includeWorkspaceTree,
-				memoryRootEnabled: memoryBackend.id === "local",
 				model: settings.get("includeModelInPrompt") ? getActiveModelString() : undefined,
 				personality: agentKind === "sub" ? "none" : settings.get("personality"),
 			});
@@ -2270,7 +2219,7 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 			? requestedActiveToolNames
 			: requestedActiveToolNames.filter(name => !defaultInactiveToolNames.has(name));
 		const explicitlyRequestedMCPToolNames = options.toolNames
-			? requestedActiveToolNames.filter(name => name.startsWith("mcp__"))
+			? requestedActiveToolNames.filter(name => name.startsWith("mcp__") && !isAmazeCodebaseMcpTool({ name }))
 			: [];
 		const discoveryDefaultServers = new Set(
 			(settings.get("mcp.discoveryDefaultServers") ?? []).map(serverName => serverName.trim()).filter(Boolean),
@@ -2350,6 +2299,7 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 		// The session reference is attached after construction below.
 		agentRegistry.register({
 			id: resolvedAgentId,
+			agentName: options.agentName,
 			displayName: resolvedAgentDisplayName,
 			kind: agentKind,
 			parentId: options.parentAgentId,
@@ -2411,6 +2361,9 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 		};
 
 		const transformContext = async (messages: AgentMessage[], _signal?: AbortSignal) => {
+			if (options.allowExtensionContextHooks === false) {
+				return wrapSteeringForModel(messages);
+			}
 			const withContext = await extensionRunner.emitContext(messages);
 			return wrapSteeringForModel(withContext);
 		};
@@ -2440,6 +2393,9 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 					}
 				: undefined;
 		const onPayload = async (payload: unknown, _model?: Model) => {
+			if (options.allowExtensionContextHooks === false) {
+				return payload;
+			}
 			return await extensionRunner.emitBeforeProviderRequest(payload);
 		};
 		const onResponse: SimpleStreamOptions["onResponse"] = async (response, model) => {
@@ -2674,14 +2630,12 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 			session.yieldQueue.register<AsyncResultEntry>("async-result", {
 				isStale: entry => asyncJobManager.isDeliverySuppressed(entry.jobId),
 				build: buildAsyncResultBatchMessage,
+				skipIdleFlush: true,
 			});
 		}
 		session.yieldQueue.register<McpNotificationEntry>("mcp-notification", {
 			build: buildMcpNotificationBatchMessage,
-		});
-		session.yieldQueue.register<DeferredDiagnosticsEntry>(LSP_LATE_DIAGNOSTIC_MESSAGE_TYPE, {
-			isStale: entry => entry.isStale(),
-			build: buildLateDiagnosticsBatchMessage,
+			skipIdleFlush: true,
 		});
 
 		// Attach the live session to the pre-registered ref so peers can route IRC
@@ -2699,7 +2653,7 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 					if (agentKind === "main") {
 						// Top-level teardown owns the global agent lifecycle: park timers,
 						// adopted subagent sessions, revivers. Tear it down while shared
-						// resources (kernels, MCP, LSP) are still live. Subagent disposal
+						// resources (kernels, MCP) are still live. Subagent disposal
 						// must NOT touch the global lifecycle.
 						await AgentLifecycleManager.global().dispose();
 					}
@@ -2743,85 +2697,17 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 			}
 		}
 
-		// Start LSP warmup in the background so startup does not block on language server initialization.
-		// With `lsp.lazy` (the default) the warmup is skipped: recognized servers are still discovered and
-		// surfaced in the UI as "available", but cold-start on first use — the lsp tool or an edit/write
-		// touching a matching file type — through `getOrCreateClient`.
-		// Print/script invocations (`hasUI=false`) skip it regardless: they don't render the warmup status
-		// indicator AND typically finish before LSP servers would have stabilized — warming them just spends
-		// CPU parsing big `initialize` responses concurrently with the LLM stream consumer, jittering
-		// perceived latency.
-		let lspServers: CreateAgentSessionResult["lspServers"];
-		if (enableLsp && options.hasUI && settings.get("lsp.lazy")) {
-			lspServers = discoverStartupLspServers(cwd, "available");
-		} else if (enableLsp && options.hasUI) {
-			lspServers = discoverStartupLspServers(cwd);
-			if (lspServers.length > 0) {
-				void (async () => {
-					try {
-						const result = await logger.time("warmupLspServers", warmupLspServers, cwd);
-						const serversByName = new Map(result.servers.map(server => [server.name, server] as const));
-						for (const server of lspServers ?? []) {
-							const next = serversByName.get(server.name);
-							if (!next) continue;
-							server.status = next.status;
-							server.fileTypes = next.fileTypes;
-							server.error = next.error;
-						}
-						const event: LspStartupEvent = {
-							type: "completed",
-							servers: result.servers,
-						};
-						if (!startupQuiet) eventBus.emit(LSP_STARTUP_EVENT_CHANNEL, event);
-					} catch (error) {
-						const errorMessage = error instanceof Error ? error.message : String(error);
-						logger.warn("LSP server warmup failed", { cwd, error: errorMessage });
-						for (const server of lspServers ?? []) {
-							server.status = "error";
-							server.error = errorMessage;
-						}
-						const event: LspStartupEvent = {
-							type: "failed",
-							error: errorMessage,
-						};
-						if (!startupQuiet) eventBus.emit(LSP_STARTUP_EVENT_CHANNEL, event);
-					}
-				})();
-			}
-		}
-
-		const startMemoryBackend = async () => {
-			const memoryBackend = await resolveMemoryBackend(settings);
-			await memoryBackend.start({
-				session,
-				settings,
-				modelRegistry,
-				agentDir,
-				taskDepth,
-				parentHindsightSessionState: options.parentHindsightSessionState,
-				parentMnemopiSessionState: options.parentMnemopiSessionState,
-			});
-		};
-
-		// Auto-learn can immediately trigger a synthetic capture turn after the
-		// first real stop. When a memory backend is selected, install that backend's
-		// per-session state first so the capture turn's `learn` tool observes the
-		// same initialized state as normal memory tools. Other sessions keep memory
-		// startup in the background to preserve the existing startup profile.
-		//
-		// Gated on `autolearn.enabled` to match the tools: `createTools` builds the
-		// `learn`/`manage_skill` registry ONCE at session start and no settings
-		// change rebuilds it, so installing the controller while disabled would let a
-		// mid-session enable fire a nudge pointing at tools the session never built.
-		// Activation is therefore a session-start decision for BOTH the controller
-		// and the tools; the fire-time re-check in `#onAgentEnd` still handles a
-		// mid-session DISABLE. The subscription lives for the session's lifetime; the
-		// reference is intentionally discarded (the listener retains it).
+		// Auto-learn may surface `manage_skill` and `learn`. Keep the controller
+		// gated to the same session-start decision that also gated tool creation:
+		// `createTools` builds those registries ONCE at session start, and no
+		// settings change rebuilds them, so installing the controller while disabled
+		// would let a mid-session enable fire a nudge pointing at tools the session
+		// never built.
+		// The fire-time re-check in `#onAgentEnd` still handles a mid-session DISABLE.
+		// The subscription lives for the session's lifetime; the reference is
+		// intentionally discarded (the listener retains it).
 		if (settings.get("autolearn.enabled") && taskDepth === 0) {
-			await logger.time("startMemoryStartupTask", startMemoryBackend);
 			new AutoLearnController({ session, settings });
-		} else {
-			void logger.time("startMemoryStartupTask", startMemoryBackend);
 		}
 
 		// Wire MCP manager callbacks to session for reactive tool updates.
@@ -2831,7 +2717,7 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 				void (async () => {
 					try {
 						await session.refreshMCPTools(
-							tools,
+							filterAmazeCodebaseMcpTools(tools),
 							deferMCPDiscoveryForUI && !mcpDiscoveryEnabled && options.toolNames === undefined
 								? { activateAll: true }
 								: undefined,
@@ -2892,7 +2778,6 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 			setToolUIContext,
 			mcpManager,
 			modelFallbackMessage,
-			lspServers,
 			eventBus,
 		};
 	} catch (error) {

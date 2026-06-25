@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { BuiltinToolLoadMode, ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import { Settings } from "@amaze/pi-coding-agent/config/settings";
+import type { BuiltinToolLoadMode, ToolSession } from "@amaze/pi-coding-agent/tools";
 import {
 	AskTool,
 	BUILTIN_TOOLS,
@@ -11,7 +11,7 @@ import {
 	IrcTool,
 	JobTool,
 	SshTool,
-} from "@oh-my-pi/pi-coding-agent/tools";
+} from "@amaze/pi-coding-agent/tools";
 
 const allToolsSettings = Settings.isolated({
 	"astGrep.enabled": true,
@@ -20,13 +20,11 @@ const allToolsSettings = Settings.isolated({
 	"find.enabled": true,
 	"search.enabled": true,
 	"github.enabled": true,
-	"lsp.enabled": true,
 	"inspect_image.enabled": true,
 	"web_search.enabled": true,
 	"browser.enabled": true,
 	"checkpoint.enabled": true,
 	"todo.enabled": true,
-	"memory.backend": "mnemopi",
 	"autolearn.enabled": true,
 	"tools.discoveryMode": "all",
 });

@@ -47,7 +47,7 @@ def _workspace(root: Path) -> Workspace:
     return Workspace(
         root=root,
         repo_dir=root / "repo",
-        session_dir=root / ".omp-session",
+        session_dir=root / ".amaze-session",
         context_dir=root / "context",
         artifacts_dir=root / "artifacts",
         branch="farm/test/topic",
@@ -125,7 +125,7 @@ def test_rename_workspace_branch_renames_local_branch(tmp_path: Path) -> None:
     ws = Workspace(
         root=root,
         repo_dir=repo_dir,
-        session_dir=root / ".omp-session",
+        session_dir=root / ".amaze-session",
         context_dir=root / "context",
         artifacts_dir=root / "artifacts",
         branch=initial,
@@ -153,7 +153,7 @@ def test_rename_workspace_branch_refreshes_shared_metadata(tmp_path: Path, monke
     ws = Workspace(
         root=root,
         repo_dir=repo_dir,
-        session_dir=root / ".omp-session",
+        session_dir=root / ".amaze-session",
         context_dir=root / "context",
         artifacts_dir=root / "artifacts",
         branch=initial,
@@ -188,7 +188,7 @@ def test_rename_workspace_branch_runs_git_as_slot_when_permissions_active(
     ws = Workspace(
         root=root,
         repo_dir=repo_dir,
-        session_dir=root / ".omp-session",
+        session_dir=root / ".amaze-session",
         context_dir=root / "context",
         artifacts_dir=root / "artifacts",
         branch=initial,
@@ -227,7 +227,7 @@ def test_rename_workspace_branch_is_idempotent_when_slug_unchanged(tmp_path: Pat
     ws = Workspace(
         root=root,
         repo_dir=repo_dir,
-        session_dir=root / ".omp-session",
+        session_dir=root / ".amaze-session",
         context_dir=root / "context",
         artifacts_dir=root / "artifacts",
         branch=initial,
@@ -273,7 +273,7 @@ def test_rename_workspace_branch_noop_when_pr_open(tmp_path: Path) -> None:
     ws = Workspace(
         root=root,
         repo_dir=repo_dir,
-        session_dir=root / ".omp-session",
+        session_dir=root / ".amaze-session",
         context_dir=root / "context",
         artifacts_dir=root / "artifacts",
         branch=initial,
@@ -313,7 +313,7 @@ def test_rename_workspace_branch_surfaces_git_failure(tmp_path: Path) -> None:
     ws = Workspace(
         root=root,
         repo_dir=repo_dir,
-        session_dir=root / ".omp-session",
+        session_dir=root / ".amaze-session",
         context_dir=root / "context",
         artifacts_dir=root / "artifacts",
         branch=initial,
@@ -513,7 +513,7 @@ def test_chown_workspace_runs_chown_and_chmod_as_root_on_linux(tmp_path: Path, m
 
     _chown_workspace(tmp_path, 2001)
 
-    # 2001 is the slot-private GID matching the slot UID, not the shared omp group.
+    # 2001 is the slot-private GID matching the slot UID, not the shared amaze group.
     assert calls == [
         (["chown", "-R", "2001:2001", str(tmp_path)], True),
         (["chmod", "-R", "u=rwX,g=rwX,o=", str(tmp_path)], True),
@@ -634,7 +634,7 @@ def test_prepare_slot_tmpdir_mkdirs_without_chown(tmp_path: Path, monkeypatch: p
 
     tmpdir = _prepare_slot_tmpdir(_workspace(tmp_path), 2001)
 
-    assert tmpdir == tmp_path / ".omp-tmp"
+    assert tmpdir == tmp_path / ".amaze-tmp"
     assert tmpdir.is_dir()
     assert stat.S_IMODE(tmpdir.stat().st_mode) == 0o700
     assert chowns == []
@@ -643,7 +643,7 @@ def test_prepare_slot_tmpdir_mkdirs_without_chown(tmp_path: Path, monkeypatch: p
 def test_prepare_slot_tmpdir_replaces_symlink_without_touching_target(tmp_path: Path) -> None:
     target = tmp_path / "target"
     target.mkdir()
-    tmpdir = tmp_path / ".omp-tmp"
+    tmpdir = tmp_path / ".amaze-tmp"
     tmpdir.symlink_to(target, target_is_directory=True)
 
     prepared = _prepare_slot_tmpdir(_workspace(tmp_path), None)
@@ -657,7 +657,7 @@ def test_prepare_slot_tmpdir_replaces_symlink_without_touching_target(tmp_path: 
 def test_provision_runtime_dirs_replaces_tmpdir_symlink_and_creates_xdg_tree(tmp_path: Path) -> None:
     target = tmp_path / "target"
     target.mkdir()
-    tmpdir = tmp_path / ".omp-tmp"
+    tmpdir = tmp_path / ".amaze-tmp"
     tmpdir.symlink_to(target, target_is_directory=True)
 
     _provision_runtime_dirs(tmp_path)
@@ -666,10 +666,10 @@ def test_provision_runtime_dirs_replaces_tmpdir_symlink_and_creates_xdg_tree(tmp
     assert not tmpdir.is_symlink()
     assert target.is_dir()
     assert stat.S_IMODE(tmpdir.stat().st_mode) == 0o700
-    for base in (tmp_path / ".omp-xdg" / "data", tmp_path / ".omp-xdg" / "state", tmp_path / ".omp-xdg" / "cache"):
+    for base in (tmp_path / ".amaze-xdg" / "data", tmp_path / ".amaze-xdg" / "state", tmp_path / ".amaze-xdg" / "cache"):
         assert base.is_dir()
-        assert (base / "omp").is_dir()
-    assert (tmp_path / ".omp-xdg" / "cache" / "bun-install").is_dir()
+        assert (base / "amaze").is_dir()
+    assert (tmp_path / ".amaze-xdg" / "cache" / "bun-install").is_dir()
 
 
 def test_safe_directory_env_scopes_single_repo_path(tmp_path: Path) -> None:
@@ -728,16 +728,16 @@ def test_prepare_slot_runtime_env_returns_workspace_private_paths_without_chown(
     monkeypatch.setattr("robomp.sandbox.subprocess.run", lambda cmd, **_kwargs: calls.append(cmd))
 
     ws = _workspace(tmp_path)
-    bun_cache = ws.root / ".omp-xdg" / "cache" / "bun-install"
+    bun_cache = ws.root / ".amaze-xdg" / "cache" / "bun-install"
 
     env = _prepare_slot_runtime_env(ws, 2001)
 
-    assert env["TMPDIR"] == str(ws.root / ".omp-tmp")
-    assert env["XDG_CACHE_HOME"] == str(ws.root / ".omp-xdg" / "cache")
+    assert env["TMPDIR"] == str(ws.root / ".amaze-tmp")
+    assert env["XDG_CACHE_HOME"] == str(ws.root / ".amaze-xdg" / "cache")
     assert env["BUN_INSTALL_CACHE_DIR"] == str(bun_cache)
-    for base in (ws.root / ".omp-xdg" / "data", ws.root / ".omp-xdg" / "state", ws.root / ".omp-xdg" / "cache"):
+    for base in (ws.root / ".amaze-xdg" / "data", ws.root / ".amaze-xdg" / "state", ws.root / ".amaze-xdg" / "cache"):
         assert base.is_dir()
-        assert (base / "omp").is_dir()
+        assert (base / "amaze").is_dir()
     assert bun_cache.is_dir()
     assert chowns == []
     assert calls == []
@@ -978,14 +978,14 @@ def test_ensure_workspace_provisions_and_slot_owns_runtime_dirs(
     def record_chown(ws_root: Path, slot_uid: int | None) -> None:
         assert slot_uid is not None
         paths = [
-            ws_root / ".omp-tmp",
-            ws_root / ".omp-xdg" / "data",
-            ws_root / ".omp-xdg" / "data" / "omp",
-            ws_root / ".omp-xdg" / "state",
-            ws_root / ".omp-xdg" / "state" / "omp",
-            ws_root / ".omp-xdg" / "cache",
-            ws_root / ".omp-xdg" / "cache" / "omp",
-            ws_root / ".omp-xdg" / "cache" / "bun-install",
+            ws_root / ".amaze-tmp",
+            ws_root / ".amaze-xdg" / "data",
+            ws_root / ".amaze-xdg" / "data" / "amaze",
+            ws_root / ".amaze-xdg" / "state",
+            ws_root / ".amaze-xdg" / "state" / "amaze",
+            ws_root / ".amaze-xdg" / "cache",
+            ws_root / ".amaze-xdg" / "cache" / "amaze",
+            ws_root / ".amaze-xdg" / "cache" / "bun-install",
         ]
         runtime_paths.extend(paths)
         for path in paths:
@@ -1012,14 +1012,14 @@ def test_ensure_workspace_provisions_and_slot_owns_runtime_dirs(
 
     assert runtime_paths
     assert set(runtime_paths) == {
-        ws.root / ".omp-tmp",
-        ws.root / ".omp-xdg" / "data",
-        ws.root / ".omp-xdg" / "data" / "omp",
-        ws.root / ".omp-xdg" / "state",
-        ws.root / ".omp-xdg" / "state" / "omp",
-        ws.root / ".omp-xdg" / "cache",
-        ws.root / ".omp-xdg" / "cache" / "omp",
-        ws.root / ".omp-xdg" / "cache" / "bun-install",
+        ws.root / ".amaze-tmp",
+        ws.root / ".amaze-xdg" / "data",
+        ws.root / ".amaze-xdg" / "data" / "amaze",
+        ws.root / ".amaze-xdg" / "state",
+        ws.root / ".amaze-xdg" / "state" / "amaze",
+        ws.root / ".amaze-xdg" / "cache",
+        ws.root / ".amaze-xdg" / "cache" / "amaze",
+        ws.root / ".amaze-xdg" / "cache" / "bun-install",
     }
     assert set(owned.values()) == {(2001, 2001)}
 
@@ -1325,7 +1325,7 @@ def test_run_git_kills_hung_child(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
 
 
 # ---------------------------------------------------------------------------
-# Partial-clone blob backfill (oh-my-pi#1818)
+# Partial-clone blob backfill (amaze-agent#1818)
 # ---------------------------------------------------------------------------
 
 
@@ -1402,7 +1402,7 @@ def _missing_object_oids(repo: Path, rev: str) -> list[str]:
 
 
 def test_fetch_ref_backfills_missing_blobs_into_partial_clone(tmp_path: Path) -> None:
-    """Regression for oh-my-pi#1818: ``fetch_ref`` is called immediately before
+    """Regression for amaze-agent#1818: ``fetch_ref`` is called immediately before
     ``git worktree add origin/<ref>``. On a ``--filter=blob:none`` pool whose
     periodic ``fetch --prune`` inherited that filter, the ref's blobs are
     absent and the worktree-add triggers a promisor lazy fetch that — under

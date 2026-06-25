@@ -12,7 +12,7 @@ import {
 	getConfigRootDir,
 	isEnoent,
 	logger,
-} from "@oh-my-pi/pi-utils";
+} from "@amaze/pi-utils";
 import { YAML } from "bun";
 import { AuthStorage } from "../auth-storage";
 import { AuthBrokerClient } from "./client";
@@ -37,7 +37,7 @@ export interface DiscoverAuthStorageOptions {
 	sourceLabel?: string;
 }
 
-/** Path to the local bearer token file. Created by `omp auth-broker token`. */
+/** Path to the local bearer token file. Created by `amaze auth-broker token`. */
 export function getAuthBrokerTokenFilePath(): string {
 	return path.join(getConfigRootDir(), "auth-broker.token");
 }

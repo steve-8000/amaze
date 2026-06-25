@@ -1,5 +1,5 @@
 // Gallery fixtures for the agentic orchestration tools (task, irc, goal, job).
-import type { Usage } from "@oh-my-pi/pi-ai";
+import type { Usage } from "@amaze/pi-ai";
 import type { TaskToolDetails } from "../../task/types";
 import type { IrcDetails } from "../../tools/irc";
 import type { GalleryFixture } from "./types";
@@ -280,7 +280,7 @@ export const agenticFixtures: Record<string, GalleryFixture> = {
 						"- AuthLoader [task · sub · idle] — parent Main, active 2m ago",
 						"- RateLimiter [task · sub · parked] — unread 2, parent Main, active 12m ago",
 						"",
-						"Parked agents are revived automatically when you message them.",
+						"Some parked agents may be revivable; completed contract subagents are transcript-only.",
 					].join("\n"),
 				},
 			],

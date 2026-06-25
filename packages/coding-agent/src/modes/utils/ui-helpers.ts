@@ -1,6 +1,6 @@
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-import type { AssistantMessage, ImageContent, Message, Usage } from "@oh-my-pi/pi-ai";
-import { type Component, Spacer, Text, TruncatedText } from "@oh-my-pi/pi-tui";
+import type { AgentMessage } from "@amaze/pi-agent-core";
+import type { AssistantMessage, ImageContent, Message, Usage } from "@amaze/pi-ai";
+import { type Component, Spacer, Text, TruncatedText } from "@amaze/pi-tui";
 import type { AdvisorMessageDetails } from "../../advisor";
 import { COLLAB_PROMPT_MESSAGE_TYPE, type CollabPromptDetails } from "../../collab/protocol";
 import { settings } from "../../config/settings";
@@ -20,10 +20,6 @@ import { CustomMessageComponent } from "../../modes/components/custom-message";
 import { DynamicBorder } from "../../modes/components/dynamic-border";
 import { EvalExecutionComponent } from "../../modes/components/eval-execution";
 import {
-	type LateDiagnosticsFile,
-	LateDiagnosticsMessageComponent,
-} from "../../modes/components/late-diagnostics-message";
-import {
 	ReadToolGroupComponent,
 	readArgsHaveTarget,
 	readArgsTargetInternalUrl,
@@ -40,7 +36,6 @@ import {
 	BACKGROUND_TAN_DISPATCH_MESSAGE_TYPE,
 	type CustomMessage,
 	isSilentAbort,
-	LSP_LATE_DIAGNOSTIC_MESSAGE_TYPE,
 	resolveAbortLabel,
 	SKILL_PROMPT_MESSAGE_TYPE,
 	type SkillPromptDetails,
@@ -147,11 +142,13 @@ export class UiHelpers {
 							message as CustomMessage<{
 								jobId?: string;
 								type?: "bash" | "task";
+								status?: "running" | "completed" | "failed" | "cancelled";
 								label?: string;
 								durationMs?: number;
 								jobs?: Array<{
 									jobId?: string;
 									type?: "bash" | "task";
+									status?: "running" | "completed" | "failed" | "cancelled";
 									label?: string;
 									durationMs?: number;
 								}>;
@@ -164,12 +161,15 @@ export class UiHelpers {
 										{
 											jobId: details?.jobId,
 											type: details?.type,
+											status: details?.status,
 											label: details?.label,
 											durationMs: details?.durationMs,
 										},
 									];
+						const visibleJobs = jobs.filter(job => !(job.type === "task" && job.status === "completed"));
+						if (visibleJobs.length === 0) break;
 						const block = new TranscriptBlock();
-						for (const job of jobs) {
+						for (const job of visibleJobs) {
 							const jobId = job.jobId ?? "unknown";
 							const typeLabel = job.type ? `[${job.type}]` : "[job]";
 							const duration = typeof job.durationMs === "number" ? formatDuration(job.durationMs) : undefined;
@@ -184,17 +184,6 @@ export class UiHelpers {
 							block.addChild(new Text(line, 1, 0));
 						}
 						this.ctx.chatContainer.addChild(block);
-						break;
-					}
-					if (message.customType === LSP_LATE_DIAGNOSTIC_MESSAGE_TYPE) {
-						const details = (
-							message as CustomMessage<{
-								files?: LateDiagnosticsFile[];
-							}>
-						).details;
-						const component = new LateDiagnosticsMessageComponent(details?.files ?? []);
-						component.setExpanded(this.ctx.toolOutputExpanded);
-						this.ctx.chatContainer.addChild(component);
 						break;
 					}
 					if (message.customType === COLLAB_PROMPT_MESSAGE_TYPE) {
@@ -216,7 +205,11 @@ export class UiHelpers {
 						const details = (
 							message as CustomMessage<{
 								from?: string;
+								fromAgentName?: string;
+								fromDisplayName?: string;
 								to?: string;
+								toAgentName?: string;
+								toDisplayName?: string;
 								message?: string;
 								body?: string;
 								replyTo?: string;
@@ -232,7 +225,11 @@ export class UiHelpers {
 							{
 								kind,
 								from: details?.from,
+								fromAgentName: details?.fromAgentName,
+								fromDisplayName: details?.fromDisplayName,
 								to: details?.to,
+								toAgentName: details?.toAgentName,
+								toDisplayName: details?.toDisplayName,
 								body: kind === "incoming" ? details?.message : details?.body,
 								replyTo: details?.replyTo,
 								timestamp: message.timestamp,
@@ -670,7 +667,7 @@ export class UiHelpers {
 				theme.bold(theme.fg("warning", "Update Available")) +
 					"\n" +
 					theme.fg("muted", `New version ${newVersion} is available. Run: `) +
-					theme.fg("accent", "omp update"),
+					theme.fg("accent", "amaze update"),
 				1,
 				0,
 			),

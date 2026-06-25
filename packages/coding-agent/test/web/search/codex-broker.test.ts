@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "bun:test";
-import type { AuthStorage } from "@oh-my-pi/pi-ai";
-import type { FetchImpl } from "@oh-my-pi/pi-ai/types";
-import { AgentStorage } from "@oh-my-pi/pi-coding-agent/session/agent-storage";
-import type { SearchParams } from "@oh-my-pi/pi-coding-agent/web/search/providers/base";
-import { searchCodex } from "@oh-my-pi/pi-coding-agent/web/search/providers/codex";
+import type { AuthStorage } from "@amaze/pi-ai";
+import type { FetchImpl } from "@amaze/pi-ai/types";
+import { AgentStorage } from "@amaze/pi-coding-agent/session/agent-storage";
+import type { SearchParams } from "@amaze/pi-coding-agent/web/search/providers/base";
+import { searchCodex } from "@amaze/pi-coding-agent/web/search/providers/codex";
 
 function makeSseResponse(): string {
 	return [

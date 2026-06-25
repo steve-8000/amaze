@@ -2,22 +2,35 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { discoverAndLoadExtensions } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/loader";
+import { discoverAndLoadExtensions } from "@amaze/pi-coding-agent/extensibility/extensions/loader";
+import { getAgentDir, setAgentDir } from "@amaze/pi-utils";
 
 const TOOL_NAME = "legacy-multi-file-tool";
 
 describe("issue #983: multi-file legacy Pi extensions", () => {
 	const tempDirs: string[] = [];
+	let originalAgentDirEnv: string | undefined;
+	let originalAgentDir: string;
 
 	afterEach(async () => {
+		setAgentDir(originalAgentDir);
+		if (originalAgentDirEnv === undefined) {
+			delete process.env.PI_CODING_AGENT_DIR;
+		} else {
+			process.env.PI_CODING_AGENT_DIR = originalAgentDirEnv;
+		}
 		await Promise.all(tempDirs.splice(0).map(dir => fs.rm(dir, { recursive: true, force: true })));
 	});
 
 	it("loads legacy Pi extensions whose sibling TypeScript files import each other via relative paths", async () => {
-		const projectDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-issue-983-project-"));
+		const projectDir = await fs.mkdtemp(path.join(os.tmpdir(), "amaze-issue-983-project-"));
 		tempDirs.push(projectDir);
+		originalAgentDirEnv = process.env.PI_CODING_AGENT_DIR;
+		originalAgentDir = getAgentDir();
+		process.env.PI_CODING_AGENT_DIR = path.join(projectDir, ".amaze", "agent");
 		const extensionDir = path.join(projectDir, "legacy-pi-multi-file-extension");
 
+		setAgentDir(process.env.PI_CODING_AGENT_DIR);
 		await fs.mkdir(extensionDir, { recursive: true });
 		await Bun.write(
 			path.join(extensionDir, "package.json"),

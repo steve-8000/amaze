@@ -6,12 +6,12 @@ Custom review instructions
 
 ### Distribution Guidelines
 
-Use the `task` tool with `agent: "reviewer"` and a `tasks` array.
-Create exactly **1 reviewer task**. Its assignment MUST include the custom instructions below.
+Use the `task` tool with `agent: "checker"` and a `tasks` array.
+Create exactly **1 checker task**. Its assignment MUST include the custom instructions below.
 
-### Reviewer Instructions
+### Checker Instructions
 
-Reviewer MUST:
+Checker MUST:
 1. Follow the custom instructions below
 2. Read the referenced files or workspace context needed to evaluate them
 3. Call `report_finding` per issue

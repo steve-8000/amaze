@@ -1,10 +1,25 @@
+import * as fs from "node:fs";
 import * as path from "node:path";
-import { isRecord } from "@oh-my-pi/pi-utils";
-import { hasRootMarkers, resolveCommand } from "../lsp/config";
+import { $which, isRecord } from "@amaze/pi-utils";
 import DEFAULTS from "./defaults.json" with { type: "json" };
 import type { DapAdapterConfig, DapResolvedAdapter } from "./types";
 
 const EXTENSIONLESS_DEBUGGER_ORDER = ["gdb", "lldb-dap"] as const;
+
+function hasRootMarkers(cwd: string, markers: readonly string[]): boolean {
+	return markers.some(marker => fs.existsSync(path.join(cwd, marker)));
+}
+
+function resolveCommand(command: string, cwd: string): string | null {
+	if (path.isAbsolute(command)) {
+		return fs.existsSync(command) ? command : null;
+	}
+	const localCommand = path.resolve(cwd, command);
+	if (command.includes("/") && fs.existsSync(localCommand)) {
+		return localCommand;
+	}
+	return $which(command) ?? null;
+}
 
 function normalizeStringArray(value: unknown): string[] {
 	if (!Array.isArray(value)) return [];

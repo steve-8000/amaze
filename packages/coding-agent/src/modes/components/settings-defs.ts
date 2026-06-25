@@ -9,7 +9,7 @@
  * (or `options: "runtime"` for runtime-injected lists like themes).
  */
 
-import { TERMINAL } from "@oh-my-pi/pi-tui";
+import { TERMINAL } from "@amaze/pi-tui";
 import { Settings } from "../../config/settings";
 import {
 	type AnyUiMetadata,
@@ -79,20 +79,6 @@ const CONDITIONS: Record<string, () => boolean> = {
 	advisorEnabled: () => {
 		try {
 			return Settings.instance.get("advisor.enabled") === true;
-		} catch {
-			return false;
-		}
-	},
-	hindsightActive: () => {
-		try {
-			return Settings.instance.get("memory.backend") === "hindsight";
-		} catch {
-			return false;
-		}
-	},
-	mnemopiActive: () => {
-		try {
-			return Settings.instance.get("memory.backend") === "mnemopi";
 		} catch {
 			return false;
 		}

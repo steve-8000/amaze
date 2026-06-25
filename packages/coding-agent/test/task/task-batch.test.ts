@@ -15,16 +15,16 @@
  *    runtime for internal callers.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { toolWireSchema } from "@oh-my-pi/pi-ai/utils/schema";
-import { AsyncJobManager } from "@oh-my-pi/pi-coding-agent/async/job-manager";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { AgentLifecycleManager } from "@oh-my-pi/pi-coding-agent/registry/agent-lifecycle";
-import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
-import { TaskTool } from "@oh-my-pi/pi-coding-agent/task";
-import * as discoveryModule from "@oh-my-pi/pi-coding-agent/task/discovery";
-import * as executorModule from "@oh-my-pi/pi-coding-agent/task/executor";
-import type { AgentDefinition, SingleResult, TaskParams } from "@oh-my-pi/pi-coding-agent/task/types";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import { toolWireSchema } from "@amaze/pi-ai/utils/schema";
+import { AsyncJobManager } from "@amaze/pi-coding-agent/async/job-manager";
+import { Settings } from "@amaze/pi-coding-agent/config/settings";
+import { AgentLifecycleManager } from "@amaze/pi-coding-agent/registry/agent-lifecycle";
+import { AgentRegistry } from "@amaze/pi-coding-agent/registry/agent-registry";
+import { TaskTool } from "@amaze/pi-coding-agent/task";
+import * as discoveryModule from "@amaze/pi-coding-agent/task/discovery";
+import * as executorModule from "@amaze/pi-coding-agent/task/executor";
+import type { AgentDefinition, SingleResult, TaskParams } from "@amaze/pi-coding-agent/task/types";
+import type { ToolSession } from "@amaze/pi-coding-agent/tools";
 
 const taskAgent: AgentDefinition = {
 	name: "task",
@@ -256,6 +256,9 @@ describe("task.batch spawning", () => {
 
 		const text = getFirstText(result);
 		expect(text).toContain("Spawned 2 background agents");
+		expect(text).toContain("Use `irc` only while they run");
+		expect(text).toContain("read `history://<id>`");
+		expect(text).toContain("Failures will surface automatically");
 		expect(text).toContain("- `Alpha`");
 		expect(text).toContain("- `Beta`");
 		expect(result.details?.progress?.map(progress => progress.id)).toEqual(["Alpha", "Beta"]);
@@ -270,7 +273,7 @@ describe("task.batch spawning", () => {
 
 		expect(alphaJob!.status).toBe("completed");
 		expect(betaJob!.status).toBe("completed");
-		expect(alphaJob!.resultText).toContain("Alpha is now idle");
+		expect(alphaJob!.resultText).toContain("Alpha completed");
 		expect(betaJob!.resultText).toContain("history://Beta");
 
 		expect(seen).toHaveLength(2);

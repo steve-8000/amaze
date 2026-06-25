@@ -1,5 +1,5 @@
 import { describe, expect, it, spyOn } from "bun:test";
-import { Command, type CommandEntry, Flags, run } from "@oh-my-pi/pi-utils/cli";
+import { Command, type CommandEntry, Flags, run } from "@amaze/pi-utils/cli";
 
 class GoodCommand extends Command {
 	static description = "prints good things";
@@ -10,7 +10,7 @@ class GoodCommand extends Command {
 }
 
 describe("run() per-command help", () => {
-	// Contract: `omp <cmd> --help` must load only the requested command module.
+	// Contract: `amaze <cmd> --help` must load only the requested command module.
 	// Loading the whole table would let any unrelated command whose import
 	// hangs or crashes take down every per-command help invocation.
 	it("loads only the requested command", async () => {
@@ -31,7 +31,7 @@ describe("run() per-command help", () => {
 			return true;
 		});
 		try {
-			await run({ bin: "omp", version: "0.0.0", argv: ["good", "--help"], commands });
+			await run({ bin: "amaze", version: "0.0.0", argv: ["good", "--help"], commands });
 		} finally {
 			stdoutSpy.mockRestore();
 		}

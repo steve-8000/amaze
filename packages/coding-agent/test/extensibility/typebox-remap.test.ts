@@ -5,8 +5,8 @@ import * as path from "node:path";
 import {
 	installLegacyPiSpecifierShim,
 	loadLegacyPiModule,
-} from "@oh-my-pi/pi-coding-agent/extensibility/plugins/legacy-pi-compat";
-import { Type as TypeBoxShimType } from "@oh-my-pi/pi-coding-agent/extensibility/typebox";
+} from "@amaze/pi-coding-agent/extensibility/plugins/legacy-pi-compat";
+import { Type as TypeBoxShimType } from "@amaze/pi-coding-agent/extensibility/typebox";
 
 // The remap installs a Bun.plugin onResolve hook plus an explicit
 // rewrite branch inside `rewriteBareImportsForLegacyExtension` that
@@ -24,7 +24,7 @@ afterAll(async () => {
 });
 
 async function writeFixtureExtension(source: string): Promise<string> {
-	const dir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-typebox-remap-"));
+	const dir = await fs.mkdtemp(path.join(os.tmpdir(), "amaze-typebox-remap-"));
 	tempRoots.push(dir);
 	const entry = path.join(dir, "index.ts");
 	await fs.writeFile(entry, source, "utf8");

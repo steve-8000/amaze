@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import * as PiCodingAgent from "@oh-my-pi/pi-coding-agent";
-import { loadCustomCommands } from "@oh-my-pi/pi-coding-agent/extensibility/custom-commands/loader";
-import { loadCustomTools } from "@oh-my-pi/pi-coding-agent/extensibility/custom-tools/loader";
-import { loadExtensions } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/loader";
-import { loadHooks } from "@oh-my-pi/pi-coding-agent/extensibility/hooks/loader";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import * as PiCodingAgent from "@amaze/pi-coding-agent";
+import { loadCustomCommands } from "@amaze/pi-coding-agent/extensibility/custom-commands/loader";
+import { loadCustomTools } from "@amaze/pi-coding-agent/extensibility/custom-tools/loader";
+import { loadExtensions } from "@amaze/pi-coding-agent/extensibility/extensions/loader";
+import { loadHooks } from "@amaze/pi-coding-agent/extensibility/hooks/loader";
+import { TempDir } from "@amaze/pi-utils";
 
 declare global {
 	var __ompHostPiForLoaderIdentityTest: typeof PiCodingAgent | undefined;
@@ -127,8 +127,8 @@ describe("extension loader host runtime binding", () => {
 		for (const loaderPath of loaderPaths) {
 			const source = await Bun.file(loaderPath).text();
 
-			expect(source).not.toMatch(/from\s+["']@oh-my-pi\/pi-coding-agent["']/);
-			expect(source).not.toMatch(/import\(\s*["']@oh-my-pi\/pi-coding-agent["']\s*\)/);
+			expect(source).not.toMatch(/from\s+["']@amaze\/pi-coding-agent["']/);
+			expect(source).not.toMatch(/import\(\s*["']@amaze\/pi-coding-agent["']\s*\)/);
 		}
 	});
 });

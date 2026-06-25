@@ -1,11 +1,11 @@
 import * as os from "node:os";
 import * as path from "node:path";
-import { getAgentDir, isEnoent, logger } from "@oh-my-pi/pi-utils";
+import { getAgentDir, isEnoent, logger } from "@amaze/pi-utils";
 import { expandAtImports } from "../discovery/at-imports";
 import { repo } from "../utils/git";
 
 /**
- * Discover and load WATCHDOG.md files walking up from cwd, project .omp folder, and user agent dir.
+ * Discover and load WATCHDOG.md files walking up from cwd, project .amaze folder, and user agent dir.
  * Returns formatted watchdog file blocks ready to be appended to the advisor system prompt.
  */
 export async function discoverWatchdogFiles(cwd: string, agentDir?: string): Promise<string[]> {
@@ -21,15 +21,15 @@ export async function discoverWatchdogFiles(cwd: string, agentDir?: string): Pro
 
 	const candidates = new Set<string>();
 
-	// 1. User level: ~/.omp/WATCHDOG.md (or active profile agent dir)
+	// 1. User level: ~/.amaze/WATCHDOG.md (or active profile agent dir)
 	if (resolvedAgentDir) {
 		candidates.add(path.resolve(resolvedAgentDir, "WATCHDOG.md"));
 	}
 
-	// 2. Project levels (both standalone and native config .omp/): walk up from cwd to repoRoot / home
+	// 2. Project levels (both standalone and native config .amaze/): walk up from cwd to repoRoot / home
 	let current = cwd;
 	while (true) {
-		candidates.add(path.resolve(current, ".omp", "WATCHDOG.md"));
+		candidates.add(path.resolve(current, ".amaze", "WATCHDOG.md"));
 		candidates.add(path.resolve(current, "WATCHDOG.md"));
 
 		if (current === (repoRoot ?? home)) break;
@@ -48,10 +48,10 @@ export async function discoverWatchdogFiles(cwd: string, agentDir?: string): Pro
 			const baseName = parent.split(path.sep).pop() ?? "";
 
 			const isUser = userPath !== null && candidate === userPath;
-			const ownerDir = baseName === ".omp" ? path.dirname(parent) : parent;
+			const ownerDir = baseName === ".amaze" ? path.dirname(parent) : parent;
 			const ownerBaseName = ownerDir.split(path.sep).pop() ?? "";
 
-			if (isUser || !ownerBaseName.startsWith(".") || baseName === ".omp") {
+			if (isUser || !ownerBaseName.startsWith(".") || baseName === ".amaze") {
 				const relative = path.relative(cwd, ownerDir);
 				const depth = relative === "" ? 0 : relative.split(path.sep).filter(Boolean).length;
 				items.push({

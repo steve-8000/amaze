@@ -3,17 +3,17 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import "@oh-my-pi/pi-coding-agent/tools/renderers";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { ReadTool } from "@oh-my-pi/pi-coding-agent/tools/read";
+import "@amaze/pi-coding-agent/tools/renderers";
+import { Settings } from "@amaze/pi-coding-agent/config/settings";
+import { ReadTool } from "@amaze/pi-coding-agent/tools/read";
 import {
 	listTables,
 	parseSqlitePathCandidates,
 	parseSqliteSelector,
 	renderTable,
 	renderTableList,
-} from "@oh-my-pi/pi-coding-agent/tools/sqlite-reader";
-import { WriteTool } from "@oh-my-pi/pi-coding-agent/tools/write";
+} from "@amaze/pi-coding-agent/tools/sqlite-reader";
+import { WriteTool } from "@amaze/pi-coding-agent/tools/write";
 
 type ToolTextResult = {
 	content: Array<{ type: string; text?: string }>;
@@ -32,7 +32,6 @@ function createSession(cwd: string, overrides: Partial<SessionLike> = {}): Sessi
 	return {
 		cwd,
 		hasUI: false,
-		enableLsp: false,
 		getSessionFile: () => null,
 		getSessionSpawns: () => "*",
 		settings: Settings.isolated(),

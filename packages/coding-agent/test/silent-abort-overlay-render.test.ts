@@ -11,13 +11,13 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { AgentTranscriptViewer } from "@oh-my-pi/pi-coding-agent/modes/components/agent-transcript-viewer";
-import type { ObservableSession } from "@oh-my-pi/pi-coding-agent/modes/session-observer-registry";
-import { initTheme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
-import { SILENT_ABORT_MARKER } from "@oh-my-pi/pi-coding-agent/session/messages";
-import type { TUI } from "@oh-my-pi/pi-tui";
+import { resetSettingsForTest, Settings } from "@amaze/pi-coding-agent/config/settings";
+import { AgentTranscriptViewer } from "@amaze/pi-coding-agent/modes/components/agent-transcript-viewer";
+import type { ObservableSession } from "@amaze/pi-coding-agent/modes/session-observer-registry";
+import { initTheme } from "@amaze/pi-coding-agent/modes/theme/theme";
+import { AgentRegistry } from "@amaze/pi-coding-agent/registry/agent-registry";
+import { SILENT_ABORT_MARKER } from "@amaze/pi-coding-agent/session/messages";
+import type { TUI } from "@amaze/pi-tui";
 
 const SESSION_ID = "test-session-1";
 
@@ -34,7 +34,7 @@ function makeSubagentRegistry(sessions: ObservableSession[]) {
 		onChange: () => () => {},
 		setMainSession: () => {},
 		getActiveSubagentCount: () => sessions.filter(s => s.status === "active").length,
-	} as unknown as import("@oh-my-pi/pi-coding-agent/modes/session-observer-registry").SessionObserverRegistry;
+	} as unknown as import("@amaze/pi-coding-agent/modes/session-observer-registry").SessionObserverRegistry;
 }
 
 function makeViewer(sessionFile: string, observed: ObservableSession[]): AgentTranscriptViewer {
@@ -73,7 +73,7 @@ describe("Agent hub silent-abort regression", () => {
 	beforeEach(async () => {
 		resetSettingsForTest();
 		await Settings.init({ inMemory: true });
-		tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-overlay-test-"));
+		tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "amaze-overlay-test-"));
 	});
 
 	afterEach(() => {

@@ -32,6 +32,8 @@ export type AgentKind = "main" | "sub" | "advisor";
 
 export interface AgentRef {
 	id: string;
+	/** Concrete subagent definition name (for example: finder, coder, checker). */
+	agentName?: string;
 	displayName: string;
 	kind: AgentKind;
 	parentId?: string;
@@ -43,6 +45,8 @@ export interface AgentRef {
 	lastActivity: number;
 	/** Short gist of what the agent is currently doing (latest intent or tool), for the work-aware roster. Display-only. */
 	activity?: string;
+	/** False means a parked transcript is terminal and must not be revived into a live model turn. */
+	revivable?: boolean;
 }
 
 export type RegistryEvent =
@@ -54,12 +58,14 @@ type RegistryListener = (event: RegistryEvent) => void;
 
 export interface RegisterInput {
 	id: string;
+	agentName?: string;
 	displayName: string;
 	kind: AgentKind;
 	parentId?: string;
 	session: AgentSession | null;
 	sessionFile?: string | null;
 	status?: AgentStatus;
+	revivable?: boolean;
 }
 
 export class AgentRegistry {
@@ -84,6 +90,7 @@ export class AgentRegistry {
 		const now = Date.now();
 		const ref: AgentRef = {
 			id: input.id,
+			agentName: input.agentName,
 			displayName: input.displayName,
 			kind: input.kind,
 			parentId: input.parentId,
@@ -92,6 +99,7 @@ export class AgentRegistry {
 			sessionFile: input.sessionFile ?? null,
 			createdAt: now,
 			lastActivity: now,
+			revivable: input.revivable,
 		};
 		this.#refs.set(ref.id, ref);
 		this.#emit({ type: "registered", ref });
@@ -105,6 +113,14 @@ export class AgentRegistry {
 		// Activity describes current work; it is meaningless once the agent
 		// leaves `running`, so drop it to avoid showing stale work in rosters.
 		if (status !== "running") ref.activity = undefined;
+		ref.lastActivity = Date.now();
+		this.#emit({ type: "status_changed", ref });
+	}
+
+	setRevivable(id: string, revivable: boolean): void {
+		const ref = this.#refs.get(id);
+		if (!ref || ref.revivable === revivable) return;
+		ref.revivable = revivable;
 		ref.lastActivity = Date.now();
 		this.#emit({ type: "status_changed", ref });
 	}

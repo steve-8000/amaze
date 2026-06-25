@@ -1,7 +1,7 @@
 You MUST create a structured summary of the conversation branch for context when returning.
+Omit `## Next Steps` when this branch already reached a completed answer and only optional follow-up ideas remain.
 
 You MUST use EXACT format:
-
 ## Goal
 
 [What is the user trying to accomplish in this branch?]

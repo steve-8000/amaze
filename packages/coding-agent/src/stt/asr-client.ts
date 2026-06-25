@@ -1,5 +1,5 @@
 import * as path from "node:path";
-import { $env, isBunTestRuntime, isCompiledBinary, logger, workerHostEntry } from "@oh-my-pi/pi-utils";
+import { $env, isBunTestRuntime, isCompiledBinary, logger, workerHostEntry } from "@amaze/pi-utils";
 import type { Subprocess } from "bun";
 import { settings } from "../config/settings";
 import { tinyWorkerEnvOverlay } from "../tiny/title-client";
@@ -80,7 +80,7 @@ function readTinyModelSetting(key: "providers.tinyModelDevice" | "providers.tiny
 		const value = settings.get(key);
 		return typeof value === "string" ? value : undefined;
 	} catch {
-		// Settings may be uninitialized (e.g. `omp --smoke-test`); fall back to env/default.
+		// Settings may be uninitialized (e.g. `amaze --smoke-test`); fall back to env/default.
 		return undefined;
 	}
 }

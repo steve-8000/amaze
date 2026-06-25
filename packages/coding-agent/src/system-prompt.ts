@@ -3,16 +3,21 @@
  */
 
 import * as os from "node:os";
-import type { AgentTool } from "@oh-my-pi/pi-agent-core";
-import type { ToolExample, TSchema } from "@oh-my-pi/pi-ai";
-import { renderToolInventory } from "@oh-my-pi/pi-ai/dialect";
-import { $env, getGpuCachePath, getProjectDir, hasFsCode, isEnoent, logger, prompt } from "@oh-my-pi/pi-utils";
+import type { AgentTool } from "@amaze/pi-agent-core";
+import type { ToolExample, TSchema } from "@amaze/pi-ai";
+import { renderToolInventory } from "@amaze/pi-ai/dialect";
+import { $env, getGpuCachePath, getProjectDir, hasFsCode, isEnoent, logger, prompt } from "@amaze/pi-utils";
 import { $ } from "bun";
 import { contextFileCapability } from "./capability/context-file";
 import { systemPromptCapability } from "./capability/system-prompt";
 import { findConfigFile } from "./config";
 import type { Personality, SkillsSettings } from "./config/settings";
-import { type ContextFile, loadCapability, type SystemPrompt as SystemPromptFile } from "./discovery";
+import {
+	type ContextFile,
+	isCapabilityDisabled,
+	loadCapability,
+	type SystemPrompt as SystemPromptFile,
+} from "./discovery";
 import { expandAtImports } from "./discovery/at-imports";
 import { loadSkills, type Skill } from "./extensibility/skills";
 import { hasObsidian } from "./internal-urls/vault-protocol";
@@ -327,7 +332,19 @@ export async function loadSystemPromptFiles(options: LoadContextFilesOptions = {
 	return userLevel?.content ?? null;
 }
 
-export const DEFAULT_SYSTEM_PROMPT_TOOL_NAMES = ["read", "bash", "eval", "edit", "write"] as const;
+export const DEFAULT_SYSTEM_PROMPT_TOOL_NAMES = [
+	"read",
+	"bash",
+	"eval",
+	"search_graph",
+	"trace_path",
+	"get_code_snippet",
+	"get_architecture",
+	"ast_grep",
+	"ast_edit",
+	"edit",
+	"write",
+] as const;
 
 export interface SystemPromptToolMetadata {
 	label: string;
@@ -415,8 +432,6 @@ export interface BuildSystemPromptOptions {
 	secretsEnabled?: boolean;
 	/** Pre-loaded workspace tree (skips discovery if provided). May be a Promise to allow early kick-off. */
 	workspaceTree?: WorkspaceTree | Promise<WorkspaceTree>;
-	/** Whether the local memory://root summary is active. */
-	memoryRootEnabled?: boolean;
 	/** Active model identifier (e.g. "anthropic/claude-opus-4") surfaced to the agent. */
 	model?: string;
 	/** Personality preset rendered into the default system prompt. "none" omits the block. Default: "default" */
@@ -460,7 +475,6 @@ export async function buildSystemPrompt(options: BuildSystemPromptOptions = {}):
 		taskBatch = true,
 		secretsEnabled = false,
 		workspaceTree: providedWorkspaceTree,
-		memoryRootEnabled = false,
 		model,
 		personality = "default",
 		includeWorkspaceTree = false,
@@ -571,7 +585,12 @@ export async function buildSystemPrompt(options: BuildSystemPromptOptions = {}):
 			withDeadline("loadSkills", skillsPromise, prepDefaults.skills),
 			withDeadline("buildWorkspaceTree", workspaceTreePromise, prepDefaults.workspaceTree),
 		]);
-	const agentsMdFiles = Array.from(new Set(workspaceTree.agentsMdFiles)).sort().slice(0, AGENTS_MD_LIMIT);
+	// When the context-files capability is disabled, suppress the dir-context
+	// AGENTS.md pointer list too — otherwise "read these AGENTS.md" guidance
+	// survives even though the files themselves are no longer injected.
+	const agentsMdFiles = isCapabilityDisabled(contextFileCapability.id)
+		? []
+		: Array.from(new Set(workspaceTree.agentsMdFiles)).sort().slice(0, AGENTS_MD_LIMIT);
 
 	if (timedOut.length > 0) {
 		logger.warn("System prompt preparation steps timed out; using minimal fallback for those steps", {
@@ -679,7 +698,6 @@ export async function buildSystemPrompt(options: BuildSystemPromptOptions = {}):
 		eagerTasksAlways,
 		taskBatch,
 		secretsEnabled,
-		hasMemoryRoot: memoryRootEnabled,
 		hasObsidian: hasObsidian(),
 		includeWorkspaceTree,
 	};

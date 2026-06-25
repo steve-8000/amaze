@@ -3,14 +3,14 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as url from "node:url";
-import { resetSettingsForTest, Settings, settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { editToolRenderer } from "@oh-my-pi/pi-coding-agent/edit/renderer";
-import { getThemeByName, initTheme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { astGrepToolRenderer } from "@oh-my-pi/pi-coding-agent/tools/ast-grep";
-import { ReadTool, readToolRenderer } from "@oh-my-pi/pi-coding-agent/tools/read";
-import { searchToolRenderer } from "@oh-my-pi/pi-coding-agent/tools/search";
-import { WriteTool, writeToolRenderer } from "@oh-my-pi/pi-coding-agent/tools/write";
+import { resetSettingsForTest, Settings, settings } from "@amaze/pi-coding-agent/config/settings";
+import { editToolRenderer } from "@amaze/pi-coding-agent/edit/renderer";
+import { getThemeByName, initTheme } from "@amaze/pi-coding-agent/modes/theme/theme";
+import type { ToolSession } from "@amaze/pi-coding-agent/tools";
+import { astGrepToolRenderer } from "@amaze/pi-coding-agent/tools/ast-grep";
+import { ReadTool, readToolRenderer } from "@amaze/pi-coding-agent/tools/read";
+import { searchToolRenderer } from "@amaze/pi-coding-agent/tools/search";
+import { WriteTool, writeToolRenderer } from "@amaze/pi-coding-agent/tools/write";
 
 // 1x1 PNG so the read tool takes its image branch.
 const TINY_PNG_BASE64 =
@@ -48,7 +48,7 @@ describe("tool output OSC 8 file:// hyperlinks", () => {
 	it("links plain text and image read titles to the resolved filesystem path", async () => {
 		settings.override("tui.hyperlinks", "always");
 		const theme = (await getThemeByName("dark"))!;
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-link-read-"));
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "amaze-link-read-"));
 		try {
 			const textPath = path.join(dir, "task.txt");
 			fs.writeFileSync(textPath, "hello\nworld\n");
@@ -88,7 +88,7 @@ describe("tool output OSC 8 file:// hyperlinks", () => {
 	it("links the write header to the absolute path it wrote", async () => {
 		settings.override("tui.hyperlinks", "always");
 		const theme = (await getThemeByName("dark"))!;
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-link-write-"));
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "amaze-link-write-"));
 		try {
 			const filePath = path.join(dir, "out.ts");
 			const tool = new WriteTool(createTestToolSession(dir));
@@ -114,7 +114,7 @@ describe("tool output OSC 8 file:// hyperlinks", () => {
 		// Scoped search: scope dir (`searchPath`) is below cwd, and the grouped
 		// display paths are cwd-relative. Resolving against searchPath would double
 		// the `src` prefix (`/proj/src/src/...`).
-		const projectRoot = path.resolve("/tmp/omp-project");
+		const projectRoot = path.resolve("/tmp/amaze-project");
 		const srcRoot = path.join(projectRoot, "src");
 		const interactiveModePath = path.join(srcRoot, "interactive-mode.ts");
 		const result = {
@@ -144,7 +144,7 @@ describe("tool output OSC 8 file:// hyperlinks", () => {
 	it("resolves scoped ast-grep links against cwd, not the (sub)scope path", async () => {
 		settings.override("tui.hyperlinks", "always");
 		const theme = (await getThemeByName("dark"))!;
-		const projectRoot = path.resolve("/tmp/omp-project");
+		const projectRoot = path.resolve("/tmp/amaze-project");
 		const srcRoot = path.join(projectRoot, "src");
 		const interactiveModePath = path.join(srcRoot, "interactive-mode.ts");
 		const result = {
@@ -173,7 +173,7 @@ describe("tool output OSC 8 file:// hyperlinks", () => {
 	it("links the edit header to the absolute details.path even when the arg path is relative", async () => {
 		settings.override("tui.hyperlinks", "always");
 		const theme = (await getThemeByName("dark"))!;
-		const editPath = path.resolve("/tmp/omp-project/src/a.ts");
+		const editPath = path.resolve("/tmp/amaze-project/src/a.ts");
 		const rendered = editToolRenderer
 			.renderResult(
 				{

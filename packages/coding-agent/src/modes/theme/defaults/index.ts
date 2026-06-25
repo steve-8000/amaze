@@ -46,6 +46,7 @@ import dark_tokyo_night from "./dark-tokyo-night.json" with { type: "json" };
 import dark_tundra from "./dark-tundra.json" with { type: "json" };
 import dark_twilight from "./dark-twilight.json" with { type: "json" };
 import dark_volcanic from "./dark-volcanic.json" with { type: "json" };
+import erid from "./erid.json" with { type: "json" };
 import graphite from "./graphite.json" with { type: "json" };
 import light_arctic from "./light-arctic.json" with { type: "json" };
 import light_aurora_day from "./light-aurora-day.json" with { type: "json" };
@@ -146,6 +147,7 @@ export const defaultThemes = {
 	"dark-tundra": dark_tundra,
 	"dark-twilight": dark_twilight,
 	"dark-volcanic": dark_volcanic,
+	erid: erid,
 	graphite: graphite,
 	"light-arctic": light_arctic,
 	"light-aurora-day": light_aurora_day,

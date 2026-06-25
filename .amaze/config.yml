@@ -1,0 +1,90 @@
+setupVersion: 1
+memory:
+  backend: "off"
+mnemopi:
+  scoping: per-project-tagged
+  autoRecall: true
+  autoRetain: true
+  noEmbeddings: false
+  embeddingModel: mlx-community/Qwen3-Embedding-4B-4bit-DWQ
+  embeddingApiUrl: http://127.0.0.1:7778/v1
+  embeddingApiKey: ""
+  llmMode: remote
+  llmBaseUrl: http://127.0.0.1:7777/v1
+  llmModel: gemma-4-12b-qat-4bit
+  llmApiKey: ""
+  polyphonicRecall: true
+  enhancedRecall: true
+  proactiveLinking: false
+modelRoles:
+  default: openai-codex/gpt-5.5:medium
+  thinker: openai/gpt-5.4:medium
+  coder: openai/gpt-5.4:medium
+  finder: openai/gpt-5.4:medium
+  fixer: openai/gpt-5.4:medium
+  checker: openai/gpt-5.4:medium
+  helper: openai/gpt-5.4:medium
+  commit: openai/gpt-5.3-codex-spark:medium
+defaultThinkingLevel: medium
+hideThinkingBlock: false
+cycleOrder:
+  - default
+  - thinker
+  - coder
+  - finder
+  - fixer
+  - checker
+  - helper
+statusLine:
+  preset: custom
+  leftSegments:
+    - model
+    - mode
+    - collab
+    - path
+    - git
+    - pr
+    - context_pct
+    - cost
+  rightSegments:
+    - session_name
+contextPromotion:
+  enabled: false
+autolearn:
+  enabled: true
+task:
+  maxConcurrency: 2
+  batch: false
+  eager: preferred
+  maxRecursionDepth: 2
+  maxRuntimeMs: 0
+compaction:
+  idleEnabled: false
+  thresholdPercent: 70
+  thresholdTokens: -1
+  enabled: true
+branchSummary:
+  enabled: false
+dev:
+  autoqa:
+    consent: granted
+rocky:
+  apiUrl: http://127.0.0.1:7777
+  projectPath: /Users/steve/amaze_s3/amaze
+todo:
+  reminders:
+    max: 1
+tools:
+  discoveryMode: "off"
+mcp:
+  enableProjectConfig: true
+personality: pragmatic
+steeringMode: one-at-a-time
+stt:
+  enabled: false
+commands:
+  enableClaudeUser: false
+  enableClaudeProject: false
+  enableOpencodeUser: false
+  enableOpencodeProject: false
+omitThinking: false

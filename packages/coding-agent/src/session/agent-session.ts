@@ -19,7 +19,7 @@ import * as path from "node:path";
 import { scheduler } from "node:timers/promises";
 import { isPromise } from "node:util/types";
 
-import type { InMemorySnapshotStore } from "@oh-my-pi/hashline";
+import type { InMemorySnapshotStore } from "@amaze/hashline";
 import {
 	type AfterToolCallContext,
 	type AfterToolCallResult,
@@ -36,7 +36,7 @@ import {
 	resolveTelemetry,
 	ThinkingLevel,
 	type ToolChoiceDirective,
-} from "@oh-my-pi/pi-agent-core";
+} from "@amaze/pi-agent-core";
 import {
 	AGGRESSIVE_SHAKE_CONFIG,
 	AUTO_HANDOFF_THRESHOLD_FOCUS,
@@ -65,14 +65,14 @@ import {
 	type SummaryOptions,
 	shouldCompact,
 	shouldUseOpenAiRemoteCompaction,
-} from "@oh-my-pi/pi-agent-core/compaction";
+} from "@amaze/pi-agent-core/compaction";
 import {
 	DEFAULT_PRUNE_CONFIG,
 	pruneSupersededToolResults,
 	pruneToolOutputs,
 	readToolSupersedeKey,
-} from "@oh-my-pi/pi-agent-core/compaction/pruning";
-import type { ProtectedToolMatcher } from "@oh-my-pi/pi-agent-core/compaction/tool-protection";
+} from "@amaze/pi-agent-core/compaction/pruning";
+import type { ProtectedToolMatcher } from "@amaze/pi-agent-core/compaction/tool-protection";
 import type {
 	AssistantMessage,
 	ImageContent,
@@ -91,7 +91,7 @@ import type {
 	ToolChoice,
 	Usage,
 	UsageReport,
-} from "@oh-my-pi/pi-ai";
+} from "@amaze/pi-ai";
 import {
 	calculateRateLimitBackoffMs,
 	clearAnthropicFastModeFallback,
@@ -102,13 +102,13 @@ import {
 	parseRateLimitReason,
 	resolveServiceTier,
 	streamSimple,
-} from "@oh-my-pi/pi-ai";
-import { stripToolDescriptions, toolWireSchema } from "@oh-my-pi/pi-ai/utils/schema";
-import { THINKING_LOOP_ERROR_MARKER } from "@oh-my-pi/pi-ai/utils/thinking-loop";
-import { isFireworksFastModelId, toFireworksBaseModelId } from "@oh-my-pi/pi-catalog/fireworks-model-id";
-import { getSupportedEfforts } from "@oh-my-pi/pi-catalog/model-thinking";
-import { modelsAreEqual } from "@oh-my-pi/pi-catalog/models";
-import { MacOSPowerAssertion } from "@oh-my-pi/pi-natives";
+} from "@amaze/pi-ai";
+import { stripToolDescriptions, toolWireSchema } from "@amaze/pi-ai/utils/schema";
+import { THINKING_LOOP_ERROR_MARKER } from "@amaze/pi-ai/utils/thinking-loop";
+import { isFireworksFastModelId, toFireworksBaseModelId } from "@amaze/pi-catalog/fireworks-model-id";
+import { getSupportedEfforts } from "@amaze/pi-catalog/model-thinking";
+import { modelsAreEqual } from "@amaze/pi-catalog/models";
+import { MacOSPowerAssertion } from "@amaze/pi-natives";
 import {
 	extractRetryHint,
 	formatDuration,
@@ -122,8 +122,8 @@ import {
 	relativePathWithinRoot,
 	Snowflake,
 	withTimeout,
-} from "@oh-my-pi/pi-utils";
-import * as snapcompact from "@oh-my-pi/snapcompact";
+} from "@amaze/pi-utils";
+import * as snapcompact from "@amaze/snapcompact";
 import {
 	AdviseTool,
 	type AdvisorAgent,
@@ -160,6 +160,7 @@ import { MODEL_ROLE_IDS, MODEL_ROLES } from "../config/model-roles";
 import { expandPromptTemplate, type PromptTemplate } from "../config/prompt-templates";
 import type { Settings, SkillsSettings } from "../config/settings";
 import { getDefault, onAppendOnlyModeChanged } from "../config/settings";
+import { auditProviderVisibleMessages } from "../context";
 import { RawSseDebugBuffer } from "../debug/raw-sse-buffer";
 import { loadCapability } from "../discovery";
 import { expandApplyPatchToEntries, normalizeDiff, normalizeToLF, ParseError, previewPatch, stripBom } from "../edit";
@@ -203,12 +204,9 @@ import type { Skill, SkillWarning } from "../extensibility/skills";
 import { expandSlashCommand, type FileSlashCommand } from "../extensibility/slash-commands";
 import { GoalRuntime } from "../goals/runtime";
 import type { Goal, GoalModeState } from "../goals/state";
-import type { HindsightSessionState } from "../hindsight/state";
 import { type LocalProtocolOptions, resolveLocalUrlToPath } from "../internal-urls";
 import { IrcBus, type IrcMessage } from "../irc/bus";
-import { resolveMemoryBackend } from "../memory-backend";
-import { shutdownMnemopiEmbedClient } from "../mnemopi/embed-client";
-import { getMnemopiSessionState, type MnemopiSessionState, setMnemopiSessionState } from "../mnemopi/state";
+import { filterAmazeCodebaseMcpTools } from "../mcp/rocky-codebase-service";
 import { containsOrchestrate, ORCHESTRATE_NOTICE } from "../modes/orchestrate";
 import { theme } from "../modes/theme/theme";
 import { parseTurnBudget } from "../modes/turn-budget";
@@ -308,10 +306,17 @@ import { formatSessionHistoryMarkdown } from "./session-history-format";
 import type { SessionManager } from "./session-manager";
 import type { ShakeMode, ShakeResult } from "./shake-types";
 import { ToolChoiceQueue } from "./tool-choice-queue";
+import { type AutoTurnDecision, type AutoTurnRequest, type AutoTurnSource, TurnScheduler } from "./turn-scheduler";
 import { classifyUnexpectedStop, isUnexpectedStopCandidate } from "./unexpected-stop-classifier";
 import { YieldQueue } from "./yield-queue";
 
-const SESSION_STOP_CONTINUATION_CAP = 8;
+const SESSION_STOP_CONTINUATION_CAP = 3;
+const TTSR_CONTINUATION_CAP = 3;
+const COMPACTION_AUTO_CONTINUE_CAP = 3;
+const YIELD_CONTINUATION_CAP = 3;
+const ASYNC_YIELD_CONTINUATION_CAP = 3;
+const IRC_WAKE_SESSION_CAP = 10;
+const IRC_WAKE_CONSECUTIVE_CAP = 3;
 
 // A side-channel assistant response is signed for the hidden prompt/history that
 // produced it. If we persist that response under a different user turn, native
@@ -433,9 +438,15 @@ function calculateRetryBackoffDelayMs(baseDelayMs: number, attempt: number): num
  */
 const SIBLING_UNBLOCK_BUFFER_MS = 1_000;
 const NON_WHITESPACE_RE = /\S/;
+const COMPLETED_ANALYTICAL_STOP_RE =
+	/\b(?:i(?:'|’)ve|i have|we(?:'|’)ve|we have)\s+(?:completed|finished|wrapped up)\b|\b(?:the )?(?:task|fix|change|analysis|review|investigation|summary|work|implementation)\s+(?:is\s+)?(?:complete|completed|done)\b|\btests?\s+pass(?:ed)?\b|\bnothing left to do\b|\bno further action(?: is)? required\b|\bis there anything else\b/i;
 
 function hasNonWhitespace(value: string): boolean {
 	return NON_WHITESPACE_RE.test(value);
+}
+
+function looksLikeCompletedAnalyticalStop(text: string): boolean {
+	return COMPLETED_ANALYTICAL_STOP_RE.test(text);
 }
 
 export interface AsyncJobSnapshot {
@@ -475,7 +486,7 @@ export interface AgentSessionConfig {
 	skillsSettings?: SkillsSettings;
 	/** Model registry for API key resolution and model discovery */
 	modelRegistry: ModelRegistry;
-	/** Tool registry for LSP and settings */
+	/** Tool registry for built-ins, custom tools, and settings */
 	toolRegistry?: Map<string, AgentTool>;
 	/** Tool names whose current registry entry is still the built-in implementation. */
 	builtInToolNames?: Iterable<string>;
@@ -826,7 +837,7 @@ function buildSessionMetadata(
 		if (typeof accountUuid === "string" && accountUuid.length > 0) {
 			userId.account_uuid = accountUuid;
 			// Claude Code's `device_id` is a stable 64-hex account-scoped install
-			// identifier. Include both omp's persistent install id and the Claude
+			// identifier. Include both amaze's persistent install id and the Claude
 			// account UUID so two accounts on the same install do not share a device.
 			userId.device_id = deriveClaudeDeviceId(getInstallId(), accountUuid);
 		}
@@ -1271,7 +1282,6 @@ export class AgentSession {
 	#disconnectOwnedMcpManager: (() => Promise<void>) | undefined;
 	#requestedToolNames: ReadonlySet<string> | undefined;
 	#baseSystemPrompt: string[];
-	#baseSystemPromptBeforeMemoryPromotion: string[] | undefined;
 	/**
 	 * Signature of the (toolNames, tool descriptions) tuple passed to the most
 	 * recent successful `rebuildSystemPrompt` call. Used to skip redundant rebuilds
@@ -1347,8 +1357,8 @@ export class AgentSession {
 				cutoffCount: number;
 		  }
 		| undefined = undefined;
-	#sessionStopContinuationCount = 0;
 	#sessionStopHookActive = false;
+	#turnScheduler = new TurnScheduler();
 	// Bumped whenever the pending in-flight snapshot is set/cleared. The
 	// status-line context memo includes this so clearing the snapshot on
 	// turn-end/abort invalidates the cache even though the message list is
@@ -1362,7 +1372,6 @@ export class AgentSession {
 	#rewoundToolResultIds = new Set<string>();
 	#lastSuccessfulYieldToolCallId: string | undefined = undefined;
 	#providerSessionState = new Map<string, ProviderSessionState>();
-	#hindsightSessionState: HindsightSessionState | undefined = undefined;
 	readonly rawSseDebugBuffer: RawSseDebugBuffer;
 
 	#acquirePowerAssertion(): void {
@@ -1373,7 +1382,7 @@ export class AgentSession {
 		if (mode === "off") return;
 		try {
 			this.#powerAssertion = MacOSPowerAssertion.start({
-				reason: "Oh My Pi agent session",
+				reason: "Amaze Agent agent session",
 				idle: true,
 				display: mode === "display" || mode === "system",
 				system: mode === "system",
@@ -1456,6 +1465,33 @@ export class AgentSession {
 	 *  because #canAutoContinueForFollowUp suppresses follow-up auto-resume while a user interrupt is
 	 *  in effect, even though the wake left a provider-valid tail. */
 	#wakeForIrc(records: CustomMessage[]): void {
+		const firstRecord = records[0];
+		if (!firstRecord) return;
+		const recordKeys = records.map(record => {
+			const details = record.details;
+			if (details && typeof details === "object" && "id" in details && typeof details.id === "string") {
+				return details.id;
+			}
+			return String(record.timestamp);
+		});
+		const ircTurn = this.#turnScheduler.request({
+			source: "irc",
+			sessionId: this.sessionId,
+			dedupeKey: `irc-wake:${recordKeys.join(",")}:${Snowflake.next()}`,
+			message: firstRecord,
+			triggerTurn: true,
+			maxPerSession: IRC_WAKE_SESSION_CAP,
+			maxConsecutive: IRC_WAKE_CONSECUTIVE_CAP,
+		});
+		if (ircTurn.decision === "deny") {
+			logger.warn("IRC wake turn denied by turn scheduler", {
+				sessionId: this.sessionId,
+				reason: ircTurn.reason,
+				maxPerSession: IRC_WAKE_SESSION_CAP,
+				maxConsecutive: IRC_WAKE_CONSECUTIVE_CAP,
+			});
+			return;
+		}
 		// Park only a *blocked* follow-up (one a user interrupt is intentionally holding); an
 		// already-resumable follow-up can ride the wake turn normally without reordering.
 		const parkedFollowUps =
@@ -1623,6 +1659,15 @@ export class AgentSession {
 				const first = messages[0];
 				if (!first) return;
 				await this.agent.prompt(messages.length === 1 ? first : messages);
+			},
+			admitIdleFlush: () => {
+				return this.#admitAutomaticContinuationTurn({
+					source: "async-yield",
+					maxPerSession: ASYNC_YIELD_CONTINUATION_CAP,
+					maxConsecutive: ASYNC_YIELD_CONTINUATION_CAP,
+					dedupePrefix: "async-yield",
+					logMessage: "Async yield idle prompt denied by turn scheduler",
+				});
 			},
 			scheduleIdleFlush: run => {
 				this.#schedulePostPromptTask(
@@ -2273,20 +2318,6 @@ export class AgentSession {
 	/** Provider-scoped mutable state store for transport/session caches. */
 	get providerSessionState(): Map<string, ProviderSessionState> {
 		return this.#providerSessionState;
-	}
-
-	getHindsightSessionState(): HindsightSessionState | undefined {
-		return this.#hindsightSessionState;
-	}
-
-	setHindsightSessionState(state: HindsightSessionState | undefined): HindsightSessionState | undefined {
-		const previous = this.#hindsightSessionState;
-		this.#hindsightSessionState = state;
-		return previous;
-	}
-
-	getMnemopiSessionState(): MnemopiSessionState | undefined {
-		return getMnemopiSessionState(this);
 	}
 
 	/** TTSR manager for time-traveling stream rules */
@@ -2962,6 +2993,31 @@ export class AgentSession {
 		this.#trackPostPromptTask(scheduled);
 	}
 
+	#admitAutomaticContinuationTurn(options: {
+		source: AutoTurnSource;
+		dedupePrefix: string;
+		maxPerSession: number;
+		maxConsecutive: number;
+		logMessage: string;
+	}): boolean {
+		const turn = this.#turnScheduler.requestContinuation({
+			source: options.source,
+			sessionId: this.sessionId,
+			dedupeKey: `${options.dedupePrefix}:${Snowflake.next()}`,
+			maxPerSession: options.maxPerSession,
+			maxConsecutive: options.maxConsecutive,
+		});
+		if (turn.decision === "admit") {
+			return true;
+		}
+		logger.warn(options.logMessage, {
+			sessionId: this.sessionId,
+			reason: turn.reason,
+			cap: options.maxPerSession,
+		});
+		return false;
+	}
+
 	#scheduleAgentContinue(options?: {
 		delayMs?: number;
 		generation?: number;
@@ -3010,25 +3066,39 @@ export class AgentSession {
 	}
 
 	#scheduleAutoContinuePrompt(generation: number): void {
+		const message: Message = {
+			role: "developer",
+			content: [{ type: "text", text: autoContinuePrompt }],
+			attribution: "agent",
+			timestamp: Date.now(),
+		};
+		const compactionTurn = this.#turnScheduler.request({
+			source: "compaction",
+			sessionId: this.sessionId,
+			dedupeKey: `compaction-auto-continue:${Snowflake.next()}`,
+			message,
+			triggerTurn: true,
+			maxPerSession: COMPACTION_AUTO_CONTINUE_CAP,
+			maxConsecutive: COMPACTION_AUTO_CONTINUE_CAP,
+		});
+		if (compactionTurn.decision === "deny") {
+			logger.warn("Compaction auto-continue cap reached", {
+				sessionId: this.sessionId,
+				cap: COMPACTION_AUTO_CONTINUE_CAP,
+				reason: compactionTurn.reason,
+			});
+			return;
+		}
 		const continuePrompt = async () => {
 			// Compaction summarizes away the first-message eager preludes, so re-assert the
 			// delegate-via-tasks / phased-todo reminders on this auto-resumed turn. This runs
 			// at invocation (past the abort check below), so an aborted continuation queues
 			// nothing; scoped to this request via prependMessages, never the shared queue.
 			const eagerNudges = this.#buildPostCompactionEagerNudges();
-			await this.#promptWithMessage(
-				{
-					role: "developer",
-					content: [{ type: "text", text: autoContinuePrompt }],
-					attribution: "agent",
-					timestamp: Date.now(),
-				},
-				autoContinuePrompt,
-				{
-					skipPostPromptRecoveryWait: true,
-					prependMessages: eagerNudges.length > 0 ? eagerNudges : undefined,
-				},
-			);
+			await this.#promptWithMessage(message, autoContinuePrompt, {
+				skipPostPromptRecoveryWait: true,
+				prependMessages: eagerNudges.length > 0 ? eagerNudges : undefined,
+			});
 		};
 		this.#schedulePostPromptTask(
 			async signal => {
@@ -3272,7 +3342,7 @@ export class AgentSession {
 		if (!injection) {
 			return;
 		}
-		this.agent.followUp({
+		const injectionMessage: CustomMessage = {
 			role: "custom",
 			customType: "ttsr-injection",
 			content: injection.content,
@@ -3280,7 +3350,25 @@ export class AgentSession {
 			details: { rules: injection.rules.map(rule => rule.name) },
 			attribution: "agent",
 			timestamp: Date.now(),
+		};
+		const ttsrTurn = this.#turnScheduler.request({
+			source: "ttsr",
+			sessionId: this.sessionId,
+			dedupeKey: `ttsr:${injection.rules.map(rule => rule.name).join(",")}:${this.#promptGeneration}`,
+			message: injectionMessage,
+			triggerTurn: true,
+			maxPerSession: TTSR_CONTINUATION_CAP,
+			maxConsecutive: TTSR_CONTINUATION_CAP,
 		});
+		if (ttsrTurn.decision === "deny") {
+			logger.warn("TTSR deferred continuation cap reached", {
+				sessionId: this.sessionId,
+				cap: TTSR_CONTINUATION_CAP,
+				reason: ttsrTurn.reason,
+			});
+			return;
+		}
+		this.agent.followUp(injectionMessage);
 		this.#ensureTtsrResumePromise();
 		// Mark as injected after this custom message is delivered and persisted (handled in message_end).
 		// followUp() only enqueues; resume on the next tick once streaming settles.
@@ -3447,7 +3535,7 @@ export class AgentSession {
 				const injection = this.#getTtsrInjectionContent();
 				if (injection) {
 					const details = { rules: injection.rules.map(rule => rule.name) };
-					this.agent.appendMessage({
+					const injectionMessage: CustomMessage = {
 						role: "custom",
 						customType: "ttsr-injection",
 						content: injection.content,
@@ -3455,7 +3543,26 @@ export class AgentSession {
 						details,
 						attribution: "agent",
 						timestamp: Date.now(),
+					};
+					const ttsrTurn = this.#turnScheduler.request({
+						source: "ttsr",
+						sessionId: this.sessionId,
+						dedupeKey: `ttsr:${details.rules.join(",")}:${generation}`,
+						message: injectionMessage,
+						triggerTurn: true,
+						maxPerSession: TTSR_CONTINUATION_CAP,
+						maxConsecutive: TTSR_CONTINUATION_CAP,
 					});
+					if (ttsrTurn.decision === "deny") {
+						logger.warn("TTSR interrupt continuation cap reached", {
+							sessionId: this.sessionId,
+							cap: TTSR_CONTINUATION_CAP,
+							reason: ttsrTurn.reason,
+						});
+						this.#resolveTtsrResume();
+						return;
+					}
+					this.agent.appendMessage(injectionMessage);
 					this.sessionManager.appendCustomMessageEntry(
 						"ttsr-injection",
 						injection.content,
@@ -3836,7 +3943,6 @@ export class AgentSession {
 	}
 
 	#resetSessionStopContinuationState(): void {
-		this.#sessionStopContinuationCount = 0;
 		this.#sessionStopHookActive = false;
 	}
 
@@ -3884,32 +3990,43 @@ export class AgentSession {
 			this.#resetSessionStopContinuationState();
 			return;
 		}
+		if (this.#sessionStopHookActive) {
+			this.#resetSessionStopContinuationState();
+			return;
+		}
 		const additionalContext = this.#sessionStopContinuationContext(result);
 		if (!additionalContext) {
 			this.#resetSessionStopContinuationState();
 			return;
 		}
-		if (this.#sessionStopContinuationCount >= SESSION_STOP_CONTINUATION_CAP) {
+		const continuationMessage: CustomMessage = {
+			role: "custom",
+			customType: "session-stop-continuation",
+			content: additionalContext,
+			display: false,
+			attribution: "agent",
+			timestamp: Date.now(),
+		};
+		const continuation = this.#turnScheduler.request({
+			source: "session-stop",
+			sessionId: this.sessionId,
+			dedupeKey: `session-stop:${Snowflake.next()}`,
+			message: continuationMessage,
+			triggerTurn: true,
+			maxPerSession: SESSION_STOP_CONTINUATION_CAP,
+			maxConsecutive: SESSION_STOP_CONTINUATION_CAP,
+		});
+		if (continuation.decision === "deny") {
 			logger.warn("session_stop continuation cap reached", {
 				sessionId: this.sessionId,
 				cap: SESSION_STOP_CONTINUATION_CAP,
+				reason: continuation.reason,
 			});
 			this.#resetSessionStopContinuationState();
 			return;
 		}
-		this.#sessionStopContinuationCount++;
 		this.#sessionStopHookActive = true;
-		this.#queueHiddenNextTurnMessage(
-			{
-				role: "custom",
-				customType: "session-stop-continuation",
-				content: additionalContext,
-				display: false,
-				attribution: "agent",
-				timestamp: Date.now(),
-			},
-			true,
-		);
+		this.#queueHiddenNextTurnMessage(continuation.message as CustomMessage, continuation.triggerTurn);
 	}
 
 	/** Emit extension events based on session events */
@@ -4106,7 +4223,7 @@ export class AgentSession {
 	 * `metadata.user_id` shaped like real Claude Code's `getAPIMetadata` output:
 	 * `{ session_id, account_uuid, device_id }`. `account_uuid` is included only
 	 * when an Anthropic OAuth credential with a known account UUID is loaded;
-	 * `device_id` is derived from both the persistent omp install id and that
+	 * `device_id` is derived from both the persistent amaze install id and that
 	 * account UUID. Resolving live keeps the value in sync with auth-state changes
 	 * (login/logout, token refresh that surfaces a new account UUID) without
 	 * needing to re-call `#syncAgentSessionId()` on every such event.
@@ -4117,51 +4234,6 @@ export class AgentSession {
 		this.agent.setMetadataResolver((provider: string) =>
 			buildSessionMetadata(sid, provider, this.#modelRegistry.authStorage),
 		);
-	}
-
-	#rekeyHindsightMemoryForCurrentSessionId(): void {
-		if (this.settings.get("memory.backend") !== "hindsight") return;
-		const sid = this.agent.sessionId;
-		if (!sid) return;
-		this.getHindsightSessionState()?.setSessionId(sid);
-	}
-
-	#rekeyMnemopiMemoryForCurrentSessionId(): void {
-		if (this.settings.get("memory.backend") !== "mnemopi") return;
-		const sid = this.agent.sessionId;
-		if (!sid) return;
-		this.getMnemopiSessionState()?.setSessionId(sid);
-	}
-
-	/** New session file: reset auto-recall / retain-threshold counters for the new transcript. */
-	#resetHindsightConversationTrackingIfHindsight(): boolean {
-		if (this.settings.get("memory.backend") !== "hindsight") return false;
-		const state = this.getHindsightSessionState();
-		if (!state || state.aliasOf) return false;
-		state.resetConversationTracking();
-		return true;
-	}
-
-	#resetMnemopiConversationTrackingIfMnemopi(): boolean {
-		if (this.settings.get("memory.backend") !== "mnemopi") return false;
-		const state = this.getMnemopiSessionState();
-		if (!state || state.aliasOf) return false;
-		state.resetConversationTracking();
-		return true;
-	}
-
-	async #resetMemoryContextForNewTranscript(): Promise<void> {
-		const hadPromotedMemoryPrompt = this.#baseSystemPromptBeforeMemoryPromotion !== undefined;
-		const resetHindsight = this.#resetHindsightConversationTrackingIfHindsight();
-		const resetMnemopi = this.#resetMnemopiConversationTrackingIfMnemopi();
-		if (hadPromotedMemoryPrompt) {
-			this.#baseSystemPrompt = this.#baseSystemPromptBeforeMemoryPromotion!;
-			this.agent.setSystemPrompt(this.#baseSystemPrompt);
-			this.#baseSystemPromptBeforeMemoryPromotion = undefined;
-		}
-		if (resetHindsight || resetMnemopi || hadPromotedMemoryPrompt) {
-			await this.refreshBaseSystemPrompt();
-		}
 	}
 
 	/** True once dispose() has begun; deferred background work (e.g. the deferred
@@ -4272,21 +4344,6 @@ export class AgentSession {
 				logger.warn("Failed to disconnect owned MCP manager during dispose", { error: String(error) });
 			}
 		}
-		// Flush the retain queue BEFORE clearing the session's pointer so
-		// `HindsightRetainQueue.#doFlush` still sees `session.getHindsightSessionState() === state`.
-		// Reversed, the spliced batch survives just long enough to fail the
-		// identity check and get dropped with a `session vanished` warning.
-		const hindsightState = this.getHindsightSessionState();
-		await hindsightState?.flushRetainQueue();
-		this.setHindsightSessionState(undefined);
-		hindsightState?.dispose();
-		const mnemopiState = setMnemopiSessionState(this, undefined);
-		await mnemopiState?.dispose();
-		// Tear down the embeddings subprocess AFTER mnemopi state.dispose:
-		// consolidate-on-dispose may still call `embed()` to store the final
-		// memories, and that round-trips through the worker we are about to
-		// hard-kill (issue #3031).
-		await shutdownMnemopiEmbedClient();
 		this.#disconnectFromAgent();
 		if (this.#unsubscribeAppendOnly) {
 			this.#unsubscribeAppendOnly();
@@ -4318,8 +4375,6 @@ export class AgentSession {
 		this.#closeAllProviderSessions("fresh session");
 		this.#freshProviderSessionId = Bun.randomUUIDv7();
 		this.#syncAgentSessionId();
-		this.#rekeyHindsightMemoryForCurrentSessionId();
-		this.#rekeyMnemopiMemoryForCurrentSessionId();
 		this.agent.appendOnlyContext?.invalidateForModelChange();
 		return {
 			previousSessionId,
@@ -4854,7 +4909,6 @@ export class AgentSession {
 			if (signature !== this.#lastAppliedToolSignature) {
 				const built = await this.#rebuildSystemPrompt(validToolNames, this.#toolRegistry);
 				this.#baseSystemPrompt = built.systemPrompt;
-				this.#baseSystemPromptBeforeMemoryPromotion = undefined;
 				this.agent.setSystemPrompt(this.#baseSystemPrompt);
 				this.#lastAppliedToolSignature = signature;
 				this.#promptModelKey = this.#currentPromptModelKey();
@@ -4939,7 +4993,6 @@ export class AgentSession {
 		const activeToolNames = this.getActiveToolNames();
 		const built = await this.#rebuildSystemPrompt(activeToolNames, this.#toolRegistry);
 		this.#baseSystemPrompt = built.systemPrompt;
-		this.#baseSystemPromptBeforeMemoryPromotion = undefined;
 		this.agent.setSystemPrompt(this.#baseSystemPrompt);
 		this.#promptModelKey = this.#currentPromptModelKey();
 		// Refresh the cached signature so a subsequent `#applyActiveToolsByName` with
@@ -4949,45 +5002,6 @@ export class AgentSession {
 			.map(name => this.#toolRegistry.get(name))
 			.filter((tool): tool is AgentTool => tool != null);
 		this.#lastAppliedToolSignature = this.#computeAppliedToolSignature(activeToolNames, activeTools);
-	}
-
-	async #buildSystemPromptForAgentStart(promptText: string): Promise<string[]> {
-		const backend = await resolveMemoryBackend(this.settings);
-		if (!backend.beforeAgentStartPrompt) return this.#baseSystemPrompt;
-
-		try {
-			const injected = await backend.beforeAgentStartPrompt(this, promptText);
-			if (!injected) return this.#baseSystemPrompt;
-
-			const previousBaseSystemPrompt = this.#baseSystemPrompt;
-			try {
-				await this.refreshBaseSystemPrompt();
-			} catch (refreshErr) {
-				logger.debug("Memory backend prompt refresh after beforeAgentStartPrompt failed", {
-					backend: backend.id,
-					error: String(refreshErr),
-				});
-			}
-
-			if (
-				this.#baseSystemPrompt.length !== previousBaseSystemPrompt.length ||
-				this.#baseSystemPrompt.some((part, index) => part !== previousBaseSystemPrompt[index])
-			) {
-				return this.#baseSystemPrompt;
-			}
-
-			this.#baseSystemPromptBeforeMemoryPromotion ??= previousBaseSystemPrompt;
-			const stablePrompt = [...previousBaseSystemPrompt, injected];
-			this.#baseSystemPrompt = stablePrompt;
-			this.agent.setSystemPrompt(stablePrompt);
-			return stablePrompt;
-		} catch (err) {
-			logger.debug("Memory backend beforeAgentStartPrompt failed", {
-				backend: backend.id,
-				error: String(err),
-			});
-			return this.#baseSystemPrompt;
-		}
 	}
 
 	/**
@@ -5073,6 +5087,7 @@ export class AgentSession {
 	 *   for a session where MCP discovery is disabled.
 	 */
 	async refreshMCPTools(mcpTools: CustomTool[], options?: { activateAll?: boolean }): Promise<void> {
+		const visibleMcpTools = filterAmazeCodebaseMcpTools(mcpTools);
 		const previousSelectedMCPToolNames = this.getSelectedMCPToolNames();
 		const existingNames = Array.from(this.#toolRegistry.keys());
 		for (const name of existingNames) {
@@ -5092,7 +5107,7 @@ export class AgentSession {
 			},
 		});
 
-		for (const customTool of mcpTools) {
+		for (const customTool of visibleMcpTools) {
 			const wrapped = wrapToolWithMetaNotice(CustomToolAdapter.wrap(customTool, getCustomToolContext) as AgentTool);
 			const finalTool = (
 				this.#extensionRunner ? new ExtensionToolWrapper(wrapped, this.#extensionRunner) : wrapped
@@ -5119,7 +5134,7 @@ export class AgentSession {
 			// discovery is disabled — without it, getSelectedMCPToolNames()
 			// returns only already-active tools (circular deadlock: tools can
 			// only become active if they're already active).
-			const newMcpNames = mcpTools.map(t => t.name);
+			const newMcpNames = visibleMcpTools.map(t => t.name);
 			const nextActive = [...new Set([...this.#getActiveNonMCPToolNames(), ...newMcpNames])];
 			await this.#applyActiveToolsByName(nextActive, { previousSelectedMCPToolNames });
 			return;
@@ -5449,6 +5464,10 @@ export class AgentSession {
 
 	getCheckpointState(): CheckpointState | undefined {
 		return this.#checkpointState;
+	}
+
+	requestAutomaticTurn(request: Omit<AutoTurnRequest, "sessionId">): AutoTurnDecision {
+		return this.#turnScheduler.request({ ...request, sessionId: this.sessionId });
 	}
 
 	setCheckpointState(state: CheckpointState | undefined): void {
@@ -5945,6 +5964,9 @@ export class AgentSession {
 			this.#todoReminderAwaitingProgress = false;
 			this.#emptyStopRetryCount = 0;
 			this.#unexpectedStopRetryCount = 0;
+			if (message.role === "user") {
+				this.#turnScheduler.recordUserTurn(this.sessionId);
+			}
 
 			await this.#maybeRestoreRetryFallbackPrimary();
 
@@ -6020,7 +6042,7 @@ export class AgentSession {
 				}
 			}
 
-			const beforeAgentStartSystemPrompt = await this.#buildSystemPromptForAgentStart(expandedText);
+			const beforeAgentStartSystemPrompt = this.#baseSystemPrompt;
 
 			// Emit before_agent_start extension event
 			if (this.#extensionRunner) {
@@ -6318,7 +6340,16 @@ export class AgentSession {
 		this.#scheduleAgentContinue({
 			shouldContinue: () => {
 				this.#queuedMessageDrainScheduled = false;
-				return this.#canAutoContinueForFollowUp() && this.agent.hasQueuedMessages();
+				if (!this.#canAutoContinueForFollowUp() || !this.agent.hasQueuedMessages()) {
+					return false;
+				}
+				return this.#admitAutomaticContinuationTurn({
+					source: "yield",
+					maxPerSession: YIELD_CONTINUATION_CAP,
+					maxConsecutive: YIELD_CONTINUATION_CAP,
+					dedupePrefix: "yield-queue-drain",
+					logMessage: "Queued-message drain continuation denied by turn scheduler",
+				});
 			},
 			onSkip: () => {
 				this.#queuedMessageDrainScheduled = false;
@@ -6838,9 +6869,6 @@ export class AgentSession {
 		this.setTodoPhases([]);
 		this.#freshProviderSessionId = undefined;
 		this.#syncAgentSessionId();
-		this.#rekeyHindsightMemoryForCurrentSessionId();
-		this.#rekeyMnemopiMemoryForCurrentSessionId();
-		await this.#resetMemoryContextForNewTranscript();
 		this.#pendingNextTurnMessages = [];
 		this.#scheduledHiddenNextTurnGeneration = undefined;
 
@@ -6935,9 +6963,6 @@ export class AgentSession {
 		// Update agent session ID
 		this.#freshProviderSessionId = undefined;
 		this.#syncAgentSessionId();
-		this.#rekeyHindsightMemoryForCurrentSessionId();
-		this.#rekeyMnemopiMemoryForCurrentSessionId();
-		await this.#resetMemoryContextForNewTranscript();
 
 		// Emit session_switch event with reason "fork" to hooks
 		if (this.#extensionRunner) {
@@ -7947,32 +7972,6 @@ export class AgentSession {
 	}
 
 	/**
-	 * Ask the active memory backend for an extra-context block to splice into
-	 * the compaction summary prompt. Both the manual and auto compaction paths
-	 * funnel through this helper so the behaviour stays identical.
-	 *
-	 * Failures are swallowed: a memory backend going sideways MUST NOT block
-	 * compaction (which is itself the recovery path for context overflow).
-	 */
-	async #collectMemoryBackendContext(preparation: {
-		messagesToSummarize: AgentMessage[];
-		turnPrefixMessages: AgentMessage[];
-	}): Promise<string | undefined> {
-		const backend = await resolveMemoryBackend(this.settings);
-		if (!backend.preCompactionContext) return undefined;
-		const messages = preparation.messagesToSummarize.concat(preparation.turnPrefixMessages);
-		try {
-			return await backend.preCompactionContext(messages, this.settings, this);
-		} catch (err) {
-			logger.debug("Memory backend preCompactionContext failed", {
-				backend: backend.id,
-				error: String(err),
-			});
-			return undefined;
-		}
-	}
-
-	/**
 	 * Cancel in-progress context maintenance (manual compaction, auto-compaction, or auto-handoff).
 	 */
 	abortCompaction(): void {
@@ -8105,9 +8104,6 @@ export class AgentSession {
 			this.agent.replaceQueues(preservedSteering, preservedFollowUp);
 			this.#freshProviderSessionId = undefined;
 			this.#syncAgentSessionId();
-			this.#rekeyHindsightMemoryForCurrentSessionId();
-			this.#rekeyMnemopiMemoryForCurrentSessionId();
-			await this.#resetMemoryContextForNewTranscript();
 			this.#pendingNextTurnMessages = [];
 			this.#scheduledHiddenNextTurnGeneration = undefined;
 			this.#todoReminderCount = 0;
@@ -8281,8 +8277,19 @@ export class AgentSession {
 			const promoted = await this.#tryContextPromotion(assistantMessage);
 			if (promoted) {
 				// Retry on the promoted (larger) model without compacting
-				this.#scheduleAgentContinue({ delayMs: 100, generation });
-				return COMPACTION_CHECK_CONTINUATION;
+				if (
+					this.#admitAutomaticContinuationTurn({
+						source: "compaction",
+						maxPerSession: COMPACTION_AUTO_CONTINUE_CAP,
+						maxConsecutive: COMPACTION_AUTO_CONTINUE_CAP,
+						dedupePrefix: "compaction-context-promotion",
+						logMessage: "Compaction context-promotion continuation denied by turn scheduler",
+					})
+				) {
+					this.#scheduleAgentContinue({ delayMs: 100, generation });
+					return COMPACTION_CHECK_CONTINUATION;
+				}
+				return COMPACTION_CHECK_NONE;
 			}
 
 			// No promotion target available fall through to compaction
@@ -8310,8 +8317,19 @@ export class AgentSession {
 				logger.debug("Context promotion triggered by response.incomplete (length stop)", {
 					from: `${assistantMessage.provider}/${assistantMessage.model}`,
 				});
-				this.#scheduleAgentContinue({ delayMs: 100, generation });
-				return COMPACTION_CHECK_CONTINUATION;
+				if (
+					this.#admitAutomaticContinuationTurn({
+						source: "compaction",
+						maxPerSession: COMPACTION_AUTO_CONTINUE_CAP,
+						maxConsecutive: COMPACTION_AUTO_CONTINUE_CAP,
+						dedupePrefix: "compaction-incomplete-promotion",
+						logMessage: "Compaction incomplete-promotion continuation denied by turn scheduler",
+					})
+				) {
+					this.#scheduleAgentContinue({ delayMs: 100, generation });
+					return COMPACTION_CHECK_CONTINUATION;
+				}
+				return COMPACTION_CHECK_NONE;
 			}
 
 			const incompleteCompactionSettings = this.settings.getGroup("compaction");
@@ -8362,8 +8380,9 @@ export class AgentSession {
 			// Try promotion first — if a larger model is available, switch instead of compacting
 			const promoted = await this.#tryContextPromotion(assistantMessage);
 			if (!promoted) {
+				const thresholdAutoContinue = autoContinue && !this.#isCompletedAnalyticalStop(assistantMessage);
 				return await this.#runAutoCompaction("threshold", false, false, allowDefer, {
-					autoContinue,
+					autoContinue: thresholdAutoContinue,
 					triggerContextTokens: contextTokens,
 				});
 			}
@@ -8378,6 +8397,24 @@ export class AgentSession {
 			.reverse()
 			.find((content): content is ToolCall => content.type === "toolCall");
 		return lastToolCall?.name === "yield" && lastToolCall.id === toolCallId;
+	}
+
+	#assistantStopText(assistantMessage: AssistantMessage): string {
+		return assistantMessage.content
+			.filter((content): content is TextContent => content.type === "text")
+			.map(content => content.text)
+			.join("\n");
+	}
+
+	#isCompletedAnalyticalStop(
+		assistantMessage: AssistantMessage,
+		text = this.#assistantStopText(assistantMessage),
+	): boolean {
+		if (assistantMessage.stopReason !== "stop") return false;
+		for (const content of assistantMessage.content) {
+			if (content.type === "toolCall") return false;
+		}
+		return looksLikeCompletedAnalyticalStop(text);
 	}
 
 	async #handleEmptyAssistantStop(assistantMessage: AssistantMessage): Promise<boolean> {
@@ -8411,12 +8448,39 @@ export class AgentSession {
 			return false;
 		}
 		this.#removeEmptyStopFromActiveContext(assistantMessage);
-		this.agent.appendMessage({
+		const reminderMessage: Message = {
 			role: "developer",
 			content: [{ type: "text", text: this.#emptyStopRetryReminder() }],
 			attribution: "agent",
 			timestamp: Date.now(),
+		};
+		const retryTurn = this.#turnScheduler.request({
+			source: "empty-stop-retry",
+			sessionId: this.sessionId,
+			dedupeKey: `empty-stop-retry:${assistantMessage.timestamp}:${this.#emptyStopRetryCount}`,
+			message: reminderMessage,
+			triggerTurn: true,
+			maxPerSession: EMPTY_STOP_MAX_RETRIES,
+			maxConsecutive: EMPTY_STOP_MAX_RETRIES,
 		});
+		if (retryTurn.decision === "deny") {
+			logger.warn("Empty assistant stop retry scheduler denied continuation", {
+				sessionId: this.sessionId,
+				reason: retryTurn.reason,
+			});
+			if (this.#retryAttempt > 0) {
+				await this.#emitSessionEvent({
+					type: "auto_retry_end",
+					success: false,
+					attempt: this.#retryAttempt,
+					finalError: "Assistant returned empty stop after retry cap",
+				});
+				this.#retryAttempt = 0;
+			}
+			this.#resolveRetry();
+			return false;
+		}
+		this.agent.appendMessage(reminderMessage);
 		this.#scheduleAgentContinue({ generation: this.#promptGeneration });
 		return true;
 	}
@@ -8460,11 +8524,12 @@ export class AgentSession {
 			return false;
 		}
 
-		const text = assistantMessage.content
-			.filter((content): content is TextContent => content.type === "text")
-			.map(content => content.text)
-			.join("\n");
-		if (!/\S/.test(text)) {
+		const text = this.#assistantStopText(assistantMessage);
+		if (!hasNonWhitespace(text)) {
+			this.#unexpectedStopRetryCount = 0;
+			return false;
+		}
+		if (this.#isCompletedAnalyticalStop(assistantMessage, text)) {
 			this.#unexpectedStopRetryCount = 0;
 			return false;
 		}
@@ -8500,12 +8565,30 @@ export class AgentSession {
 			return false;
 		}
 
-		this.agent.appendMessage({
+		const reminderMessage: Message = {
 			role: "developer",
 			content: [{ type: "text", text: this.#unexpectedStopRetryReminder() }],
 			attribution: "agent",
 			timestamp: Date.now(),
+		};
+		const retryTurn = this.#turnScheduler.request({
+			source: "unexpected-stop-retry",
+			sessionId: this.sessionId,
+			dedupeKey: `unexpected-stop-retry:${assistantMessage.timestamp}:${this.#unexpectedStopRetryCount}`,
+			message: reminderMessage,
+			triggerTurn: true,
+			maxPerSession: UNEXPECTED_STOP_MAX_RETRIES,
+			maxConsecutive: UNEXPECTED_STOP_MAX_RETRIES,
 		});
+		if (retryTurn.decision === "deny") {
+			logger.warn("Unexpected assistant stop retry scheduler denied continuation", {
+				sessionId: this.sessionId,
+				reason: retryTurn.reason,
+			});
+			this.#unexpectedStopRetryCount = 0;
+			return false;
+		}
+		this.agent.appendMessage(reminderMessage);
 		this.#scheduleAgentContinue({ generation: this.#promptGeneration });
 		return true;
 	}
@@ -8566,12 +8649,30 @@ export class AgentSession {
 			"You are in an active checkpoint. You MUST call rewind with your investigation findings before yielding. Do NOT yield without completing the checkpoint.",
 			"</system-warning>",
 		].join("\n");
-		this.agent.appendMessage({
+		const reminderMessage: Message = {
 			role: "developer",
 			content: [{ type: "text", text: reminder }],
 			attribution: "agent",
 			timestamp: Date.now(),
+		};
+		const yieldTurn = this.#turnScheduler.request({
+			source: "yield",
+			sessionId: this.sessionId,
+			dedupeKey: `yield-rewind-reminder:${Snowflake.next()}`,
+			message: reminderMessage,
+			triggerTurn: true,
+			maxPerSession: YIELD_CONTINUATION_CAP,
+			maxConsecutive: YIELD_CONTINUATION_CAP,
 		});
+		if (yieldTurn.decision === "deny") {
+			logger.warn("Yield rewind reminder continuation cap reached", {
+				sessionId: this.sessionId,
+				cap: YIELD_CONTINUATION_CAP,
+				reason: yieldTurn.reason,
+			});
+			return false;
+		}
+		this.agent.appendMessage(reminderMessage);
 		this.#scheduleAgentContinue({ generation: this.#promptGeneration });
 		return true;
 	}
@@ -8772,8 +8873,6 @@ export class AgentSession {
 		// where there is no fresh user message to suppress the reminder for.
 		if (promptText !== undefined) {
 			if (this.agent.state.messages.some(m => m.role === "user")) return undefined;
-			const trimmed = promptText.trimEnd();
-			if (trimmed.endsWith("?") || trimmed.endsWith("!")) return undefined;
 		}
 		if (!this.getActiveToolNames().includes("task")) return undefined;
 		return {
@@ -8881,6 +8980,30 @@ export class AgentSession {
 			attempt: this.#todoReminderCount,
 		});
 
+		const reminderMessage: Message = {
+			role: "developer",
+			content: [{ type: "text", text: reminder }],
+			attribution: "agent",
+			timestamp: Date.now(),
+		};
+		const reminderTurn = this.#turnScheduler.request({
+			source: "todo-reminder",
+			sessionId: this.sessionId,
+			dedupeKey: `todo-reminder:${Snowflake.next()}`,
+			message: reminderMessage,
+			triggerTurn: true,
+			maxPerSession: remindersMax,
+			maxConsecutive: remindersMax,
+		});
+		if (reminderTurn.decision === "deny") {
+			this.#todoReminderCount--;
+			logger.debug("Todo completion: reminder denied by turn scheduler", {
+				reason: reminderTurn.reason,
+				count: this.#todoReminderCount,
+			});
+			return false;
+		}
+
 		// Emit event for UI to render notification
 		await this.#emitSessionEvent({
 			type: "todo_reminder",
@@ -8888,13 +9011,6 @@ export class AgentSession {
 			attempt: this.#todoReminderCount,
 			maxAttempts: remindersMax,
 		});
-
-		const reminderMessage: Message = {
-			role: "developer",
-			content: [{ type: "text", text: reminder }],
-			attribution: "agent",
-			timestamp: Date.now(),
-		};
 
 		this.#todoReminderAwaitingProgress = true;
 		// Inject reminder and persist it so the JSONL transcript matches model context.
@@ -9394,11 +9510,6 @@ export class AgentSession {
 			preserveData = result?.preserveData;
 		}
 
-		const memoryBackendContext = await this.#collectMemoryBackendContext(preparation);
-		if (memoryBackendContext) {
-			hookContext = hookContext ? [...hookContext, memoryBackendContext] : [memoryBackendContext];
-		}
-
 		if (hookCompaction) {
 			preserveData ??= hookCompaction.preserveData;
 			return {
@@ -9464,7 +9575,7 @@ export class AgentSession {
 	): Promise<CompactionCheckResult> {
 		const compactionSettings = this.settings.getGroup("compaction");
 		if (compactionSettings.strategy === "off") return COMPACTION_CHECK_NONE;
-		if (reason !== "idle" && !compactionSettings.enabled) return COMPACTION_CHECK_NONE;
+		if (!compactionSettings.enabled) return COMPACTION_CHECK_NONE;
 		const generation = this.#promptGeneration;
 		const shouldAutoContinue = options.autoContinue !== false && compactionSettings.autoContinue !== false;
 		// Shake runs inline (cheap, no remote LLM). On overflow recovery, if shake
@@ -9615,7 +9726,15 @@ export class AgentSession {
 					this.#scheduleAgentContinue({
 						delayMs: 100,
 						generation,
-						shouldContinue: () => this.agent.hasQueuedMessages(),
+						shouldContinue: () =>
+							this.agent.hasQueuedMessages() &&
+							this.#admitAutomaticContinuationTurn({
+								source: "yield",
+								maxPerSession: YIELD_CONTINUATION_CAP,
+								maxConsecutive: YIELD_CONTINUATION_CAP,
+								dedupePrefix: "compaction-queued-drain",
+								logMessage: "Compaction queued-message drain denied by turn scheduler",
+							}),
 					});
 					return COMPACTION_CHECK_CONTINUATION;
 				}
@@ -9928,15 +10047,33 @@ export class AgentSession {
 					}
 				}
 
-				this.#scheduleAgentContinue({ delayMs: 100, generation });
-				continuationScheduled = true;
+				if (
+					this.#admitAutomaticContinuationTurn({
+						source: "compaction",
+						maxPerSession: COMPACTION_AUTO_CONTINUE_CAP,
+						maxConsecutive: COMPACTION_AUTO_CONTINUE_CAP,
+						dedupePrefix: "compaction-retry",
+						logMessage: "Compaction retry continuation denied by turn scheduler",
+					})
+				) {
+					this.#scheduleAgentContinue({ delayMs: 100, generation });
+					continuationScheduled = true;
+				}
 			} else if (this.agent.hasQueuedMessages()) {
 				// Auto-compaction can complete while follow-up/steering/custom messages are waiting.
 				// Kick the loop so queued messages are actually delivered.
 				this.#scheduleAgentContinue({
 					delayMs: 100,
 					generation,
-					shouldContinue: () => this.agent.hasQueuedMessages(),
+					shouldContinue: () =>
+						this.agent.hasQueuedMessages() &&
+						this.#admitAutomaticContinuationTurn({
+							source: "yield",
+							maxPerSession: YIELD_CONTINUATION_CAP,
+							maxConsecutive: YIELD_CONTINUATION_CAP,
+							dedupePrefix: "compaction-queued-drain",
+							logMessage: "Compaction queued-message drain denied by turn scheduler",
+						}),
 				});
 				continuationScheduled = true;
 			}
@@ -10086,13 +10223,31 @@ export class AgentSession {
 						(reason === "incomplete" && lastAssistant.stopReason === "length");
 					if (shouldDrop) this.agent.replaceMessages(messages.slice(0, -1));
 				}
-				this.#scheduleAgentContinue({ delayMs: 100, generation });
-				continuationScheduled = true;
+				if (
+					this.#admitAutomaticContinuationTurn({
+						source: "compaction",
+						maxPerSession: COMPACTION_AUTO_CONTINUE_CAP,
+						maxConsecutive: COMPACTION_AUTO_CONTINUE_CAP,
+						dedupePrefix: "compaction-shake-retry",
+						logMessage: "Shake compaction retry continuation denied by turn scheduler",
+					})
+				) {
+					this.#scheduleAgentContinue({ delayMs: 100, generation });
+					continuationScheduled = true;
+				}
 			} else if (this.agent.hasQueuedMessages()) {
 				this.#scheduleAgentContinue({
 					delayMs: 100,
 					generation,
-					shouldContinue: () => this.agent.hasQueuedMessages(),
+					shouldContinue: () =>
+						this.agent.hasQueuedMessages() &&
+						this.#admitAutomaticContinuationTurn({
+							source: "yield",
+							maxPerSession: YIELD_CONTINUATION_CAP,
+							maxConsecutive: YIELD_CONTINUATION_CAP,
+							dedupePrefix: "compaction-queued-drain",
+							logMessage: "Compaction queued-message drain denied by turn scheduler",
+						}),
 				});
 				continuationScheduled = true;
 			}
@@ -11246,7 +11401,17 @@ export class AgentSession {
 				autoReplied: autoReply,
 			}),
 			display: true,
-			details: { id: msg.id, from: msg.from, message: msg.body, ...(msg.replyTo ? { replyTo: msg.replyTo } : {}) },
+			details: {
+				id: msg.id,
+				from: msg.from,
+				fromAgentName: msg.fromAgentName,
+				fromDisplayName: msg.fromDisplayName,
+				to: msg.to,
+				toAgentName: msg.toAgentName,
+				toDisplayName: msg.toDisplayName,
+				message: msg.body,
+				...(msg.replyTo ? { replyTo: msg.replyTo } : {}),
+			},
 			attribution: "agent",
 			timestamp: msg.ts,
 		};
@@ -11286,7 +11451,13 @@ export class AgentSession {
 				customType: "irc:autoreply",
 				content: `[IRC you → \`${msg.from}\` (auto)]\n\n${body}`,
 				display: true,
-				details: { to: msg.from, body, replyTo: msg.id },
+				details: {
+					to: msg.from,
+					toAgentName: msg.fromAgentName,
+					toDisplayName: msg.fromDisplayName,
+					body,
+					replyTo: msg.id,
+				},
 				attribution: "agent",
 				timestamp: Date.now(),
 			};
@@ -11539,7 +11710,6 @@ export class AgentSession {
 		const previousTools = [...this.agent.state.tools];
 		const previousBaseSystemPrompt = this.#baseSystemPrompt;
 		const previousSystemPrompt = this.agent.state.systemPrompt;
-		const previousBaseSystemPromptBeforeMemoryPromotion = this.#baseSystemPromptBeforeMemoryPromotion;
 		const previousFreshProviderSessionId = this.#freshProviderSessionId;
 		const previousFallbackSelectedMCPToolNames = previousSessionFile
 			? this.#getSessionDefaultSelectedMCPToolNames(previousSessionFile)
@@ -11555,8 +11725,6 @@ export class AgentSession {
 				this.#freshProviderSessionId = undefined;
 			}
 			this.#syncAgentSessionId();
-			this.#rekeyHindsightMemoryForCurrentSessionId();
-			this.#rekeyMnemopiMemoryForCurrentSessionId();
 
 			const sessionContext = this.buildDisplaySessionContext();
 			const didReloadConversationChange =
@@ -11655,9 +11823,6 @@ export class AgentSession {
 					? undefined
 					: configuredServiceTier;
 
-			if (switchingToDifferentSession) {
-				await this.#resetMemoryContextForNewTranscript();
-			}
 			this.#reconnectToAgent();
 			try {
 				await this.#sessionSwitchReconciler?.();
@@ -11672,8 +11837,6 @@ export class AgentSession {
 			this.sessionManager.restoreState(previousSessionState);
 			this.#freshProviderSessionId = previousFreshProviderSessionId;
 			this.#syncAgentSessionId(previousSessionState.sessionId);
-			this.#rekeyHindsightMemoryForCurrentSessionId();
-			this.#rekeyMnemopiMemoryForCurrentSessionId();
 			let restoreMcpError: unknown;
 			try {
 				await this.#restoreMCPSelectionsForSessionContext(previousSessionContext, {
@@ -11692,7 +11855,6 @@ export class AgentSession {
 				this.agent.setSystemPrompt(previousSystemPrompt);
 			}
 			this.#baseSystemPrompt = previousBaseSystemPrompt;
-			this.#baseSystemPromptBeforeMemoryPromotion = previousBaseSystemPromptBeforeMemoryPromotion;
 			this.agent.setSystemPrompt(previousSystemPrompt);
 			this.agent.replaceMessages(previousAgentMessages);
 			this.agent.replaceQueues(previousSteeringMessages, previousFollowUpMessages);
@@ -11769,9 +11931,6 @@ export class AgentSession {
 		this.#syncTodoPhasesFromBranch();
 		this.#freshProviderSessionId = undefined;
 		this.#syncAgentSessionId();
-		this.#rekeyHindsightMemoryForCurrentSessionId();
-		this.#rekeyMnemopiMemoryForCurrentSessionId();
-		await this.#resetMemoryContextForNewTranscript();
 
 		// Reload messages from entries (works for both file and in-memory mode)
 		const sessionContext = this.buildDisplaySessionContext();
@@ -11861,9 +12020,6 @@ export class AgentSession {
 		this.#syncTodoPhasesFromBranch();
 		this.#freshProviderSessionId = undefined;
 		this.#syncAgentSessionId();
-		this.#rekeyHindsightMemoryForCurrentSessionId();
-		this.#rekeyMnemopiMemoryForCurrentSessionId();
-		await this.#resetMemoryContextForNewTranscript();
 
 		const sessionContext = this.buildDisplaySessionContext();
 		await this.#restoreMCPSelectionsForSessionContext(sessionContext);
@@ -12534,8 +12690,8 @@ export class AgentSession {
 	 * @returns Path to exported file
 	 */
 	async exportToHtml(outputPath?: string): Promise<string> {
-		// Public HTML export ships in the omp brand palette (collab-web
-		// pink/purple), matching my.omp.sh — not the host's terminal theme.
+		// Public HTML export ships in the amaze brand palette (collab-web
+		// pink/purple), matching my.amaze — not the host's terminal theme.
 		// Callers who want a themed export can pass `palette: "theme"` with
 		// `themeName` directly to `exportSessionToHtml`.
 		const { exportSessionToHtml } = await import("../export/html");
@@ -12650,6 +12806,7 @@ export class AgentSession {
 			model: this.agent.state.model ?? null,
 			thinkingLevel: this.#thinkingLevel ?? null,
 			serviceTier: this.agent.serviceTier ?? null,
+			contextAudit: auditProviderVisibleMessages(messages),
 			systemPrompt: this.agent.state.systemPrompt,
 			tools: this.agent.state.tools.map(tool => ({
 				name: tool.name,
@@ -12660,7 +12817,7 @@ export class AgentSession {
 			})),
 			messages: llmMessages,
 		};
-		const filePath = path.join(os.tmpdir(), `omp-llm-request-${Snowflake.next()}.json`);
+		const filePath = path.join(os.tmpdir(), `amaze-llm-request-${Snowflake.next()}.json`);
 		await Bun.write(filePath, `${JSON.stringify(payload, null, 2)}\n`);
 		return filePath;
 	}

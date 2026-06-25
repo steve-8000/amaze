@@ -2,19 +2,18 @@ import { Database } from "bun:sqlite";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
-import { formatHashlineHeader, stripHashlinePrefixes } from "@oh-my-pi/hashline";
-import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@oh-my-pi/pi-agent-core";
-import type { Component } from "@oh-my-pi/pi-tui";
-import { isEnoent, isRecord, prompt, untilAborted } from "@oh-my-pi/pi-utils";
+import { formatHashlineHeader, stripHashlinePrefixes } from "@amaze/hashline";
+import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@amaze/pi-agent-core";
+import type { Component } from "@amaze/pi-tui";
+import { isEnoent, isRecord, prompt, untilAborted } from "@amaze/pi-utils";
 import { type } from "arktype";
 
 import { canonicalSnapshotKey, getFileSnapshotStore } from "../edit/file-snapshot-store";
 import { normalizeToLF } from "../edit/normalize";
+import { type FileDiagnosticsResult, type WritethroughCallback, writethroughNoop } from "../edit/writethrough";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
 import { InternalUrlRouter } from "../internal-urls";
 import { parseInternalUrl } from "../internal-urls/parse";
-import { createLspWritethrough, type FileDiagnosticsResult, type WritethroughCallback, writethroughNoop } from "../lsp";
-import { getDiagnosticsLedger } from "../lsp/diagnostics-ledger";
 import { getLanguageFromPath, highlightCode, type Theme } from "../modes/theme/theme";
 import writeDescription from "../prompts/tools/write.md" with { type: "text" };
 import type { ToolSession } from "../sdk";
@@ -51,7 +50,7 @@ import {
 	formatExpandHint,
 	formatMoreItems,
 	formatStatusIcon,
-	getLspBatchRequest,
+	getWritethroughBatchRequest,
 	type RenderedStringCache,
 	replaceTabs,
 	shortenPath,
@@ -259,7 +258,7 @@ function parseSqliteWriteTarget(subPath: string, queryString: string): { table: 
 /**
  * Write tool implementation.
  *
- * Creates or overwrites files with optional LSP formatting and diagnostics.
+ * Creates or overwrites files.
  */
 export class WriteTool implements AgentTool<typeof writeSchema, WriteToolDetails> {
 	readonly name = "write";
@@ -296,19 +295,7 @@ export class WriteTool implements AgentTool<typeof writeSchema, WriteToolDetails
 	readonly #writethrough: WritethroughCallback;
 
 	constructor(private readonly session: ToolSession) {
-		const enableLsp = session.enableLsp ?? true;
-		const enableFormat = enableLsp && session.settings.get("lsp.formatOnWrite");
-		const enableDiagnostics = enableLsp && session.settings.get("lsp.diagnosticsOnWrite");
-		const dedup = enableDiagnostics && session.settings.get("lsp.diagnosticsDeduplicate");
-		this.#writethrough = enableLsp
-			? createLspWritethrough(session.cwd, {
-					enableFormat,
-					enableDiagnostics,
-					transformDiagnostics: dedup
-						? (path, result) => getDiagnosticsLedger(session).reduce(path, result)
-						: undefined,
-				})
-			: writethroughNoop;
+		this.#writethrough = writethroughNoop;
 		this.description = prompt.render(writeDescription);
 	}
 
@@ -536,9 +523,8 @@ export class WriteTool implements AgentTool<typeof writeSchema, WriteToolDetails
 	/**
 	 * Resolve a single `conflict://<N>` write by splicing the recorded
 	 * marker region in the registered file with `replacementContent`.
-	 * The write deliberately bypasses the LSP writethrough: the file may
-	 * still hold other unresolved marker blocks, so formatting could
-	 * corrupt them and diagnostics would be marker-noise anyway.
+	 * The write deliberately bypasses the standard writethrough path: the file may
+	 * still hold other unresolved marker blocks, so formatting could corrupt them.
 	 *
 	 * Entry ids are session-stable: they keep working even after later
 	 * writes resolve other blocks in the same file. The recorded range
@@ -860,7 +846,7 @@ export class WriteTool implements AgentTool<typeof writeSchema, WriteToolDetails
 
 			enforcePlanModeWrite(this.session, path, { op: "create" });
 			const absolutePath = resolvePlanPath(this.session, path);
-			const batchRequest = getLspBatchRequest(context?.toolCall);
+			const batchRequest = getWritethroughBatchRequest(context?.toolCall);
 
 			// Check if file exists and is auto-generated before overwriting
 			if (await fs.exists(absolutePath)) {
@@ -868,7 +854,7 @@ export class WriteTool implements AgentTool<typeof writeSchema, WriteToolDetails
 			}
 
 			// Try ACP bridge first for editor-visible filesystem paths. Internal
-			// artifacts such as local:// plans are owned by OMP, not the editor.
+			// artifacts such as local:// plans are owned by Amaze, not the editor.
 			if (await routeWriteThroughBridge(this.session, path, absolutePath, cleanContent)) {
 				const madeExecutable = await maybeMarkExecutableForShebang(absolutePath, cleanContent);
 				const displayPath = formatPathRelativeToCwd(absolutePath, this.session.cwd);

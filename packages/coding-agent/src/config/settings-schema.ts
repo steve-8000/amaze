@@ -1,6 +1,6 @@
-import { THINKING_EFFORTS } from "@oh-my-pi/pi-ai";
-import { DEFAULT_SHARE_URL } from "@oh-my-pi/pi-wire";
-import { SHAPE_VARIANT_NAMES } from "@oh-my-pi/snapcompact";
+import { THINKING_EFFORTS } from "@amaze/pi-ai";
+import { DEFAULT_SHARE_URL } from "@amaze/pi-wire";
+import { SHAPE_VARIANT_NAMES } from "@amaze/snapcompact";
 import { DEFAULT_RELAY_URL } from "../collab/protocol";
 import { DEFAULT_STT_MODEL_KEY, STT_MODEL_OPTIONS, STT_MODEL_VALUES } from "../stt/models";
 import { AUTO_THINKING, getConfiguredThinkingLevelMetadata, getThinkingLevelMetadata } from "../thinking";
@@ -120,8 +120,8 @@ export const TAB_GROUPS: Record<SettingTab, readonly string[]> = {
 		"Git",
 	],
 	context: ["General", "Compaction", "Rules (TTSR)", "Experimental"],
-	memory: ["General", "Auto-Learn", "Mnemopi", "Hindsight"],
-	files: ["Editing", "Reading", "Read Summaries", "LSP"],
+	memory: ["Rocky", "Auto-Learn"],
+	files: ["Editing", "Reading", "Read Summaries"],
 	shell: ["Bash", "Eval & Python"],
 	tools: [
 		"Available Tools",
@@ -274,7 +274,6 @@ const EMPTY_STRING_ARRAY: string[] = [];
 const EMPTY_STRING_RECORD: Record<string, string> = {};
 const DEFAULT_CYCLE_ORDER: string[] = ["smol", "default", "slow"];
 const EMPTY_MODEL_TAGS_RECORD: ModelTagsSettings = {};
-const HINDSIGHT_RECALL_TYPES_DEFAULT: string[] = ["world", "experience"];
 export const DEFAULT_BASH_INTERCEPTOR_RULES: BashInterceptorRule[] = [
 	{
 		pattern: "^\\s*(cat|head|tail|less|more)\\s+",
@@ -323,7 +322,7 @@ export const SETTINGS_SCHEMA = {
 	// ────────────────────────────────────────────────────────────────────────
 	setupVersion: { type: "number", default: 0 },
 
-	// Auth broker — credentials proxied through a remote `omp auth-broker serve`
+	// Auth broker — credentials proxied through a remote `amaze auth-broker serve`
 	// host. Hidden from the UI; populate via env vars or hand-edited config.yml.
 	// Env (`OMP_AUTH_BROKER_URL` / `OMP_AUTH_BROKER_TOKEN`) takes precedence so
 	// per-machine overrides remain trivial.
@@ -449,6 +448,8 @@ export const SETTINGS_SCHEMA = {
 
 	disabledProviders: { type: "array", default: EMPTY_STRING_ARRAY },
 
+	disabledCapabilities: { type: "array", default: EMPTY_STRING_ARRAY },
+
 	disabledExtensions: { type: "array", default: EMPTY_STRING_ARRAY },
 
 	modelRoles: { type: "record", default: EMPTY_STRING_RECORD },
@@ -466,24 +467,24 @@ export const SETTINGS_SCHEMA = {
 	// Theme
 	"theme.dark": {
 		type: "string",
-		default: "titanium",
+		default: "erid",
 		ui: {
 			tab: "appearance",
 			group: "Theme",
-			label: "Dark Theme",
-			description: "Theme used when the terminal has a dark background",
+			label: "Erid Theme",
+			description: "Amaze's fixed theme for dark terminals",
 			options: "runtime",
 		},
 	},
 
 	"theme.light": {
 		type: "string",
-		default: "light",
+		default: "erid",
 		ui: {
 			tab: "appearance",
 			group: "Theme",
-			label: "Light Theme",
-			description: "Theme used when the terminal has a light background",
+			label: "Erid Theme",
+			description: "Amaze's fixed theme for light terminals too",
 			options: "runtime",
 		},
 	},
@@ -1419,17 +1420,6 @@ export const SETTINGS_SCHEMA = {
 		},
 	},
 
-	"startup.checkUpdate": {
-		type: "boolean",
-		default: true,
-		ui: {
-			tab: "interaction",
-			group: "Startup & Updates",
-			label: "Check for Updates",
-			description: "Check for omp updates on startup",
-		},
-	},
-
 	"marketplace.autoUpdate": {
 		type: "enum",
 		values: ["off", "notify", "auto"] as const,
@@ -1444,17 +1434,6 @@ export const SETTINGS_SCHEMA = {
 				{ value: "notify", label: "Notify", description: "Check on startup and notify when updates are available" },
 				{ value: "auto", label: "Auto", description: "Check on startup and auto-install updates" },
 			],
-		},
-	},
-
-	collapseChangelog: {
-		type: "boolean",
-		default: false,
-		ui: {
-			tab: "interaction",
-			group: "Startup & Updates",
-			label: "Collapse Changelog",
-			description: "Show condensed changelog after updates",
 		},
 	},
 
@@ -1653,7 +1632,7 @@ export const SETTINGS_SCHEMA = {
 	// Compaction
 	"compaction.enabled": {
 		type: "boolean",
-		default: true,
+		default: false,
 		ui: {
 			tab: "context",
 			group: "Compaction",
@@ -2054,72 +2033,39 @@ export const SETTINGS_SCHEMA = {
 
 	"branchSummary.reserveTokens": { type: "number", default: 16384 },
 
-	// Memories
-	// Legacy local-memory enable flag kept only for back-compat migration.
-	// Hidden from UI — users should use `memory.backend` instead.
-	"memories.enabled": {
-		type: "boolean",
-		default: false,
-	},
-
-	"memories.maxRolloutsPerStartup": { type: "number", default: 64 },
-
-	"memories.maxRolloutAgeDays": { type: "number", default: 30 },
-
-	"memories.minRolloutIdleHours": { type: "number", default: 12 },
-
-	"memories.threadScanLimit": { type: "number", default: 300 },
-
-	"memories.maxRawMemoriesForGlobal": { type: "number", default: 200 },
-
-	"memories.stage1Concurrency": { type: "number", default: 8 },
-
-	"memories.stage1LeaseSeconds": { type: "number", default: 120 },
-
-	"memories.stage1RetryDelaySeconds": { type: "number", default: 120 },
-
-	"memories.phase2LeaseSeconds": { type: "number", default: 180 },
-
-	"memories.phase2RetryDelaySeconds": { type: "number", default: 180 },
-
-	"memories.phase2HeartbeatSeconds": { type: "number", default: 30 },
-
-	"memories.rolloutPayloadPercent": { type: "number", default: 0.7 },
-
-	"memories.phase1InputTokenLimit": { type: "number", default: 4000 },
-
-	"memories.fallbackTokenLimit": { type: "number", default: 16000 },
-
-	"memories.summaryInjectionTokenLimit": { type: "number", default: 5000 },
-
-	// Memory backend selector — picks between local memories pipeline,
-	// Mnemopi local SQLite, Hindsight remote memory, or off. Legacy
-	// `memories.enabled` keeps gating the local backend; see config/settings.ts
-	// migration for details.
-	"memory.backend": {
-		type: "enum",
-		values: ["off", "local", "hindsight", "mnemopi"] as const,
-		default: "off",
+	"rocky.apiUrl": {
+		type: "string",
+		default: "http://127.0.0.1:7777",
 		ui: {
 			tab: "memory",
-			group: "General",
-			label: "Memory Backend",
-			description: "Off, local summary pipeline, Mnemopi SQLite, or Hindsight remote memory",
-			options: [
-				{ value: "off", label: "Off", description: "No memory subsystem runs" },
-				{ value: "local", label: "Local", description: "Local rollout summarisation pipeline (memory_summary.md)" },
-				{ value: "hindsight", label: "Hindsight", description: "Vectorize Hindsight remote memory service" },
-				{
-					value: "mnemopi",
-					label: "Mnemopi",
-					description: "Local SQLite recall/retain backend with optional embeddings",
-				},
-			],
+			group: "Rocky",
+			label: "Rocky API URL",
+			description: "Local Rocky API base URL used for codebase context",
+		},
+	},
+	"rocky.projectPath": {
+		type: "string",
+		default: undefined,
+		ui: {
+			tab: "memory",
+			group: "Rocky",
+			label: "Rocky Project Path",
+			description: "Project path Rocky should use for scoped codebase search. Defaults to the current cwd.",
+		},
+	},
+	"rocky.timeoutMs": {
+		type: "number",
+		default: 30000,
+		ui: {
+			tab: "memory",
+			group: "Rocky",
+			label: "Rocky Timeout",
+			description: "HTTP timeout in milliseconds for Rocky codebase calls",
 		},
 	},
 
-	// Auto-Learn (experimental): post-stop nudge to capture lessons to memory
-	// and mint/enhance isolated managed skills under ~/.omp/agent/managed-skills.
+	// Auto-Learn (experimental): post-stop nudge to capture lessons and
+	// mint/enhance isolated managed skills under ~/.amaze/agent/managed-skills.
 	// Master flag is default-off → zero footprint; sub-flags gate behaviour.
 	"autolearn.enabled": {
 		type: "boolean",
@@ -2128,8 +2074,7 @@ export const SETTINGS_SCHEMA = {
 			tab: "memory",
 			group: "Auto-Learn",
 			label: "Auto-Learn (experimental)",
-			description:
-				"After the agent stops, nudge it to capture lessons to memory and create/enhance isolated managed skills",
+			description: "After the agent stops, nudge it to capture lessons and create/enhance isolated managed skills",
 		},
 	},
 	"autolearn.autoContinue": {
@@ -2146,390 +2091,6 @@ export const SETTINGS_SCHEMA = {
 	},
 	// Config-file-only knob (numbers without `options` are hidden from the UI).
 	"autolearn.minToolCalls": { type: "number", default: 5 },
-
-	// Mnemopi local SQLite memory backend.
-	"mnemopi.dbPath": {
-		type: "string",
-		default: undefined,
-		ui: {
-			tab: "memory",
-			group: "Mnemopi",
-			label: "Mnemopi DB Path",
-			description: "Optional SQLite DB path. Defaults to the agent memories directory.",
-			condition: "mnemopiActive",
-		},
-	},
-	"mnemopi.bank": {
-		type: "string",
-		default: undefined,
-		ui: {
-			tab: "memory",
-			group: "Mnemopi",
-			label: "Mnemopi Bank",
-			description: "Optional shared bank base name. Per-project modes derive project-local banks from it.",
-			condition: "mnemopiActive",
-		},
-	},
-	"mnemopi.scoping": {
-		type: "enum",
-		values: ["global", "per-project", "per-project-tagged"] as const,
-		default: "per-project",
-		ui: {
-			tab: "memory",
-			group: "Mnemopi",
-			label: "Mnemopi Scoping",
-			description:
-				"global = one shared bank; per-project = isolated bank per cwd; per-project-tagged = project-local writes plus global recall visibility",
-			options: [
-				{
-					value: "global",
-					label: "Global",
-					description: "One shared Mnemopi bank for every project",
-				},
-				{
-					value: "per-project",
-					label: "Per project",
-					description: "Project-local Mnemopi bank per cwd basename",
-				},
-				{
-					value: "per-project-tagged",
-					label: "Per project (tagged)",
-					description: "Write to a project-local bank but merge project + shared recall results",
-				},
-			],
-			condition: "mnemopiActive",
-		},
-	},
-	"mnemopi.embeddingVariant": {
-		type: "enum",
-		values: ["en", "multilingual"] as const,
-		default: "en",
-		ui: {
-			tab: "memory",
-			group: "Mnemopi",
-			label: "Embedding variant",
-			description:
-				"Local embedding model family. en = stronger English model; multilingual = cross-language model. Changing this rebuilds existing memory embeddings on next start.",
-			options: [
-				{
-					value: "en",
-					label: "English (bge-base-en-v1.5)",
-					description: "BAAI/bge-base-en-v1.5 (768d), English-only",
-				},
-				{
-					value: "multilingual",
-					label: "Multilingual (multilingual-e5-large)",
-					description: "intfloat/multilingual-e5-large (1024d), cross-language recall",
-				},
-			],
-			condition: "mnemopiActive",
-		},
-	},
-	"mnemopi.autoRecall": {
-		type: "boolean",
-		default: true,
-		ui: {
-			tab: "memory",
-			group: "Mnemopi",
-			label: "Mnemopi Auto Recall",
-			description: "Recall local memories into the first turn of each session",
-			condition: "mnemopiActive",
-		},
-	},
-	"mnemopi.autoRetain": {
-		type: "boolean",
-		default: true,
-		ui: {
-			tab: "memory",
-			group: "Mnemopi",
-			label: "Mnemopi Auto Retain",
-			description: "Retain completed conversation turns into local Mnemopi memory",
-			condition: "mnemopiActive",
-		},
-	},
-	"mnemopi.polyphonicRecall": {
-		type: "boolean",
-		default: false,
-		ui: {
-			tab: "memory",
-			group: "Mnemopi",
-			label: "Mnemopi Polyphonic Recall",
-			description: "Enable 4-voice recall (vector, graph, fact, temporal) fused with reciprocal rank fusion",
-			condition: "mnemopiActive",
-		},
-	},
-	"mnemopi.enhancedRecall": {
-		type: "boolean",
-		default: false,
-		ui: {
-			tab: "memory",
-			group: "Mnemopi",
-			label: "Mnemopi Enhanced Recall",
-			description: "Enable the tiered query result cache for repeated and similar recall queries",
-			condition: "mnemopiActive",
-		},
-	},
-	"mnemopi.proactiveLinking": {
-		type: "boolean",
-		default: false,
-		ui: {
-			tab: "memory",
-			group: "Mnemopi",
-			label: "Mnemopi Proactive Linking",
-			description:
-				"Ingest new memories into the episodic graph as they are stored, linking them to related entities and memories",
-			condition: "mnemopiActive",
-		},
-	},
-	"mnemopi.noEmbeddings": {
-		type: "boolean",
-		default: false,
-		ui: {
-			tab: "memory",
-			group: "Mnemopi",
-			label: "Mnemopi Disable Embeddings",
-			description: "Force deterministic FTS-only recall instead of vector embeddings",
-			condition: "mnemopiActive",
-		},
-	},
-	"mnemopi.embeddingModel": {
-		type: "string",
-		default: undefined,
-		ui: {
-			tab: "memory",
-			group: "Mnemopi",
-			label: "Mnemopi Embedding Model",
-			description:
-				"Advanced: explicit embedding model id that overrides the variant. Leave empty to use mnemopi.embeddingVariant.",
-			condition: "mnemopiActive",
-		},
-	},
-	"mnemopi.embeddingApiUrl": {
-		type: "string",
-		default: undefined,
-		ui: {
-			tab: "memory",
-			group: "Mnemopi",
-			label: "Mnemopi Embedding API URL",
-			description: "Optional OpenAI-compatible embedding endpoint passed to Mnemopi",
-			condition: "mnemopiActive",
-		},
-	},
-	"mnemopi.embeddingApiKey": {
-		type: "string",
-		default: undefined,
-		ui: {
-			tab: "memory",
-			group: "Mnemopi",
-			label: "Mnemopi Embedding API Key",
-			description: "Optional embedding API key passed to Mnemopi",
-			condition: "mnemopiActive",
-		},
-	},
-	"mnemopi.llmMode": {
-		type: "enum",
-		values: ["none", "smol", "remote"] as const,
-		default: "smol",
-		ui: {
-			tab: "memory",
-			group: "Mnemopi",
-			label: "Mnemopi LLM Mode",
-			description: "Use no LLM, the configured smol model, or a remote OpenAI-compatible endpoint",
-			condition: "mnemopiActive",
-			options: [
-				{ value: "none", label: "None", description: "Disable Mnemopi LLM-backed extraction" },
-				{ value: "smol", label: "Smol", description: "Use the configured pi-ai smol model" },
-				{ value: "remote", label: "Remote", description: "Use the Mnemopi remote LLM settings below" },
-			],
-		},
-	},
-	"mnemopi.llmBaseUrl": {
-		type: "string",
-		default: undefined,
-		ui: {
-			tab: "memory",
-			group: "Mnemopi",
-			label: "Mnemopi LLM Base URL",
-			description: "Optional OpenAI-compatible LLM endpoint for Mnemopi remote mode",
-			condition: "mnemopiActive",
-		},
-	},
-	"mnemopi.llmApiKey": {
-		type: "string",
-		default: undefined,
-		ui: {
-			tab: "memory",
-			group: "Mnemopi",
-			label: "Mnemopi LLM API Key",
-			description: "Optional LLM API key for Mnemopi remote mode",
-			condition: "mnemopiActive",
-		},
-	},
-	"mnemopi.llmModel": {
-		type: "string",
-		default: undefined,
-		ui: {
-			tab: "memory",
-			group: "Mnemopi",
-			label: "Mnemopi LLM Model",
-			description: "Optional LLM model name for Mnemopi remote mode",
-			condition: "mnemopiActive",
-		},
-	},
-	"mnemopi.retainEveryNTurns": { type: "number", default: 4 },
-	"mnemopi.recallLimit": { type: "number", default: 8 },
-	"mnemopi.recallContextTurns": { type: "number", default: 3 },
-	"mnemopi.recallMaxQueryChars": { type: "number", default: 4000 },
-	"mnemopi.injectionTokenLimit": { type: "number", default: 5000 },
-	"mnemopi.debug": { type: "boolean", default: false },
-
-	// Hindsight (https://hindsight.vectorize.io)
-	"hindsight.apiUrl": {
-		type: "string",
-		default: "http://localhost:8888",
-		ui: {
-			tab: "memory",
-			group: "Hindsight",
-			label: "Hindsight API URL",
-			description: "Hindsight server URL (Cloud or self-hosted)",
-			condition: "hindsightActive",
-		},
-	},
-
-	"hindsight.apiToken": { type: "string", default: undefined },
-
-	"hindsight.bankId": {
-		type: "string",
-		default: undefined,
-		ui: {
-			tab: "memory",
-			group: "Hindsight",
-			label: "Hindsight Bank ID",
-			description: "Memory bank identifier (default: project name)",
-			condition: "hindsightActive",
-		},
-	},
-
-	"hindsight.bankIdPrefix": { type: "string", default: undefined },
-	"hindsight.scoping": {
-		type: "enum",
-		values: ["global", "per-project", "per-project-tagged"] as const,
-		default: "per-project-tagged",
-		ui: {
-			tab: "memory",
-			group: "Hindsight",
-			label: "Hindsight Scoping",
-			description:
-				"global = one shared bank; per-project = isolated bank per cwd; per-project-tagged = shared bank with project tags so global + project memories merge on recall",
-			options: [
-				{
-					value: "global",
-					label: "Global",
-					description: "One shared bank — every project sees the same memories",
-				},
-				{
-					value: "per-project",
-					label: "Per project",
-					description: "Isolated bank per cwd basename — projects cannot see each other's memories",
-				},
-				{
-					value: "per-project-tagged",
-					label: "Per project (tagged)",
-					description:
-						"Shared bank, retains tagged with project:<cwd>. Recall surfaces project + untagged global memories together",
-				},
-			],
-			condition: "hindsightActive",
-		},
-	},
-	"hindsight.bankMission": { type: "string", default: undefined },
-	"hindsight.retainMission": { type: "string", default: undefined },
-
-	"hindsight.autoRecall": {
-		type: "boolean",
-		default: true,
-		ui: {
-			tab: "memory",
-			group: "Hindsight",
-			label: "Hindsight Auto Recall",
-			description: "Recall memories on the first turn of each session",
-			condition: "hindsightActive",
-		},
-	},
-	"hindsight.autoRetain": {
-		type: "boolean",
-		default: true,
-		ui: {
-			tab: "memory",
-			group: "Hindsight",
-			label: "Hindsight Auto Retain",
-			description: "Retain transcript every N turns and at session boundaries",
-			condition: "hindsightActive",
-		},
-	},
-
-	"hindsight.retainMode": {
-		type: "enum",
-		values: ["full-session", "last-turn"] as const,
-		default: "full-session",
-		ui: {
-			tab: "memory",
-			group: "Hindsight",
-			label: "Hindsight Retain Mode",
-			description: "full-session = upsert one document per session, last-turn = chunked",
-			options: [
-				{
-					value: "full-session",
-					label: "Full session",
-					description: "Upsert one document per session (recommended)",
-				},
-				{ value: "last-turn", label: "Last turn", description: "Chunked retention sliced by turn boundaries" },
-			],
-			condition: "hindsightActive",
-		},
-	},
-	"hindsight.retainEveryNTurns": { type: "number", default: 3 },
-	"hindsight.retainOverlapTurns": { type: "number", default: 2 },
-	"hindsight.retainContext": { type: "string", default: "omp" },
-
-	"hindsight.recallBudget": {
-		type: "enum",
-		values: ["low", "mid", "high"] as const,
-		default: "mid",
-	},
-	"hindsight.recallMaxTokens": { type: "number", default: 1024 },
-	"hindsight.recallContextTurns": { type: "number", default: 1 },
-	"hindsight.recallMaxQueryChars": { type: "number", default: 800 },
-	"hindsight.recallTypes": { type: "array", default: HINDSIGHT_RECALL_TYPES_DEFAULT },
-
-	"hindsight.debug": { type: "boolean", default: false },
-
-	"hindsight.mentalModelsEnabled": {
-		type: "boolean",
-		default: true,
-		ui: {
-			tab: "memory",
-			group: "Hindsight",
-			label: "Hindsight Mental Models",
-			description:
-				"Read curated reflect summaries (mental models) into developer instructions at boot. Loads existing models on the bank — does not write. Pair with hindsight.mentalModelAutoSeed to also auto-create the built-in seed set.",
-			condition: "hindsightActive",
-		},
-	},
-	"hindsight.mentalModelAutoSeed": {
-		type: "boolean",
-		default: true,
-		ui: {
-			tab: "memory",
-			group: "Hindsight",
-			label: "Hindsight Mental Model Auto-Seed",
-			description:
-				"At session start, create any built-in mental models (project-conventions, project-decisions, user-preferences) that do not yet exist on the bank.",
-			condition: "hindsightActive",
-		},
-	},
-	"hindsight.mentalModelRefreshIntervalMs": { type: "number", default: 5 * 60 * 1000 },
-	"hindsight.mentalModelMaxRenderChars": { type: "number", default: 16_000 },
 
 	// TTSR
 	"ttsr.enabled": {
@@ -2820,74 +2381,6 @@ export const SETTINGS_SCHEMA = {
 			group: "Reading",
 			label: "Inline Read Previews",
 			description: "Render read tool results inline in the transcript instead of summary rows",
-		},
-	},
-
-	// LSP
-	"lsp.enabled": {
-		type: "boolean",
-		default: true,
-		ui: {
-			tab: "files",
-			group: "LSP",
-			label: "LSP",
-			description: "Enable the lsp tool for code intelligence (definitions, references, diagnostics, rename)",
-		},
-	},
-
-	"lsp.lazy": {
-		type: "boolean",
-		default: true,
-		ui: {
-			tab: "files",
-			group: "LSP",
-			label: "Lazy LSP Startup",
-			description:
-				"Start language servers on first use (lsp tool or editing a matching file type) instead of at session startup",
-		},
-	},
-
-	"lsp.formatOnWrite": {
-		type: "boolean",
-		default: false,
-		ui: {
-			tab: "files",
-			group: "LSP",
-			label: "Format on Write",
-			description: "Automatically format code files using LSP after writing",
-		},
-	},
-
-	"lsp.diagnosticsOnWrite": {
-		type: "boolean",
-		default: true,
-		ui: {
-			tab: "files",
-			group: "LSP",
-			label: "Diagnostics on Write",
-			description: "Return LSP diagnostics after writing code files",
-		},
-	},
-
-	"lsp.diagnosticsOnEdit": {
-		type: "boolean",
-		default: false,
-		ui: {
-			tab: "files",
-			group: "LSP",
-			label: "Diagnostics on Edit",
-			description: "Return LSP diagnostics after editing code files",
-		},
-	},
-
-	"lsp.diagnosticsDeduplicate": {
-		type: "boolean",
-		default: true,
-		ui: {
-			tab: "files",
-			group: "LSP",
-			label: "Deduplicate Diagnostics",
-			description: "Suppress post-edit LSP diagnostics already shown for a file; only surface new or changed ones",
 		},
 	},
 
@@ -3307,7 +2800,8 @@ export const SETTINGS_SCHEMA = {
 			tab: "tools",
 			group: "GitHub",
 			label: "GitHub View Cache",
-			description: "Cache rendered issue/PR view output in ~/.omp/cache/github-cache.db so repeated reads are free",
+			description:
+				"Cache rendered issue/PR view output in ~/.amaze/cache/github-cache.db so repeated reads are free",
 		},
 	},
 
@@ -3750,7 +3244,7 @@ export const SETTINGS_SCHEMA = {
 
 	"task.maxConcurrency": {
 		type: "number",
-		default: 32,
+		default: 1,
 		ui: {
 			tab: "tasks",
 			group: "Subagents",
@@ -3766,18 +3260,6 @@ export const SETTINGS_SCHEMA = {
 				{ value: "32", label: "32 tasks" },
 				{ value: "64", label: "64 tasks" },
 			],
-		},
-	},
-
-	"task.enableLsp": {
-		type: "boolean",
-		default: false,
-		ui: {
-			tab: "tasks",
-			group: "Subagents",
-			label: "LSP in Subagents",
-			description:
-				"Allow subagents spawned via the task tool to use the lsp tool. Off by default to keep subagents cheap; enable when LSP-aware delegation is worth the extra tokens.",
 		},
 	},
 
@@ -3826,7 +3308,7 @@ export const SETTINGS_SCHEMA = {
 			group: "Subagents",
 			label: "Agent Idle TTL",
 			description:
-				"How long an idle subagent stays live in memory before being parked to disk (ms). Parked agents are revived automatically when messaged or resumed. 0 keeps idle agents live until exit.",
+				"How long an idle revivable subagent stays live in memory before being parked to disk (ms). Completed contract subagents are transcript-only and are not revived by IRC.",
 		},
 	},
 
@@ -3838,7 +3320,7 @@ export const SETTINGS_SCHEMA = {
 			group: "Subagents",
 			label: "Soft Subagent Request Budget",
 			description:
-				"Soft per-subagent request budget (assistant requests per run). Crossing it injects one steering notice asking the subagent to wrap up; at 1.5x the budget the run is aborted gracefully, salvaging partial output. 0 disables the guard. Bundled explore/quick_task agents use a lower built-in budget.",
+				"Soft per-subagent request budget (assistant requests per run). Crossing it injects one steering notice asking the subagent to wrap up; at 1.5x the budget the run is aborted gracefully, salvaging partial output. 0 disables the guard. Bundled finder/fixer/helper agents use a lower built-in budget.",
 			options: [
 				{ value: "0", label: "Disabled" },
 				{ value: "40", label: "40 requests" },
@@ -4211,20 +3693,6 @@ export const SETTINGS_SCHEMA = {
 			options: TINY_MODEL_DTYPE_SETTING_OPTIONS,
 		},
 	},
-	"providers.memoryModel": {
-		type: "enum",
-		values: TINY_MEMORY_MODEL_VALUES,
-		default: ONLINE_MEMORY_MODEL_KEY,
-		ui: {
-			tab: "memory",
-			group: "General",
-			label: "Memory Model",
-			description:
-				"Mnemopi LLM for fact extraction + consolidation: online (smol/remote) by default, or a local on-device model",
-			condition: "mnemopiActive",
-			options: TINY_MEMORY_MODEL_OPTIONS,
-		},
-	},
 
 	"providers.autoThinkingModel": {
 		type: "enum",
@@ -4507,12 +3975,12 @@ export const SETTINGS_SCHEMA = {
 
 	"dev.autoqaPush.endpoint": {
 		type: "string",
-		default: "https://qa.omp.sh/v1/grievances" as const,
+		default: "https://qa.amaze/v1/grievances" as const,
 		ui: {
 			tab: "tools",
 			group: "Developer",
 			label: "Auto QA Push Endpoint",
-			description: "Full URL receiving Auto QA JSON reports (default https://qa.omp.sh/v1/grievances)",
+			description: "Full URL receiving Auto QA JSON reports (default https://qa.amaze/v1/grievances)",
 		},
 	},
 
@@ -4610,6 +4078,91 @@ export function getType(path: SettingPath): SettingDef["type"] {
 export function getEnumValues(path: SettingPath): readonly string[] | undefined {
 	const def = SETTINGS_SCHEMA[path];
 	return "values" in def ? (def.values as readonly string[]) : undefined;
+}
+
+export const SETTING_ENV_PREFIXES = ["AMAZE_SETTING_", "OMP_SETTING_"] as const;
+
+function normalizeSettingPathForEnv(path: string): string {
+	return path
+		.replace(/([a-z0-9])([A-Z])/g, "$1_$2")
+		.replace(/[^A-Za-z0-9]+/g, "_")
+		.toUpperCase();
+}
+
+const SETTING_ENV_SUFFIX_TO_PATH: Record<string, SettingPath> = (() => {
+	const mapping: Partial<Record<string, SettingPath>> = {};
+	for (const path of Object.keys(SETTINGS_SCHEMA) as SettingPath[]) {
+		const suffix = normalizeSettingPathForEnv(path);
+		const existing = mapping[suffix];
+		if (existing && existing !== path) {
+			throw new Error(`Duplicate setting env suffix ${suffix}: ${existing} vs ${path}`);
+		}
+		mapping[suffix] = path;
+	}
+	return mapping as Record<string, SettingPath>;
+})();
+
+export function getSettingEnvNames(path: SettingPath): readonly string[] {
+	const suffix = normalizeSettingPathForEnv(path);
+	return SETTING_ENV_PREFIXES.map(prefix => `${prefix}${suffix}`);
+}
+
+export function getSettingPathFromEnvName(name: string): SettingPath | undefined {
+	for (const prefix of SETTING_ENV_PREFIXES) {
+		if (name.startsWith(prefix)) {
+			return SETTING_ENV_SUFFIX_TO_PATH[name.slice(prefix.length)];
+		}
+	}
+	return undefined;
+}
+
+export function parseSettingStringValue<P extends SettingPath>(path: P, rawValue: string): SettingValue<P> {
+	const schemaType = getType(path);
+	const trimmed = rawValue.trim();
+	switch (schemaType) {
+		case "boolean": {
+			const lower = trimmed.toLowerCase();
+			if (["true", "1", "yes", "on"].includes(lower)) return true as SettingValue<P>;
+			if (["false", "0", "no", "off"].includes(lower)) return false as SettingValue<P>;
+			throw new Error(`Invalid boolean value: ${rawValue}. Use true/false, yes/no, on/off, or 1/0`);
+		}
+		case "number": {
+			const parsed = Number(trimmed);
+			if (!Number.isFinite(parsed)) throw new Error(`Invalid number: ${rawValue}`);
+			return parsed as SettingValue<P>;
+		}
+		case "enum": {
+			const valid = getEnumValues(path);
+			if (valid && !valid.includes(trimmed)) {
+				throw new Error(`Invalid value: ${rawValue}. Valid values: ${valid.join(", ")}`);
+			}
+			return trimmed as SettingValue<P>;
+		}
+		case "array": {
+			let parsed: unknown;
+			try {
+				parsed = JSON.parse(trimmed);
+			} catch {
+				throw new Error(`Invalid array JSON: ${rawValue}`);
+			}
+			if (!Array.isArray(parsed)) throw new Error(`Invalid array JSON: ${rawValue}`);
+			return parsed as SettingValue<P>;
+		}
+		case "record": {
+			let parsed: unknown;
+			try {
+				parsed = JSON.parse(trimmed);
+			} catch {
+				throw new Error(`Invalid record JSON: ${rawValue}`);
+			}
+			if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+				throw new Error(`Invalid record JSON: ${rawValue}`);
+			}
+			return parsed as SettingValue<P>;
+		}
+		default:
+			return trimmed as SettingValue<P>;
+	}
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

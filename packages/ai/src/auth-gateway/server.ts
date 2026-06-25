@@ -1,12 +1,12 @@
 /**
- * omp auth-gateway HTTP server.
+ * amaze auth-gateway HTTP server.
  *
  * Accepts any provider-format request (OpenAI chat-completions, Anthropic
  * messages, OpenAI Responses) and dispatches through pi-ai's `streamSimple()`
  * — which handles credential injection, anthropic-beta headers, codex
  * websocket transport, and all the per-provider intricacies. The gateway is
- * pure protocol translation: foreign wire → omp Context → pi-ai stream() →
- * omp events → foreign wire.
+ * pure protocol translation: foreign wire → amaze Context → pi-ai stream() →
+ * amaze events → foreign wire.
  *
  * Endpoints:
  *   GET  /healthz                          → unauth; ok + version
@@ -18,8 +18,8 @@
  *   POST /v1/responses                     → OpenAI Responses in/out
  */
 
-import { Effort } from "@oh-my-pi/pi-catalog/effort";
-import { extractRetryHint, logger } from "@oh-my-pi/pi-utils";
+import { Effort } from "@amaze/pi-catalog/effort";
+import { extractRetryHint, logger } from "@amaze/pi-utils";
 import type { ApiKeyResolver } from "../auth-retry";
 import type { AuthStorage } from "../auth-storage";
 import * as anthropicMessages from "../providers/anthropic-messages-server";
@@ -105,7 +105,7 @@ function deriveSessionId(modelId: string, context: Context): string {
 	const first = context.messages?.[0];
 	if (first) {
 		// Strip timestamp / provider metadata so the hash is stable across turns
-		// of the same conversation (omp re-stamps every parsed Message). role +
+		// of the same conversation (amaze re-stamps every parsed Message). role +
 		// content is what's actually on the wire.
 		parts.push(JSON.stringify({ role: first.role, content: first.content }));
 	}

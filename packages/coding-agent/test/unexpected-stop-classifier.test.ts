@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import type { AssistantMessage } from "@oh-my-pi/pi-ai";
+import type { AssistantMessage } from "@amaze/pi-ai";
 import {
 	isUnexpectedStopCandidate,
 	parseUnexpectedStopClassification,
-} from "@oh-my-pi/pi-coding-agent/session/unexpected-stop-classifier";
+} from "@amaze/pi-coding-agent/session/unexpected-stop-classifier";
 
 function makeAssistantMessage(options: {
 	stopReason: AssistantMessage["stopReason"];
@@ -69,6 +69,14 @@ describe("isUnexpectedStopCandidate", () => {
 		});
 		expect(isUnexpectedStopCandidate(message)).toBe(false);
 	});
+
+	it("still treats a completed answer with an optional follow-up offer as a stop candidate", () => {
+		const message = makeAssistantMessage({
+			stopReason: "stop",
+			content: [{ type: "text", text: "I've completed the analysis. If you'd like, I can outline the patch next." }],
+		});
+		expect(isUnexpectedStopCandidate(message)).toBe(true);
+	});
 });
 
 describe("parseUnexpectedStopClassification", () => {
@@ -82,6 +90,12 @@ describe("parseUnexpectedStopClassification", () => {
 		expect(parseUnexpectedStopClassification("NO")).toBe(false);
 		expect(parseUnexpectedStopClassification("no")).toBe(false);
 		expect(parseUnexpectedStopClassification("No, the task is complete.")).toBe(false);
+	});
+
+	it("returns false for a completed answer that offers optional follow-up work", () => {
+		expect(parseUnexpectedStopClassification("NO — the analysis is complete and the patch offer is optional.")).toBe(
+			false,
+		);
 	});
 
 	it("returns undefined for unparseable output", () => {

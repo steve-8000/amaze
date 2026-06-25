@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { fetchWithRetry } from "@oh-my-pi/pi-utils/fetch-retry";
+import { fetchWithRetry } from "@amaze/pi-utils/fetch-retry";
 
 describe("fetchWithRetry", () => {
 	it("routes requests through the `fetch` override when provided", async () => {

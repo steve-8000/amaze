@@ -1,13 +1,12 @@
 /**
- * Edit tool renderer and LSP batching helpers.
+ * Edit tool renderer and write-through batching helpers.
  */
 
-import { HL_FILE_PREFIX, HL_FILE_SUFFIX } from "@oh-my-pi/hashline";
-import type { Component } from "@oh-my-pi/pi-tui";
-import { sliceWithWidth, visibleWidth, wrapTextWithAnsi } from "@oh-my-pi/pi-tui";
-import { sanitizeText } from "@oh-my-pi/pi-utils";
+import { HL_FILE_PREFIX, HL_FILE_SUFFIX } from "@amaze/hashline";
+import type { Component } from "@amaze/pi-tui";
+import { sliceWithWidth, visibleWidth, wrapTextWithAnsi } from "@amaze/pi-tui";
+import { sanitizeText } from "@amaze/pi-utils";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
-import type { FileDiagnosticsResult } from "../lsp";
 import { renderDiff as renderDiffColored } from "../modes/components/diff";
 import { getLanguageFromPath, type Theme } from "../modes/theme/theme";
 import type { OutputMeta } from "../tools/output-meta";
@@ -18,14 +17,14 @@ import {
 	formatExpandHint,
 	formatStatusIcon,
 	getDiffStats,
-	getLspBatchRequest,
+	getWritethroughBatchRequest,
 	invalidateRenderedStringCache,
-	type LspBatchRequest,
 	PREVIEW_LIMITS,
 	type RenderedStringCache,
 	replaceTabs,
 	shortenPath,
 	truncateDiffByHunk,
+	type WritethroughBatchRequest,
 } from "../tools/render-utils";
 import { fileHyperlink, framedBlock, Hasher, type RenderCache, renderStatusLine, truncateToWidth } from "../tui";
 import type { EditMode } from "../utils/edit-mode";
@@ -33,12 +32,13 @@ import type { DiffError, DiffResult } from "./diff";
 import { type ApplyPatchEntry, expandApplyPatchToEntries, expandApplyPatchToPreviewEntries } from "./modes/apply-patch";
 import type { Operation } from "./modes/patch";
 import type { PerFileDiffPreview } from "./streaming";
+import type { FileDiagnosticsResult } from "./writethrough";
 
 // ═══════════════════════════════════════════════════════════════════════════
-// LSP Batching
+// Write-through batching
 // ═══════════════════════════════════════════════════════════════════════════
 
-export { getLspBatchRequest, type LspBatchRequest };
+export { getWritethroughBatchRequest, type WritethroughBatchRequest };
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Tool Details Types

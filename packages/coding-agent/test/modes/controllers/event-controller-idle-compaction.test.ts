@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import type { AssistantMessage } from "@oh-my-pi/pi-ai";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { EventController } from "@oh-my-pi/pi-coding-agent/modes/controllers/event-controller";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
+import type { AssistantMessage } from "@amaze/pi-ai";
+import { resetSettingsForTest, Settings } from "@amaze/pi-coding-agent/config/settings";
+import { EventController } from "@amaze/pi-coding-agent/modes/controllers/event-controller";
+import type { InteractiveModeContext } from "@amaze/pi-coding-agent/modes/types";
 
 function createAssistantMessage(): AssistantMessage {
 	return {
@@ -30,6 +30,7 @@ describe("EventController idle compaction teardown", () => {
 		await Settings.init({
 			inMemory: true,
 			overrides: {
+				"compaction.enabled": true,
 				"compaction.idleEnabled": true,
 				"compaction.idleThresholdTokens": 100,
 				"compaction.idleTimeoutSeconds": 60,
@@ -76,6 +77,44 @@ describe("EventController idle compaction teardown", () => {
 		const controller = new EventController(context);
 		await controller.handleEvent({ type: "agent_end", messages: [createAssistantMessage()] });
 		controller.dispose();
+		vi.advanceTimersByTime(60_000);
+
+		expect(runIdleCompaction).not.toHaveBeenCalled();
+	});
+
+	it("does not schedule idle compaction when auto-compaction is disabled", async () => {
+		const settings = Settings.instance;
+		settings.override("compaction.enabled", false);
+		const runIdleCompaction = vi.fn();
+		const context = {
+			isInitialized: true,
+			loadingAnimation: undefined,
+			streamingComponent: undefined,
+			streamingMessage: undefined,
+			pendingTools: new Map<string, unknown>(),
+			flushPendingModelSwitch: async () => {},
+			ui: { requestRender: vi.fn() },
+			chatContainer: { removeChild: vi.fn() },
+			statusContainer: { clear: vi.fn() },
+			statusLine: { invalidate: vi.fn() },
+			updateEditorTopBorder: vi.fn(),
+			editor: { getText: () => "" },
+			sessionManager: { getSessionName: () => undefined },
+			session: {
+				isCompacting: false,
+				isStreaming: false,
+				runIdleCompaction,
+				getContextUsage: () => ({ tokens: 210 }),
+				agent: { state: { messages: [createAssistantMessage()] } },
+			},
+			get viewSession() {
+				return (this as typeof context).session;
+			},
+			clearTransientSessionUi: () => {},
+		} as unknown as InteractiveModeContext;
+
+		const controller = new EventController(context);
+		await controller.handleEvent({ type: "agent_end", messages: [createAssistantMessage()] });
 		vi.advanceTimersByTime(60_000);
 
 		expect(runIdleCompaction).not.toHaveBeenCalled();

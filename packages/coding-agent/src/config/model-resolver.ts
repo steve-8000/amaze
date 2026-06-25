@@ -15,18 +15,18 @@
  *   CLI flags, scope globs — onto that pipeline.
  */
 
-import { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import type { Api, Effort, KnownProvider, Model, ModelSpec } from "@oh-my-pi/pi-ai";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { modelMatchesHost } from "@oh-my-pi/pi-catalog/hosts";
-import { buildModelProviderPriorityRank } from "@oh-my-pi/pi-catalog/identity";
-import { stripThinkingVariantToken } from "@oh-my-pi/pi-catalog/identity/family";
-import { clampThinkingLevelForModel } from "@oh-my-pi/pi-catalog/model-thinking";
-import { modelsAreEqual } from "@oh-my-pi/pi-catalog/models";
-import { DEFAULT_MODEL_PER_PROVIDER } from "@oh-my-pi/pi-catalog/provider-models";
-import { resolveBareVariantAlias, resolveVariantAlias } from "@oh-my-pi/pi-catalog/variant-collapse";
-import { fuzzyMatch } from "@oh-my-pi/pi-tui";
-import { logger } from "@oh-my-pi/pi-utils";
+import { ThinkingLevel } from "@amaze/pi-agent-core";
+import type { Api, Effort, KnownProvider, Model, ModelSpec } from "@amaze/pi-ai";
+import { buildModel } from "@amaze/pi-catalog/build";
+import { modelMatchesHost } from "@amaze/pi-catalog/hosts";
+import { buildModelProviderPriorityRank } from "@amaze/pi-catalog/identity";
+import { stripThinkingVariantToken } from "@amaze/pi-catalog/identity/family";
+import { clampThinkingLevelForModel } from "@amaze/pi-catalog/model-thinking";
+import { modelsAreEqual } from "@amaze/pi-catalog/models";
+import { DEFAULT_MODEL_PER_PROVIDER } from "@amaze/pi-catalog/provider-models";
+import { resolveBareVariantAlias, resolveVariantAlias } from "@amaze/pi-catalog/variant-collapse";
+import { fuzzyMatch } from "@amaze/pi-tui";
+import { logger } from "@amaze/pi-utils";
 import chalk from "chalk";
 import MODEL_PRIO from "../priority.json" with { type: "json" };
 import { parseThinkingLevel, resolveThinkingLevelForModel } from "../thinking";
@@ -870,7 +870,7 @@ function normalizeModelPatternList(value: string | string[] | undefined): string
 }
 
 function isSessionInheritedAgentPattern(value: string): boolean {
-	return value === DEFAULT_MODEL_ROLE || value === `${PREFIX_MODEL_ROLE}${DEFAULT_MODEL_ROLE}` || value === "pi/task";
+	return value === DEFAULT_MODEL_ROLE || value === `${PREFIX_MODEL_ROLE}${DEFAULT_MODEL_ROLE}`;
 }
 
 function shouldInheritDefaultBeforePriority(role: ModelRole): boolean {
@@ -993,7 +993,6 @@ export function resolveAgentModelPatterns(options: AgentModelPatternResolutionOp
 	const agentInheritsSessionModel = singleAgentPattern ? isSessionInheritedAgentPattern(singleAgentPattern) : false;
 	if (configuredAgentPatterns.length > 0) {
 		if (!agentInheritsSessionModel) return configuredAgentPatterns;
-		if (singleAgentPattern === "pi/task") return configuredAgentPatterns;
 	}
 
 	const fallback =
@@ -1172,9 +1171,9 @@ export function resolveModelOverride(
  * If the resolved subagent model has no working credentials (provider has no
  * usable auth), and the parent's active model resolves with working auth,
  * use the parent's model instead. This prevents subagent dispatch from
- * silently routing to a provider the user can't actually call (e.g.
- * `modelRoles.task` pointing at an unqualified id whose only available
- * provider variant has no configured credentials — see #985).
+ * silently routing to a provider the user can't actually call (for example, a
+ * stale subagent-model override pointing at an unqualified id whose only
+ * available provider variant has no configured credentials — see #985).
  *
  * Keyless-by-design providers (llama.cpp, ollama, lm-studio) advertise the
  * `kNoAuth` sentinel from `getApiKey` to signal that they do not require
@@ -1479,7 +1478,7 @@ export function resolveCliModel(options: {
 			model: undefined,
 			selector: undefined,
 			warning: undefined,
-			error: `Unknown provider "${cliProvider}". Run "omp models" to see available providers/models.`,
+			error: `Unknown provider "${cliProvider}". Run "amaze models" to see available providers/models.`,
 		};
 	}
 
@@ -1569,7 +1568,7 @@ export function resolveCliModel(options: {
 			selector: undefined,
 			thinkingLevel: undefined,
 			warning,
-			error: `Model "${display}" not found. Run "omp models" to see available models.`,
+			error: `Model "${display}" not found. Run "amaze models" to see available models.`,
 		};
 	}
 

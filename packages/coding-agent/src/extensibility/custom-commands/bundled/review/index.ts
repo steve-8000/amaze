@@ -9,9 +9,9 @@
  *
  * Runs VCS diffs upfront, parses results, filters noise, and provides
  * rich context for the orchestrating agent to distribute work across
- * multiple reviewer agents based on diff weight and locality.
+ * multiple checker agents based on diff weight and locality.
  */
-import { prompt } from "@oh-my-pi/pi-utils";
+import { prompt } from "@amaze/pi-utils";
 import type { CustomCommand, CustomCommandAPI } from "../../../../extensibility/custom-commands/types";
 import type { HookCommandContext } from "../../../../extensibility/hooks/types";
 import reviewCustomRequestTemplate from "../../../../prompts/review-custom-request.md" with { type: "text" };
@@ -174,7 +174,7 @@ function getFileExt(path: string): string {
 }
 
 /**
- * Determine recommended number of reviewer agents based on diff weight.
+ * Determine recommended number of checker agents based on diff weight.
  * Uses total lines changed as the primary metric.
  */
 function getRecommendedAgentCount(stats: DiffStats): number {

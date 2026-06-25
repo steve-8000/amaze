@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { processFileArguments } from "@oh-my-pi/pi-coding-agent/cli/file-processor";
+import { processFileArguments } from "@amaze/pi-coding-agent/cli/file-processor";
 
 function createPdfWithText(text: string): string {
 	const chunks: string[] = [];
@@ -43,7 +43,7 @@ describe("processFileArguments", () => {
 	let testDir: string;
 
 	beforeEach(() => {
-		testDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-pdf-file-args-"));
+		testDir = fs.mkdtempSync(path.join(os.tmpdir(), "amaze-pdf-file-args-"));
 	});
 
 	afterEach(() => {

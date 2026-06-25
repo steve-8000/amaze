@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { TempDir } from "@amaze/pi-utils";
 import { Settings } from "../../config/settings";
 import type { ToolSession } from "../../tools";
 import { disposeAllVmContexts, setWorkerCloseTimeoutMsForTests } from "../js/context-manager";
@@ -25,10 +25,8 @@ function makeSession(cwd: string): ToolSession {
 		settings: Settings.isolated({
 			"async.enabled": false,
 			"task.isolation.mode": "none",
-			"task.enableLsp": true,
 		}),
 		taskDepth: 0,
-		enableLsp: true,
 		getSessionFile: () => null,
 		getSessionSpawns: () => "*",
 		getActiveModelString: () => "p/active",
@@ -200,13 +198,13 @@ describe("JavaScript eval worker lifecycle", () => {
 	});
 
 	it("exits a real worker on graceful close even with ref'ed user handles", async () => {
-		using tempDir = TempDir.createSync("@omp-js-worker-real-close-");
+		using tempDir = TempDir.createSync("@amaze-js-worker-real-close-");
 
 		await waitForRealWorkerExitAfterClose(tempDir.path());
 	});
 
 	it("waits for the worker to close on reset instead of force-terminating it", async () => {
-		using tempDir = TempDir.createSync("@omp-js-worker-close-");
+		using tempDir = TempDir.createSync("@amaze-js-worker-close-");
 		const stats: FakeWorkerStats = { closeRequests: 0, terminateCalls: 0 };
 		installFakeWorker(stats, { exitOnClose: true, settleRuns: true });
 
@@ -228,7 +226,7 @@ describe("JavaScript eval worker lifecycle", () => {
 	});
 
 	it("terminates when close is acknowledged but the worker does not exit", async () => {
-		using tempDir = TempDir.createSync("@omp-js-worker-close-hung-");
+		using tempDir = TempDir.createSync("@amaze-js-worker-close-hung-");
 		const stats: FakeWorkerStats = { closeRequests: 0, terminateCalls: 0 };
 		installFakeWorker(stats, { exitOnClose: false, settleRuns: true });
 
@@ -250,7 +248,7 @@ describe("JavaScript eval worker lifecycle", () => {
 	});
 
 	it("force-terminates instead of closing when an in-flight run is aborted", async () => {
-		using tempDir = TempDir.createSync("@omp-js-worker-abort-");
+		using tempDir = TempDir.createSync("@amaze-js-worker-abort-");
 		const stats: FakeWorkerStats = { closeRequests: 0, terminateCalls: 0 };
 		installFakeWorker(stats, { exitOnClose: true, settleRuns: false });
 
@@ -272,7 +270,7 @@ describe("JavaScript eval worker lifecycle", () => {
 	});
 
 	it("falls back to the inline worker when the spawned worker errors during startup", async () => {
-		using tempDir = TempDir.createSync("@omp-js-worker-error-");
+		using tempDir = TempDir.createSync("@amaze-js-worker-error-");
 		const stats: FakeWorkerStats = { closeRequests: 0, terminateCalls: 0 };
 		installFakeWorker(stats, { exitOnClose: true, settleRuns: true, errorOnStart: true });
 

@@ -1,6 +1,6 @@
 /**
  * The provider catalog table: one entry per chat-model provider, carrying the
- * catalog half of what used to live in `@oh-my-pi/pi-ai`'s registry definitions
+ * catalog half of what used to live in `@amaze/pi-ai`'s registry definitions
  * (default model, runtime model-manager factory, discovery wiring). The auth
  * half (env keys, OAuth login/refresh) stays in the pi-ai registry, which
  * type-checks itself against `KnownProvider` from this table.
@@ -17,6 +17,7 @@ import {
 	deepseekModelManagerOptions,
 	firepassModelManagerOptions,
 	fireworksModelManagerOptions,
+	gemma12BModelManagerOptions,
 	githubCopilotModelManagerOptions,
 	groqModelManagerOptions,
 	huggingfaceModelManagerOptions,
@@ -120,6 +121,14 @@ export const CATALOG_PROVIDERS = [
 		envVars: ["FIREWORKS_API_KEY"],
 		createModelManagerOptions: (config: ModelManagerConfig) => fireworksModelManagerOptions(config),
 		catalogDiscovery: { label: "Fireworks" },
+	},
+	{
+		id: "gemma-12b",
+		defaultModel: "gemma-3-12b-it",
+		envVars: ["GEMMA_12B_API_KEY"],
+		createModelManagerOptions: (config: ModelManagerConfig) => gemma12BModelManagerOptions(config),
+		allowUnauthenticated: true,
+		catalogDiscovery: { label: "Gemma 12B", allowUnauthenticated: true },
 	},
 	{
 		id: "github-copilot",

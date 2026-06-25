@@ -1,6 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
-import { getProjectDir } from "@oh-my-pi/pi-utils";
+import * as path from "node:path";
+import { getProjectDir, isEnoent, parseFrontmatter } from "@amaze/pi-utils";
 import {
 	isValidManagedSkillName,
 	MANAGED_SKILLS_PROVIDER_ID,
@@ -57,6 +58,101 @@ export function setActiveSkills(value: readonly Skill[]): void {
 /** Reset the active skill snapshot. Test-only. */
 export function resetActiveSkillsForTests(): void {
 	activeSkills = [];
+}
+
+const ROCKY_SKILLS_PROVIDER_ID = "rocky";
+const ROCKY_SKILL_SEARCH_BOOTSTRAP_NAME = "rocky-skill-search";
+const ROCKY_SKILL_SEARCH_BOOTSTRAP_PATH = path.join(
+	import.meta.dirname,
+	"..",
+	"prompts",
+	"skills",
+	"rocky-skill-search.md",
+);
+
+function getRockySkillSearchBootstrapSkill(): Skill {
+	return {
+		name: ROCKY_SKILL_SEARCH_BOOTSTRAP_NAME,
+		description: "Use Rocky skill_search/skill_get for skill discovery and management.",
+		filePath: ROCKY_SKILL_SEARCH_BOOTSTRAP_PATH,
+		baseDir: path.dirname(ROCKY_SKILL_SEARCH_BOOTSTRAP_PATH),
+		source: "amaze:bootstrap",
+		_source: {
+			provider: "amaze",
+			providerName: "Amaze",
+			path: ROCKY_SKILL_SEARCH_BOOTSTRAP_PATH,
+			level: "user",
+		},
+	};
+}
+
+function getRockySkillsDir(): string {
+	return process.env.ROCKY_SKILLS_DIR?.trim() || path.join(os.homedir(), ".rocky", "skills");
+}
+
+function frontmatterDescription(frontmatter: Record<string, unknown> | undefined): string {
+	if (typeof frontmatter?.description === "string") return frontmatter.description;
+	if (typeof frontmatter?.summary === "string") return frontmatter.summary;
+	return "";
+}
+
+async function loadRockySkillsFromDir(dir: string): Promise<LoadSkillsResult> {
+	const skills: Skill[] = [];
+	const warnings: SkillWarning[] = [];
+	let entries: Array<import("node:fs").Dirent>;
+	try {
+		entries = await fs.readdir(dir, { withFileTypes: true });
+	} catch (error) {
+		if (!isEnoent(error)) {
+			warnings.push({ skillPath: dir, message: `Failed to read Rocky skills directory: ${String(error)}` });
+		}
+		return { skills, warnings };
+	}
+
+	await Promise.all(
+		entries.map(async entry => {
+			if (
+				!entry.isFile() ||
+				entry.name.startsWith(".") ||
+				!entry.name.endsWith(".md") ||
+				entry.name === "manifest.json"
+			) {
+				return;
+			}
+			const filePath = path.join(dir, entry.name);
+			try {
+				const content = await Bun.file(filePath).text();
+				const { frontmatter } = parseFrontmatter(content, { source: filePath });
+				if (frontmatter.enabled === false) return;
+				const rawName = frontmatter.name;
+				const name =
+					typeof rawName === "string" && rawName.trim() ? rawName.trim() : path.basename(entry.name, ".md");
+				const description = frontmatterDescription(frontmatter);
+				if (!description) return;
+				skills.push({
+					name,
+					description,
+					filePath,
+					baseDir: dir,
+					source: `${ROCKY_SKILLS_PROVIDER_ID}:user`,
+					hide: frontmatter.hide === true || frontmatter.disableModelInvocation === true,
+					_source: {
+						provider: ROCKY_SKILLS_PROVIDER_ID,
+						providerName: "Rocky Skills",
+						path: filePath,
+						level: "user",
+					},
+				});
+			} catch (error) {
+				warnings.push({
+					skillPath: filePath,
+					message: `Failed to read Rocky skill file: ${error instanceof Error ? error.message : String(error)}`,
+				});
+			}
+		}),
+	);
+	skills.sort((a, b) => compareSkillOrder(a.name, a.filePath, b.name, b.filePath));
+	return { skills, warnings };
 }
 
 /**
@@ -142,7 +238,7 @@ export async function loadSkills(options: LoadSkillsOptions = {}): Promise<LoadS
 	// Fall-through gate for third-party CLI providers (claude-plugins, opencode,
 	// gemini, github, ...) that share user intent with the named third-party
 	// source toggles but don't have a dedicated control of their own. Only the
-	// third-party toggles count here: the OMP-native providers (`agents`,
+	// third-party toggles count here: the Amaze-native providers (`agents`,
 	// `native`) get explicit branches in `isSourceEnabled` below, so folding
 	// them into the fallback would re-enable unrelated third-party CLIs whenever
 	// the user kept the default `.agent[s]/skills` toggles on while turning off
@@ -152,7 +248,7 @@ export async function loadSkills(options: LoadSkillsOptions = {}): Promise<LoadS
 
 	function isSourceEnabled(source: SourceMeta): boolean {
 		const { provider, level } = source;
-		// Managed skills (auto-learn) are OMP-native and discovered unconditionally
+		// Managed skills (auto-learn) are Amaze-native and discovered unconditionally
 		// — third-party CLI toggles must never silently hide them (cf. #2401). The
 		// master `enabled` flag above still gates them.
 		if (provider === MANAGED_SKILLS_PROVIDER_ID) return true;
@@ -305,6 +401,44 @@ export async function loadSkills(options: LoadSkillsOptions = {}): Promise<LoadS
 			skillMap.set(skill.name, skill);
 			realPathSet.add(resolvedPath);
 		}
+	}
+
+	if (enablePiUser) {
+		const rockyResult = await loadRockySkillsFromDir(getRockySkillsDir());
+		for (const skill of rockyResult.skills) {
+			if (disabledSkillNames.has(skill.name)) continue;
+			if (matchesIgnorePatterns(skill.name)) continue;
+			if (!matchesIncludePatterns(skill.name)) continue;
+			let resolvedPath = skill.filePath;
+			try {
+				resolvedPath = await fs.realpath(skill.filePath);
+			} catch {
+				// Keep the original path; a later skill:// read will surface the precise filesystem error.
+			}
+			if (realPathSet.has(resolvedPath)) continue;
+			if (skillMap.has(skill.name)) continue;
+			skillMap.set(skill.name, skill);
+			realPathSet.add(resolvedPath);
+		}
+		const bootstrapSkill = getRockySkillSearchBootstrapSkill();
+		if (
+			!disabledSkillNames.has(bootstrapSkill.name) &&
+			!matchesIgnorePatterns(bootstrapSkill.name) &&
+			matchesIncludePatterns(bootstrapSkill.name) &&
+			!skillMap.has(bootstrapSkill.name)
+		) {
+			let resolvedPath = bootstrapSkill.filePath;
+			try {
+				resolvedPath = await fs.realpath(bootstrapSkill.filePath);
+			} catch {
+				// Packaged/dev installs should carry this file; keep the path so skill:// reports a precise error.
+			}
+			if (!realPathSet.has(resolvedPath)) {
+				skillMap.set(bootstrapSkill.name, bootstrapSkill);
+				realPathSet.add(resolvedPath);
+			}
+		}
+		collisionWarnings.push(...rockyResult.warnings);
 	}
 
 	// Managed (auto-learn) skills resolve dead-last with first-wins. Source from

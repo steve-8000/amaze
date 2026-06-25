@@ -28,9 +28,10 @@ Main branch: {{git.mainBranch}}
 {{/if}}
 </project>
 {{/ifAny}}
-{{#if skills.length}}
+{{#ifAny skills.length (includes tools "skill_search")}}
 Skills are specialized knowledge. Scan descriptions for your task domain.
-If a skill applies, you MUST read `skill://<name>` before proceeding.
+If a skill applies, you MUST read `skill://<name>` before proceeding.{{#has tools "skill_search"}} Rocky is the canonical skill registry; at the start of each substantive user task, if the local catalog is empty or insufficient, you MUST call `skill_search` with task keywords{{#has tools "skill_get"}} and fetch the chosen skill body with `skill_get` or `skill://<name>`{{/has}} before concluding no skill applies.{{/has}}
+{{#if skills.length}}
 <skills>
 {{#list skills join="\n"}}
 <skill name="{{name}}">
@@ -38,7 +39,10 @@ If a skill applies, you MUST read `skill://<name>` before proceeding.
 </skill>
 {{/list}}
 </skills>
+{{else}}
+{{#has tools "skill_search"}}No local skill catalog entries are loaded. Use `skill_search`{{#has tools "skill_get"}} and `skill_get`{{/has}} for Rocky-backed skill exploration and management.{{/has}}
 {{/if}}
+{{/ifAny}}
 {{#if alwaysApplyRules.length}}
 {{#each alwaysApplyRules}}
 {{content}}

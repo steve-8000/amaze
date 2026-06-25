@@ -10,9 +10,9 @@ import {
 	getRepoRoot,
 	mergeTaskBranches,
 	parseIsolationMode,
-} from "@oh-my-pi/pi-coding-agent/task/worktree";
-import * as jj from "@oh-my-pi/pi-coding-agent/utils/jj";
-import * as natives from "@oh-my-pi/pi-natives";
+} from "@amaze/pi-coding-agent/task/worktree";
+import * as jj from "@amaze/pi-coding-agent/utils/jj";
+import * as natives from "@amaze/pi-natives";
 
 const tempDirs: string[] = [];
 
@@ -35,7 +35,7 @@ async function runGit(repo: string, args: string[]): Promise<string> {
 }
 
 async function createGitRepo(): Promise<{ baseBranch: string; repo: string }> {
-	const repo = await fs.mkdtemp(path.join(os.tmpdir(), "omp-worktree-"));
+	const repo = await fs.mkdtemp(path.join(os.tmpdir(), "amaze-worktree-"));
 	tempDirs.push(repo);
 	await runGit(repo, ["init"]);
 	await runGit(repo, ["config", "user.email", "test@example.com"]);
@@ -90,7 +90,7 @@ describe("worktree isolation helpers", () => {
 		let initialSha: string;
 
 		beforeAll(async () => {
-			repo = await fs.mkdtemp(path.join(os.tmpdir(), "omp-worktree-"));
+			repo = await fs.mkdtemp(path.join(os.tmpdir(), "amaze-worktree-"));
 			await runGit(repo, ["init", "-q", "-b", BASE_BRANCH]);
 			await runGit(repo, ["config", "user.email", "test@example.com"]);
 			await runGit(repo, ["config", "user.name", "Test User"]);
@@ -237,7 +237,7 @@ describe("getRepoRoot", () => {
 	});
 
 	it("rejects pure jj workspaces with an actionable Jujutsu message", async () => {
-		const dir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-purejj-"));
+		const dir = await fs.mkdtemp(path.join(os.tmpdir(), "amaze-purejj-"));
 		tempDirs.push(dir);
 		await fs.mkdir(path.join(dir, ".jj", "repo", "store"), { recursive: true });
 		await expect(getRepoRoot(dir)).rejects.toThrow(/pure Jujutsu/);
@@ -245,7 +245,7 @@ describe("getRepoRoot", () => {
 	});
 
 	it("preserves the generic git-not-found error for directories without any repo", async () => {
-		const dir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-norepo-"));
+		const dir = await fs.mkdtemp(path.join(os.tmpdir(), "amaze-norepo-"));
 		tempDirs.push(dir);
 		await expect(getRepoRoot(dir)).rejects.toThrow("Git repository not found for isolated task execution.");
 	});
@@ -267,7 +267,7 @@ describe("getRepoRoot", () => {
 		// .jj, but `git.repo.root(inner)` finds the inner .git, so Git
 		// automation targets the nested checkout safely. Isolation must keep
 		// working here exactly as it did before the pure-jj guard landed.
-		const outer = await fs.mkdtemp(path.join(os.tmpdir(), "omp-outerjj-"));
+		const outer = await fs.mkdtemp(path.join(os.tmpdir(), "amaze-outerjj-"));
 		tempDirs.push(outer);
 		await fs.mkdir(path.join(outer, ".jj", "repo", "store"), { recursive: true });
 		const inner = path.join(outer, "vendor");

@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { InternalUrlRouter } from "@oh-my-pi/pi-coding-agent/internal-urls";
+import { InternalUrlRouter } from "@amaze/pi-coding-agent/internal-urls";
 
-describe("OmpProtocolHandler", () => {
-	it("treats omp://docs as the documentation root", async () => {
-		const resource = await InternalUrlRouter.instance().resolve("omp://docs");
+describe("AmazeProtocolHandler", () => {
+	it("treats amaze://docs as the documentation root", async () => {
+		const resource = await InternalUrlRouter.instance().resolve("amaze://docs");
 
 		expect(resource.content).toContain("# Documentation");
 		expect(resource.content).toContain("tools/read.md");
@@ -11,8 +11,8 @@ describe("OmpProtocolHandler", () => {
 
 	it("resolves docs-prefixed documentation paths", async () => {
 		const router = InternalUrlRouter.instance();
-		const direct = await router.resolve("omp://tools/read.md");
-		const prefixed = await router.resolve("omp://docs/tools/read.md");
+		const direct = await router.resolve("amaze://tools/read.md");
+		const prefixed = await router.resolve("amaze://docs/tools/read.md");
 
 		expect(prefixed.content).toBe(direct.content);
 		expect(prefixed.content).toContain("# read");

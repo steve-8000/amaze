@@ -22,6 +22,8 @@
 | `paths` | `string[]` | Yes | One or more files, directories, globs, or internal URLs with backing files. Empty entries are rejected. Globs are forbidden for internal URLs. |
 | `skip` | `number` | No | Match offset. Defaults to `0`, then `Math.floor(...)`; negatives and non-finite values fail. |
 
+Primary navigation use: treat `ast_grep` as a syntax-aware outline before broad reads. Start with top-level declarations/imports/exports under a narrow `paths`, then `read` only the smallest useful range.
+
 Pattern grammar and language support exposed to the model:
 - `$NAME` — capture one AST node.
 - `$_` — match one AST node without binding.

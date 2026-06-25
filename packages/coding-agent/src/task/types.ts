@@ -1,6 +1,6 @@
-import type { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import type { Usage } from "@oh-my-pi/pi-ai";
-import { $env } from "@oh-my-pi/pi-utils";
+import type { ThinkingLevel } from "@amaze/pi-agent-core";
+import type { Usage } from "@amaze/pi-ai";
+import { $env } from "@amaze/pi-utils";
 import { type } from "arktype";
 import type { AgentSessionEvent } from "../session/agent-session";
 import type { NestedRepoPatch } from "./worktree";
@@ -329,6 +329,13 @@ export interface AgentProgress {
 	inflightTaskDetails?: TaskToolDetails;
 }
 
+/** Finalized recent-tool sample carried up for parent/session renderers. */
+export interface RecentToolSample {
+	tool: string;
+	args: string;
+	endMs: number;
+}
+
 /** Result from a single agent execution */
 export interface SingleResult {
 	index: number;
@@ -370,6 +377,11 @@ export interface SingleResult {
 	nestedPatches?: NestedRepoPatch[];
 	/** Data extracted by registered subprocess tool handlers (keyed by tool name) */
 	extractedToolData?: Record<string, unknown[]>;
+	/** Total number of tool executions observed in the subagent run. */
+	toolCount?: number;
+	/** Most-recent-first sample of delegated tool usage (max 5 entries). */
+	recentTools?: RecentToolSample[];
+
 	/**
 	 * Terminal retry failure, when the subagent exited because the auto-retry
 	 * loop gave up (retry-after exceeded the cap, or all attempts exhausted).

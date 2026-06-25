@@ -1,14 +1,7 @@
 import { afterEach, describe, expect, it, type Mock, mock, spyOn } from "bun:test";
-import { streamPiNative } from "@oh-my-pi/pi-ai/providers/pi-native-client";
-import type {
-	AssistantMessage,
-	AssistantMessageEvent,
-	Context,
-	FetchImpl,
-	Model,
-	ModelSpec,
-} from "@oh-my-pi/pi-ai/types";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
+import { streamPiNative } from "@amaze/pi-ai/providers/pi-native-client";
+import type { AssistantMessage, AssistantMessageEvent, Context, FetchImpl, Model, ModelSpec } from "@amaze/pi-ai/types";
+import { buildModel } from "@amaze/pi-catalog/build";
 
 function sseBytes(events: AssistantMessageEvent[]): Uint8Array {
 	const encoder = new TextEncoder();
@@ -187,13 +180,13 @@ describe("streamPiNative request shape", () => {
 		}) as FetchImpl;
 
 		await streamPiNative(
-			fakeModel({ headers: { "x-omp-slot": "robomp-1", Authorization: "Bearer model-wins" } }),
+			fakeModel({ headers: { "x-amaze-slot": "robomp-1", Authorization: "Bearer model-wins" } }),
 			baseContext,
 			{ apiKey: "options-loses", fetch: fetchImpl },
 		).result();
 
 		const headers = captured.init?.headers as Record<string, string>;
-		expect(headers["x-omp-slot"]).toBe("robomp-1");
+		expect(headers["x-amaze-slot"]).toBe("robomp-1");
 		expect(headers.Authorization).toBe("Bearer model-wins");
 	});
 

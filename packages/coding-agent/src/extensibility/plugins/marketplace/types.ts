@@ -91,7 +91,6 @@ export interface MarketplacePluginEntry {
 	agents?: string | string[];
 	hooks?: string | Record<string, unknown>;
 	mcpServers?: string | Record<string, unknown>;
-	lspServers?: string | Record<string, unknown>;
 }
 
 // ── Plugin source variants ───────────────────────────────────────────
@@ -171,7 +170,7 @@ export interface InstalledPluginEntry {
 	lastUpdated: string;
 	/** For git-sourced plugins. */
 	gitCommitSha?: string;
-	/** OMP extension — not in Claude Code's type. CLI/UI concern only in v1. */
+	/** Amaze extension — not in Claude Code's type. CLI/UI concern only in v1. */
 	enabled?: boolean;
 }
 

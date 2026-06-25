@@ -3,8 +3,8 @@
  *
  * When an ACP client (e.g. Zed) advertises the `fs.writeTextFile` capability,
  * all write-mode tools must route through it so the editor's open buffer is
- * updated immediately. Internal artifacts ('/Users/theo/.omp/agent/sessions/-Projects-oh-my-pi/2026-06-10T09-11-41-506Z_019eb0cd-3ec2-7000-92aa-1b82aa4d78f0/local' plan files, other scheme
- * URLs) are always written directly to disk — those are OMP-owned and should
+ * updated immediately. Internal artifacts ('/Users/theo/.amaze/agent/sessions/-Projects-amaze-agent/2026-06-10T09-11-41-506Z_019eb0cd-3ec2-7000-92aa-1b82aa4d78f0/local' plan files, other scheme
+ * URLs) are always written directly to disk — those are Amaze-owned and should
  * never be pushed into the editor.
  */
 import type { ToolSession } from ".";
@@ -16,8 +16,8 @@ import { ToolError } from "./tool-errors";
 /**
  * Return `true` when an ACP client bridge write is appropriate for this path.
  *
- * Returns `false` for internal-URL paths (e.g. `'/Users/theo/.omp/agent/sessions/-Projects-oh-my-pi/2026-06-10T09-11-41-506Z_019eb0cd-3ec2-7000-92aa-1b82aa4d78f0/local/PLAN.md'`) and for the
- * active plan file while plan mode is enabled — both are OMP-internal artifacts
+ * Returns `false` for internal-URL paths (e.g. `'/Users/theo/.amaze/agent/sessions/-Projects-amaze-agent/2026-06-10T09-11-41-506Z_019eb0cd-3ec2-7000-92aa-1b82aa4d78f0/local/PLAN.md'`) and for the
+ * active plan file while plan mode is enabled — both are Amaze-internal artifacts
  * that must stay off the editor's buffer.
  */
 export function shouldRouteWriteThroughBridge(

@@ -1,4 +1,4 @@
-import { prompt } from "@oh-my-pi/pi-utils";
+import { prompt } from "@amaze/pi-utils";
 import { type } from "arktype";
 import analyzeFilePrompt from "../../../commit/agentic/prompts/analyze-file.md" with { type: "text" };
 import type { CommitAgentState } from "../../../commit/agentic/state";
@@ -63,7 +63,7 @@ export function createAnalyzeFileTool(options: {
 	return {
 		name: "analyze_files",
 		label: "Analyze Files",
-		description: "Spawn quick_task agents to analyze files.",
+		description: "Spawn finder agents to analyze files.",
 		parameters: analyzeFileSchema,
 		async execute(toolCallId, params, _onUpdate, ctx, signal) {
 			const toolSession = buildToolSession(ctx, options);
@@ -83,7 +83,7 @@ export function createAnalyzeFileTool(options: {
 						related_files: relatedFiles,
 					});
 					const taskParams: TaskParams = {
-						agent: "quick_task",
+						agent: "finder",
 						id: `AnalyzeFile${index + 1}`,
 						description: `Analyze ${file}`,
 						assignment,

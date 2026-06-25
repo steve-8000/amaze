@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { type Api, Effort, type Model } from "@oh-my-pi/pi-ai";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { DEFAULT_MODEL_PER_PROVIDER } from "@oh-my-pi/pi-catalog/provider-models";
-import type { CanonicalModelVariant } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { type Api, Effort, type Model } from "@amaze/pi-ai";
+import { buildModel } from "@amaze/pi-catalog/build";
+import { DEFAULT_MODEL_PER_PROVIDER } from "@amaze/pi-catalog/provider-models";
+import type { CanonicalModelVariant } from "@amaze/pi-coding-agent/config/model-registry";
 import {
 	type CanonicalModelRegistry,
 	expandRoleAlias,
@@ -18,8 +18,8 @@ import {
 	resolveModelOverride,
 	resolveModelRoleValue,
 	resolveModelScope,
-} from "@oh-my-pi/pi-coding-agent/config/model-resolver";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+} from "@amaze/pi-coding-agent/config/model-resolver";
+import { Settings } from "@amaze/pi-coding-agent/config/settings";
 
 // Mock models for testing
 const mockModels: Model<"anthropic-messages">[] = [
@@ -715,13 +715,15 @@ describe("resolveModelRoleValue", () => {
 	});
 });
 describe("resolveAgentModelPatterns", () => {
-	test("falls back to the active session model when pi/task is unset", () => {
+	test("falls back to the active session model when agent model inherits the session default", () => {
 		const settings = Settings.isolated({
-			modelRoles: { default: "anthropic/claude-sonnet-4-5" },
+			modelRoles: {
+				default: "anthropic/claude-sonnet-4-5",
+			},
 		});
 
 		const result = resolveAgentModelPatterns({
-			agentModel: "pi/task",
+			agentModel: "pi/default",
 			settings,
 			activeModelPattern: "openai/gpt-4o",
 		});
@@ -729,21 +731,35 @@ describe("resolveAgentModelPatterns", () => {
 		expect(result).toEqual(["openai/gpt-4o"]);
 	});
 
-	test("uses the configured task role before falling back to the session model", () => {
+	test("uses contract subagent priority chains when no dedicated role overrides are configured", () => {
 		const settings = Settings.isolated({
 			modelRoles: {
 				default: "openai/gpt-4o",
-				task: "anthropic/claude-sonnet-4-5:high",
 			},
 		});
 
-		const result = resolveAgentModelPatterns({
-			agentModel: "pi/task",
-			settings,
-			activeModelPattern: "openai/gpt-4o",
-		});
-
-		expect(result).toEqual(["anthropic/claude-sonnet-4-5:high"]);
+		expect(resolveAgentModelPatterns({ agentModel: "pi/thinker", settings })).toEqual([
+			"anthropic/claude-opus-4.8:xhigh",
+			"anthropic/claude-opus-4-8:xhigh",
+			"claude-opus-4.8:xhigh",
+			"claude-opus-4-8:xhigh",
+			"opus-4.8:xhigh",
+			"opus-4-8:xhigh",
+		]);
+		expect(resolveAgentModelPatterns({ agentModel: "pi/coder", settings })).toEqual([
+			"openai/gpt-5.5:high",
+			"gpt-5.5:high",
+			"openai/gpt-5.3-codex:xhigh",
+			"gpt-5.3-codex:xhigh",
+		]);
+		expect(resolveAgentModelPatterns({ agentModel: "pi/finder", settings })).toEqual([
+			"anthropic/claude-sonnet-4.6:medium",
+			"anthropic/claude-sonnet-4-6:medium",
+			"claude-sonnet-4.6:medium",
+			"claude-sonnet-4-6:medium",
+			"sonnet-4.6:medium",
+			"sonnet-4-6:medium",
+		]);
 	});
 
 	test("uses default for unconfigured smol, slow, and designer agent roles before priority defaults", () => {
@@ -778,6 +794,32 @@ describe("resolveAgentModelPatterns", () => {
 		});
 
 		expect(result).toEqual(["openai/gpt-4o"]);
+	});
+
+	test("resolves contract subagent roles from modelRoles", () => {
+		const settings = Settings.isolated({
+			modelRoles: {
+				thinker: "anthropic/claude-opus-4-8:xhigh",
+				coder: "openai/gpt-5.5:high",
+				finder: "anthropic/claude-sonnet-4-6:medium",
+				fixer: "openai/gpt-5.3-codex-spark-preview:low",
+				checker: "xai/grok-4.3:high",
+				helper: "local/gemma-3-12b-it:low",
+			},
+		});
+
+		expect(resolveAgentModelPatterns({ agentModel: "pi/thinker", settings })).toEqual([
+			"anthropic/claude-opus-4-8:xhigh",
+		]);
+		expect(resolveAgentModelPatterns({ agentModel: "pi/coder", settings })).toEqual(["openai/gpt-5.5:high"]);
+		expect(resolveAgentModelPatterns({ agentModel: "pi/finder", settings })).toEqual([
+			"anthropic/claude-sonnet-4-6:medium",
+		]);
+		expect(resolveAgentModelPatterns({ agentModel: "pi/fixer", settings })).toEqual([
+			"openai/gpt-5.3-codex-spark-preview:low",
+		]);
+		expect(resolveAgentModelPatterns({ agentModel: "pi/checker", settings })).toEqual(["xai/grok-4.3:high"]);
+		expect(resolveAgentModelPatterns({ agentModel: "pi/helper", settings })).toEqual(["local/gemma-3-12b-it:low"]);
 	});
 
 	test("slow priority falls forward to Opus 4.8 before older Opus aliases", () => {

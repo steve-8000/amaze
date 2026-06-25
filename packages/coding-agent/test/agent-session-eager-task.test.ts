@@ -1,17 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { Agent, type AgentMessage, type AgentTool } from "@oh-my-pi/pi-agent-core";
-import type { TextContent } from "@oh-my-pi/pi-ai";
-import { AssistantMessageEventStream } from "@oh-my-pi/pi-ai/utils/event-stream";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { convertToLlm } from "@oh-my-pi/pi-coding-agent/session/messages";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { TodoTool, type ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { Agent, type AgentMessage, type AgentTool } from "@amaze/pi-agent-core";
+import type { TextContent } from "@amaze/pi-ai";
+import { AssistantMessageEventStream } from "@amaze/pi-ai/utils/event-stream";
+import { getBundledModel } from "@amaze/pi-catalog/models";
+import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
+import { Settings } from "@amaze/pi-coding-agent/config/settings";
+import { AgentSession } from "@amaze/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
+import { convertToLlm } from "@amaze/pi-coding-agent/session/messages";
+import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
+import { TodoTool, type ToolSession } from "@amaze/pi-coding-agent/tools";
+import { TempDir } from "@amaze/pi-utils";
 import { type } from "arktype";
 import { createAssistantMessage } from "./helpers/agent-session-setup";
 
@@ -193,32 +193,43 @@ describe("AgentSession eager task prelude", () => {
 		expect(observedCalls[0]?.toolChoice).toBeUndefined();
 		expect(observedCalls[0]?.messageRoles).toEqual(["developer", "user"]);
 		expect(observedCalls[0]?.messageTexts[0]).toContain("delegation is enabled");
-		expect(observedCalls[0]?.messageTexts[0]).toContain("Batch independent slices");
+		expect(observedCalls[0]?.messageTexts[0]).toContain("Batch independent delegated tasks");
 		expect(observedCalls[0]?.messageTexts[0]).toContain("`task`");
+		expect(observedCalls[0]?.messageTexts[0]).toContain("codebase graph tools first");
+		expect(observedCalls[0]?.messageTexts[0]).toContain("Delegation is mandatory.");
+		expect(observedCalls[0]?.messageTexts[0]).toContain("Kubernetes or infrastructure related");
+		expect(observedCalls[0]?.messageTexts[0]).not.toContain("single-file edit");
+		expect(observedCalls[0]?.messageTexts[0]).not.toContain("direct answer");
 		expect(
 			observedCalls[0]?.messageTexts.filter(text => text.includes("refactor the parser across modules")),
 		).toHaveLength(1);
 		expect(observedCalls[0]?.messageTexts[0]).not.toContain("refactor the parser across modules");
 	});
 
-	it("skips eager task prelude for prompts ending with a question mark", async () => {
+	it("prepends eager task prelude for prompts ending with a question mark", async () => {
 		const { session, observedCalls } = await createHarness();
 
 		await session.prompt("should I refactor the parser?");
 
 		expect(observedCalls).toHaveLength(1);
-		expect(observedCalls[0]?.messageRoles).toEqual(["user"]);
-		expect(observedCalls[0]?.messageTexts).toEqual(["should I refactor the parser?"]);
+		expect(observedCalls[0]?.messageRoles).toEqual(["developer", "user"]);
+		expect(observedCalls[0]?.messageTexts[0]).toContain("Kubernetes or infrastructure related");
+		expect(observedCalls[0]?.messageTexts[0]).toContain("codebase graph tools first");
+		expect(observedCalls[0]?.messageTexts[0]).toContain("Delegation is mandatory.");
+		expect(observedCalls[0]?.messageTexts.at(-1)).toBe("should I refactor the parser?");
 	});
 
-	it("skips eager task prelude for prompts ending with an exclamation mark", async () => {
+	it("prepends eager task prelude for prompts ending with an exclamation mark", async () => {
 		const { session, observedCalls } = await createHarness();
 
 		await session.prompt("refactor the parser now!");
 
 		expect(observedCalls).toHaveLength(1);
-		expect(observedCalls[0]?.messageRoles).toEqual(["user"]);
-		expect(observedCalls[0]?.messageTexts).toEqual(["refactor the parser now!"]);
+		expect(observedCalls[0]?.messageRoles).toEqual(["developer", "user"]);
+		expect(observedCalls[0]?.messageTexts[0]).toContain("Kubernetes or infrastructure related");
+		expect(observedCalls[0]?.messageTexts[0]).toContain("codebase graph tools first");
+		expect(observedCalls[0]?.messageTexts[0]).toContain("Delegation is mandatory.");
+		expect(observedCalls[0]?.messageTexts.at(-1)).toBe("refactor the parser now!");
 	});
 
 	it("skips eager task prelude for subsequent user messages", async () => {

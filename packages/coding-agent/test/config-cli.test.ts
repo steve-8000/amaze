@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { runConfigCommand } from "@oh-my-pi/pi-coding-agent/cli/config-cli";
-import { resetSettingsForTest } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { AgentStorage } from "@oh-my-pi/pi-coding-agent/session/agent-storage";
-import { getConfigRootDir, setAgentDir, TempDir } from "@oh-my-pi/pi-utils";
+import { runConfigCommand } from "@amaze/pi-coding-agent/cli/config-cli";
+import { resetSettingsForTest } from "@amaze/pi-coding-agent/config/settings";
+import { AgentStorage } from "@amaze/pi-coding-agent/session/agent-storage";
+import { getConfigRootDir, setAgentDir, TempDir } from "@amaze/pi-utils";
 
 let testAgentDir: TempDir | undefined;
 const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
@@ -11,7 +11,7 @@ const fallbackAgentDir = path.join(getConfigRootDir(), "agent");
 
 beforeEach(() => {
 	resetSettingsForTest();
-	testAgentDir = TempDir.createSync("omp-config-cli-");
+	testAgentDir = TempDir.createSync("amaze-config-cli-");
 	setAgentDir(testAgentDir.path());
 });
 

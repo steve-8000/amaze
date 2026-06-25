@@ -1,16 +1,16 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import type { Effort } from "@oh-my-pi/pi-ai";
+import type { ThinkingLevel } from "@amaze/pi-agent-core";
+import type { Effort } from "@amaze/pi-ai";
 import {
 	detectMacOSAppearance,
 	MacAppearanceObserver,
 	type HighlightColors as NativeHighlightColors,
 	highlightCode as nativeHighlightCode,
 	supportsLanguage as nativeSupportsLanguage,
-} from "@oh-my-pi/pi-natives";
-import type { EditorTheme, MarkdownTheme, SelectListTheme, SettingsListTheme, SymbolTheme } from "@oh-my-pi/pi-tui";
-import { adjustHsv, colorLuma, getCustomThemesDir, isEnoent, logger, relativeLuminance } from "@oh-my-pi/pi-utils";
+} from "@amaze/pi-natives";
+import type { EditorTheme, MarkdownTheme, SelectListTheme, SettingsListTheme, SymbolTheme } from "@amaze/pi-tui";
+import { adjustHsv, colorLuma, getCustomThemesDir, isEnoent, logger, relativeLuminance } from "@amaze/pi-utils";
 import { type } from "arktype";
 import chalk from "chalk";
 import { LRUCache } from "lru-cache/raw";
@@ -210,7 +210,6 @@ export type SymbolKey =
 	| "tool.edit"
 	| "tool.bash"
 	| "tool.ssh"
-	| "tool.lsp"
 	| "tool.gh"
 	| "tool.webSearch"
 	| "tool.exa"
@@ -410,7 +409,6 @@ const UNICODE_SYMBOLS: SymbolMap = {
 	"tool.edit": "✎",
 	"tool.bash": "❯",
 	"tool.ssh": "⇄",
-	"tool.lsp": "💡",
 	"tool.gh": "⎇",
 	"tool.webSearch": "⌕",
 	"tool.exa": "🔭",
@@ -714,7 +712,6 @@ const NERD_SYMBOLS: SymbolMap = {
 	"tool.edit": "\uEA73",
 	"tool.bash": "\uEBCA",
 	"tool.ssh": "\uEB3A",
-	"tool.lsp": "\uEA61",
 	"tool.gh": "\uEA84",
 	"tool.webSearch": "\uEB01",
 	"tool.exa": "\uEB68",
@@ -911,7 +908,6 @@ const ASCII_SYMBOLS: SymbolMap = {
 	"tool.edit": "~",
 	"tool.bash": "$",
 	"tool.ssh": "ssh",
-	"tool.lsp": "lsp",
 	"tool.gh": "gh",
 	"tool.webSearch": "web",
 	"tool.exa": "exa",
@@ -1891,19 +1887,7 @@ function getBuiltinThemes(): Record<string, ThemeJson> {
 }
 
 export async function getAvailableThemes(): Promise<string[]> {
-	const themes = new Set<string>(Object.keys(getBuiltinThemes()));
-	const customThemesDir = getCustomThemesDir();
-	try {
-		const files = await fs.promises.readdir(customThemesDir);
-		for (const file of files) {
-			if (file.endsWith(".json")) {
-				themes.add(file.slice(0, -5));
-			}
-		}
-	} catch {
-		// Directory doesn't exist or isn't readable
-	}
-	return Array.from(themes).sort();
+	return ["erid"];
 }
 
 export interface ThemeInfo {
@@ -1912,30 +1896,7 @@ export interface ThemeInfo {
 }
 
 export async function getAvailableThemesWithPaths(): Promise<ThemeInfo[]> {
-	const result: ThemeInfo[] = [];
-
-	// Built-in themes (embedded, no file path)
-	for (const name of Object.keys(getBuiltinThemes())) {
-		result.push({ name, path: undefined });
-	}
-
-	// Custom themes
-	const customThemesDir = getCustomThemesDir();
-	try {
-		const files = await fs.promises.readdir(customThemesDir);
-		for (const file of files) {
-			if (file.endsWith(".json")) {
-				const name = file.slice(0, -5);
-				if (!result.some(themeInfo => themeInfo.name === name)) {
-					result.push({ name, path: path.join(customThemesDir, file) });
-				}
-			}
-		}
-	} catch {
-		// Directory doesn't exist or isn't readable
-	}
-
-	return result.sort((a, b) => a.name.localeCompare(b.name));
+	return [{ name: "erid", path: undefined }];
 }
 
 async function loadThemeJson(name: string): Promise<ThemeJson> {
@@ -2082,8 +2043,7 @@ function detectTerminalBackground(): "dark" | "light" {
 }
 
 function getDefaultTheme(): string {
-	const bg = detectTerminalBackground();
-	return bg === "light" ? autoLightTheme : autoDarkTheme;
+	return detectTerminalBackground() === "light" ? autoLightTheme : autoDarkTheme;
 }
 
 // ============================================================================
@@ -2108,8 +2068,8 @@ var themeWatcher: fs.FSWatcher | undefined;
 var themeReloadTimer: NodeJS.Timeout | undefined;
 var sigwinchHandler: (() => void) | undefined;
 var autoDetectedTheme: boolean = false;
-var autoDarkTheme: string = "dark";
-var autoLightTheme: string = "light";
+var autoDarkTheme: string = "erid";
+var autoLightTheme: string = "erid";
 var onThemeChangeCallback: (() => void) | undefined;
 var themeLoadRequestId: number = 0;
 let themeEpoch = 0;
@@ -2129,8 +2089,8 @@ export async function initTheme(
 	lightTheme?: string,
 ): Promise<void> {
 	autoDetectedTheme = true;
-	autoDarkTheme = darkTheme ?? "dark";
-	autoLightTheme = lightTheme ?? "light";
+	autoDarkTheme = darkTheme ?? "erid";
+	autoLightTheme = lightTheme ?? "erid";
 	const name = getDefaultTheme();
 	currentThemeName = name;
 	currentSymbolPresetOverride = symbolPreset;
@@ -2142,9 +2102,9 @@ export async function initTheme(
 			startSigwinchListener();
 		}
 	} catch (err) {
-		logger.debug("Theme loading failed, falling back to dark theme", { error: String(err) });
-		currentThemeName = "dark";
-		theme = await loadTheme("dark", getCurrentThemeOptions());
+		logger.debug("Theme loading failed, falling back to Erid theme", { error: String(err) });
+		currentThemeName = "erid";
+		theme = await loadTheme("erid", getCurrentThemeOptions());
 		// Don't start watcher for fallback theme
 	}
 }
@@ -2171,9 +2131,9 @@ export async function setTheme(
 		if (requestId !== themeLoadRequestId) {
 			return { success: false, error: "Theme change superseded by a newer request" };
 		}
-		// Theme is invalid - fall back to dark theme
-		currentThemeName = "dark";
-		theme = await loadTheme("dark", getCurrentThemeOptions());
+		// Theme is invalid - fall back to Erid
+		currentThemeName = "erid";
+		theme = await loadTheme("erid", getCurrentThemeOptions());
 		// The active theme just changed to the fallback — bump the epoch so memoized
 		// renderers (e.g. ToolExecutionComponent) re-shape with the fallback colors
 		// instead of holding the failed theme's stale styling.
@@ -2344,8 +2304,8 @@ export function isValidSymbolPreset(preset: string): preset is SymbolPreset {
 async function startThemeWatcher(): Promise<void> {
 	stopThemeWatcher();
 
-	// Only watch if it's a custom theme (not built-in)
-	if (!currentThemeName || currentThemeName === "dark" || currentThemeName === "light") {
+	// Only watch if it's a custom theme (not the built-in Erid theme)
+	if (!currentThemeName || currentThemeName === "erid") {
 		return;
 	}
 

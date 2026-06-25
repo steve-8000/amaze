@@ -2,13 +2,13 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { buildSystemPrompt as buildSdkSystemPrompt } from "@oh-my-pi/pi-coding-agent/sdk";
+import { buildSystemPrompt as buildSdkSystemPrompt } from "@amaze/pi-coding-agent/sdk";
 import {
 	buildSystemPrompt,
 	DEFAULT_SYSTEM_PROMPT_TOOL_NAMES,
 	type SystemPromptToolMetadata,
-} from "@oh-my-pi/pi-coding-agent/system-prompt";
-import type { Tool } from "@oh-my-pi/pi-coding-agent/tools";
+} from "@amaze/pi-coding-agent/system-prompt";
+import type { Tool } from "@amaze/pi-coding-agent/tools";
 import { cleanupTempHome } from "./helpers/temp-home-cleanup";
 
 const EMPTY_TREE = {
@@ -130,6 +130,13 @@ describe("system prompt tool inventory", () => {
 		for (const toolName of DEFAULT_SYSTEM_PROMPT_TOOL_NAMES) {
 			expect(inventory).toContain(`- \`${toolName}\``);
 		}
+		expect(inventory.indexOf("- `search_graph`")).toBeGreaterThan(inventory.indexOf("- `eval`"));
+		expect(inventory.indexOf("- `trace_path`")).toBeGreaterThan(inventory.indexOf("- `search_graph`"));
+		expect(inventory.indexOf("- `get_code_snippet`")).toBeGreaterThan(inventory.indexOf("- `trace_path`"));
+		expect(inventory.indexOf("- `get_architecture`")).toBeGreaterThan(inventory.indexOf("- `get_code_snippet`"));
+		expect(inventory.indexOf("- `ast_grep`")).toBeGreaterThan(inventory.indexOf("- `get_architecture`"));
+		expect(inventory.indexOf("- `ast_edit`")).toBeGreaterThan(inventory.indexOf("- `ast_grep`"));
+		expect(inventory.indexOf("- `edit`")).toBeGreaterThan(inventory.indexOf("- `ast_edit`"));
 		expect(inventory).not.toContain("- `browser`");
 		expect(inventory).not.toContain("- `task`");
 	});
@@ -249,5 +256,40 @@ describe("system prompt tool inventory", () => {
 
 		expect(text).toContain("<skills>");
 		expect(text).toContain("- frontend-design: Frontend UI workflow");
+	});
+
+	it("keeps Rocky skill-search guidance when local skills are empty", async () => {
+		const { systemPrompt } = await buildSystemPrompt({
+			cwd: tempDir,
+			contextFiles: [],
+			skills: [],
+			rules: [],
+			toolNames: ["read", "skill_search", "skill_get"],
+			tools: new Map([
+				...TOOLS,
+				[
+					"skill_search",
+					{
+						label: "Skill Search",
+						description: "Search Rocky skills.",
+						parameters: { type: "object", properties: { query: { type: "string" } } },
+					},
+				],
+				[
+					"skill_get",
+					{
+						label: "Skill Get",
+						description: "Fetch a Rocky skill.",
+						parameters: { type: "object", properties: { name: { type: "string" } } },
+					},
+				],
+			]),
+			workspaceTree: { ...EMPTY_TREE, rootPath: tempDir },
+		});
+		const text = systemPrompt.join("\n\n");
+
+		expect(text).not.toContain("<skills>");
+		expect(text).toContain("No local skill catalog entries are loaded. Use `skill_search` and `skill_get`");
+		expect(text).toContain("Rocky is the canonical skill registry");
 	});
 });

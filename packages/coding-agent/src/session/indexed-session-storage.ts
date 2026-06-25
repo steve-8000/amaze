@@ -1,4 +1,4 @@
-import { toError } from "@oh-my-pi/pi-utils";
+import { toError } from "@amaze/pi-utils";
 import type { SessionStorage, SessionStorageStat, SessionStorageWriter } from "./session-storage";
 
 export interface SessionStorageIndexEntry {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { resolveModels } from "@oh-my-pi/pi-coding-agent/cli/tiny-models-cli";
-import { TINY_LOCAL_MODELS } from "@oh-my-pi/pi-coding-agent/tiny/models";
+import { resolveModels } from "@amaze/pi-coding-agent/cli/tiny-models-cli";
+import { TINY_LOCAL_MODELS } from "@amaze/pi-coding-agent/tiny/models";
 
 describe("tiny-models download model resolution", () => {
 	it("excludes load-blocked models from `all` so the bulk prefetch stays green", () => {

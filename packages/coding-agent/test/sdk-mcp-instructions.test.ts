@@ -2,13 +2,13 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, mock,
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { AuthStorage } from "@oh-my-pi/pi-ai";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { createAgentSession } from "@oh-my-pi/pi-coding-agent/sdk";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { Snowflake } from "@oh-my-pi/pi-utils";
+import { AuthStorage } from "@amaze/pi-ai";
+import { getBundledModel } from "@amaze/pi-catalog/models";
+import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
+import { Settings } from "@amaze/pi-coding-agent/config/settings";
+import { createAgentSession } from "@amaze/pi-coding-agent/sdk";
+import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
+import { Snowflake } from "@amaze/pi-utils";
 import { SERVER_INSTRUCTIONS } from "./fixtures/instructions-mcp";
 
 // Contract: a deferred interactive (`hasUI`) session runs MCP discovery off the
@@ -82,7 +82,6 @@ describe("createAgentSession MCP server instructions (deferred UI)", () => {
 			contextFiles: [],
 			promptTemplates: [],
 			slashCommands: [],
-			enableLsp: false,
 			skipPythonPreflight: true,
 			enableMCP: true,
 			hasUI: true,

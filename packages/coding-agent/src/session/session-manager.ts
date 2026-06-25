@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { ImageContent, Message, MessageAttribution, ServiceTier, TextContent, Usage } from "@oh-my-pi/pi-ai";
+import type { ImageContent, Message, MessageAttribution, ServiceTier, TextContent, Usage } from "@amaze/pi-ai";
 import {
 	directoryExists,
 	getBlobsDir,
@@ -9,7 +9,7 @@ import {
 	isEnoent,
 	logger,
 	toError,
-} from "@oh-my-pi/pi-utils";
+} from "@amaze/pi-utils";
 import { ArtifactManager } from "./artifacts";
 import { type BlobPutOptions, type BlobPutResult, BlobStore } from "./blob-store";
 import {
@@ -110,11 +110,20 @@ function taskUsageFrom(details: unknown): Usage | undefined {
 	return maybeUsage !== null && typeof maybeUsage === "object" ? (maybeUsage as Usage) : undefined;
 }
 
+function toolResultOriginalName(message: Message): string | undefined {
+	if (message.role !== "toolResult") return undefined;
+	const details = message.details;
+	if (details === null || typeof details !== "object") return message.toolName;
+	const original = (details as Record<string, unknown>).ompToolName;
+	return typeof original === "string" ? original : message.toolName;
+}
+
 function entryUsage(entry: SessionEntry): Usage | undefined {
 	if (entry.type !== "message") return undefined;
 	const message = entry.message;
 	if (message.role === "assistant") return message.usage;
-	if (message.role === "toolResult" && message.toolName === "task") return taskUsageFrom(message.details);
+	if (message.role === "toolResult" && toolResultOriginalName(message) === "task")
+		return taskUsageFrom(message.details);
 	return undefined;
 }
 
@@ -1196,10 +1205,13 @@ export class SessionManager {
 	appendSessionInit(init: {
 		systemPrompt: string;
 		task: string;
+		agentName?: string;
 		tools: string[];
 		outputSchema?: unknown;
 		spawns?: string;
 		readSummarize?: boolean;
+		revivable?: boolean;
+		contextAudit?: Array<{ status: "allowed" | "denied"; source: string; reason: string }>;
 	}): string {
 		const entry: SessionInitEntry = { type: "session_init", ...this.#freshEntryFields(), ...init };
 		this.#recordEntry(entry);
@@ -1610,10 +1622,13 @@ export class SessionManager {
 		init: {
 			systemPrompt: string;
 			task: string;
+			agentName?: string;
 			tools: string[];
 			outputSchema?: unknown;
 			spawns?: string;
 			readSummarize?: boolean;
+			revivable?: boolean;
+			contextAudit?: Array<{ status: "allowed" | "denied"; source: string; reason: string }>;
 		} | null;
 	} | null> {
 		let loaded: FileEntry[];
@@ -1628,10 +1643,13 @@ export class SessionManager {
 		let init: {
 			systemPrompt: string;
 			task: string;
+			agentName?: string;
 			tools: string[];
 			outputSchema?: unknown;
 			spawns?: string;
 			readSummarize?: boolean;
+			revivable?: boolean;
+			contextAudit?: Array<{ status: "allowed" | "denied"; source: string; reason: string }>;
 		} | null = null;
 		for (let index = loaded.length - 1; index >= 0; index--) {
 			const entry = loaded[index];
@@ -1639,10 +1657,13 @@ export class SessionManager {
 				init = {
 					systemPrompt: entry.systemPrompt,
 					task: entry.task,
+					agentName: entry.agentName,
 					tools: entry.tools,
 					outputSchema: entry.outputSchema,
 					readSummarize: entry.readSummarize,
 					spawns: entry.spawns,
+					revivable: entry.revivable,
+					contextAudit: entry.contextAudit,
 				};
 				break;
 			}

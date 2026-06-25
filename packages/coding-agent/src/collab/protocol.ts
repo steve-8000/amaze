@@ -7,7 +7,7 @@
  * control messages that carry no session data.
  */
 
-import type { ImageContent, Model } from "@oh-my-pi/pi-ai";
+import type { ImageContent, Model } from "@amaze/pi-ai";
 import type {
 	BusChannel,
 	GuestFrame,
@@ -15,14 +15,14 @@ import type {
 	Participant,
 	SessionState,
 	AgentSnapshot as WireAgentSnapshot,
-} from "@oh-my-pi/pi-wire";
+} from "@amaze/pi-wire";
 import {
 	DEFAULT_RELAY_URL,
 	ENVELOPE_HEADER_LENGTH,
 	ROOM_ID_BYTES,
 	ROOM_KEY_BYTES,
 	WRITE_TOKEN_BYTES,
-} from "@oh-my-pi/pi-wire";
+} from "@amaze/pi-wire";
 import type { ContextUsage } from "../extensibility/extensions/types";
 import type { AgentSessionEvent } from "../session/agent-session";
 import type { SessionEntry, SessionHeader } from "../session/session-entries";
@@ -33,8 +33,8 @@ export type {
 	RelayControlMessage,
 	RelayControlToGuest,
 	RelayControlToHost,
-} from "@oh-my-pi/pi-wire";
-export { COLLAB_PROMPT_MESSAGE_TYPE, COLLAB_PROTO } from "@oh-my-pi/pi-wire";
+} from "@amaze/pi-wire";
+export { COLLAB_PROMPT_MESSAGE_TYPE, COLLAB_PROTO } from "@amaze/pi-wire";
 export { DEFAULT_RELAY_URL, ENVELOPE_HEADER_LENGTH, ROOM_ID_BYTES };
 
 export type CollabParticipant = Participant;

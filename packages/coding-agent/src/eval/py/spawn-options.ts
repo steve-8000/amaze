@@ -27,8 +27,8 @@ import { dlopen, FFIType } from "bun:ffi";
  * `python.exe` invoked from `cmd.exe`, which keeps native imports and
  * SIGINT recovery working.
  *
- * Short-lived helper subprocesses elsewhere in the codebase (LSP probes,
- * git, plugin installs) keep `windowsHide: true` because they don't load
+ * Short-lived helper subprocesses elsewhere in the codebase (git, plugin
+ * installs) keep `windowsHide: true` because they don't load
  * complex native modules and the brief console flash would be user-visible
  * noise.
  */
@@ -45,7 +45,7 @@ export function shouldHideKernelWindow(opts: {
  *
  * Returns `true` if any of stdin/stdout/stderr is currently a TTY. This
  * correctly detects the common interactive launches and the partial-
- * redirection cases (`omp -p > out.txt`, `< in.txt`, `2> err.log`) where at
+ * redirection cases (`amaze -p > out.txt`, `< in.txt`, `2> err.log`) where at
  * least one stream stays bound to the terminal. The all-stdio-redirected
  * case (`< in > out 2> err` from a console) is the reason we prefer the
  * Win32 probe over this fallback whenever possible.
@@ -68,7 +68,7 @@ export function consoleAttachedViaTTY(opts: {
  * A `null` return means "don't trust me, use the TTY fallback".
  *
  * Cached on first call because in practice the console attachment of a
- * long-lived OMP host never changes for the lifetime of the process, and
+ * long-lived Amaze host never changes for the lifetime of the process, and
  * we don't want to re-dlopen kernel32 on every kernel spawn.
  */
 type ConsoleProbeResult = boolean | null;
@@ -106,7 +106,7 @@ export function __resetWindowsConsoleProbeCache(): void {
  *
  * - On Windows, the authoritative signal is `GetConsoleWindow()`. It returns
  *   a non-NULL HWND whenever the process has a console attached, regardless
- *   of how the standard streams are redirected — so an `omp -p ... < in.txt
+ *   of how the standard streams are redirected — so an `amaze -p ... < in.txt
  *   > out.txt 2> err.log` launched from a real Windows Terminal session is
  *   correctly classified as console-attached and the kernel keeps its
  *   inheritable console.

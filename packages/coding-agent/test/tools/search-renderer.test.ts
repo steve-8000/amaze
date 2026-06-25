@@ -1,10 +1,10 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
 import * as path from "node:path";
 import * as url from "node:url";
-import { resetSettingsForTest, Settings, settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { getThemeByName } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import { searchToolRenderer } from "@oh-my-pi/pi-coding-agent/tools/search";
-import { sanitizeText } from "@oh-my-pi/pi-utils";
+import { resetSettingsForTest, Settings, settings } from "@amaze/pi-coding-agent/config/settings";
+import { getThemeByName } from "@amaze/pi-coding-agent/modes/theme/theme";
+import { searchToolRenderer } from "@amaze/pi-coding-agent/tools/search";
+import { sanitizeText } from "@amaze/pi-utils";
 
 function extractLinkUris(text: string): string[] {
 	return [...text.matchAll(/\x1b\]8;[^;]*;([^\x1b]+)\x1b\\/g)].map(match => match[1]!);
@@ -134,7 +134,7 @@ describe("searchToolRenderer", () => {
 		expect(theme).toBeDefined();
 		const uiTheme = theme!;
 
-		const projectRoot = path.resolve("/tmp/omp-project");
+		const projectRoot = path.resolve("/tmp/amaze-project");
 		const filePath = path.join(projectRoot, "src", "file.ts");
 		const result = {
 			content: [{ type: "text", text: "" }],
@@ -166,7 +166,7 @@ describe("searchToolRenderer", () => {
 		expect(theme).toBeDefined();
 		const uiTheme = theme!;
 
-		const filePath = path.resolve("/tmp/omp-project/file.ts");
+		const filePath = path.resolve("/tmp/amaze-project/file.ts");
 		const result = {
 			content: [{ type: "text", text: "" }],
 			details: {
@@ -204,7 +204,7 @@ describe("searchToolRenderer", () => {
 			})
 			.join("\n");
 
-		const filePath = path.resolve("/tmp/omp-project/renderer.ts");
+		const filePath = path.resolve("/tmp/amaze-project/renderer.ts");
 		const result = {
 			content: [{ type: "text", text: "" }],
 			details: {

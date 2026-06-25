@@ -2,16 +2,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Agent } from "@oh-my-pi/pi-agent-core";
-import { Effort } from "@oh-my-pi/pi-ai";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import * as autoThinkingClassifier from "@oh-my-pi/pi-coding-agent/auto-thinking/classifier";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { AUTO_THINKING } from "@oh-my-pi/pi-coding-agent/thinking";
+import { Agent } from "@amaze/pi-agent-core";
+import { Effort } from "@amaze/pi-ai";
+import { getBundledModel } from "@amaze/pi-catalog/models";
+import * as autoThinkingClassifier from "@amaze/pi-coding-agent/auto-thinking/classifier";
+import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
+import { Settings } from "@amaze/pi-coding-agent/config/settings";
+import { AgentSession } from "@amaze/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
+import { AUTO_THINKING } from "@amaze/pi-coding-agent/thinking";
 
 async function createMagicKeywordSession(root: string): Promise<{
 	session: AgentSession;
@@ -48,7 +48,7 @@ describe("AgentSession magic keyword settings", () => {
 	let authStorage: AuthStorage | undefined;
 
 	beforeEach(async () => {
-		root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-magic-keywords-"));
+		root = await fs.mkdtemp(path.join(os.tmpdir(), "amaze-magic-keywords-"));
 	});
 
 	afterEach(async () => {

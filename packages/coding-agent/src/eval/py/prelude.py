@@ -1,5 +1,5 @@
 from __future__ import annotations
-# OMP prelude helpers (loaded once into the runner namespace)
+# Amaze prelude helpers (loaded once into the runner namespace)
 if "__omp_prelude_loaded__" not in globals():
     __omp_prelude_loaded__ = True
     from pathlib import Path
@@ -38,7 +38,7 @@ if "__omp_prelude_loaded__" not in globals():
 
     def _emit_status(op: str, **data):
         """Emit structured status event for TUI rendering."""
-        _omp_display({"application/x-omp-status": {"op": op, **data}}, raw=True)
+        _omp_display({"application/x-amaze-status": {"op": op, **data}}, raw=True)
 
 
     def env(key: str | None = None, value: str | None = None):
@@ -222,7 +222,7 @@ if "__omp_prelude_loaded__" not in globals():
         """Read task/agent output by ID. Returns text or JSON depending on format.
         
         Args:
-            *ids: Output IDs to read (e.g., 'explore_0', 'reviewer_1')
+            *ids: Output IDs to read (e.g., 'finder_0', 'checker_1')
             format: 'raw' (default), 'json' (dict with metadata), 'stripped' (no ANSI)
             query: jq-like query for JSON outputs (e.g., '.endpoints[0].file')
             offset: Line number to start reading from (1-indexed)
@@ -233,11 +233,11 @@ if "__omp_prelude_loaded__" not in globals():
             Multiple IDs: list of dict with 'id' and 'content'/'data' keys
         
         Examples:
-            output('explore_0')  # Read as raw text
-            output('reviewer_0', format='json')  # Read with metadata
-            output('explore_0', query='.files[0]')  # Extract JSON field
-            output('explore_0', offset=10, limit=20)  # Lines 10-29
-            output('explore_0', 'reviewer_1')  # Read multiple outputs
+            output('finder_0')  # Read as raw text
+            output('checker_0', format='json')  # Read with metadata
+            output('finder_0', query='.files[0]')  # Extract JSON field
+            output('finder_0', offset=10, limit=20)  # Lines 10-29
+            output('finder_0', 'checker_1')  # Read multiple outputs
         """
         # Prefer PI_ARTIFACTS_DIR so subagents resolve through the parent's
         # shared artifacts dir; fall back to deriving from PI_SESSION_FILE
@@ -520,10 +520,10 @@ if "__omp_prelude_loaded__" not in globals():
         text = res.get("text") if isinstance(res, dict) else res
         return json.loads(text) if schema is not None else text
 
-    def agent(prompt, *, agent_type="task", model=None, label=None, schema=None, return_handle=False):
+    def agent(prompt, *, agent_type="coder", model=None, label=None, schema=None, return_handle=False):
         """Run a subagent and return its final output.
 
-        `agent_type` selects the subagent definition (default "task"). Pass
+        `agent_type` selects the subagent definition (default "coder"). Pass
         `model` to override that agent's model, `label` for the output artifact
         id, and `schema` to request structured JSON output; when `schema` is
         supplied the parsed object is returned. Share background by writing a

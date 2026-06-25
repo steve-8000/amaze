@@ -2,13 +2,12 @@
  * Coding-agent runner that drives the hashline {@link Patcher} on behalf of
  * the `edit` tool. Converts a `{input}` tool-call payload into a
  * fully-applied patch, wraps the result in the agent's
- * {@link AgentToolResult} shape, and attaches LSP diagnostics + `outputMeta`
+ * {@link AgentToolResult} shape, and attaches diagnostics + `outputMeta`
  * for the renderer.
  *
  * Multi-section patches are preflighted up front via {@link Patcher.prepare}
- * so a partial batch never lands; the commit loop then narrows the LSP
- * batch's `flush` flag to true only for the final write so diagnostics
- * round-trip once.
+ * so a partial batch never lands; the commit loop then narrows the
+ * write-through batch's `flush` flag to true only for the final write.
  */
 import {
 	type BlockResolution,
@@ -18,15 +17,15 @@ import {
 	Patcher,
 	type PatchSectionResult,
 	type PreparedSection,
-} from "@oh-my-pi/hashline";
-import type { AgentToolResult } from "@oh-my-pi/pi-agent-core";
-import type { FileDiagnosticsResult, WritethroughCallback, WritethroughDeferredHandle } from "../../lsp";
+} from "@amaze/hashline";
+import type { AgentToolResult } from "@amaze/pi-agent-core";
 import type { ToolSession } from "../../tools";
 import { outputMeta } from "../../tools/output-meta";
 import { ToolError } from "../../tools/tool-errors";
 import { generateDiffString } from "../diff";
 import { getFileSnapshotStore } from "../file-snapshot-store";
-import type { EditToolDetails, EditToolPerFileResult, LspBatchRequest } from "../renderer";
+import type { EditToolDetails, EditToolPerFileResult, WritethroughBatchRequest } from "../renderer";
+import type { FileDiagnosticsResult, WritethroughCallback, WritethroughDeferredHandle } from "../writethrough";
 import { nativeBlockResolver } from "./block-resolver";
 import { HashlineFilesystem } from "./filesystem";
 import { hashPatchInput, NOOP_HARD_LIMIT, recordNoopEdit, resetNoopEdit } from "./noop-loop-guard";
@@ -36,7 +35,7 @@ export interface ExecuteHashlineSingleOptions {
 	session: ToolSession;
 	input: string;
 	signal?: AbortSignal;
-	batchRequest?: LspBatchRequest;
+	batchRequest?: WritethroughBatchRequest;
 	writethrough: WritethroughCallback;
 	beginDeferredDiagnosticsForPath: (path: string) => WritethroughDeferredHandle;
 }
@@ -87,7 +86,10 @@ function assertUniqueCanonicalPaths(prepared: readonly PreparedSection[]): void 
 	}
 }
 
-function narrowBatchRequest(outer: LspBatchRequest | undefined, isLast: boolean): LspBatchRequest | undefined {
+function narrowBatchRequest(
+	outer: WritethroughBatchRequest | undefined,
+	isLast: boolean,
+): WritethroughBatchRequest | undefined {
 	if (!outer) return undefined;
 	return { id: outer.id, flush: isLast && outer.flush };
 }
@@ -200,8 +202,8 @@ export async function executeHashlineSingle(
 				: new ToolError(noChangeDiagnostic(entry.section.path));
 		}
 	}
-	// Then commit each one, narrowing the LSP batch flush flag to the final
-	// section only. A no-op apply mid-batch is treated as a hard failure —
+	// Then commit each one, narrowing the write-through batch flush flag to the
+	// final section only. A no-op apply mid-batch is treated as a hard failure —
 	// the model authored anchors that match the current file content.
 	const rendered: RenderedSection[] = [];
 	for (let i = 0; i < prepared.length; i++) {

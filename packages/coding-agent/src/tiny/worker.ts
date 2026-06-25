@@ -1,11 +1,5 @@
 import { createRequire } from "node:module";
 import * as path from "node:path";
-import type {
-	ProgressInfo,
-	TextGenerationPipeline,
-	TextGenerationStringOutput,
-	StoppingCriteria as TransformersStoppingCriteria,
-} from "@huggingface/transformers";
 import {
 	ensureRuntimeInstalled,
 	getTinyModelsCacheDir,
@@ -13,7 +7,13 @@ import {
 	isCompiledBinary,
 	prompt,
 	resolveRuntimeModule,
-} from "@oh-my-pi/pi-utils";
+} from "@amaze/pi-utils";
+import type {
+	ProgressInfo,
+	TextGenerationPipeline,
+	TextGenerationStringOutput,
+	StoppingCriteria as TransformersStoppingCriteria,
+} from "@huggingface/transformers";
 import packageJson from "../../package.json" with { type: "json" };
 import tinyTitleSystemPrompt from "../prompts/system/tiny-title-system.md" with { type: "text" };
 import { resolveTinyModelDevicePreference, type TinyModelDevice, tinyModelDeviceLoadOrder } from "./device";
@@ -144,7 +144,7 @@ function sendRuntimeInstallProgress(
  */
 async function prepareCompiledRuntime(runtimeDir: string): Promise<string> {
 	const nodeModules = path.join(runtimeDir, "node_modules");
-	const sharpStub = path.join(runtimeDir, "omp-sharp-stub.cjs");
+	const sharpStub = path.join(runtimeDir, "amaze-sharp-stub.cjs");
 	await Bun.write(sharpStub, "module.exports = {};\n");
 	installRuntimeModuleResolver({ runtimeNodeModules: nodeModules, stubs: { sharp: sharpStub } });
 	const entry = resolveRuntimeModule(nodeModules, TRANSFORMERS_PACKAGE);
@@ -414,8 +414,8 @@ function buildCompletionPrompt(generator: TextGenerationPipeline, promptText: st
 }
 
 /**
- * Generic single-turn completion used by Mnemopi memory tasks (fact extraction
- * and consolidation). The caller (Mnemopi) supplies the full task prompt; we
+ * Generic single-turn completion used by Rocky memory memory tasks (fact extraction
+ * and consolidation). The caller (Rocky memory) supplies the full task prompt; we
  * wrap it as the user turn, decode greedily, and return the raw text for the
  * caller's own parser. Output is capped to keep local inference latency bounded.
  */

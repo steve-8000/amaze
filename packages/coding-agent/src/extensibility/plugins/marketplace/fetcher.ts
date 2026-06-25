@@ -7,7 +7,7 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { isEnoent, logger } from "@oh-my-pi/pi-utils";
+import { isEnoent, logger } from "@amaze/pi-utils";
 import * as git from "../../../utils/git";
 
 import type { MarketplaceCatalog, MarketplaceSourceType } from "./types";
@@ -193,11 +193,11 @@ export function parseMarketplaceCatalog(content: string, filePath: string): Mark
 // ── fetchMarketplace ──────────────────────────────────────────────────
 
 /**
- * Catalog paths tried in priority order: omp-namespaced override first, then
+ * Catalog paths tried in priority order: amaze-namespaced override first, then
  * the Claude Code-compatible fallback so existing marketplaces keep loading.
  */
 const CATALOG_RELATIVE_PATHS: readonly string[] = [
-	path.join(".omp-plugin", "marketplace.json"),
+	path.join(".amaze-plugin", "marketplace.json"),
 	path.join(".claude-plugin", "marketplace.json"),
 ];
 

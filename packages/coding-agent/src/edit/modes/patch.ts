@@ -7,15 +7,9 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { AgentToolResult } from "@oh-my-pi/pi-agent-core";
-import { isEnoent } from "@oh-my-pi/pi-utils";
+import type { AgentToolResult } from "@amaze/pi-agent-core";
+import { isEnoent } from "@amaze/pi-utils";
 import { type } from "arktype";
-import {
-	type FileDiagnosticsResult,
-	flushLspWritethroughBatch,
-	type WritethroughCallback,
-	type WritethroughDeferredHandle,
-} from "../../lsp";
 import type { ToolSession } from "../../tools";
 import { routeWriteThroughBridge } from "../../tools/acp-bridge";
 import { assertEditableFile } from "../../tools/auto-generated-guard";
@@ -47,7 +41,13 @@ import {
 	stripBom,
 } from "../normalize";
 import { readEditFileText, serializeEditFileText } from "../read-file";
-import type { EditToolDetails, LspBatchRequest } from "../renderer";
+import type { EditToolDetails, WritethroughBatchRequest } from "../renderer";
+import {
+	type FileDiagnosticsResult,
+	flushWritethroughBatch,
+	type WritethroughCallback,
+	type WritethroughDeferredHandle,
+} from "../writethrough";
 import {
 	type ContextLineResult,
 	DEFAULT_FUZZY_THRESHOLD,
@@ -1652,14 +1652,14 @@ export interface ExecutePatchSingleOptions {
 	path: string;
 	params: PatchEditEntry;
 	signal?: AbortSignal;
-	batchRequest?: LspBatchRequest;
+	batchRequest?: WritethroughBatchRequest;
 	allowFuzzy: boolean;
 	fuzzyThreshold: number;
 	writethrough: WritethroughCallback;
 	beginDeferredDiagnosticsForPath: (path: string) => WritethroughDeferredHandle;
 }
 
-class LspFileSystem implements FileSystem {
+class WritethroughFileSystem implements FileSystem {
 	#lastDiagnostics: FileDiagnosticsResult | undefined;
 	#fileCache: Record<string, Bun.BunFile> = {};
 
@@ -1668,7 +1668,7 @@ class LspFileSystem implements FileSystem {
 		private readonly requestedPath: string,
 		private readonly writethrough: WritethroughCallback,
 		private readonly signal?: AbortSignal,
-		private readonly batchRequest?: LspBatchRequest,
+		private readonly batchRequest?: WritethroughBatchRequest,
 		private readonly deferredForPath?: (path: string) => WritethroughDeferredHandle,
 	) {}
 
@@ -1776,7 +1776,7 @@ export async function executePatchSingle(
 	await assertEditableFile(resolvedPath, path);
 
 	// Capture pre-edit content so we can verify the write actually hit disk.
-	// `LspFileSystem.writeFile` delegates to a writethrough callback that, in
+	// `WritethroughFileSystem.writeFile` delegates to a writethrough callback that, in
 	// some host integrations, has been observed to report success without
 	// persisting bytes — leaving the tool to claim "Updated <path>" while the
 	// file on disk is byte-identical to before. After the write we re-read
@@ -1794,7 +1794,7 @@ export async function executePatchSingle(
 	}
 
 	const input: PatchInput = { path: resolvedPath, op, rename: resolvedRename, diff };
-	const patchFileSystem = new LspFileSystem(
+	const patchFileSystem = new WritethroughFileSystem(
 		session,
 		path, // original user-provided path for bridge guard (may be local://, vault://, etc.)
 		writethrough,
@@ -1872,7 +1872,7 @@ export async function executePatchSingle(
 
 	let diagnostics = patchFileSystem.getDiagnostics();
 	if (op === "delete" && batchRequest?.flush) {
-		const flushedDiagnostics = await flushLspWritethroughBatch(batchRequest.id, session.cwd, signal);
+		const flushedDiagnostics = await flushWritethroughBatch(batchRequest.id, session.cwd, signal);
 		diagnostics ??= flushedDiagnostics;
 	}
 	const mergedDiagnostics = mergeDiagnosticsWithWarnings(diagnostics, result.warnings ?? []);

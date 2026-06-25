@@ -1,5 +1,5 @@
-import { hostMatchesUrl } from "@oh-my-pi/pi-catalog/hosts";
-import { $flag, extractHttpStatusFromError, logger, structuredCloneJSON } from "@oh-my-pi/pi-utils";
+import { hostMatchesUrl } from "@amaze/pi-catalog/hosts";
+import { $flag, extractHttpStatusFromError, logger, structuredCloneJSON } from "@amaze/pi-utils";
 import { getEnvApiKey } from "../stream";
 import type {
 	AssistantMessage,

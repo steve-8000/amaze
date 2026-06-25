@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { getBundledModel } from "@amaze/pi-catalog/models";
+import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
+import { TempDir } from "@amaze/pi-utils";
 
 const tempDirs: TempDir[] = [];
 
@@ -49,9 +49,11 @@ describe("SessionManager.peekSessionInit", () => {
 		manager.appendSessionInit({
 			systemPrompt: "second",
 			task: "t2",
+			agentName: "checker",
 			tools: ["read", "bash", "yield"],
 			spawns: "task",
 			readSummarize: false,
+			revivable: false,
 		});
 		// Flush buffered entries (header + inits) so the lock-free peek can read them off disk.
 		manager.appendMessage(assistantMessage("flush"));
@@ -60,9 +62,11 @@ describe("SessionManager.peekSessionInit", () => {
 		expect(peek?.cwd).toBe(manager.getCwd());
 		// Latest init wins — the reviver must rebuild from the most recent contract.
 		expect(peek?.init?.systemPrompt).toBe("second");
+		expect(peek?.init?.agentName).toBe("checker");
 		expect(peek?.init?.tools).toEqual(["read", "bash", "yield"]);
 		expect(peek?.init?.spawns).toBe("task");
 		expect(peek?.init?.readSummarize).toBe(false);
+		expect(peek?.init?.revivable).toBe(false);
 	});
 
 	it("returns init: null for a session file with no session_init (a main/legacy session)", async () => {

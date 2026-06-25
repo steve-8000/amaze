@@ -1,10 +1,10 @@
 import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { CURRENT_SESSION_VERSION, type SessionHeader } from "@oh-my-pi/pi-coding-agent/session/session-entries";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { getTerminalId } from "@oh-my-pi/pi-tui";
-import { getAgentDir, getTerminalSessionsDir, setAgentDir, TempDir } from "@oh-my-pi/pi-utils";
+import { CURRENT_SESSION_VERSION, type SessionHeader } from "@amaze/pi-coding-agent/session/session-entries";
+import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
+import { getTerminalId } from "@amaze/pi-tui";
+import { getAgentDir, getTerminalSessionsDir, setAgentDir, TempDir } from "@amaze/pi-utils";
 
 interface JsonlMessageEntry {
 	type: "message";
@@ -20,11 +20,11 @@ interface JsonlMessageEntry {
 
 describe("SessionManager.forkFrom", () => {
 	it("suppresses terminal breadcrumbs while preserving source history under a new parented session", async () => {
-		using tempDir = TempDir.createSync("@omp-session-fork-");
+		using tempDir = TempDir.createSync("@amaze-session-fork-");
 		const previousAgentDir = getAgentDir();
 		const previousTermSessionId = process.env.TERM_SESSION_ID;
 		setAgentDir(path.join(tempDir.path(), "agent"));
-		process.env.TERM_SESSION_ID = "omp-fork-test";
+		process.env.TERM_SESSION_ID = "amaze-fork-test";
 		try {
 			const cwd = path.join(tempDir.path(), "project");
 			const sessionDir = path.join(tempDir.path(), "sessions");

@@ -1,16 +1,16 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { Agent, type AgentMessage, type AgentTool } from "@oh-my-pi/pi-agent-core";
-import type { AssistantMessage, Message, ThinkingContent } from "@oh-my-pi/pi-ai";
-import { z } from "@oh-my-pi/pi-ai";
-import { createMockModel, type MockContent, type MockModel, type MockResponse } from "@oh-my-pi/pi-ai/providers/mock";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { convertToLlm } from "@oh-my-pi/pi-coding-agent/session/messages";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { Agent, type AgentMessage, type AgentTool } from "@amaze/pi-agent-core";
+import type { AssistantMessage, Message, ThinkingContent } from "@amaze/pi-ai";
+import { z } from "@amaze/pi-ai";
+import { createMockModel, type MockContent, type MockModel, type MockResponse } from "@amaze/pi-ai/providers/mock";
+import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
+import { Settings } from "@amaze/pi-coding-agent/config/settings";
+import { AgentSession } from "@amaze/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
+import { convertToLlm } from "@amaze/pi-coding-agent/session/messages";
+import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
+import { TempDir } from "@amaze/pi-utils";
 
 const checkpointSchema = z.object({ goal: z.string() });
 const rewindSchema = z.object({ report: z.string() });
@@ -117,6 +117,29 @@ function expectLastAssistant(messages: AgentMessage[]): AssistantMessage {
 }
 
 describe("AgentSession checkpoint rewind branch context", () => {
+	it("caps rewind-before-yield reminder continuations while a checkpoint remains active", async () => {
+		const { session, mock } = await createHarness([
+			{ content: ["stopped without rewind 1"] },
+			{ content: ["stopped without rewind 2"] },
+			{ content: ["stopped without rewind 3"] },
+			{ content: ["stopped without rewind 4"] },
+			{ content: ["unexpected extra continuation"] },
+		]);
+		session.setCheckpointState({
+			checkpointMessageCount: 0,
+			checkpointEntryId: null,
+			startedAt: "2026-01-01T00:00:00.000Z",
+		});
+
+		await session.prompt("finish and yield");
+
+		const reminderCalls = mock.calls.filter(call =>
+			call.context.messages.some(message => messageText(message).includes("MUST call rewind")),
+		);
+		expect(mock.calls).toHaveLength(4);
+		expect(reminderCalls).toHaveLength(3);
+	});
+
 	it("rebuilds active history through branch_summary before the post-rewind assistant turn", async () => {
 		const report = "findings: kept checkpoint; risks: stale signed thinking";
 		const { session, mock } = await createHarness([

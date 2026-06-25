@@ -5,10 +5,10 @@
  * passes through unchanged.
  */
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { initTheme, theme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import { jobToolRenderer } from "@oh-my-pi/pi-coding-agent/tools/job";
-import { prompt } from "@oh-my-pi/pi-utils";
+import { resetSettingsForTest, Settings } from "@amaze/pi-coding-agent/config/settings";
+import { initTheme, theme } from "@amaze/pi-coding-agent/modes/theme/theme";
+import { jobToolRenderer } from "@amaze/pi-coding-agent/tools/job";
+import { prompt } from "@amaze/pi-utils";
 import taskSummaryTemplate from "../src/prompts/tools/task-summary.md" with { type: "text" };
 
 function renderLines(resultText: string): string {
@@ -57,7 +57,7 @@ describe("job renderer task-result preview", () => {
 			meta: { lineCount: 3, charSize: "120 B" },
 			mergeSummary: "",
 		});
-		const deliveryText = `${summary}\n\nSpawnProbe is now idle — message it via \`irc\` to follow up; transcript at history://SpawnProbe`;
+		const deliveryText = `${summary}\n\nSpawnProbe completed — transcript at history://SpawnProbe`;
 
 		const output = renderLines(deliveryText);
 		expect(output).toContain("Probe finished: spawned worker, ping ok.");

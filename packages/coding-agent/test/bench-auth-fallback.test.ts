@@ -6,8 +6,8 @@ import type {
 	AssistantMessageEvent,
 	AssistantMessageEventStream,
 	Model,
-} from "@oh-my-pi/pi-ai";
-import { type BenchModelRegistry, runBenchCommand } from "@oh-my-pi/pi-coding-agent/cli/bench-cli";
+} from "@amaze/pi-ai";
+import { type BenchModelRegistry, runBenchCommand } from "@amaze/pi-coding-agent/cli/bench-cli";
 
 function fakeModel(provider: string, id: string): Model<Api> {
 	return {

@@ -6,14 +6,14 @@ import type {
 	AgentToolContext,
 	AgentToolResult,
 	AgentToolUpdateCallback,
-} from "@oh-my-pi/pi-agent-core";
+} from "@amaze/pi-agent-core";
 import type {
 	CursorMcpCall,
 	CursorShellStreamCallbacks,
 	CursorExecHandlers as ICursorExecHandlers,
 	ToolResultMessage,
-} from "@oh-my-pi/pi-ai";
-import { sanitizeText } from "@oh-my-pi/pi-utils";
+} from "@amaze/pi-ai";
+import { sanitizeText } from "@amaze/pi-utils";
 import { resolveToCwd } from "./tools/path-utils";
 
 interface CursorExecBridgeOptions {
@@ -315,11 +315,8 @@ export class CursorExecHandlers implements ICursorExecHandlers {
 
 	async diagnostics(args: Parameters<NonNullable<ICursorExecHandlers["diagnostics"]>>[0]) {
 		const toolCallId = decodeToolCallId(args.toolCallId);
-		const toolResultMessage = await executeTool(this.options, "lsp", toolCallId, {
-			action: "diagnostics",
-			file: args.path,
-		});
-		return toolResultMessage;
+		const result = buildToolErrorResult("Language-server diagnostics are unavailable.");
+		return createToolResultMessage(toolCallId, "diagnostics", result, true);
 	}
 
 	async mcp(call: CursorMcpCall) {

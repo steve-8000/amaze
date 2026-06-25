@@ -1,7 +1,7 @@
-import type { InMemorySnapshotStore } from "@oh-my-pi/hashline";
-import type { AgentTelemetryConfig, AgentTool } from "@oh-my-pi/pi-agent-core";
-import type { FetchImpl, ImageContent, Model, ToolChoice } from "@oh-my-pi/pi-ai";
-import { logger } from "@oh-my-pi/pi-utils";
+import type { InMemorySnapshotStore } from "@amaze/hashline";
+import type { AgentTelemetryConfig, AgentTool } from "@amaze/pi-agent-core";
+import type { FetchImpl, ImageContent, Model, ToolChoice } from "@amaze/pi-ai";
+import { logger } from "@amaze/pi-utils";
 import type { AsyncJobManager } from "../async/job-manager";
 import type { Rule } from "../capability/rule";
 import type { PromptTemplate } from "../config/prompt-templates";
@@ -12,11 +12,8 @@ import type { ToolPathWithSource } from "../extensibility/custom-tools";
 import type { Skill } from "../extensibility/skills";
 import type { GoalModeState, GoalRuntime } from "../goals";
 import { GoalTool } from "../goals/tools/goal-tool";
-import type { HindsightSessionState } from "../hindsight/state";
 import type { LocalProtocolOptions } from "../internal-urls";
-import { LspTool } from "../lsp";
 import type { MCPManager } from "../mcp";
-import type { MnemopiSessionState } from "../mnemopi/state";
 import type { PlanModeState } from "../plan-mode/state";
 import type { AgentRegistry } from "../registry/agent-registry";
 import type { ArtifactManager } from "../session/artifacts";
@@ -39,6 +36,16 @@ import { BashTool } from "./bash";
 import { BrowserTool } from "./browser";
 import type { BuiltinToolName } from "./builtin-names";
 import { type CheckpointState, CheckpointTool, RewindTool } from "./checkpoint";
+import {
+	GetArchitectureTool,
+	GetCodeSnippetTool,
+	ListProjectsTool,
+	QueryGraphTool,
+	SearchCodeTool,
+	SearchGraphTool,
+	TracePathTool,
+} from "./codebase-graph";
+import { CodebaseExpandTool, CodebasePlanTool, CodebaseReadTool, CodebaseValidateTool } from "./codebase-profile";
 import { DebugTool } from "./debug";
 import { EvalTool } from "./eval";
 import { resolveEvalBackends } from "./eval-backends";
@@ -49,10 +56,6 @@ import { IrcTool, isIrcEnabled } from "./irc";
 import { JobTool } from "./job";
 import { LearnTool } from "./learn";
 import { ManageSkillTool } from "./manage-skill";
-import { MemoryEditTool } from "./memory-edit";
-import { MemoryRecallTool } from "./memory-recall";
-import { MemoryReflectTool } from "./memory-reflect";
-import { MemoryRetainTool } from "./memory-retain";
 import { wrapToolWithMetaNotice } from "./output-meta";
 import { ReadTool } from "./read";
 import { createReportToolIssueTool, isAutoQaEnabled } from "./report-tool-issue";
@@ -60,6 +63,7 @@ import { ResolveTool } from "./resolve";
 import { reportFindingTool } from "./review";
 import { SearchTool } from "./search";
 import { SearchToolBm25Tool } from "./search-tool-bm25";
+import { SkillGetTool, SkillSearchTool } from "./skill-search";
 import { loadSshTool } from "./ssh";
 import { type TodoPhase, TodoTool } from "./todo";
 import { WriteTool } from "./write";
@@ -67,7 +71,6 @@ import { YieldTool } from "./yield";
 
 export * from "../edit";
 export * from "../goals";
-export * from "../lsp";
 export * from "../session/streaming-output";
 export * from "../task";
 export * from "../web/search";
@@ -77,6 +80,7 @@ export * from "./ast-grep";
 export * from "./bash";
 export * from "./browser";
 export * from "./checkpoint";
+export * from "./codebase-graph";
 export * from "./debug";
 export * from "./eval";
 export * from "./eval-backends";
@@ -88,16 +92,13 @@ export * from "./irc";
 export * from "./job";
 export * from "./learn";
 export * from "./manage-skill";
-export * from "./memory-edit";
-export * from "./memory-recall";
-export * from "./memory-reflect";
-export * from "./memory-retain";
 export * from "./read";
 export * from "./report-tool-issue";
 export * from "./resolve";
 export * from "./review";
 export * from "./search";
 export * from "./search-tool-bm25";
+export * from "./skill-search";
 export * from "./ssh";
 export * from "./todo";
 export * from "./tts";
@@ -126,29 +127,6 @@ export type {
 	DiscoverableToolSearchResult,
 	DiscoverableToolSource,
 } from "../tool-discovery/tool-index";
-
-/**
- * A late LSP diagnostics result that arrived after the edit/write tool already
- * returned. Surfaced to the model and the transcript via
- * {@link ToolSession.queueDeferredDiagnostics}, batched through the session
- * yield queue like background-job results.
- */
-export interface DeferredDiagnosticsEntry {
-	/** Absolute path the diagnostics belong to (the renderer shortens it). */
-	path: string;
-	/** One-line severity summary, e.g. "2 errors". */
-	summary: string;
-	/** Formatted, ready-to-display diagnostic lines. */
-	messages: string[];
-	/** True when any message is error severity. */
-	errored: boolean;
-	/**
-	 * Evaluated at injection time (in the dispatcher's stale check): drop the entry
-	 * when a newer mutation to the same file has superseded it, so the model never
-	 * sees diagnostics for stale content.
-	 */
-	isStale(): boolean;
-}
 
 /** Session context for tool factories */
 export interface ToolSession {
@@ -185,13 +163,11 @@ export interface ToolSession {
 	 */
 	extensionPaths?: string[];
 	/**
-	 * Pre-discovered custom-tool source paths from `.omp/tools/`, `.claude/tools/`,
+	 * Pre-discovered custom-tool source paths from `.amaze/tools/`, `.claude/tools/`,
 	 * plugins, etc. Forwarded to subagents so they skip the FS scan but still
 	 * re-bind tools to their own session-scoped `CustomToolAPI`.
 	 */
 	customToolPaths?: ToolPathWithSource[];
-	/** Whether LSP integrations are enabled */
-	enableLsp?: boolean;
 	/** Whether an edit-capable tool is available in this session (controls hashline output) */
 	hasEditTool?: boolean;
 	/** Event bus for tool/extension communication */
@@ -214,10 +190,6 @@ export interface ToolSession {
 	trackEvalExecution?<T>(execution: Promise<T>, abortController: AbortController): Promise<T>;
 	/** Get session ID */
 	getSessionId?: () => string | null;
-	/** Get Hindsight runtime state for this agent session. */
-	getHindsightSessionState?: () => HindsightSessionState | undefined;
-	/** Get Mnemopi runtime state for this agent session. */
-	getMnemopiSessionState?: () => MnemopiSessionState | undefined;
 	/** Agent identity used for IRC routing. Returns the registry id (e.g. "Main", "AuthLoader"). */
 	getAgentId?: () => string | null;
 	/** Look up a registered tool by name (used by the eval js backend's tool bridge). */
@@ -341,10 +313,6 @@ export interface ToolSession {
 	 *  by `getConflictHistory`. */
 	conflictHistory?: import("./conflict-detect").ConflictHistory;
 
-	/** Per-session ledger of post-edit LSP diagnostics already surfaced to the
-	 *  model for each file. Lazily initialized by `getDiagnosticsLedger`. */
-	diagnosticsLedger?: import("../lsp/diagnostics-ledger").DiagnosticsLedger;
-
 	/** Per-session ledger of consecutive byte-identical no-op edits, keyed by
 	 *  canonical file path. The hashline executor escalates a soft no-op hint
 	 *  to a thrown error once the same payload no-ops `NOOP_HARD_LIMIT` times,
@@ -354,10 +322,6 @@ export interface ToolSession {
 
 	/** Queue a hidden message to be injected at the next agent turn. */
 	queueDeferredMessage?(message: CustomMessage): void;
-	/** Queue late LSP diagnostics (arrived after an edit/write returned) to be shown
-	 *  in the transcript and delivered to the model at the next yield, like background
-	 *  job results. */
-	queueDeferredDiagnostics?(entry: DeferredDiagnosticsEntry): void;
 	/** Bump and return the session-global mutation counter for `path`. Edit/write
 	 *  tools call this on every file mutation so stale late-diagnostics can be dropped. */
 	bumpFileMutationVersion?(path: string): number;
@@ -433,6 +397,17 @@ export const BUILTIN_TOOLS: Record<BuiltinToolName, ToolFactory> = {
 	edit: s => new EditTool(s),
 	ast_grep: s => new AstGrepTool(s),
 	ast_edit: s => new AstEditTool(s),
+	list_projects: s => new ListProjectsTool(s),
+	search_graph: s => new SearchGraphTool(s),
+	search_code: s => new SearchCodeTool(s),
+	trace_path: s => new TracePathTool(s),
+	get_code_snippet: s => new GetCodeSnippetTool(s),
+	get_architecture: s => new GetArchitectureTool(s),
+	query_graph: s => new QueryGraphTool(s),
+	codebase_plan: s => new CodebasePlanTool(s),
+	codebase_read: s => new CodebaseReadTool(s),
+	codebase_expand: s => new CodebaseExpandTool(s),
+	codebase_validate: s => new CodebaseValidateTool(s),
 	ask: AskTool.createIf,
 	debug: DebugTool.createIf,
 	eval: s => new EvalTool(s),
@@ -440,7 +415,6 @@ export const BUILTIN_TOOLS: Record<BuiltinToolName, ToolFactory> = {
 	github: GithubTool.createIf,
 	find: s => new FindTool(s),
 	search: s => new SearchTool(s),
-	lsp: LspTool.createIf,
 	inspect_image: s => new InspectImageTool(s),
 	browser: s => new BrowserTool(s),
 	checkpoint: CheckpointTool.createIf,
@@ -451,11 +425,9 @@ export const BUILTIN_TOOLS: Record<BuiltinToolName, ToolFactory> = {
 	todo: s => new TodoTool(s),
 	web_search: s => new WebSearchTool(s),
 	search_tool_bm25: SearchToolBm25Tool.createIf,
+	skill_search: s => new SkillSearchTool(s),
+	skill_get: s => new SkillGetTool(s),
 	write: s => new WriteTool(s),
-	memory_edit: MemoryEditTool.createIf,
-	retain: MemoryRetainTool.createIf,
-	recall: MemoryRecallTool.createIf,
-	reflect: MemoryReflectTool.createIf,
 	learn: LearnTool.createIf,
 	manage_skill: ManageSkillTool.createIf,
 };
@@ -475,7 +447,6 @@ export type ToolName = BuiltinToolName;
  */
 export async function createTools(session: ToolSession, toolNames?: string[]): Promise<Tool[]> {
 	const includeYield = session.requireYieldTool === true;
-	const enableLsp = session.enableLsp ?? true;
 	let requestedTools =
 		toolNames && toolNames.length > 0 ? [...new Set(toolNames.map(name => name.toLowerCase()))] : undefined;
 	const goalEnabled = session.settings.get("goal.enabled");
@@ -533,25 +504,15 @@ export async function createTools(session: ToolSession, toolNames?: string[]): P
 		) {
 			requestedTools.push("ast_edit");
 		}
-		if (["hindsight", "mnemopi"].includes(session.settings.get("memory.backend") ?? "")) {
-			for (const name of ["recall", "retain", "reflect"]) {
-				if (!requestedTools.includes(name)) requestedTools.push(name);
-			}
-		}
-		// Auto-learn tools are gated by `autolearn.enabled` but, like the memory
-		// tools above, must also be force-included into an explicit requestedTools
-		// list so a restricted top-level session whose controller/guidance is
-		// active still exposes the tools the nudge points at. Gated to top-level
-		// (taskDepth 0): the controller only runs there, so a subagent's explicit
-		// tool whitelist must never be silently widened with write-capable tools.
+		// Auto-learn tools are gated by `autolearn.enabled` and must be
+		// force-included into an explicit requestedTools list so a restricted
+		// top-level session whose controller/guidance is active still exposes the
+		// tools the nudge points at. Gated to top-level (taskDepth 0): the
+		// controller only runs there, so a subagent's explicit tool whitelist must
+		// never be silently widened with write-capable tools.
 		if (session.settings.get("autolearn.enabled") && (session.taskDepth ?? 0) === 0) {
 			if (!requestedTools.includes("manage_skill")) requestedTools.push("manage_skill");
-			if (
-				["hindsight", "mnemopi", "local"].includes(session.settings.get("memory.backend") ?? "") &&
-				!requestedTools.includes("learn")
-			) {
-				requestedTools.push("learn");
-			}
+			if (!requestedTools.includes("learn")) requestedTools.push("learn");
 		}
 	}
 	// Resolve effective tool discovery mode.
@@ -565,7 +526,6 @@ export async function createTools(session: ToolSession, toolNames?: string[]): P
 	const allTools: Record<string, ToolFactory> = { ...BUILTIN_TOOLS, ...HIDDEN_TOOLS };
 	const isToolAllowed = (name: string) => {
 		if (name === "goal") return goalEnabled && goalModeActive;
-		if (name === "lsp") return enableLsp && session.settings.get("lsp.enabled");
 		if (name === "bash") return session.settings.get("bash.enabled");
 		if (name === "eval") return allowEval;
 		if (name === "debug") return session.settings.get("debug.enabled");
@@ -582,17 +542,8 @@ export async function createTools(session: ToolSession, toolNames?: string[]): P
 		if (name === "browser") return session.settings.get("browser.enabled");
 		if (name === "checkpoint" || name === "rewind") return session.settings.get("checkpoint.enabled");
 		if (name === "irc") return isIrcEnabled(session.settings, session.taskDepth ?? 0);
-		if (name === "retain" || name === "recall" || name === "reflect") {
-			return ["hindsight", "mnemopi"].includes(session.settings.get("memory.backend") ?? "");
-		}
 		if (name === "manage_skill") return session.settings.get("autolearn.enabled") && (session.taskDepth ?? 0) === 0;
-		if (name === "learn") {
-			return (
-				session.settings.get("autolearn.enabled") &&
-				(session.taskDepth ?? 0) === 0 &&
-				["hindsight", "mnemopi", "local"].includes(session.settings.get("memory.backend") ?? "")
-			);
-		}
+		if (name === "learn") return session.settings.get("autolearn.enabled") && (session.taskDepth ?? 0) === 0;
 		if (name === "task") {
 			return canSpawnAtDepth(session.settings.get("task.maxRecursionDepth") ?? 2, session.taskDepth ?? 0);
 		}

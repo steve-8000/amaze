@@ -1,4 +1,4 @@
-import { getAntigravityUserAgent } from "@oh-my-pi/pi-catalog/wire/gemini-headers";
+import { getAntigravityUserAgent } from "@amaze/pi-catalog/wire/gemini-headers";
 import type {
 	CredentialRankingContext,
 	CredentialRankingStrategy,

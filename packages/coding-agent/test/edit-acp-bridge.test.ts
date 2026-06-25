@@ -2,14 +2,14 @@ import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { DEFAULT_FUZZY_THRESHOLD, executePatchSingle, executeReplaceSingle } from "@oh-my-pi/pi-coding-agent/edit";
-import { HashlineFilesystem } from "@oh-my-pi/pi-coding-agent/edit/hashline/filesystem";
-import { resolveLocalUrlToPath } from "@oh-my-pi/pi-coding-agent/internal-urls";
-import type { WritethroughCallback } from "@oh-my-pi/pi-coding-agent/lsp";
-import type { PlanModeState } from "@oh-my-pi/pi-coding-agent/plan-mode/state";
-import type { ClientBridge } from "@oh-my-pi/pi-coding-agent/session/client-bridge";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import { resetSettingsForTest, Settings } from "@amaze/pi-coding-agent/config/settings";
+import type { WritethroughCallback } from "@amaze/pi-coding-agent/edit";
+import { DEFAULT_FUZZY_THRESHOLD, executePatchSingle, executeReplaceSingle } from "@amaze/pi-coding-agent/edit";
+import { HashlineFilesystem } from "@amaze/pi-coding-agent/edit/hashline/filesystem";
+import { resolveLocalUrlToPath } from "@amaze/pi-coding-agent/internal-urls";
+import type { PlanModeState } from "@amaze/pi-coding-agent/plan-mode/state";
+import type { ClientBridge } from "@amaze/pi-coding-agent/session/client-bridge";
+import type { ToolSession } from "@amaze/pi-coding-agent/tools";
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
 
@@ -30,7 +30,6 @@ function createSession(cwd: string, options: SessionOptions = {}): ToolSession {
 	return {
 		cwd,
 		hasUI: false,
-		enableLsp: false,
 		getSessionFile: () => path.join(cwd, "session.jsonl"),
 		getSessionSpawns: () => "*",
 		getArtifactsDir,
@@ -74,7 +73,7 @@ describe("HashlineFilesystem ACP fs routing", () => {
 
 	beforeEach(async () => {
 		resetSettingsForTest();
-		tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-acp-hashline-"));
+		tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "amaze-acp-hashline-"));
 		await Settings.init({ inMemory: true, cwd: tmpDir });
 	});
 
@@ -113,7 +112,7 @@ describe("HashlineFilesystem ACP fs routing", () => {
 			bridge,
 			planMode: { enabled: true, planFilePath: planPath, workflow: "parallel", reentry: false },
 		});
-		// Use a no-op writethrough so the call succeeds without real LSP
+		// Use a no-op writethrough so the call succeeds without a real host integration.
 		const { writethrough, spy: writeSpy } = makeWritethroughMock();
 
 		const filesystem = new HashlineFilesystem({
@@ -136,7 +135,7 @@ describe("executeReplaceSingle ACP fs routing", () => {
 
 	beforeEach(async () => {
 		resetSettingsForTest();
-		tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-acp-replace-"));
+		tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "amaze-acp-replace-"));
 		await Settings.init({ inMemory: true, cwd: tmpDir });
 	});
 
@@ -209,7 +208,7 @@ describe("executePatchSingle ACP fs routing", () => {
 
 	beforeEach(async () => {
 		resetSettingsForTest();
-		tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-acp-patch-"));
+		tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "amaze-acp-patch-"));
 		await Settings.init({ inMemory: true, cwd: tmpDir });
 	});
 

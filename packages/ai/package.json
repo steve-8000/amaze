@@ -1,9 +1,9 @@
 {
 	"type": "module",
-	"name": "@oh-my-pi/pi-ai",
-	"version": "16.1.11",
+	"name": "@amaze/pi-ai",
+	"version": "3.1.0",
 	"description": "Unified LLM API with automatic model discovery and provider configuration",
-	"homepage": "https://omp.sh",
+	"homepage": "https://amaze",
 	"author": "Can Boluk",
 	"contributors": [
 		"Mario Zechner"
@@ -11,11 +11,11 @@
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/can1357/oh-my-pi.git",
+		"url": "git+https://github.com/can1357/amaze-agent.git",
 		"directory": "packages/ai"
 	},
 	"bugs": {
-		"url": "https://github.com/can1357/oh-my-pi/issues"
+		"url": "https://github.com/can1357/amaze-agent/issues"
 	},
 	"keywords": [
 		"ai",
@@ -38,9 +38,9 @@
 	},
 	"dependencies": {
 		"@bufbuild/protobuf": "catalog:",
-		"@oh-my-pi/pi-catalog": "catalog:",
-		"@oh-my-pi/pi-utils": "catalog:",
-		"@oh-my-pi/pi-wire": "catalog:",
+		"@amaze/pi-catalog": "catalog:",
+		"@amaze/pi-utils": "catalog:",
+		"@amaze/pi-wire": "catalog:",
 		"arktype": "catalog:",
 		"zod": "catalog:"
 	},

@@ -6,10 +6,10 @@
  * result pairs collapsed to single lines, thinking elided, custom messages
  * as one-liners. No system prompt, no tool catalog, no config sections.
  */
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-import type { AssistantMessage, ImageContent, TextContent, ToolResultMessage } from "@oh-my-pi/pi-ai";
-import { escapeXmlText } from "@oh-my-pi/pi-utils";
-import { INTENT_FIELD } from "@oh-my-pi/pi-wire";
+import type { AgentMessage } from "@amaze/pi-agent-core";
+import type { AssistantMessage, ImageContent, TextContent, ToolResultMessage } from "@amaze/pi-ai";
+import { escapeXmlText } from "@amaze/pi-utils";
+import { INTENT_FIELD } from "@amaze/pi-wire";
 import type {
 	BashExecutionMessage,
 	BranchSummaryMessage,
@@ -187,11 +187,19 @@ export const PRIMARY_CONTEXT_CUSTOM_TYPES: ReadonlySet<string> = new Set(["plan-
 function customOneLiner(msg: CustomMessage | HookMessage): string {
 	const details = (msg.details ?? {}) as Record<string, unknown>;
 	const str = (key: string): string => (typeof details[key] === "string" ? (details[key] as string) : "");
+	const label = (idKey: string, agentKey: string, displayKey: string): string => {
+		const id = str(idKey) || "?";
+		const agentName = str(agentKey);
+		const displayName = str(displayKey);
+		if (agentName && displayName && agentName !== displayName) return `${id} [${agentName}: ${displayName}]`;
+		const detail = agentName || (displayName && displayName !== id ? displayName : "");
+		return detail && detail !== id ? `${id} [${detail}]` : id;
+	};
 	switch (msg.customType) {
 		case "irc:incoming":
-			return `[irc] ${str("from") || "?"} → me: ${oneLine(str("message"))}`;
+			return `[irc] ${label("from", "fromAgentName", "fromDisplayName")} → me: ${oneLine(str("message"))}`;
 		case "irc:relay":
-			return `[irc] ${str("from") || "?"} → ${str("to") || "?"}: ${oneLine(str("body"))}`;
+			return `[irc] ${label("from", "fromAgentName", "fromDisplayName")} → ${label("to", "toAgentName", "toDisplayName")}: ${oneLine(str("body"))}`;
 		case "async-result": {
 			const jobs = Array.isArray(details.jobs) && details.jobs.length > 0 ? details.jobs : [details];
 			const labels = jobs

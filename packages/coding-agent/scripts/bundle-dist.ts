@@ -2,7 +2,7 @@
 
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { isEnoent } from "@oh-my-pi/pi-utils";
+import { isEnoent } from "@amaze/pi-utils";
 
 const packageDir = path.join(import.meta.dir, "..");
 const outDir = path.join(packageDir, "dist");
@@ -12,7 +12,7 @@ const shebang = "#!/usr/bin/env bun\n";
 // Native / optional / platform-specific deps that are never bundled — installed on
 // demand (transformers/fastembed/onnxruntime) or shipped as their own artifact
 // (native addon, mupdf).
-const ALWAYS_EXTERNAL = ["mupdf", "@oh-my-pi/pi-natives", "@huggingface/transformers", "fastembed", "onnxruntime-node"];
+const ALWAYS_EXTERNAL = ["mupdf", "@amaze/pi-natives", "@huggingface/transformers", "fastembed", "onnxruntime-node"];
 
 // Heavy, lazily-used third-party leaf deps. Each is a declared `dependency`, so the
 // published package resolves it from node_modules at runtime; bundling only embeds a
@@ -56,7 +56,7 @@ function formatBytes(bytes: number): string {
 }
 
 async function cleanBundleOutputs(): Promise<void> {
-	// dist/ is shared with the dev binary (dist/omp); only remove this
+	// dist/ is shared with the dev binary (dist/amaze); only remove this
 	// script's own outputs (entry bundle + copied native assets).
 	let entries: string[];
 	try {

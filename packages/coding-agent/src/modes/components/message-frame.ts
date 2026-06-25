@@ -8,9 +8,9 @@
  * the first N lines when not expanded; extension messages render in full.
  */
 
-import type { TextContent } from "@oh-my-pi/pi-ai";
-import type { Box, Component } from "@oh-my-pi/pi-tui";
-import { Markdown, Spacer, Text } from "@oh-my-pi/pi-tui";
+import type { TextContent } from "@amaze/pi-ai";
+import type { Box, Component } from "@amaze/pi-tui";
+import { Markdown, Spacer, Text } from "@amaze/pi-tui";
 import { getMarkdownTheme, type Theme, theme } from "../../modes/theme/theme";
 
 /** Message shape consumed by the shared frame. */

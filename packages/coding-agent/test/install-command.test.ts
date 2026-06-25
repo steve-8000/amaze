@@ -1,5 +1,5 @@
 /**
- * Regression test for #1496 (bug 2): `omp install ./my-extension` used to be
+ * Regression test for #1496 (bug 2): `amaze install ./my-extension` used to be
  * silently rewritten to `launch install ./my-extension` and forwarded to the
  * LLM as an initial prompt because no top-level `install` subcommand existed.
  *
@@ -15,8 +15,8 @@ import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { commands, isSubcommand, resolveCliArgv } from "@oh-my-pi/pi-coding-agent/cli-commands";
-import { looksLikeLocalPath } from "@oh-my-pi/pi-coding-agent/commands/install";
+import { commands, isSubcommand, resolveCliArgv } from "@amaze/pi-coding-agent/cli-commands";
+import { looksLikeLocalPath } from "@amaze/pi-coding-agent/commands/install";
 
 describe("install command is registered as a top-level subcommand", () => {
 	test("CLI runner sees `install` as a known command", () => {
@@ -26,7 +26,7 @@ describe("install command is registered as a top-level subcommand", () => {
 
 	test("CLI runner rejects only bare reserved management words", () => {
 		expect(resolveCliArgv(["extensions"])).toEqual({
-			error: '`omp extensions` is not a management command. Use `omp plugin list` / `omp plugin install`, or run `omp launch extensions` if you meant to send "extensions" as a prompt.',
+			error: '`amaze extensions` is not a management command. Use `amaze plugin list` / `amaze plugin install`, or run `amaze launch extensions` if you meant to send "extensions" as a prompt.',
 		});
 		expect(resolveCliArgv(["extensions", "are", "not", "loading"])).toEqual({
 			argv: ["launch", "extensions", "are", "not", "loading"],
@@ -53,14 +53,14 @@ describe("looksLikeLocalPath", () => {
 	});
 
 	test("npm specs and marketplace refs are remote", () => {
-		expect(looksLikeLocalPath("@oh-my-pi/exa")).toBe(false);
+		expect(looksLikeLocalPath("@amaze/exa")).toBe(false);
 		expect(looksLikeLocalPath("my-pkg")).toBe(false);
 		expect(looksLikeLocalPath("my-pkg@1.2.3")).toBe(false);
 		expect(looksLikeLocalPath("name@marketplace")).toBe(false);
 	});
 
 	test("bare names that exist as a local directory are treated as local", () => {
-		const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-install-test-"));
+		const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "amaze-install-test-"));
 		try {
 			fs.mkdirSync(path.join(tempDir, "vendored-ext"));
 			expect(looksLikeLocalPath("vendored-ext", tempDir)).toBe(true);

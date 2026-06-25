@@ -1,7 +1,7 @@
 /**
  * Read-only hashline diff preview helpers used by the streaming edit
  * renderer. Reads the target file, parses + applies the section's edits in
- * memory (no FS write, no LSP writethrough), then hands the before/after
+ * memory (no FS write, no writethrough), then hands the before/after
  * pair to {@link generateDiffString} so the renderer can show the diff
  * while the tool call is still streaming.
  *
@@ -27,7 +27,7 @@ import {
 	resolveBlockEdits,
 	type SnapshotStore,
 	stripBom,
-} from "@oh-my-pi/hashline";
+} from "@amaze/hashline";
 import { resolveToCwd } from "../../tools/path-utils";
 import { generateDiffString } from "../diff";
 import { readEditFileText } from "../read-file";

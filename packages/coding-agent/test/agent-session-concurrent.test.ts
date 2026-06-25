@@ -7,22 +7,22 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { scheduler } from "node:timers/promises";
-import { Agent, AgentBusyError, type AgentMessage, type AgentTool } from "@oh-my-pi/pi-agent-core";
-import type { AssistantMessage, Message, ToolCall } from "@oh-my-pi/pi-ai";
-import { createMockModel } from "@oh-my-pi/pi-ai/providers/mock";
-import { AssistantMessageEventStream } from "@oh-my-pi/pi-ai/utils/event-stream";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { AsyncJobManager } from "@oh-my-pi/pi-coding-agent/async";
-import type { Rule } from "@oh-my-pi/pi-coding-agent/capability/rule";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { TtsrManager } from "@oh-my-pi/pi-coding-agent/export/ttsr";
-import type { ExtensionRunner } from "@oh-my-pi/pi-coding-agent/extensibility/extensions";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { convertToLlm } from "@oh-my-pi/pi-coding-agent/session/messages";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { Snowflake } from "@oh-my-pi/pi-utils";
+import { Agent, AgentBusyError, type AgentMessage, type AgentTool } from "@amaze/pi-agent-core";
+import type { AssistantMessage, Message, ToolCall } from "@amaze/pi-ai";
+import { createMockModel } from "@amaze/pi-ai/providers/mock";
+import { AssistantMessageEventStream } from "@amaze/pi-ai/utils/event-stream";
+import { getBundledModel } from "@amaze/pi-catalog/models";
+import { AsyncJobManager } from "@amaze/pi-coding-agent/async";
+import type { Rule } from "@amaze/pi-coding-agent/capability/rule";
+import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
+import { Settings } from "@amaze/pi-coding-agent/config/settings";
+import { TtsrManager } from "@amaze/pi-coding-agent/export/ttsr";
+import type { ExtensionRunner } from "@amaze/pi-coding-agent/extensibility/extensions";
+import { AgentSession } from "@amaze/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
+import { convertToLlm } from "@amaze/pi-coding-agent/session/messages";
+import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
+import { Snowflake } from "@amaze/pi-utils";
 import { type } from "arktype";
 import { createAssistantMessage } from "./helpers/agent-session-setup";
 
@@ -428,7 +428,7 @@ describe("AgentSession concurrent prompt guard", () => {
 		).toBe(false);
 	});
 
-	it("caps consecutive session_stop continuations at eight", async () => {
+	it("ignores repeated session_stop continuation results after the first follow-up", async () => {
 		const model = getBundledModel("anthropic", "claude-sonnet-4-5")!;
 		const mock = createMockModel({
 			handler: () => ({ content: ["Pass"] }),
@@ -439,11 +439,15 @@ describe("AgentSession concurrent prompt guard", () => {
 			streamFn: mock.stream,
 			convertToLlm,
 		});
+		const stopEvents: Array<{ stop_hook_active: boolean }> = [];
 		const extensionRunner = {
 			emit: vi.fn().mockResolvedValue(undefined),
 			emitBeforeAgentStart: vi.fn().mockResolvedValue(undefined),
 			hasHandlers: vi.fn((eventType: string) => eventType === "session_stop"),
-			emitSessionStop: vi.fn(() => Promise.resolve({ decision: "block" as const, reason: "Run another pass." })),
+			emitSessionStop: vi.fn(event => {
+				stopEvents.push({ stop_hook_active: event.stop_hook_active });
+				return Promise.resolve({ decision: "block" as const, reason: "Run another pass." });
+			}),
 		} as unknown as ExtensionRunner;
 		const sessionManager = SessionManager.inMemory();
 		const settings = Settings.isolated();
@@ -457,8 +461,68 @@ describe("AgentSession concurrent prompt guard", () => {
 		await session.prompt("First message");
 		await session.waitForIdle();
 
-		expect(mock.calls).toHaveLength(9);
-		expect(extensionRunner.emitSessionStop).toHaveBeenCalledTimes(9);
+		expect(mock.calls).toHaveLength(2);
+		expect(extensionRunner.emitSessionStop).toHaveBeenCalledTimes(2);
+		expect(stopEvents).toEqual([{ stop_hook_active: false }, { stop_hook_active: true }]);
+	});
+
+	it("caps session_stop continuations across direct user turns", async () => {
+		const model = getBundledModel("anthropic", "claude-sonnet-4-5")!;
+		const mock = createMockModel({
+			handler: () => ({ content: ["Pass"] }),
+		});
+		const agent = new Agent({
+			getApiKey: () => "test-key",
+			initialState: { model, systemPrompt: ["Test"], tools: [] },
+			streamFn: mock.stream,
+			convertToLlm,
+		});
+		let directStopRequests = 0;
+		const extensionRunner = {
+			emit: vi.fn().mockResolvedValue(undefined),
+			emitBeforeAgentStart: vi.fn().mockResolvedValue(undefined),
+			hasHandlers: vi.fn((eventType: string) => eventType === "session_stop"),
+			emitSessionStop: vi.fn(event => {
+				if (event.stop_hook_active) return Promise.resolve(undefined);
+				directStopRequests++;
+				return Promise.resolve({ decision: "block" as const, reason: `Continue request ${directStopRequests}.` });
+			}),
+		} as unknown as ExtensionRunner;
+		const sessionManager = SessionManager.inMemory();
+		const settings = Settings.isolated();
+		const authStorage = await AuthStorage.create(path.join(tempDir, "testauth.db"));
+		authStorages.push(authStorage);
+		const modelRegistry = new ModelRegistry(authStorage, path.join(tempDir, "models.yml"));
+		authStorage.setRuntimeApiKey("anthropic", "test-key");
+
+		session = new AgentSession({ agent, sessionManager, settings, modelRegistry, extensionRunner });
+
+		for (let i = 0; i < 4; i++) {
+			await session.prompt(`Message ${i}`);
+			await session.waitForIdle();
+		}
+
+		expect(mock.calls).toHaveLength(7);
+		expect(extensionRunner.emitSessionStop).toHaveBeenCalledTimes(7);
+		const textParts: string[] = [];
+		for (const call of mock.calls) {
+			for (const message of call.context.messages) {
+				if (typeof message.content === "string") {
+					textParts.push(message.content);
+					continue;
+				}
+				for (const content of message.content) {
+					if (content.type === "text" && "text" in content && typeof content.text === "string") {
+						textParts.push(content.text);
+					}
+				}
+			}
+		}
+		const providerText = textParts.join("\n");
+		expect(providerText).toContain("Continue request 1.");
+		expect(providerText).toContain("Continue request 2.");
+		expect(providerText).toContain("Continue request 3.");
+		expect(providerText).not.toContain("Continue request 4.");
 	});
 
 	it("emits session_stop only after empty-stop recovery reaches a final stop", async () => {
@@ -699,7 +763,7 @@ describe("AgentSession concurrent prompt guard", () => {
 	// agent's own `isStreaming` had flipped, but #promptWithMessage's finally had
 	// not yet decremented the prompt-in-flight counter), and the next prompt
 	// threw AgentBusyError. Surfaced as `RpcCommandError: prompt: Agent is
-	// already processing` from omp-rpc clients (robomp triage reminder path).
+	// already processing` from amaze-rpc clients (robomp triage reminder path).
 	it("subscriber may prompt() synchronously from agent_end without AgentBusyError", async () => {
 		const model = getBundledModel("anthropic", "claude-sonnet-4-5")!;
 		const mock = createMockModel({ handler: () => ({ content: ["Done"] }) });
@@ -1124,6 +1188,107 @@ describe("AgentSession TTSR resume gate", () => {
 		expect(session.isStreaming).toBe(false);
 	});
 
+	it("caps TTSR interrupt continuations across direct user turns", async () => {
+		collapseSchedulerSettleDelays();
+		const model = getBundledModel("anthropic", "claude-sonnet-4-5")!;
+		let streamCallCount = 0;
+		let directTriggerCount = 0;
+		const cappedRules = Array.from({ length: 4 }, (_, index): Rule => {
+			const ruleNumber = index + 1;
+			return {
+				...testRule,
+				name: `no-unwrap-${ruleNumber}`,
+				path: `/tmp/no-unwrap-${ruleNumber}.md`,
+				condition: [`TTSR_TRIGGER_${ruleNumber}`],
+				_source: {
+					provider: "test",
+					providerName: "test",
+					path: `/tmp/no-unwrap-${ruleNumber}.md`,
+					level: "project",
+				},
+			};
+		});
+
+		const ttsrManager = new TtsrManager({
+			enabled: true,
+			contextMode: "discard",
+			interruptMode: "always",
+			repeatMode: "once",
+			repeatGap: 10,
+		});
+		for (const rule of cappedRules) {
+			ttsrManager.addRule(rule);
+		}
+
+		const agent = new Agent({
+			getApiKey: () => "test-key",
+			initialState: { model, systemPrompt: ["Test"], tools: [] },
+			streamFn: (_model, _context, options) => {
+				streamCallCount++;
+				const stream = new AssistantMessageEventStream();
+
+				if (streamCallCount % 2 === 1) {
+					directTriggerCount++;
+					const trigger = `TTSR_TRIGGER_${directTriggerCount}`;
+					queueMicrotask(() => {
+						const partial = makeMsg("");
+						stream.push({ type: "start", partial });
+						stream.push({
+							type: "text_delta",
+							contentIndex: 0,
+							delta: trigger,
+							partial: makeMsg(trigger),
+						});
+						if (options?.signal) {
+							options.signal.addEventListener(
+								"abort",
+								() => {
+									stream.push({
+										type: "error",
+										reason: "aborted",
+										error: makeMsg(trigger, "aborted"),
+									});
+								},
+								{ once: true },
+							);
+						}
+					});
+				} else {
+					pushContinuationStream(stream, () => {});
+				}
+
+				return stream;
+			},
+		});
+
+		const sessionManager = SessionManager.inMemory();
+		const settings = Settings.isolated();
+		const authStorage = await AuthStorage.create(path.join(tempDir, "testauth-ttsr-cap.db"));
+		authStorages.push(authStorage);
+		const modelRegistry = new ModelRegistry(authStorage, path.join(tempDir, "models.yml"));
+		authStorage.setRuntimeApiKey("anthropic", "test-key");
+
+		session = new AgentSession({
+			agent,
+			sessionManager,
+			settings,
+			modelRegistry,
+			ttsrManager,
+		});
+
+		await session.prompt("Write Rust code 1");
+		await session.prompt("Write Rust code 2");
+		await session.prompt("Write Rust code 3");
+		await session.prompt("Write Rust code 4");
+
+		const injections = sessionManager
+			.getEntries()
+			.filter(entry => entry.type === "custom_message" && entry.customType === "ttsr-injection");
+		expect(injections).toHaveLength(3);
+		expect(streamCallCount).toBe(7);
+		expect(session.isStreaming).toBe(false);
+	});
+
 	it("labels aborted tool placeholders with the TTSR rule reason", async () => {
 		collapseSchedulerSettleDelays();
 		const model = getBundledModel("anthropic", "claude-sonnet-4-5")!;
@@ -1242,7 +1407,7 @@ describe("AgentSession TTSR resume gate", () => {
 
 		const sessionManager = SessionManager.inMemory();
 		const cwd = sessionManager.getCwd();
-		const ruleAbsPath = path.join(cwd, ".omp", "rules", "no-unwrap.md");
+		const ruleAbsPath = path.join(cwd, ".amaze", "rules", "no-unwrap.md");
 		const expectedRel = path.relative(cwd, ruleAbsPath);
 		const rule: Rule = {
 			name: "no-unwrap",

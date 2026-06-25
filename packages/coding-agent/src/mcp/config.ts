@@ -4,7 +4,9 @@
  * Uses the capability system to load MCP servers from multiple sources.
  */
 
-import { getMCPConfigPath } from "@oh-my-pi/pi-utils";
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
+import { getMCPConfigPath, isCompiledBinary, logger } from "@amaze/pi-utils";
 import { mcpCapability } from "../capability/mcp";
 import type { SourceMeta } from "../capability/types";
 import type { MCPServer } from "../discovery";
@@ -20,6 +22,8 @@ export interface LoadMCPConfigsOptions {
 	filterExa?: boolean;
 	/** Whether to filter out browser MCP servers when builtin browser tool is enabled (default: false) */
 	filterBrowser?: boolean;
+	/** Whether to ignore MCP stdio configs that launch this CLI again (default: true) */
+	filterSelfReference?: boolean;
 }
 
 /** Result of loading MCP configs */
@@ -85,6 +89,89 @@ function convertToLegacyConfig(server: MCPServer): MCPServerConfig {
 	};
 }
 
+function hasPathSegment(command: string): boolean {
+	return command.includes("/") || command.includes("\\") || path.isAbsolute(command);
+}
+
+async function realpathIfExists(candidate: string): Promise<string | null> {
+	try {
+		return await fs.realpath(candidate);
+	} catch {
+		return null;
+	}
+}
+
+async function resolveCommandPath(command: string, cwd: string): Promise<string | null> {
+	if (!command) return null;
+	if (hasPathSegment(command)) {
+		const resolved = path.isAbsolute(command) ? command : path.resolve(cwd, command);
+		return realpathIfExists(resolved);
+	}
+	const pathEnv = process.env.PATH ?? "";
+	const extensions = process.platform === "win32" ? (process.env.PATHEXT ?? ".EXE;.CMD;.BAT;.COM").split(";") : [""];
+	for (const dir of pathEnv.split(path.delimiter)) {
+		if (!dir) continue;
+		for (const ext of extensions) {
+			const candidate = path.join(dir, command.endsWith(ext) ? command : `${command}${ext}`);
+			const real = await realpathIfExists(candidate);
+			if (real) return real;
+		}
+	}
+	return null;
+}
+
+async function currentCliEntrypointRealpaths(): Promise<Set<string>> {
+	const candidates = new Set<string>();
+	const launcherPath = process.env.AMAZE_CLI_LAUNCHER_PATH;
+	if (launcherPath) candidates.add(launcherPath);
+	if (typeof Bun.main === "string" && Bun.main) candidates.add(Bun.main);
+	if (process.argv[1]) candidates.add(process.argv[1]);
+	if (isCompiledBinary()) candidates.add(process.execPath);
+
+	const packageRoot = path.resolve(import.meta.dir, "..", "..");
+	candidates.add(path.join(packageRoot, "scripts", "amaze"));
+	candidates.add(path.join(packageRoot, "scripts", "omp"));
+	candidates.add(path.join(packageRoot, "src", "cli.ts"));
+	candidates.add(path.join(packageRoot, "dist", "cli.js"));
+
+	const realpaths = new Set<string>();
+	await Promise.all(
+		[...candidates].map(async candidate => {
+			const real = await realpathIfExists(path.resolve(candidate));
+			if (real) realpaths.add(real);
+		}),
+	);
+	return realpaths;
+}
+
+export async function isSelfReferentialMCPConfig(config: MCPServerConfig, cwd: string): Promise<boolean> {
+	if (config.type && config.type !== "stdio") return false;
+	const stdioConfig = config as { command?: string; args?: string[] };
+	if (!stdioConfig.command) return false;
+
+	const [commandPath, entrypoints] = await Promise.all([
+		resolveCommandPath(stdioConfig.command, cwd),
+		currentCliEntrypointRealpaths(),
+	]);
+	if (commandPath && entrypoints.has(commandPath)) return true;
+
+	const args = stdioConfig.args ?? [];
+	const firstArg = args[0];
+	const currentRuntimePath = await realpathIfExists(process.execPath);
+	if (!firstArg || firstArg.startsWith("-") || !commandPath || commandPath !== currentRuntimePath) {
+		return false;
+	}
+	const argPath = await realpathIfExists(path.isAbsolute(firstArg) ? firstArg : path.resolve(cwd, firstArg));
+	return argPath !== null && entrypoints.has(argPath);
+}
+
+const DISABLED_MCP_SERVER_NAMES = new Set(["rocky-codebase"]);
+
+function isDisabledMCPServerName(name: string): boolean {
+	const normalized = name.toLowerCase().replace(/_/g, "-");
+	return DISABLED_MCP_SERVER_NAMES.has(normalized);
+}
+
 /**
  * Load all MCP server configs from standard locations.
  * Uses the capability system for multi-source discovery.
@@ -96,6 +183,7 @@ export async function loadAllMCPConfigs(cwd: string, options?: LoadMCPConfigsOpt
 	const enableProjectConfig = options?.enableProjectConfig ?? true;
 	const filterExa = options?.filterExa ?? true;
 	const filterBrowser = options?.filterBrowser ?? false;
+	const filterSelfReference = options?.filterSelfReference ?? true;
 
 	// Load MCP servers via capability system
 	const result = await loadCapability<MCPServer>(mcpCapability.id, { cwd });
@@ -111,8 +199,22 @@ export async function loadAllMCPConfigs(cwd: string, options?: LoadMCPConfigsOpt
 	let configs: Record<string, MCPServerConfig> = {};
 	let sources: Record<string, SourceMeta> = {};
 	for (const server of servers) {
+		if (isDisabledMCPServerName(server.name)) {
+			logger.warn("Ignoring disabled MCP server config", {
+				name: server.name,
+				source: server._source.path,
+			});
+			continue;
+		}
 		const config = convertToLegacyConfig(server);
 		if (config.enabled === false || disabledServers.has(server.name)) {
+			continue;
+		}
+		if (filterSelfReference && (await isSelfReferentialMCPConfig(config, cwd))) {
+			logger.warn("Ignoring self-referential MCP server config", {
+				name: server.name,
+				source: server._source.path,
+			});
 			continue;
 		}
 		configs[server.name] = config;

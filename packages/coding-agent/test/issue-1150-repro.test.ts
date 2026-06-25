@@ -2,9 +2,9 @@ import { describe, expect, it } from "bun:test";
 import * as path from "node:path";
 
 /**
- * Regression for https://github.com/can1357/oh-my-pi/issues/1150
+ * Regression for https://github.com/can1357/amaze-agent/issues/1150
  *
- * In v15.1.3 `omp stats` crashed in the published Linux/macOS/Windows
+ * In v15.1.3 `amaze stats` crashed in the published Linux/macOS/Windows
  * binaries with `BuildMessage: ModuleNotFound resolving
  * "./packages/stats/src/sync-worker.ts" (entry point)`. The dev-mode build
  * script `packages/coding-agent/scripts/build-binary.ts` listed the three
@@ -19,7 +19,7 @@ import * as path from "node:path";
  * The current contract is simpler: every Worker re-enters the CLI entrypoint
  * and selects its worker body via `WorkerOptions.argv`, so release builds no
  * longer need to list the worker modules as extra `--compile` entrypoints.
- * Runtime coverage lives in `omp --smoke-test`.
+ * Runtime coverage lives in `amaze --smoke-test`.
  */
 describe("issue #1150 — release/dev builds route workers through the CLI entrypoint", () => {
 	const repoRoot = path.resolve(import.meta.dir, "../../..");

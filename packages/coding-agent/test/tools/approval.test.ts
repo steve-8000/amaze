@@ -1,15 +1,14 @@
 import { describe, expect, it } from "bun:test";
-import type { AgentTool, ToolApproval } from "@oh-my-pi/pi-agent-core";
-import { LSP_READONLY_ACTIONS } from "@oh-my-pi/pi-coding-agent/lsp";
+import type { AgentTool, ToolApproval } from "@amaze/pi-agent-core";
 import {
 	type ApprovalMode,
 	formatApprovalPrompt,
 	requiresApproval,
 	resolveApproval,
 	truncateForPrompt,
-} from "@oh-my-pi/pi-coding-agent/tools/approval";
-import { BashTool } from "@oh-my-pi/pi-coding-agent/tools/bash";
-import { DEBUG_READONLY_ACTIONS } from "@oh-my-pi/pi-coding-agent/tools/debug";
+} from "@amaze/pi-coding-agent/tools/approval";
+import { BashTool } from "@amaze/pi-coding-agent/tools/bash";
+import { DEBUG_READONLY_ACTIONS } from "@amaze/pi-coding-agent/tools/debug";
 
 type ApprovalTool = Pick<AgentTool, "name" | "approval" | "formatApprovalDetails">;
 
@@ -178,9 +177,7 @@ describe("tool-owned dynamic approval declarations", () => {
 		}
 	});
 
-	it("exports LSP and debug read-only action sets from their owning tools", () => {
-		expect(LSP_READONLY_ACTIONS.has("diagnostics")).toBe(true);
-		expect(LSP_READONLY_ACTIONS.has("rename")).toBe(false);
+	it("exports debug read-only action sets from its owning tool", () => {
 		expect(DEBUG_READONLY_ACTIONS.has("variables")).toBe(true);
 		expect(DEBUG_READONLY_ACTIONS.has("continue")).toBe(false);
 	});

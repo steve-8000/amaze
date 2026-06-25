@@ -8,8 +8,8 @@ import {
 	parseVaultUrl,
 	resolveVaultUrlToPath,
 	VaultProtocolHandler,
-} from "@oh-my-pi/pi-coding-agent/internal-urls";
-import * as vaultProtocol from "@oh-my-pi/pi-coding-agent/internal-urls/vault-protocol";
+} from "@amaze/pi-coding-agent/internal-urls";
+import * as vaultProtocol from "@amaze/pi-coding-agent/internal-urls/vault-protocol";
 
 async function withTempDir<T>(fn: (dir: string) => Promise<T>): Promise<T> {
 	const dir = await fs.mkdtemp(path.join(os.tmpdir(), "vault-protocol-"));

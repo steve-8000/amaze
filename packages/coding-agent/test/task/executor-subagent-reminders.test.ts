@@ -1,20 +1,24 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { AgentBusyError, type AgentTelemetryConfig, type Tracer } from "@oh-my-pi/pi-agent-core";
-import { type AssistantMessage, Effort } from "@oh-my-pi/pi-ai";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { ExtensionActions, LoadExtensionsResult } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/types";
-import type { CreateAgentSessionResult } from "@oh-my-pi/pi-coding-agent/sdk";
-import * as sdkModule from "@oh-my-pi/pi-coding-agent/sdk";
-import type { AgentSession, AgentSessionEvent, PromptOptions } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import type { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
+import { AgentBusyError, type AgentTelemetryConfig, type Tracer } from "@amaze/pi-agent-core";
+import { type AssistantMessage, Effort } from "@amaze/pi-ai";
+import { Settings } from "@amaze/pi-coding-agent/config/settings";
+import type { ExtensionActions, LoadExtensionsResult } from "@amaze/pi-coding-agent/extensibility/extensions/types";
+import { IrcBus } from "@amaze/pi-coding-agent/irc/bus";
+import { AgentLifecycleManager } from "@amaze/pi-coding-agent/registry/agent-lifecycle";
+import { AgentRegistry } from "@amaze/pi-coding-agent/registry/agent-registry";
+import type { CreateAgentSessionResult } from "@amaze/pi-coding-agent/sdk";
+import * as sdkModule from "@amaze/pi-coding-agent/sdk";
+import type { AgentSession, AgentSessionEvent, PromptOptions } from "@amaze/pi-coding-agent/session/agent-session";
+import type { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
 import {
 	finalizeSubprocessOutput,
 	runSubprocess,
 	SUBAGENT_WARNING_MISSING_YIELD,
-} from "@oh-my-pi/pi-coding-agent/task/executor";
-import type { AgentDefinition } from "@oh-my-pi/pi-coding-agent/task/types";
-import { EventBus } from "@oh-my-pi/pi-coding-agent/utils/event-bus";
-import { logger } from "@oh-my-pi/pi-utils";
+} from "@amaze/pi-coding-agent/task/executor";
+import { buildSubagentLaunchSpec } from "@amaze/pi-coding-agent/task/subagent-launch-spec";
+import type { AgentDefinition } from "@amaze/pi-coding-agent/task/types";
+import { EventBus } from "@amaze/pi-coding-agent/utils/event-bus";
+import { logger } from "@amaze/pi-utils";
 
 function createAssistantStopMessage(text: string): AssistantMessage {
 	return {
@@ -99,6 +103,9 @@ function mockCreateAgentSession(session: AgentSession) {
 describe("runSubprocess yield reminders", () => {
 	afterEach(() => {
 		vi.restoreAllMocks();
+		AgentLifecycleManager.resetGlobalForTests();
+		AgentRegistry.resetGlobalForTests();
+		IrcBus.resetGlobalForTests();
 	});
 
 	const baseAgent: AgentDefinition = {
@@ -117,8 +124,7 @@ describe("runSubprocess yield reminders", () => {
 		settings: Settings.isolated(),
 		modelRegistry: {
 			refresh: async () => {},
-		} as unknown as import("@oh-my-pi/pi-coding-agent/config/model-registry").ModelRegistry,
-		enableLsp: false,
+		} as unknown as import("@amaze/pi-coding-agent/config/model-registry").ModelRegistry,
 	};
 
 	it("waits for session_start extension user messages before prompting the subagent", async () => {
@@ -192,7 +198,7 @@ describe("runSubprocess yield reminders", () => {
 		const createAgentSessionSpy = mockCreateAgentSession(session);
 		const modelRegistry = {
 			refresh: async () => {},
-		} as unknown as import("@oh-my-pi/pi-coding-agent/config/model-registry").ModelRegistry;
+		} as unknown as import("@amaze/pi-coding-agent/config/model-registry").ModelRegistry;
 		const refreshSpy = vi.spyOn(modelRegistry, "refresh");
 
 		await runSubprocess({ ...baseOptions, id: "subagent-skip-refresh", modelRegistry });
@@ -201,7 +207,86 @@ describe("runSubprocess yield reminders", () => {
 		expect(createAgentSessionSpy).toHaveBeenCalledTimes(1);
 	});
 
-	it("splices the subagent role prompt before the trailing system section", async () => {
+	it("parks a yielded contract subagent so IRC cannot wake a second yield turn", async () => {
+		const prompts: string[] = [];
+		const sessionInits: Array<{
+			revivable?: boolean;
+			contextAudit?: Array<{ status: "allowed" | "denied"; source: string; reason: string }>;
+		}> = [];
+		const session = createMockSession(({ text, emit }) => {
+			prompts.push(text);
+			emit({
+				type: "tool_execution_end",
+				toolCallId: "tool-terminal-yield",
+				toolName: "yield",
+				result: {
+					content: [{ type: "text", text: "Result submitted." }],
+					details: { status: "success", data: { ok: true } },
+				},
+				isError: false,
+			});
+		});
+		(
+			session as unknown as {
+				sessionManager: {
+					appendSessionInit: (init: {
+						revivable?: boolean;
+						contextAudit?: Array<{ status: "allowed" | "denied"; source: string; reason: string }>;
+					}) => void;
+				};
+			}
+		).sessionManager.appendSessionInit = init => {
+			sessionInits.push(init);
+		};
+		vi.spyOn(sdkModule, "createAgentSession").mockImplementation(async options => {
+			const agentId = options?.agentId ?? "subagent-terminal";
+			AgentRegistry.global().register({
+				id: agentId,
+				displayName: agentId,
+				kind: "sub",
+				session,
+				sessionFile: null,
+				status: "running",
+			});
+			return createSessionResult(session);
+		});
+
+		const result = await runSubprocess({
+			...baseOptions,
+			id: "subagent-terminal",
+			launchSpec: buildSubagentLaunchSpec({
+				id: "subagent-terminal",
+				agent: baseAgent,
+				displayName: "task",
+				taskDepth: 0,
+				task: "do work",
+			}),
+		});
+
+		expect(result.exitCode).toBe(0);
+		expect(prompts).toHaveLength(1);
+		const ref = AgentRegistry.global().get("subagent-terminal");
+		expect(ref?.status).toBe("parked");
+		expect(ref?.session).toBeNull();
+		expect(ref?.revivable).toBe(false);
+		expect(AgentLifecycleManager.global().has("subagent-terminal")).toBe(false);
+		expect(sessionInits.at(-1)?.revivable).toBe(false);
+		expect(sessionInits.at(-1)?.contextAudit).toContainEqual(
+			expect.objectContaining({ status: "denied", source: "parent-full-system-prompt" }),
+		);
+
+		const receipt = await IrcBus.global().send({
+			from: "Main",
+			to: "subagent-terminal",
+			body: "Can you repeat the result?",
+		});
+
+		expect(receipt.outcome).toBe("failed");
+		expect(receipt.error).toContain("cannot be revived");
+		expect(prompts).toHaveLength(1);
+	});
+
+	it("uses only the contract subagent system prompt instead of inheriting parent system sections", async () => {
 		let userPrompt = "";
 		const session = createMockSession(({ text, emit }) => {
 			userPrompt = text;
@@ -229,14 +314,13 @@ describe("runSubprocess yield reminders", () => {
 		if (typeof systemPromptBuilder !== "function") throw new Error("Expected system prompt builder");
 		const systemPrompt = systemPromptBuilder(["system", "project", "now"]);
 
-		expect(systemPrompt).toHaveLength(4);
-		expect(systemPrompt?.[0]).toBe("system");
-		expect(systemPrompt?.[1]).toBe("project");
-		expect(systemPrompt?.[2]).toMatch(/ROLE\n=+\n\ntest/);
+		expect(systemPrompt).toHaveLength(1);
+		expect(systemPrompt?.[0]).toMatch(/SUBAGENT RUNTIME\n=+/);
+		expect(systemPrompt?.[0]).toMatch(/CONTRACT\n=+/);
+		expect(systemPrompt?.[0]).toMatch(/CONTRACT\n=+\n\ntest/);
 		// The parent-conversation CONTEXT section is gone: subagents get their
 		// background inside the assignment (or a local:// file), never a dump.
-		expect(systemPrompt?.[2]).not.toMatch(/CONTEXT\n=+/);
-		expect(systemPrompt?.[3]).toBe("now");
+		expect(systemPrompt?.[0]).not.toMatch(/Parent system|project|now/);
 		expect(userPrompt).not.toMatch(/CONTEXT\n=+/);
 	});
 
@@ -392,7 +476,7 @@ describe("runSubprocess yield reminders", () => {
 		const modelRegistry = {
 			refresh: async () => {},
 			getAvailable: () => [{ provider: "openai", id: "gpt-4o", name: "GPT-4o" }],
-		} as unknown as import("@oh-my-pi/pi-coding-agent/config/model-registry").ModelRegistry;
+		} as unknown as import("@amaze/pi-coding-agent/config/model-registry").ModelRegistry;
 
 		await runSubprocess({
 			...baseOptions,
@@ -411,7 +495,7 @@ describe("runSubprocess yield reminders", () => {
 		const modelRegistry = {
 			refresh: async () => {},
 			getAvailable: () => [{ provider: "openai", id: "gpt-4o", name: "GPT-4o" }],
-		} as unknown as import("@oh-my-pi/pi-coding-agent/config/model-registry").ModelRegistry;
+		} as unknown as import("@amaze/pi-coding-agent/config/model-registry").ModelRegistry;
 
 		const cases = [
 			{ modelOverride: "openai/gpt-4o:low", expectedThinkingLevel: Effort.Low },
@@ -559,7 +643,7 @@ describe("runSubprocess yield reminders", () => {
 		const modelRegistry = {
 			authStorage: fakeAuthStorage,
 			refresh: async () => {},
-		} as unknown as import("@oh-my-pi/pi-coding-agent/config/model-registry").ModelRegistry;
+		} as unknown as import("@amaze/pi-coding-agent/config/model-registry").ModelRegistry;
 
 		await runSubprocess({ ...baseOptions, id: "subagent-registry-only", modelRegistry });
 
@@ -575,7 +659,7 @@ describe("runSubprocess yield reminders", () => {
 		const modelRegistry = {
 			authStorage: registryStorage,
 			refresh: async () => {},
-		} as unknown as import("@oh-my-pi/pi-coding-agent/config/model-registry").ModelRegistry;
+		} as unknown as import("@amaze/pi-coding-agent/config/model-registry").ModelRegistry;
 
 		const result = await runSubprocess({
 			...baseOptions,
@@ -647,8 +731,7 @@ describe("runSubprocess telemetry propagation", () => {
 		settings: Settings.isolated(),
 		modelRegistry: {
 			refresh: async () => {},
-		} as unknown as import("@oh-my-pi/pi-coding-agent/config/model-registry").ModelRegistry,
-		enableLsp: false,
+		} as unknown as import("@amaze/pi-coding-agent/config/model-registry").ModelRegistry,
 	};
 
 	function buildSession() {

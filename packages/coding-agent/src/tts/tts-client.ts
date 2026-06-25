@@ -1,5 +1,5 @@
 import * as path from "node:path";
-import { $env, isBunTestRuntime, isCompiledBinary, logger, workerHostEntry } from "@oh-my-pi/pi-utils";
+import { $env, isBunTestRuntime, isCompiledBinary, logger, workerHostEntry } from "@amaze/pi-utils";
 import type { Subprocess } from "bun";
 import { settings } from "../config/settings";
 import { tinyWorkerEnvOverlay } from "../tiny/title-client";
@@ -150,7 +150,7 @@ function readTinyModelSetting(path: "providers.tinyModelDevice" | "providers.tin
 		const value = settings.get(path);
 		return typeof value === "string" ? value : undefined;
 	} catch {
-		// Settings may be uninitialized (e.g. `omp --smoke-test`); fall back to env/default.
+		// Settings may be uninitialized (e.g. `amaze --smoke-test`); fall back to env/default.
 		return undefined;
 	}
 }
@@ -527,7 +527,7 @@ export class TtsClient {
 
 	/**
 	 * The TTS subprocess is spawned `unref`'d so an idle worker never blocks
-	 * process exit. A short-lived CLI command (`omp say`) awaiting a request would
+	 * process exit. A short-lived CLI command (`amaze say`) awaiting a request would
 	 * otherwise let the event loop drain and exit before the audio arrives, so we
 	 * `ref` the worker exactly while at least one request is pending.
 	 */

@@ -10,7 +10,7 @@
  * `parked` ↔ `idle`.
  */
 
-import { logger } from "@oh-my-pi/pi-utils";
+import { logger } from "@amaze/pi-utils";
 import type { AgentSession } from "../session/agent-session";
 import { type AgentRef, AgentRegistry, MAIN_AGENT_ID, type RegistryEvent } from "./agent-registry";
 
@@ -30,6 +30,10 @@ export interface AdoptOptions {
 	idleTtlMs: number;
 	/** Recreates a live AgentSession from the ref's sessionFile. Absent => not resumable after park (e.g. isolated runs). */
 	revive?: AgentReviver;
+}
+
+export function nonRevivableAgentMessage(id: string): string {
+	return `Agent "${id}" is transcript-only and cannot be revived. Read history://${id} or spawn a new task.`;
 }
 
 interface AdoptedAgent {
@@ -157,6 +161,9 @@ export class AgentLifecycleManager {
 			throw new Error(
 				`Unknown agent "${id}" — it was never registered or has been released. If a transcript exists, read history://${id}.`,
 			);
+		}
+		if (ref.revivable === false) {
+			throw new Error(nonRevivableAgentMessage(id));
 		}
 		if (ref.session) return ref.session;
 		const inflight = this.#revivals.get(id);

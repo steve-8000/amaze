@@ -4,7 +4,7 @@ Send/receive short text messages between agents in this process.
 - Main agent is `Main`; subagents reuse their task id (`AuthLoader`, `AuthLoader-2` on repeat).
 - `op: "list"` — peers with status (`running` | `idle` | `parked`), unread count, parent, last activity. Use when unsure who exists.
 - `op: "send"` — fire-and-forget; returns per-recipient receipts immediately, NEVER waits for the recipient to act. Outcomes: delivered, or `failed` (unreachable). `to: "all"` broadcasts to live peers.
-- Messaging an `idle`/`parked` peer wakes it — no separate revive call.
+- Messaging an `idle` peer wakes it; a `parked` peer wakes only when it is explicitly revivable. Completed contract subagents are transcript-only — read `history://<id>` instead of messaging them.
 - `op: "wait"` — block for a message (optionally only `from` one peer); consumes + returns it. Timeout = clean "no message", not an error.
 - `op: "inbox"` — drain pending messages without blocking.
 - Replies arrive only when the recipient sends one. For peer background, `read` `history://<id>`, don't interrogate.

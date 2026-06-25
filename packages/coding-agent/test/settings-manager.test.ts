@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { Effort } from "@oh-my-pi/pi-ai";
+import { Effort } from "@amaze/pi-ai";
 import {
 	getDefault,
 	getEnumValues,
@@ -10,8 +10,8 @@ import {
 	resetSettingsForTest,
 	type SettingPath,
 	Settings,
-} from "@oh-my-pi/pi-coding-agent/config/settings";
-import { getProjectAgentDir, TempDir } from "@oh-my-pi/pi-utils";
+} from "@amaze/pi-coding-agent/config/settings";
+import { getProjectAgentDir, TempDir } from "@amaze/pi-utils";
 import { YAML } from "bun";
 import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "./helpers/settings-test-state";
 
@@ -64,6 +64,12 @@ describe("Settings", () => {
 			const settings = await Settings.init({ cwd: projectDir, agentDir });
 			expect(settings.get("startup.showSplash")).toBe(false);
 			expect(getDefault("startup.showSplash")).toBe(false);
+		});
+
+		it("keeps automatic compaction disabled by default", async () => {
+			const settings = await Settings.init({ cwd: projectDir, agentDir });
+			expect(settings.get("compaction.enabled")).toBe(false);
+			expect(getDefault("compaction.enabled")).toBe(false);
 		});
 
 		it("exposes all tool calling mode options", () => {
@@ -381,60 +387,6 @@ describe("Settings", () => {
 			expect(settings.get("edit.mode")).toBe("hashline");
 			expect(settings.getEditVariantForModel("claude-opus-4-5")).toBe("hashline");
 			expect(settings.getEditVariantForModel("gpt-5.2")).toBe("apply_patch");
-		});
-
-		it("maps legacy hindsight.dynamicBankId=true onto hindsight.scoping=per-project", async () => {
-			await writeSettings({
-				hindsight: { dynamicBankId: true },
-			});
-
-			const settings = await Settings.init({ cwd: projectDir, agentDir });
-
-			expect(settings.get("hindsight.scoping")).toBe("per-project");
-		});
-
-		it("does not override an explicit hindsight.scoping when migrating", async () => {
-			await writeSettings({
-				hindsight: { dynamicBankId: true, scoping: "global" },
-			});
-
-			const settings = await Settings.init({ cwd: projectDir, agentDir });
-
-			expect(settings.get("hindsight.scoping")).toBe("global");
-		});
-
-		it("promotes legacy hindsight.agentName onto hindsight.bankId when bankId is unset", async () => {
-			await writeSettings({
-				hindsight: { agentName: "ada-cli" },
-			});
-
-			const settings = await Settings.init({ cwd: projectDir, agentDir });
-
-			expect(settings.get("hindsight.bankId")).toBe("ada-cli");
-		});
-
-		it("migrates the legacy mnemosyne memory backend to mnemopi", async () => {
-			await writeSettings({
-				memory: { backend: "mnemosyne" },
-				mnemosyne: { dbPath: "/tmp/old.db", scoping: "global" },
-			});
-
-			const settings = await Settings.init({ cwd: projectDir, agentDir });
-
-			expect(settings.get("memory.backend")).toBe("mnemopi");
-			expect(settings.get("mnemopi.dbPath")).toBe("/tmp/old.db");
-			expect(settings.get("mnemopi.scoping")).toBe("global");
-		});
-
-		it("does not clobber an explicit mnemopi block when the legacy mnemosyne block is also present", async () => {
-			await writeSettings({
-				mnemosyne: { dbPath: "/tmp/old.db" },
-				mnemopi: { dbPath: "/tmp/new.db" },
-			});
-
-			const settings = await Settings.init({ cwd: projectDir, agentDir });
-
-			expect(settings.get("mnemopi.dbPath")).toBe("/tmp/new.db");
 		});
 
 		it("migrates boolean task.eager/todo.eager true to always", async () => {

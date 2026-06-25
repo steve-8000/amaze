@@ -1,18 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent, type AgentMessage, type AgentTool } from "@oh-my-pi/pi-agent-core";
-import * as compactionModule from "@oh-my-pi/pi-agent-core/compaction";
-import type { TextContent } from "@oh-my-pi/pi-ai";
-import { AssistantMessageEventStream } from "@oh-my-pi/pi-ai/utils/event-stream";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { convertToLlm } from "@oh-my-pi/pi-coding-agent/session/messages";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { TodoTool, type ToolSession, USER_TODO_EDIT_CUSTOM_TYPE } from "@oh-my-pi/pi-coding-agent/tools";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { Agent, type AgentMessage, type AgentTool } from "@amaze/pi-agent-core";
+import * as compactionModule from "@amaze/pi-agent-core/compaction";
+import type { TextContent } from "@amaze/pi-ai";
+import { AssistantMessageEventStream } from "@amaze/pi-ai/utils/event-stream";
+import { getBundledModel } from "@amaze/pi-catalog/models";
+import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
+import { Settings } from "@amaze/pi-coding-agent/config/settings";
+import { AgentSession } from "@amaze/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
+import { convertToLlm } from "@amaze/pi-coding-agent/session/messages";
+import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
+import { TodoTool, type ToolSession, USER_TODO_EDIT_CUSTOM_TYPE } from "@amaze/pi-coding-agent/tools";
+import { TempDir } from "@amaze/pi-utils";
 import { type } from "arktype";
 
 // Re-injecting eager preludes after compaction: the first-message preludes are the
@@ -84,21 +84,24 @@ function createAssistantResponse(text: string) {
 }
 
 /** Short-circuit the LLM summary so compaction completes without a network call. */
-function stubCompaction(firstKeptEntryId?: string): void {
-	vi.spyOn(compactionModule, "compact").mockImplementation(async preparation => ({
-		summary: "compacted",
-		shortSummary: undefined,
-		firstKeptEntryId: firstKeptEntryId ?? preparation.firstKeptEntryId,
-		tokensBefore: preparation.tokensBefore,
-		details: {},
-	}));
+function stubCompaction(firstKeptEntryId?: string, onCompact?: () => void): void {
+	vi.spyOn(compactionModule, "compact").mockImplementation(async preparation => {
+		onCompact?.();
+		return {
+			summary: "compacted",
+			shortSummary: undefined,
+			firstKeptEntryId: firstKeptEntryId ?? preparation.firstKeptEntryId,
+			tokensBefore: preparation.tokensBefore,
+			details: {},
+		};
+	});
 }
 
 /** Emit a high-usage assistant turn to drive threshold (context-full) auto-compaction. */
-function emitHighUsageTurn(session: AgentSession): void {
+function emitHighUsageTurn(session: AgentSession, text = "Done."): void {
 	const assistantMsg = {
 		role: "assistant" as const,
-		content: [{ type: "text" as const, text: "Done." }],
+		content: [{ type: "text" as const, text }],
 		api: "anthropic-messages" as const,
 		provider: "anthropic" as const,
 		model: "claude-sonnet-4-5",
@@ -254,6 +257,15 @@ describe("AgentSession eager prelude re-injection after compaction", () => {
 		return waitForCall(call => call.messageTexts.some(text => text.includes(CONTINUE_MARKER)));
 	}
 
+	async function waitForCondition(predicate: () => boolean, timeoutMs = 500): Promise<void> {
+		const deadline = Date.now() + timeoutMs;
+		while (Date.now() < deadline) {
+			if (predicate()) return;
+			await Bun.sleep(1);
+		}
+		throw new Error("Timed out waiting for condition");
+	}
+
 	it("re-injects the eager task reminder on the auto-continuation turn (task.eager always)", async () => {
 		const { session, waitForCall } = await createHarness();
 		stubCompaction();
@@ -274,6 +286,49 @@ describe("AgentSession eager prelude re-injection after compaction", () => {
 		const continuation = await runToContinuation(session, waitForCall);
 
 		expect(continuation.messageTexts.some(text => text.includes("delegation is enabled"))).toBe(false);
+	});
+
+	it("caps compaction auto-continuations across direct user turns", async () => {
+		const { session, observedCalls } = await createHarness({ "task.eager": "default" });
+		let compactions = 0;
+		stubCompaction(undefined, () => {
+			compactions++;
+		});
+		const continuationCount = () =>
+			observedCalls.filter(call => call.messageTexts.at(-1)?.includes(CONTINUE_MARKER) === true).length;
+
+		for (let attempt = 1; attempt <= 4; attempt++) {
+			await session.prompt(`continue compacted work ${attempt}`);
+			emitHighUsageTurn(session);
+			await waitForCondition(() => compactions >= attempt);
+			if (attempt <= 3) {
+				await waitForCondition(() => continuationCount() >= attempt);
+			}
+			await waitForCondition(() => !session.isStreaming);
+		}
+
+		await Bun.sleep(20);
+		expect(compactions).toBe(4);
+		expect(continuationCount()).toBe(3);
+	});
+
+	it("does not auto-continue after threshold compaction for a completed analytical answer", async () => {
+		const { session, observedCalls } = await createHarness({ "task.eager": "default" });
+		let compactions = 0;
+		stubCompaction(undefined, () => {
+			compactions++;
+		});
+
+		await session.prompt("summarize the root cause");
+		emitHighUsageTurn(session, "I've completed the analysis. If you'd like, I can outline the patch next.");
+		await waitForCondition(() => compactions === 1);
+		await waitForCondition(() => !session.isStreaming);
+		await Bun.sleep(20);
+
+		expect(compactions).toBe(1);
+		expect(observedCalls.filter(call => call.messageTexts.at(-1)?.includes(CONTINUE_MARKER) === true)).toHaveLength(
+			0,
+		);
 	});
 
 	it("does not re-inject the eager task reminder when task.eager is preferred", async () => {

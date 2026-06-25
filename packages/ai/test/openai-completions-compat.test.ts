@@ -3,7 +3,7 @@ import {
 	applyOpenRouterRoutingVariant,
 	convertMessages,
 	streamOpenAICompletions,
-} from "@oh-my-pi/pi-ai/providers/openai-completions";
+} from "@amaze/pi-ai/providers/openai-completions";
 import type {
 	AssistantMessage,
 	Context,
@@ -13,11 +13,11 @@ import type {
 	OpenAICompat,
 	Tool,
 	ToolResultMessage,
-} from "@oh-my-pi/pi-ai/types";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { Effort } from "@oh-my-pi/pi-catalog/effort";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import type { ResolvedOpenAICompat } from "@oh-my-pi/pi-catalog/types";
+} from "@amaze/pi-ai/types";
+import { buildModel } from "@amaze/pi-catalog/build";
+import { Effort } from "@amaze/pi-catalog/effort";
+import { getBundledModel } from "@amaze/pi-catalog/models";
+import type { ResolvedOpenAICompat } from "@amaze/pi-catalog/types";
 
 const gpt4oMiniSpec: ModelSpec<"openai-completions"> = (() => {
 	const {

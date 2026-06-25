@@ -5,16 +5,16 @@
  */
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { IrcBus } from "@oh-my-pi/pi-coding-agent/irc/bus";
-import { AgentHubOverlayComponent } from "@oh-my-pi/pi-coding-agent/modes/components/agent-hub";
-import { SelectorController } from "@oh-my-pi/pi-coding-agent/modes/controllers/selector-controller";
-import { SessionObserverRegistry } from "@oh-my-pi/pi-coding-agent/modes/session-observer-registry";
-import { initTheme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
-import type { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { resetSettingsForTest, Settings } from "@amaze/pi-coding-agent/config/settings";
+import { IrcBus } from "@amaze/pi-coding-agent/irc/bus";
+import { AgentHubOverlayComponent } from "@amaze/pi-coding-agent/modes/components/agent-hub";
+import { SelectorController } from "@amaze/pi-coding-agent/modes/controllers/selector-controller";
+import { SessionObserverRegistry } from "@amaze/pi-coding-agent/modes/session-observer-registry";
+import { initTheme } from "@amaze/pi-coding-agent/modes/theme/theme";
+import type { InteractiveModeContext } from "@amaze/pi-coding-agent/modes/types";
+import { AgentRegistry } from "@amaze/pi-coding-agent/registry/agent-registry";
+import type { AgentSession } from "@amaze/pi-coding-agent/session/agent-session";
+import { TempDir } from "@amaze/pi-utils";
 
 const AGENT_ID = "Worker";
 const TEST_CWD = path.resolve("agent-hub-cwd");
@@ -90,7 +90,7 @@ describe("Agent hub Enter activation", () => {
 	});
 
 	it("lists persisted subagent session files after restart", async () => {
-		using tempDir = TempDir.createSync("@omp-agent-hub-persisted-");
+		using tempDir = TempDir.createSync("@amaze-agent-hub-persisted-");
 		const sessionFile = path.join(tempDir.path(), "main.jsonl");
 		const workerSessionFile = path.join(tempDir.path(), "main", "Worker.jsonl");
 		await Bun.write(sessionFile, "");

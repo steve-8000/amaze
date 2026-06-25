@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import type { IrcMessage } from "@oh-my-pi/pi-coding-agent/irc/bus";
-import { getThemeByName } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import { type IrcDetails, ircToolRenderer } from "@oh-my-pi/pi-coding-agent/tools/irc";
-import { sanitizeText } from "@oh-my-pi/pi-utils";
+import type { IrcMessage } from "@amaze/pi-coding-agent/irc/bus";
+import { getThemeByName } from "@amaze/pi-coding-agent/modes/theme/theme";
+import { createIrcMessageCard, type IrcDetails, ircToolRenderer } from "@amaze/pi-coding-agent/tools/irc";
+import { sanitizeText } from "@amaze/pi-utils";
 
 async function theme() {
 	const t = await getThemeByName("dark");
@@ -137,6 +137,30 @@ describe("ircToolRenderer wait", () => {
 		expect(rendered.some(line => line.includes("session-store rename is merged."))).toBe(true);
 	});
 
+	it("renders the sender's concrete agent type when IRC metadata is present", async () => {
+		const uiTheme = await theme();
+		const rendered = lines(
+			ircToolRenderer.renderResult(
+				{
+					content: [{ type: "text", text: "" }],
+					details: {
+						op: "wait",
+						from: "Main",
+						waited: msg({
+							from: "DocsScan",
+							fromAgentName: "finder",
+							fromDisplayName: "API docs scan",
+						}),
+					} satisfies IrcDetails,
+				},
+				{ expanded: false, isPartial: false },
+				uiTheme,
+				{ op: "wait" },
+			),
+		);
+		expect(rendered[0]).toContain("DocsScan [finder: API docs scan]");
+	});
+
 	it("marks a timed-out wait without inventing a message", async () => {
 		const uiTheme = await theme();
 		const rendered = lines(
@@ -152,6 +176,30 @@ describe("ircToolRenderer wait", () => {
 		);
 		expect(rendered[0]).toContain("timed out");
 		expect(rendered.some(line => line.includes("No message from AuthLoader within 2m."))).toBe(true);
+	});
+});
+
+describe("createIrcMessageCard", () => {
+	it("labels relay endpoints with their concrete agent types", async () => {
+		const uiTheme = await theme();
+		const rendered = lines(
+			createIrcMessageCard(
+				{
+					kind: "relay",
+					from: "DocsScan",
+					fromAgentName: "finder",
+					fromDisplayName: "API docs scan",
+					to: "RiskAudit",
+					toAgentName: "checker",
+					toDisplayName: "Risk audit",
+					body: "handoff notes",
+				},
+				() => false,
+				uiTheme,
+			),
+		);
+		expect(rendered[0]).toContain("DocsScan [finder: API docs scan]");
+		expect(rendered[0]).toContain("RiskAudit [checker: Risk audit]");
 	});
 });
 

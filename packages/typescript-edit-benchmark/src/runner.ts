@@ -7,11 +7,11 @@
 /// <reference types="./bun-imports.d.ts" />
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { formatHashlineHeader, InMemorySnapshotStore } from "@oh-my-pi/hashline";
-import type { AgentMessage, ResolvedThinkingLevel, ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import type { Model, ToolExample } from "@oh-my-pi/pi-ai";
-import { formatSessionDumpText, RpcClient } from "@oh-my-pi/pi-coding-agent";
-import { prompt } from "@oh-my-pi/pi-utils";
+import { formatHashlineHeader, InMemorySnapshotStore } from "@amaze/hashline";
+import type { AgentMessage, ResolvedThinkingLevel, ThinkingLevel } from "@amaze/pi-agent-core";
+import type { Model, ToolExample } from "@amaze/pi-ai";
+import { formatSessionDumpText, RpcClient } from "@amaze/pi-coding-agent";
+import { prompt } from "@amaze/pi-utils";
 import { diffLines } from "diff";
 import { formatDirectory } from "./formatter";
 import { discoverSharedInfra, InProcessClient, type SharedInfra } from "./in-process-client";
@@ -24,7 +24,7 @@ import { verifyExpectedFileSubset, verifyExpectedFiles } from "./verify";
 const REPO_ROOT = path.resolve(import.meta.dir, "..", "..", "..");
 const RUNS_DIR = path.join(REPO_ROOT, "runs");
 const TMP = path.join(RUNS_DIR, `rb-${Math.random().toString(36).slice(2, 10)}`);
-const CLI_PATH = Bun.fileURLToPath(import.meta.resolve("@oh-my-pi/pi-coding-agent/cli"));
+const CLI_PATH = Bun.fileURLToPath(import.meta.resolve("@amaze/pi-coding-agent/cli"));
 
 function formatLogPath(logFile: string): string {
 	const relativePath = path.relative(REPO_ROOT, logFile);

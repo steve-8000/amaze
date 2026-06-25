@@ -2,18 +2,18 @@ import * as fs from "node:fs/promises";
 import { createRequire } from "node:module";
 import * as os from "node:os";
 import * as path from "node:path";
-import type {
-	AutomaticSpeechRecognitionOutput,
-	AutomaticSpeechRecognitionPipeline,
-	ProgressInfo,
-} from "@huggingface/transformers";
 import {
 	ensureRuntimeInstalled,
 	getTinyModelsCacheDir,
 	installRuntimeModuleResolver,
 	isCompiledBinary,
 	resolveRuntimeModule,
-} from "@oh-my-pi/pi-utils";
+} from "@amaze/pi-utils";
+import type {
+	AutomaticSpeechRecognitionOutput,
+	AutomaticSpeechRecognitionPipeline,
+	ProgressInfo,
+} from "@huggingface/transformers";
 import packageJson from "../../package.json" with { type: "json" };
 import { resolveTinyModelDevicePreference, type TinyModelDevice, tinyModelDeviceLoadOrder } from "../tiny/device";
 import { resolveTinyModelDtypeOverride, type TinyModelDtype } from "../tiny/dtype";
@@ -226,7 +226,7 @@ function sendRuntimeInstallProgress(
  */
 async function prepareCompiledRuntime(runtimeDir: string): Promise<string> {
 	const nodeModules = path.join(runtimeDir, "node_modules");
-	const sharpStub = path.join(runtimeDir, "omp-sharp-stub.cjs");
+	const sharpStub = path.join(runtimeDir, "amaze-sharp-stub.cjs");
 	await Bun.write(sharpStub, "module.exports = {};\n");
 	installRuntimeModuleResolver({ runtimeNodeModules: nodeModules, stubs: { sharp: sharpStub } });
 	const entry = resolveRuntimeModule(nodeModules, TRANSFORMERS_PACKAGE);

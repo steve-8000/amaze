@@ -12,9 +12,9 @@
 import { timingSafeEqual } from "node:crypto";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
-import type { ImageContent, TextContent } from "@oh-my-pi/pi-ai";
-import { logger } from "@oh-my-pi/pi-utils";
-import type { BusChannel, AgentEvent as WireAgentEvent, SessionEntry as WireSessionEntry } from "@oh-my-pi/pi-wire";
+import type { ImageContent, TextContent } from "@amaze/pi-ai";
+import { logger } from "@amaze/pi-utils";
+import type { BusChannel, AgentEvent as WireAgentEvent, SessionEntry as WireSessionEntry } from "@amaze/pi-wire";
 import type { InteractiveModeContext } from "../modes/types";
 import { AgentLifecycleManager } from "../registry/agent-lifecycle";
 import { type AgentRef, AgentRegistry } from "../registry/agent-registry";

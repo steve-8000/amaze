@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { normalizeSchemaForGoogle, toolWireSchema } from "@oh-my-pi/pi-ai";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { createTools, HIDDEN_TOOLS, type ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import { normalizeSchemaForGoogle, toolWireSchema } from "@amaze/pi-ai";
+import { Settings } from "@amaze/pi-coding-agent/config/settings";
+import { createTools, HIDDEN_TOOLS, type ToolSession } from "@amaze/pi-coding-agent/tools";
 
 /**
  * Problematic JSON Schema features that cause issues with various providers.
@@ -283,7 +283,7 @@ describe("tool schema validation (post-sanitization)", () => {
 		expect(description).toContain("Local path");
 		expect(description).toContain("internal URI");
 		expect(description).toContain("URL");
-		expect(description).toContain("omp://");
+		expect(description).toContain("amaze://");
 		expect(description).toContain("issue://123");
 		expect(description).toContain("pr://123");
 	});

@@ -1,26 +1,26 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as url from "node:url";
-import { isCompiledBinary } from "@oh-my-pi/pi-utils";
+import { isCompiledBinary } from "@amaze/pi-utils";
 
 const IS_COMPILED_BINARY = isCompiledBinary();
 
 // Canonical scope for in-process pi packages. Plugins published against any of
 // the aliased scopes below (mariozechner's original publish, earendil-works'
-// fork, or the canonical @oh-my-pi scope itself) are remapped to this scope and
-// resolved against the bundled copy that ships inside the omp binary. This
+// fork, or the canonical @amaze scope itself) are remapped to this scope and
+// resolved against the bundled copy that ships inside the amaze binary. This
 // keeps plugins running against the exact runtime state of the host (single
 // module registry, single tool registry, etc.) regardless of which historical
 // scope name they happened to declare in their peerDependencies.
-const CANONICAL_PI_SCOPE = "@oh-my-pi";
+const CANONICAL_PI_SCOPE = "@amaze";
 
 // Scopes that have historically been used to publish (or alias) the same set
-// of internal pi-* packages. `@oh-my-pi` is intentionally included so direct
+// of internal pi-* packages. `@amaze` is intentionally included so direct
 // canonical imports still pass through the same host-bundled package resolution
 // path instead of pulling a duplicate copy from plugin node_modules.
-const PI_SCOPE_ALIASES = ["oh-my-pi", "mariozechner", "earendil-works"] as const;
+const PI_SCOPE_ALIASES = ["amaze", "amaze-agent", "mariozechner", "earendil-works"] as const;
 
-// Internal pi-* package basenames bundled inside the omp binary.
+// Internal pi-* package basenames bundled inside the amaze binary.
 const PI_PACKAGE_NAMES = ["pi-agent-core", "pi-ai", "pi-coding-agent", "pi-natives", "pi-tui", "pi-utils"] as const;
 
 const PI_SCOPE_ALTERNATION = PI_SCOPE_ALIASES.join("|");
@@ -118,7 +118,7 @@ export function __computeBunfsPackageRoot(metaDir: string, pathImpl: typeof path
  *
  * `bundle-dist.ts` defines `process.env.PI_BUNDLED="true"`; after bundling,
  * `import.meta.dir` points at `<package>/dist`. Do not resolve the package via
- * bare `@oh-my-pi/pi-coding-agent` here: from a global install Bun can pick an
+ * bare `@amaze/pi-coding-agent` here: from a global install Bun can pick an
  * older cache entry, recreating mixed-runtime plugin loading.
  */
 export function __computeBundledSelfPackageRoot(metaDir: string, pathImpl: typeof path = path): string {
@@ -167,7 +167,7 @@ const TYPEBOX_SHIM_PATH = BUNFS_PACKAGE_ROOT
 // longer satisfies those imports. The override below redirects only the bare
 // pi-ai package root onto a sibling shim that re-exports the canonical surface
 // plus the borrowed `Type` runtime from the Zod-backed TypeBox shim. Subpath
-// imports such as `@oh-my-pi/pi-ai/oauth` continue to resolve directly
+// imports such as `@amaze/pi-ai/oauth` continue to resolve directly
 // against the bundled pi-ai package.
 const LEGACY_PI_AI_SHIM_PATH = BUNFS_PACKAGE_ROOT
 	? bunfsPath("coding-agent", "src", "extensibility", "legacy-pi-ai-shim.js")
@@ -187,7 +187,7 @@ const LEGACY_PI_CODING_AGENT_SHIM_PATH = BUNFS_PACKAGE_ROOT
 // entries are added only in compiled-binary mode — in dev / source-link /
 // installed-package mode the canonical specifier resolves cleanly through
 // `Bun.resolveSync`, and hardcoding a relative source-tree path would break
-// installs where the bundled packages live at `node_modules/@oh-my-pi/pi-*`
+// installs where the bundled packages live at `node_modules/@amaze/pi-*`
 // rather than `packages/*`.
 //
 // Every override target is validated against the on-disk filesystem at module
@@ -196,7 +196,7 @@ const LEGACY_PI_CODING_AGENT_SHIM_PATH = BUNFS_PACKAGE_ROOT
 // out so `resolveCanonicalPiSpecifier` falls through to `getResolvedSpecifier`,
 // which throws under bunfs and triggers the catch in `rewriteLegacyPiImports`.
 // That catch leaves the specifier untouched so Bun resolves the canonical
-// `@oh-my-pi/pi-*` import from the extension's own `node_modules` instead of
+// `@amaze/pi-*` import from the extension's own `node_modules` instead of
 // emitting a bunfs `file://` URL to a module that isn't actually present.
 
 /**
@@ -254,7 +254,7 @@ function getResolvedSpecifier(specifier: string): string {
 }
 
 /**
- * Resolve a canonical `@oh-my-pi/*` specifier to a filesystem path, preferring
+ * Resolve a canonical `@amaze/*` specifier to a filesystem path, preferring
  * a bundled compat shim when one is registered for the package root.
  *
  * Falls back to `getResolvedSpecifier` (which may throw under compiled binary
@@ -301,7 +301,7 @@ function rewriteLegacyPiImports(source: string): string {
 const TYPEBOX_IMPORT_SPECIFIER_REGEX = /((?:from\s+|import\s+|import\s*\(\s*)["'])(@sinclair\/typebox|typebox)(["'])/g;
 
 /**
- * Rewrite the extension-owned specifiers OMP must host-resolve — legacy
+ * Rewrite the extension-owned specifiers Amaze must host-resolve — legacy
  * `@(scope)/pi-*`, bare TypeBox packages, and package `imports` aliases like
  * `#src/*` — to absolute `file://` URLs. Every other specifier (relative
  * siblings and third-party dependencies) is left untouched so Bun resolves it
@@ -613,7 +613,7 @@ async function ensureExtensionGraphHook(entryRealPath: string): Promise<void> {
 	const alternation = [...modules].map(escapeRegExp).join("|");
 	const filter = new RegExp(`^(?:${alternation})$`);
 	Bun.plugin({
-		name: `omp:legacy-pi-ext:${Bun.hash(entryRealPath).toString(36)}`,
+		name: `amaze:legacy-pi-ext:${Bun.hash(entryRealPath).toString(36)}`,
 		setup(build) {
 			build.onLoad({ filter, namespace: "file" }, async args => {
 				const raw = await Bun.file(args.path).text();
@@ -663,7 +663,7 @@ function resolveLegacyPiSpecifier(args: { path: string; importer: string }): { p
 		return undefined;
 	}
 
-	// Primary: resolve the canonical @oh-my-pi/* specifier from the host binary
+	// Primary: resolve the canonical @amaze/* specifier from the host binary
 	// location. Works in dev mode and in source-link installs.
 	try {
 		return { path: resolveCanonicalPiSpecifier(remappedSpecifier) };
@@ -671,7 +671,7 @@ function resolveLegacyPiSpecifier(args: { path: string; importer: string }): { p
 		// Fallback for compiled binary mode: the bundled packages live inside
 		// /$bunfs/root and aren't reachable by filesystem resolution. Prefer the
 		// canonical specifier against the importing file's directory when the
-		// plugin installed @oh-my-pi peer deps, then try the original legacy
+		// plugin installed @amaze peer deps, then try the original legacy
 		// specifier for plugins that still vendor only @mariozechner or
 		// @earendil-works peer deps.
 		const importerDir = path.dirname(args.importer);
@@ -698,7 +698,7 @@ export function installLegacyPiSpecifierShim(): void {
 	isLegacyPiSpecifierShimInstalled = true;
 
 	Bun.plugin({
-		name: "omp:legacy-pi-shim",
+		name: "amaze:legacy-pi-shim",
 		setup(build) {
 			build.onResolve({ filter: LEGACY_PI_SPECIFIER_FILTER, namespace: "file" }, resolveLegacyPiSpecifier);
 			build.onResolve({ filter: TYPEBOX_SPECIFIER_FILTER, namespace: "file" }, resolveTypeBoxSpecifier);

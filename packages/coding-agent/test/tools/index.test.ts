@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { type SettingPath, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { createTools, HIDDEN_TOOLS, type ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import { type SettingPath, Settings } from "@amaze/pi-coding-agent/config/settings";
+import { createTools, HIDDEN_TOOLS, type ToolSession } from "@amaze/pi-coding-agent/tools";
 
 Bun.env.PI_PYTHON_SKIP_CHECK = "1";
 
@@ -17,7 +17,6 @@ function createTestSession(overrides: Partial<ToolSession> = {}): ToolSession {
 
 function createSettingsWithOverrides(overrides: Partial<Record<SettingPath, unknown>> = {}): Settings {
 	return Settings.isolated({
-		"lsp.formatOnWrite": true,
 		"bashInterceptor.enabled": true,
 		...overrides,
 	});
@@ -77,12 +76,19 @@ describe("createTools", () => {
 		expect(names).toContain("write");
 		expect(names).toContain("search");
 		expect(names).toContain("find");
-		expect(names).toContain("lsp");
+		expect(names).toContain("search_graph");
+		expect(names).toContain("trace_path");
+		expect(names).toContain("get_code_snippet");
+		expect(names).toContain("get_architecture");
+		expect(names).toContain("query_graph");
+		expect(names).toContain("codebase_plan");
+		expect(names).toContain("codebase_read");
+		expect(names).toContain("codebase_expand");
+		expect(names).toContain("codebase_validate");
 		expect(names).toContain("task");
 		expect(names).toContain("todo");
 		expect(names).toContain("web_search");
 		expect(names).toContain("resolve");
-		expect(names).not.toContain("fetch");
 		expect(names).not.toContain("vim");
 	});
 
@@ -117,7 +123,7 @@ describe("createTools", () => {
 	it("still exposes eval when python kernel is unavailable (dispatches to js)", async () => {
 		const session = createTestSession();
 		vi.spyOn(
-			await import("@oh-my-pi/pi-coding-agent/eval/py/kernel"),
+			await import("@amaze/pi-coding-agent/eval/py/kernel"),
 			"checkPythonKernelAvailability",
 		).mockResolvedValue({
 			ok: false,
@@ -130,16 +136,16 @@ describe("createTools", () => {
 		expect(names).toContain("resolve");
 	});
 
-	it("excludes lsp tool when session disables LSP", async () => {
-		const session = createTestSession({ enableLsp: false });
+	it("ignores removed lsp tool when requested explicitly", async () => {
+		const session = createTestSession();
 		const tools = await createTools(session, ["read", "lsp", "write"]);
 		const names = tools.map(t => t.name);
 
 		expect(names).toEqual(["read", "write", "resolve"]);
 	});
 
-	it("excludes lsp tool when disabled", async () => {
-		const session = createTestSession({ enableLsp: false });
+	it("does not expose lsp in the default tool set", async () => {
+		const session = createTestSession();
 		const tools = await createTools(session);
 		const names = tools.map(t => t.name);
 

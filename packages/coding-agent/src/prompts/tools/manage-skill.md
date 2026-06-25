@@ -1,6 +1,6 @@
-Create, update, or delete a managed skill — a `SKILL.md` written to an isolated directory (`~/.omp/agent/managed-skills`) and surfaced like a normal skill in future sessions.
+Create, update, or delete a managed skill in Rocky's canonical skill store (`ROCKY_SKILLS_DIR` or `~/.rocky/skills`).
 
-Managed skills are for repeatable procedures worth codifying: a setup sequence, a debugging recipe, a project-specific workflow. They are kept separate from user-authored skills and this tool NEVER edits those.
+Managed skills are for repeatable procedures worth codifying: a setup sequence, a debugging recipe, a project-specific workflow. This tool writes through Rocky MCP (`skill_upsert` / `skill_delete`) and does not write Amaze's legacy `~/.amaze/agent/managed-skills` store.
 
 - `action: "create"` — fails if the skill already exists.
 - `action: "update"` — overwrites the body; fails if the skill does not exist.

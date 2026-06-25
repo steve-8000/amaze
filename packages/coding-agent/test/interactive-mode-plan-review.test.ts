@@ -1,23 +1,23 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { Agent, AgentBusyError } from "@oh-my-pi/pi-agent-core";
-import type { AssistantMessage, Usage } from "@oh-my-pi/pi-ai";
-import { KeybindingsManager } from "@oh-my-pi/pi-coding-agent/config/keybindings";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { resolveLocalUrlToPath } from "@oh-my-pi/pi-coding-agent/internal-urls";
-import { AssistantMessageComponent } from "@oh-my-pi/pi-coding-agent/modes/components/assistant-message";
-import type { HookSelectorSlider } from "@oh-my-pi/pi-coding-agent/modes/components/hook-selector";
-import type { PlanReviewOverlay } from "@oh-my-pi/pi-coding-agent/modes/components/plan-review-overlay";
-import { InteractiveMode } from "@oh-my-pi/pi-coding-agent/modes/interactive-mode";
-import { initTheme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SILENT_ABORT_MARKER, USER_INTERRUPT_LABEL } from "@oh-my-pi/pi-coding-agent/session/messages";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { setKeybindings } from "@oh-my-pi/pi-tui";
-import { formatNumber, TempDir } from "@oh-my-pi/pi-utils";
+import { Agent, AgentBusyError } from "@amaze/pi-agent-core";
+import type { AssistantMessage, Usage } from "@amaze/pi-ai";
+import { KeybindingsManager } from "@amaze/pi-coding-agent/config/keybindings";
+import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
+import { resetSettingsForTest, Settings } from "@amaze/pi-coding-agent/config/settings";
+import { resolveLocalUrlToPath } from "@amaze/pi-coding-agent/internal-urls";
+import { AssistantMessageComponent } from "@amaze/pi-coding-agent/modes/components/assistant-message";
+import type { HookSelectorSlider } from "@amaze/pi-coding-agent/modes/components/hook-selector";
+import type { PlanReviewOverlay } from "@amaze/pi-coding-agent/modes/components/plan-review-overlay";
+import { InteractiveMode } from "@amaze/pi-coding-agent/modes/interactive-mode";
+import { initTheme } from "@amaze/pi-coding-agent/modes/theme/theme";
+import { AgentSession } from "@amaze/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
+import { SILENT_ABORT_MARKER, USER_INTERRUPT_LABEL } from "@amaze/pi-coding-agent/session/messages";
+import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
+import { setKeybindings } from "@amaze/pi-tui";
+import { formatNumber, TempDir } from "@amaze/pi-utils";
 
 /**
  * Matches the plan-approved synthetic-prompt dispatch. `#approvePlan` calls

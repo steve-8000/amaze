@@ -1228,7 +1228,7 @@ export function zhipuCodingPlanModelManagerOptions(
  * deployment, but Kimi K2 (instruct / thinking / turbo) on Fireworks is
  * documented to ship long reasoning traces that should be bounded — capping
  * at 32,768 prevents handing callers a budget the router cannot honor.
- * See https://github.com/can1357/oh-my-pi/issues/1849.
+ * See https://github.com/can1357/amaze-agent/issues/1849.
  */
 export const FIREWORKS_KIMI_MAX_TOKENS = 32_768;
 
@@ -2687,6 +2687,45 @@ export function litellmModelManagerOptions(
 				fetch: config?.fetch,
 			});
 		},
+	};
+}
+// ---------------------------------------------------------------------------
+// 21.5 Gemma 12B
+// ---------------------------------------------------------------------------
+
+const GEMMA_12B_DISCOVERY_TIMEOUT_MS = 10_000;
+const GEMMA_12B_DEFAULT_BASE_URL = "http://127.0.0.1:8000/v1";
+
+export interface Gemma12BModelManagerConfig {
+	apiKey?: string;
+	baseUrl?: string;
+	fetch?: FetchImpl;
+}
+
+export function gemma12BModelManagerOptions(
+	config?: Gemma12BModelManagerConfig,
+): ModelManagerOptions<"openai-completions"> {
+	const apiKey = config?.apiKey;
+	const baseUrl = config?.baseUrl ?? Bun.env.GEMMA_12B_BASE_URL ?? GEMMA_12B_DEFAULT_BASE_URL;
+	return {
+		providerId: "gemma-12b",
+		cacheProviderId: `gemma-12b:${Bun.hash(baseUrl).toString(36)}`,
+		fetchDynamicModels: () =>
+			fetchOpenAICompatibleModels({
+				api: "openai-completions",
+				provider: "gemma-12b",
+				baseUrl,
+				apiKey,
+				mapModel: (entry, defaults) => {
+					return {
+						...defaults,
+						name: toModelName(entry.name, defaults.name),
+						contextWindow: toPositiveNumber(entry.max_model_len, defaults.contextWindow),
+					};
+				},
+				fetch: config?.fetch,
+				signal: AbortSignal.timeout(GEMMA_12B_DISCOVERY_TIMEOUT_MS),
+			}),
 	};
 }
 

@@ -1,10 +1,11 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-import { type AsyncJob, AsyncJobManager } from "@oh-my-pi/pi-coding-agent/async";
-import type { CustomMessage } from "@oh-my-pi/pi-coding-agent/session/messages";
-import { YieldQueue } from "@oh-my-pi/pi-coding-agent/session/yield-queue";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { JobTool } from "@oh-my-pi/pi-coding-agent/tools/job";
+import type { AgentMessage } from "@amaze/pi-agent-core";
+import { type AsyncJob, AsyncJobManager } from "@amaze/pi-coding-agent/async";
+import type { CustomMessage } from "@amaze/pi-coding-agent/session/messages";
+import { TurnScheduler } from "@amaze/pi-coding-agent/session/turn-scheduler";
+import { YieldQueue } from "@amaze/pi-coding-agent/session/yield-queue";
+import type { ToolSession } from "@amaze/pi-coding-agent/tools";
+import { JobTool } from "@amaze/pi-coding-agent/tools/job";
 
 type AsyncEntry = {
 	jobId: string;
@@ -61,11 +62,13 @@ function createToolSession(asyncJobManager?: AsyncJobManager): ToolSession {
 	} as unknown as ToolSession;
 }
 
-function createHarness(initialStreaming: boolean) {
+function createHarness(initialStreaming: boolean, options: { maxIdlePrompts?: number } = {}) {
 	let streaming = initialStreaming;
 	const followUps: AgentMessage[] = [];
 	const prompts: AgentMessage[][] = [];
 	const scheduledFlushes: Array<() => Promise<void>> = [];
+	const scheduler = new TurnScheduler();
+	let idleAttempt = 0;
 	const queue = new YieldQueue({
 		isStreaming: () => streaming,
 		injectStreaming: message => {
@@ -73,6 +76,18 @@ function createHarness(initialStreaming: boolean) {
 		},
 		injectIdle: async messages => {
 			prompts.push(messages);
+		},
+		admitIdleFlush: () => {
+			idleAttempt++;
+			return (
+				scheduler.requestContinuation({
+					source: "async-yield",
+					sessionId: "async-yield-test",
+					dedupeKey: `async-yield:${idleAttempt}`,
+					maxPerSession: options.maxIdlePrompts ?? 100,
+					maxConsecutive: options.maxIdlePrompts ?? 100,
+				}).decision === "admit"
+			);
 		},
 		scheduleIdleFlush: run => {
 			scheduledFlushes.push(run);
@@ -140,7 +155,7 @@ describe("async result yield queue delivery", () => {
 		expect(harness.followUps).toHaveLength(0);
 	});
 
-	test("multiple completions in one yield window become one follow-up", async () => {
+	test("task and bash completions both stay queued for async follow-up", async () => {
 		const harness = createHarness(true);
 		const firstJobId = harness.manager.register("bash", "first", async () => "first result");
 		const secondJobId = harness.manager.register("task", "second", async () => "second result");
@@ -170,5 +185,21 @@ describe("async result yield queue delivery", () => {
 		expect(harness.prompts).toHaveLength(1);
 		expect(harness.prompts[0]).toHaveLength(1);
 		expect(asyncDetails(harness.prompts[0]![0]!).jobs.map(job => job.jobId)).toEqual([jobId]);
+	});
+
+	test("idle async completions are admitted through the automatic turn scheduler", async () => {
+		const harness = createHarness(false, { maxIdlePrompts: 3 });
+
+		for (let index = 0; index < 4; index++) {
+			harness.manager.register("bash", `idle job ${index}`, async () => `idle result ${index}`);
+			await harness.manager.waitForAll();
+			expect(await harness.manager.drainDeliveries({ timeoutMs: 2_000 })).toBe(true);
+			await harness.scheduledFlushes[index]!();
+		}
+
+		expect(harness.prompts).toHaveLength(3);
+		expect(
+			harness.prompts.flatMap(prompt => prompt.map(message => asyncDetails(message).jobs[0]?.jobId)),
+		).toHaveLength(3);
 	});
 });

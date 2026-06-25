@@ -1,9 +1,9 @@
 import path from "node:path";
 
-import { buildPathTree, isUrlLikePath, type PathTreeInput, walkPathTree } from "@oh-my-pi/pi-utils";
+import { buildPathTree, isUrlLikePath, type PathTreeInput, walkPathTree } from "@amaze/pi-utils";
 
 // =============================================================================
-// Grouped file output (grep / ast-grep / ast-edit / lsp diagnostics)
+// Grouped file output (grep / ast-grep / ast-edit / diagnostics)
 // =============================================================================
 
 /**
@@ -29,7 +29,7 @@ export interface GroupedFilesOutput {
 
 /**
  * Render a list of files as a multi-level, prefix-folded directory tree shared by
- * grep, ast-grep, ast-edit, and the LSP diagnostic formatter.
+ * grep, ast-grep, ast-edit, and diagnostic formatters.
  *
  * Layout (one `#` per level; the shared prefix folds into the top header):
  *   # packages/pkg/src/

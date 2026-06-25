@@ -156,8 +156,8 @@ interface BuildXAIAuthorizeUrlOptions {
  * Hermes `_xai_oauth_build_authorize_url` L5286-5312. `plan=generic` opts the
  * consent screen into xAI's generic OAuth plan tier; without it,
  * `accounts.x.ai` rejects loopback OAuth from non-allowlisted clients.
- * `referrer=oh-my-pi` lets xAI attribute oh-my-pi-originated logins in their
- * OAuth server logs (Hermes uses `referrer=hermes-agent`; oh-my-pi mirrors the
+ * `referrer=amaze-agent` lets xAI attribute amaze-agent-originated logins in their
+ * OAuth server logs (Hermes uses `referrer=hermes-agent`; amaze-agent mirrors the
  * pattern with its own attribution string).
  */
 function buildXAIAuthorizeUrl(opts: BuildXAIAuthorizeUrlOptions): string {
@@ -171,7 +171,7 @@ function buildXAIAuthorizeUrl(opts: BuildXAIAuthorizeUrlOptions): string {
 		state: opts.state,
 		nonce: opts.nonce,
 		plan: "generic",
-		referrer: "oh-my-pi",
+		referrer: "amaze-agent",
 	});
 	return `${opts.authorizationEndpoint}?${params.toString()}`;
 }

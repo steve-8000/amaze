@@ -2,16 +2,16 @@ import { afterEach, beforeAll, describe, expect, it, type Mock, vi } from "bun:t
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-import type { AssistantMessage, Usage } from "@oh-my-pi/pi-ai";
-import type { Rule } from "@oh-my-pi/pi-coding-agent/capability/rule";
-import { OmfgController } from "@oh-my-pi/pi-coding-agent/modes/controllers/omfg-controller";
-import { initTheme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { Container, type TUI } from "@oh-my-pi/pi-tui";
+import type { AgentMessage } from "@amaze/pi-agent-core";
+import type { AssistantMessage, Usage } from "@amaze/pi-ai";
+import type { Rule } from "@amaze/pi-coding-agent/capability/rule";
+import { OmfgController } from "@amaze/pi-coding-agent/modes/controllers/omfg-controller";
+import { initTheme } from "@amaze/pi-coding-agent/modes/theme/theme";
+import type { InteractiveModeContext } from "@amaze/pi-coding-agent/modes/types";
+import { Container, type TUI } from "@amaze/pi-tui";
 
-const PROJECT_OPTION = "This project (.omp/rules)";
-const GLOBAL_OPTION = "Global — all projects (~/.omp/agent/rules)";
+const PROJECT_OPTION = "This project (.amaze/rules)";
+const GLOBAL_OPTION = "Global — all projects (~/.amaze/agent/rules)";
 const AMEND_OPTION = "Amend with feedback…";
 
 const usage: Usage = {
@@ -182,7 +182,7 @@ describe("OmfgController", () => {
 		const controller = new OmfgController(harness.ctx);
 
 		await controller.start("This guy used any again");
-		const savedPath = path.join(harness.projectDir, ".omp", "rules", "ts-no-any.md");
+		const savedPath = path.join(harness.projectDir, ".amaze", "rules", "ts-no-any.md");
 		await waitFor(() => harness.ttsrAddRule.mock.calls.length === 1);
 
 		expect(await Bun.file(savedPath).text()).toBe(
@@ -195,8 +195,9 @@ describe("OmfgController", () => {
 		expect(harness.ttsrAddRule.mock.calls[0]?.[0].path).toBe(savedPath);
 		const rendered = Bun.stripANSI(harness.container.render(120).join("\n"));
 		expect(rendered).toContain("Registered live");
-		expect(rendered).toContain(path.join(".omp", "rules", "ts-no-any.md"));
-		expect(rendered).toContain("Esc dismiss");
+		expect(rendered).toContain(path.join(".amaze", "rules", "ts-no-any.md"));
+		expect(rendered).toContain("Esc");
+		expect(rendered).toContain("dismiss");
 		expect(controller.hasActiveRequest()).toBe(true);
 		expect(controller.handleEscape()).toBe(true);
 		expect(harness.container.children).toHaveLength(0);
@@ -225,7 +226,7 @@ describe("OmfgController", () => {
 		expect(runEphemeralTurn.mock.calls[1]?.[0].promptText).toContain(
 			"No assistant history surface matched condition",
 		);
-		expect(await Bun.file(path.join(harness.projectDir, ".omp", "rules", "ts-no-any.md")).exists()).toBe(true);
+		expect(await Bun.file(path.join(harness.projectDir, ".amaze", "rules", "ts-no-any.md")).exists()).toBe(true);
 	});
 
 	it("asks before saving when validation never confirms a match", async () => {
@@ -247,7 +248,7 @@ describe("OmfgController", () => {
 		expect(runEphemeralTurn).toHaveBeenCalledTimes(3);
 		expect(harness.showHookConfirm.mock.calls[0]?.[0]).toBe("Validation");
 		expect(harness.showHookSelector).not.toHaveBeenCalled();
-		expect(await Bun.file(path.join(harness.projectDir, ".omp", "rules", "no-match.md")).exists()).toBe(false);
+		expect(await Bun.file(path.join(harness.projectDir, ".amaze", "rules", "no-match.md")).exists()).toBe(false);
 	});
 
 	it("lets the user amend from the save selector before writing the rule", async () => {
@@ -282,8 +283,8 @@ describe("OmfgController", () => {
 		expect(runEphemeralTurn.mock.calls[1]?.[0].promptText).toContain(
 			"Rename it and make the guidance stricter before saving.",
 		);
-		expect(await Bun.file(path.join(harness.projectDir, ".omp", "rules", "ts-any-broad.md")).exists()).toBe(false);
-		expect(await Bun.file(path.join(harness.projectDir, ".omp", "rules", "ts-no-explicit-any.md")).exists()).toBe(
+		expect(await Bun.file(path.join(harness.projectDir, ".amaze", "rules", "ts-any-broad.md")).exists()).toBe(false);
+		expect(await Bun.file(path.join(harness.projectDir, ".amaze", "rules", "ts-no-explicit-any.md")).exists()).toBe(
 			true,
 		);
 	});
@@ -320,6 +321,6 @@ describe("OmfgController", () => {
 		expect(harness.container.children).toHaveLength(0);
 		expect(signal?.aborted).toBe(true);
 		expect(controller.hasActiveRequest()).toBe(false);
-		expect(await Bun.file(path.join(harness.projectDir, ".omp", "rules", "ts-no-any.md")).exists()).toBe(false);
+		expect(await Bun.file(path.join(harness.projectDir, ".amaze", "rules", "ts-no-any.md")).exists()).toBe(false);
 	});
 });

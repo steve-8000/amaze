@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * terminal-bench-2 runner for the local `omp` build.
+ * terminal-bench-2 runner for the local `amaze` build.
  *
  * Orchestrates Harbor (`harbor run`) against the harbor-framework/terminal-bench-2
  * dataset using a custom agent (`agent/omp_local.py`) that installs the working
@@ -73,7 +73,7 @@ function defaultConfig(): Config {
 		thinking: null,
 		advisorModel: null,
 		advisorSync: "1",
-		agent: "omp",
+		agent: "amaze",
 		install: "local",
 		version: null,
 		tarball: null,
@@ -97,7 +97,7 @@ function defaultConfig(): Config {
 	};
 }
 
-const HELP = `terminal-bench-2 runner (local omp)
+const HELP = `terminal-bench-2 runner (local amaze)
 
 Usage: bun src/runner.ts [options] [-- <extra harbor args>]
 
@@ -106,15 +106,15 @@ Commands:
 
 Model / agent:
   -m, --model <provider/model>   Model (repeatable). Default anthropic/claude-sonnet-4-6
-      --agent <name>             omp (default) | oracle | nop | any harbor agent
-      --install <local|published> omp source. local = pack /work/pi (default)
-      --version <v>              omp version for published install (default: latest)
+      --agent <name>             amaze (default) | oracle | nop | any harbor agent
+      --install <local|published> amaze source. local = pack /work/pi (default)
+      --version <v>              amaze version for published install (default: latest)
       --thinking <level>         off|minimal|low|medium|high|xhigh
       --advisor-model <p/m>      Second model reviewing the primary (spend summed in)
       --advisor-sync <off|1|3|5> Advisor catch-up backlog (default 1 = accurate spend; off = faster)
-      --tarball <path>           Reuse a prebuilt omp tarball (implies --no-build)
+      --tarball <path>           Reuse a prebuilt amaze tarball (implies --no-build)
       --no-build                 Skip packing; reuse newest tarball in bench dir
-      --env <KEY[=VALUE]>        Forward env into omp container (repeatable).
+      --env <KEY[=VALUE]>        Forward env into amaze container (repeatable).
                                  KEY alone forwards host value; host PI_* auto-forwarded.
 
 Dataset / scale:
@@ -130,7 +130,7 @@ Gateway (auth, no keys in container):
       --gateway-token <tok>      Default "no-auth" (gateway runs --no-auth)
       --providers <csv>          Providers to route (default: model provider + anthropic,openai-codex)
       --no-gateway               Pass host provider API keys into containers instead
-      --web-search               Enable omp web_search (off by default; can't auth via gateway)
+      --web-search               Enable amaze web_search (off by default; can't auth via gateway)
       --allow-host <host>        harbor --allow-agent-host (repeatable)
 
 Output / control:
@@ -401,12 +401,12 @@ function parseTrial(dir: string, name: string): Trial | null {
 			/* ignore */
 		}
 
-		// Try to parse realtime cost from the live agent omp.txt log if it exists
+		// Try to parse realtime cost from the live agent amaze.txt log if it exists
 		let costUsd = 0;
 		let tokIn = 0;
 		let tokOut = 0;
 		let tokCache = 0;
-		const ompLogPath = path.join(dir, "agent", "omp.txt");
+		const ompLogPath = path.join(dir, "agent", "amaze.txt");
 		if (fs.existsSync(ompLogPath)) {
 			try {
 				const content = fs.readFileSync(ompLogPath, "utf8");
@@ -708,7 +708,7 @@ function writeReport(st: RenderState, benchDir: string, exitCode: number): strin
 	const tot = aggregate(trials, readJobResult(st.jobDir), st.expected);
 	const successPct = tot.done > 0 ? (tot.pass / tot.done) * 100 : 0;
 	const lines: string[] = [];
-	const isOmp = st.cfg.agent === "omp";
+	const isOmp = st.cfg.agent === "amaze";
 	const modelLine =
 		isOmp && st.cfg.advisorModel
 			? `${st.cfg.models.join(", ")} + advisor ${st.cfg.advisorModel}`
@@ -771,7 +771,7 @@ function readPkgVersion(): string {
 }
 
 function buildTarball(benchDir: string): string {
-	process.stdout.write(dim("packing local omp (bun pm pack)…\n"));
+	process.stdout.write(dim("packing local amaze (bun pm pack)…\n"));
 	const r = spawnSync("bun", ["pm", "pack", "--destination", benchDir], {
 		cwd: CODING_AGENT_DIR,
 		encoding: "utf8",
@@ -860,7 +860,7 @@ function buildHarborArgs(
 		a.push("--extra-docker-compose", hostNetworkOverlayPath);
 	}
 
-	if (cfg.agent === "omp") {
+	if (cfg.agent === "amaze") {
 		// Config + secrets travel via env (OMP_TB_*); the agent reads os.environ.
 		a.push("--agent-import-path", AGENT_IMPORT_PATH);
 		void modelsYaml;
@@ -886,7 +886,7 @@ const FORWARD_ENV_DENYLIST = new Set([
 ]);
 
 /**
- * Env vars injected into the in-container omp run: every host `PI_*` knob (minus
+ * Env vars injected into the in-container amaze run: every host `PI_*` knob (minus
  * container-hostile dir/profile/session keys) plus explicit `--env` entries,
  * which always win and bypass the denylist.
  */
@@ -910,7 +910,7 @@ export function buildHarborEnv(
 	// Drop any stale OMP_TB_FORWARD_ENV inherited from the caller's shell before
 	// the agent-type early return, so it never leaks (incl. into the dry-run dump).
 	delete env.OMP_TB_FORWARD_ENV;
-	if (cfg.agent !== "omp") return env;
+	if (cfg.agent !== "amaze") return env;
 	const prepend = (k: string, v: string): void => {
 		env[k] = env[k] ? `${v}:${env[k]}` : v;
 	};
@@ -1053,7 +1053,7 @@ async function main(): Promise<void> {
 	if (!which("harbor")) {
 		throw new Error("harbor not found on PATH. Install with: uv tool install harbor");
 	}
-	if (cfg.agent === "omp" && !which("docker")) {
+	if (cfg.agent === "amaze" && !which("docker")) {
 		throw new Error("docker not found on PATH (required to run task containers).");
 	}
 
@@ -1068,7 +1068,7 @@ async function main(): Promise<void> {
 
 	// tarball (local install only)
 	let tarball: string | null = cfg.tarball;
-	if (cfg.agent === "omp" && cfg.install === "local") {
+	if (cfg.agent === "amaze" && cfg.install === "local") {
 		if (tarball) {
 			process.stdout.write(dim(`using tarball ${tarball}\n`));
 		} else if (cfg.build) {
@@ -1081,12 +1081,12 @@ async function main(): Promise<void> {
 
 	// models.yml (gateway)
 	let modelsYaml = "";
-	if (cfg.agent === "omp" && cfg.gateway) {
+	if (cfg.agent === "amaze" && cfg.gateway) {
 		modelsYaml = writeModelsYaml(benchDir, cfg);
 		if (!gatewayHealthOk(cfg.gatewayUrl)) {
 			process.stderr.write(
 				yellow(
-					`warning: gateway ${cfg.gatewayUrl} health check failed (continuing). Is the pm2 'omp-auth-gateway' running?\n`,
+					`warning: gateway ${cfg.gatewayUrl} health check failed (continuing). Is the pm2 'amaze-auth-gateway' running?\n`,
 				),
 			);
 		}
@@ -1111,7 +1111,7 @@ async function main(): Promise<void> {
 			process.stdout.write(bold("models.yml:\n"));
 			process.stdout.write(`${fs.readFileSync(modelsYaml, "utf8")}\n`);
 		}
-		process.stdout.write(bold("omp env:\n"));
+		process.stdout.write(bold("amaze env:\n"));
 		for (const k in harborEnv) {
 			if (k === "OMP_TB_FORWARD_ENV") continue;
 			if (k.startsWith("OMP_TB_") || k === "PYTHONPATH") process.stdout.write(`  ${k}=${harborEnv[k]}\n`);

@@ -12,7 +12,7 @@ import {
 	type JsonSchemaValidationIssue,
 	type JsonSchemaValidationResult,
 	validateJsonSchemaValue,
-} from "@oh-my-pi/pi-ai/utils/schema";
+} from "@amaze/pi-ai/utils/schema";
 import { jtdToJsonSchema, normalizeSchema } from "./jtd-to-json-schema";
 
 /** A validator bound to a specific output schema. */

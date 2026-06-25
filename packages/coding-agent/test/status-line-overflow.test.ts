@@ -2,15 +2,16 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { StatusLineSegmentId } from "@oh-my-pi/pi-coding-agent/config/settings-schema";
-import { StatusLineComponent } from "@oh-my-pi/pi-coding-agent/modes/components/status-line";
-import type { SegmentContext } from "@oh-my-pi/pi-coding-agent/modes/components/status-line/segments";
-import { renderSegment } from "@oh-my-pi/pi-coding-agent/modes/components/status-line/segments";
-import { initTheme, theme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import { getSessionAccentAnsi, getSessionAccentHex } from "@oh-my-pi/pi-coding-agent/utils/session-color";
-import { visibleWidth } from "@oh-my-pi/pi-tui";
-import { getProjectDir, setProjectDir } from "@oh-my-pi/pi-utils";
+import { stripVTControlCharacters } from "node:util";
+import { resetSettingsForTest, Settings } from "@amaze/pi-coding-agent/config/settings";
+import type { StatusLineSegmentId } from "@amaze/pi-coding-agent/config/settings-schema";
+import { StatusLineComponent } from "@amaze/pi-coding-agent/modes/components/status-line";
+import type { SegmentContext } from "@amaze/pi-coding-agent/modes/components/status-line/segments";
+import { renderSegment } from "@amaze/pi-coding-agent/modes/components/status-line/segments";
+import { initTheme, theme } from "@amaze/pi-coding-agent/modes/theme/theme";
+import { getSessionAccentAnsi, getSessionAccentHex } from "@amaze/pi-coding-agent/utils/session-color";
+import { visibleWidth } from "@amaze/pi-tui";
+import { getProjectDir, setProjectDir } from "@amaze/pi-utils";
 
 const originalProjectDir = getProjectDir();
 
@@ -71,11 +72,20 @@ function createCtx(overrides?: { pathMaxLength?: number; branch?: string | null 
 
 function createStatusLineSession(sessionName: string) {
 	return {
-		state: { messages: [] },
+		state: {
+			messages: [],
+			model: { id: "openai-codex/gpt-5.5", name: "openai-codex/gpt-5.5", contextWindow: 200_000 },
+		},
+		messages: [],
+		model: { contextWindow: 200_000 },
 		isStreaming: false,
+		getContextUsage: () => ({ tokens: 50_000, contextWindow: 200_000 }),
+		isFastModeActive: () => false,
+		isAutoThinking: false,
+		autoResolvedThinkingLevel: () => undefined,
+		isAdvisorActive: () => false,
 		getAsyncJobSnapshot: () => ({ running: [] }),
-		getCurrentModel: () => undefined,
-		isFastModeEnabled: () => false,
+		modelRegistry: { isUsingOAuth: () => false },
 		sessionManager: {
 			getSessionName: () => sessionName,
 			getUsageStatistics: () => ({
@@ -87,6 +97,8 @@ function createStatusLineSession(sessionName: string) {
 				cost: 0,
 			}),
 		},
+		agent: { state: { tools: [] } },
+		contextUsageRevision: 0,
 	} as unknown as ConstructorParameters<typeof StatusLineComponent>[0];
 }
 
@@ -133,7 +145,7 @@ describe("path segment truncation at varying maxLength", () => {
 	let tmpDir: string;
 
 	beforeAll(() => {
-		tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-overflow-very-long-directory-name-for-testing-"));
+		tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "amaze-overflow-very-long-directory-name-for-testing-"));
 		setProjectDir(tmpDir);
 	});
 
@@ -169,7 +181,7 @@ describe("overflow: path shrinks before git is dropped", () => {
 
 	beforeAll(() => {
 		// Long dir name guarantees the path segment is wide
-		tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-overflow-a-very-long-worktree-directory-name-here-"));
+		tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "amaze-overflow-a-very-long-worktree-directory-name-here-"));
 		setProjectDir(tmpDir);
 	});
 
@@ -274,7 +286,7 @@ describe("overflow: path shrinks before git is dropped", () => {
 
 	it("shrinks a short path when maxLength exceeds actual path length", () => {
 		// Short dir name — rendered path is well under maxLength=80
-		const shortDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-short-"));
+		const shortDir = fs.mkdtempSync(path.join(os.tmpdir(), "amaze-short-"));
 		setProjectDir(shortDir);
 		try {
 			const ctx = createCtx({ pathMaxLength: 80, branch: "feat/long-branch-name" });
@@ -299,7 +311,7 @@ describe("overflow: path shrinks before git is dropped", () => {
 		}
 	});
 	it("preserves git when overflow is only 1-2 columns", () => {
-		const shortDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-narrow-ovf-"));
+		const shortDir = fs.mkdtempSync(path.join(os.tmpdir(), "amaze-narrow-ovf-"));
 		setProjectDir(shortDir);
 		try {
 			const ctx = createCtx({ pathMaxLength: 80, branch: "main" });
@@ -323,6 +335,39 @@ describe("overflow: path shrinks before git is dropped", () => {
 			expect(shrunkPathVW).toBeLessThan(pathVW);
 		} finally {
 			setProjectDir(tmpDir);
+		}
+	});
+});
+
+describe("overflow: default status keeps core prompt context", () => {
+	it("drops decorative segments before model, path, git, and context", () => {
+		const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "amaze-status-core-"));
+		fs.mkdirSync(path.join(tmpDir, ".git"));
+		fs.writeFileSync(path.join(tmpDir, ".git", "HEAD"), "ref: refs/heads/feature/status-core\n");
+		setProjectDir(tmpDir);
+		try {
+			const component = new StatusLineComponent(createStatusLineSession("Named session"));
+			component.updateSettings({
+				preset: "custom",
+				leftSegments: ["pi", "model", "path", "git", "context_pct", "cost"],
+				rightSegments: ["session_name"],
+				separator: "powerline-thin",
+				sessionAccent: false,
+				segmentOptions: {
+					model: { showThinkingLevel: false },
+					path: { abbreviate: true, maxLength: 24 },
+				},
+			});
+
+			const text = stripVTControlCharacters(component.getTopBorder(54).content);
+
+			expect(text).toContain("openai-codex/gpt-5.5");
+			expect(text).toContain("amaze-status-core");
+			expect(text).toContain("feature/status-core");
+			expect(text).toContain("25.0%/200K");
+			expect(text).not.toContain("Named session");
+		} finally {
+			setProjectDir(originalProjectDir);
 		}
 	});
 });

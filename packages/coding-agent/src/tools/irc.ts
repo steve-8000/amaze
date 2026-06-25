@@ -9,10 +9,10 @@
  * drains pending messages; `list` shows every addressable peer.
  */
 
-import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@oh-my-pi/pi-agent-core";
-import type { ToolExample } from "@oh-my-pi/pi-ai";
-import { type Component, Text } from "@oh-my-pi/pi-tui";
-import { formatAge, formatDuration, prompt } from "@oh-my-pi/pi-utils";
+import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@amaze/pi-agent-core";
+import type { ToolExample } from "@amaze/pi-ai";
+import { type Component, Text } from "@amaze/pi-tui";
+import { formatAge, formatDuration, prompt } from "@amaze/pi-utils";
 import { type } from "arktype";
 import type { Settings } from "../config/settings";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
@@ -64,6 +64,7 @@ type IrcParams = typeof ircSchema.infer;
 
 interface IrcPeerInfo {
 	id: string;
+	agentName?: string;
 	displayName: string;
 	kind: string;
 	status: string;
@@ -71,6 +72,7 @@ interface IrcPeerInfo {
 	unread: number;
 	lastActivity: number;
 	activity?: string;
+	revivable?: boolean;
 }
 
 export interface IrcDetails {
@@ -104,7 +106,7 @@ export class IrcTool implements AgentTool<typeof ircSchema, IrcDetails> {
 			call: { op: "list" },
 		},
 		{
-			caption: "Fire-and-forget DM — same send wakes idle/parked peers",
+			caption: "Fire-and-forget DM — same send wakes live idle peers",
 			call: {
 				op: "send",
 				to: "AuthLoader",
@@ -185,6 +187,7 @@ export class IrcTool implements AgentTool<typeof ircSchema, IrcDetails> {
 			.filter(ref => ref.id !== senderId && ref.status !== "aborted" && ref.kind !== "advisor")
 			.map(ref => ({
 				id: ref.id,
+				agentName: ref.agentName,
 				displayName: ref.displayName,
 				kind: ref.kind,
 				status: ref.status,
@@ -192,6 +195,7 @@ export class IrcTool implements AgentTool<typeof ircSchema, IrcDetails> {
 				unread: bus.unreadCount(ref.id),
 				lastActivity: ref.lastActivity,
 				activity: ref.activity,
+				revivable: ref.revivable,
 			}));
 		const lines: string[] = [];
 		if (peers.length === 0) {
@@ -205,11 +209,15 @@ export class IrcTool implements AgentTool<typeof ircSchema, IrcDetails> {
 					peer.parentId ? `parent ${peer.parentId}` : undefined,
 					`active ${formatDuration(Date.now() - peer.lastActivity)} ago`,
 				].filter(Boolean);
-				lines.push(`- ${peer.id} [${peer.displayName} · ${peer.kind} · ${peer.status}] — ${extras.join(", ")}`);
+				const agentLabel =
+					peer.agentName && peer.agentName !== peer.displayName
+						? `${peer.agentName}: ${peer.displayName}`
+						: peer.displayName;
+				lines.push(`- ${peer.id} [${agentLabel} · ${peer.kind} · ${peer.status}] — ${extras.join(", ")}`);
 			}
 			if (peers.some(peer => peer.status === "parked")) {
 				lines.push("");
-				lines.push("Parked agents are revived automatically when you message them.");
+				lines.push("Some parked agents may be revivable; completed contract subagents are transcript-only.");
 			}
 		}
 		return {
@@ -457,6 +465,26 @@ function messageAge(ts: number | undefined): string {
 	return formatAge(Math.max(1, Math.round((Date.now() - ts) / 1000)));
 }
 
+function trimLabel(value: string | undefined): string | undefined {
+	const trimmed = value?.trim();
+	return trimmed ? replaceTabs(trimmed) : undefined;
+}
+
+function agentLabel(id: string | undefined, agentName: string | undefined, displayName: string | undefined): string {
+	const cleanId = trimLabel(id) ?? "?";
+	const cleanAgent = trimLabel(agentName);
+	const cleanDisplay = trimLabel(displayName);
+	const detail =
+		cleanAgent && cleanDisplay && cleanAgent !== cleanDisplay
+			? `${cleanAgent}: ${cleanDisplay}`
+			: (cleanAgent ?? (cleanDisplay && cleanDisplay !== cleanId ? cleanDisplay : undefined));
+	return detail && detail !== cleanId ? `${cleanId} [${detail}]` : cleanId;
+}
+
+function messageFromLabel(msg: IrcMessage): string {
+	return agentLabel(msg.from, msg.fromAgentName, msg.fromDisplayName);
+}
+
 function textContent(result: { content: Array<{ type: string; text?: string }> }): string {
 	return result.content.find(part => part.type === "text")?.text?.trim() ?? "";
 }
@@ -525,7 +553,11 @@ export function createIrcMessageCard(
 	card: {
 		kind: "incoming" | "autoreply" | "relay";
 		from?: string;
+		fromAgentName?: string;
+		fromDisplayName?: string;
 		to?: string;
+		toAgentName?: string;
+		toDisplayName?: string;
 		body?: string;
 		replyTo?: string;
 		timestamp?: number;
@@ -533,13 +565,14 @@ export function createIrcMessageCard(
 	getExpanded: () => boolean,
 	uiTheme: Theme,
 ): Component {
-	const from = card.from?.trim() || "?";
+	const from = agentLabel(card.from, card.fromAgentName, card.fromDisplayName);
+	const to = agentLabel(card.to, card.toAgentName, card.toDisplayName);
 	const title =
 		card.kind === "incoming"
 			? `IRC ${uiTheme.nav.back} ${from}`
 			: card.kind === "autoreply"
-				? `IRC ${uiTheme.nav.selected} ${card.to?.trim() || "?"}`
-				: `IRC ${from} ${uiTheme.nav.selected} ${card.to?.trim() || "?"}`;
+				? `IRC ${uiTheme.nav.selected} ${to}`
+				: `IRC ${from} ${uiTheme.nav.selected} ${to}`;
 	const body = card.body ?? "";
 	const meta: string[] = [];
 	if (card.kind === "autoreply") meta.push("auto");
@@ -630,7 +663,7 @@ function renderSendResult(
 	if (waited) {
 		const age = messageAge(waited.ts);
 		lines.push(
-			`  ${theme.fg("dim", theme.nav.back)} ${theme.fg("accent", waited.from)}${age ? ` ${theme.fg("dim", age)}` : ""}`,
+			`  ${theme.fg("dim", theme.nav.back)} ${theme.fg("accent", messageFromLabel(waited))}${age ? ` ${theme.fg("dim", age)}` : ""}`,
 		);
 		lines.push(...bodyLines(waited.body, expanded, theme, { indent: "  " }));
 	} else if (timedOut) {
@@ -660,7 +693,10 @@ function renderWaitResult(
 	const meta = [messageAge(waited.ts)];
 	if (waited.replyTo) meta.push("reply");
 	return [
-		renderStatusLine({ iconOverride: ircGlyph(theme), title: `IRC ${theme.nav.back} ${waited.from}`, meta }, theme),
+		renderStatusLine(
+			{ iconOverride: ircGlyph(theme), title: `IRC ${theme.nav.back} ${messageFromLabel(waited)}`, meta },
+			theme,
+		),
 		...bodyLines(waited.body, expanded, theme, { indent: "  " }),
 	];
 }
@@ -687,7 +723,7 @@ function renderInboxResult(
 			renderItem: msg => {
 				const age = messageAge(msg.ts);
 				const replyBadge = msg.replyTo ? ` ${formatBadge("reply", "muted", theme)}` : "";
-				const head = `${theme.fg("accent", msg.from)}${age ? ` ${theme.fg("dim", age)}` : ""}${replyBadge}`;
+				const head = `${theme.fg("accent", messageFromLabel(msg))}${age ? ` ${theme.fg("dim", age)}` : ""}${replyBadge}`;
 				return [head, ...bodyLines(msg.body, expanded, theme, { collapsedLines: 1 })];
 			},
 		},
@@ -721,7 +757,11 @@ function renderListResult(details: Partial<IrcDetails>, expanded: boolean, theme
 				const unread = peer.unread > 0 ? ` ${formatBadge(`${peer.unread} unread`, "warning", theme)}` : "";
 				const age = messageAge(peer.lastActivity);
 				const activity = peer.activity ? ` ${theme.fg("dim", replaceTabs(peer.activity))}` : "";
-				const name = theme.fg("dim", replaceTabs(peer.displayName));
+				const nameText =
+					peer.agentName && peer.agentName !== peer.displayName
+						? `${peer.agentName}: ${peer.displayName}`
+						: peer.displayName;
+				const name = theme.fg("dim", replaceTabs(nameText));
 				return `${peerStatusBadge(peer.status, theme)} ${theme.bold(replaceTabs(peer.id))} ${name} ${theme.fg("dim", kindText)}${activity}${unread}${age ? ` ${theme.fg("dim", age)}` : ""}`;
 			},
 		},

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
 
 describe("SessionManager usage statistics", () => {
 	it("accumulates premium requests from assistant messages and task tool results", () => {
@@ -48,6 +48,40 @@ describe("SessionManager usage statistics", () => {
 		expect(usage.input).toBe(12);
 		expect(usage.output).toBe(8);
 		expect(usage.premiumRequests).toBe(3);
+	});
+
+	it("accumulates task usage when a Paseo compat rewrite changed the displayed tool name", () => {
+		const session = SessionManager.inMemory();
+
+		session.appendMessage({ role: "user", content: "hello", timestamp: 1 });
+		session.appendMessage({
+			role: "toolResult",
+			toolCallId: "task_1",
+			toolName: "bash",
+			content: [{ type: "text", text: "task output" }],
+			details: {
+				ompToolName: "task",
+				usage: {
+					input: 2,
+					output: 3,
+					cacheRead: 4,
+					cacheWrite: 5,
+					totalTokens: 14,
+					premiumRequests: 2,
+					cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0.25 },
+				},
+			},
+			isError: false,
+			timestamp: 2,
+		});
+
+		const usage = session.getUsageStatistics();
+		expect(usage.input).toBe(2);
+		expect(usage.output).toBe(3);
+		expect(usage.cacheRead).toBe(4);
+		expect(usage.cacheWrite).toBe(5);
+		expect(usage.premiumRequests).toBe(2);
+		expect(usage.cost).toBe(0.25);
 	});
 
 	it("preserves fractional premium request multipliers", () => {

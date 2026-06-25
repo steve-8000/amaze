@@ -6,10 +6,10 @@
  * `[Uncaught Exception]`.
  */
 import { describe, expect, it, vi } from "bun:test";
-import type { Args } from "@oh-my-pi/pi-coding-agent/cli/args";
-import type { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { createSessionManager, SessionResolutionError, writeStartupNotice } from "@oh-my-pi/pi-coding-agent/main";
-import * as sessionListingModule from "@oh-my-pi/pi-coding-agent/session/session-listing";
+import type { Args } from "@amaze/pi-coding-agent/cli/args";
+import type { Settings } from "@amaze/pi-coding-agent/config/settings";
+import { createSessionManager, SessionResolutionError, writeStartupNotice } from "@amaze/pi-coding-agent/main";
+import * as sessionListingModule from "@amaze/pi-coding-agent/session/session-listing";
 
 function buildResumeArgs(resume: string): Args {
 	return {
@@ -92,7 +92,7 @@ describe("createSessionManager — missing session (#2084)", () => {
 			).rejects.toMatchObject({
 				name: "SessionResolutionError",
 				message: 'Session "019ea530-0000-7000-0000-000000000000" not found.',
-				hint: expect.stringContaining("omp --resume"),
+				hint: expect.stringContaining("amaze --resume"),
 			});
 
 			// Confirm it's the exported class so `runRootCommand`'s `instanceof` check works.
@@ -119,7 +119,7 @@ describe("createSessionManager — missing session (#2084)", () => {
 			).rejects.toMatchObject({
 				name: "SessionResolutionError",
 				message: 'Session "019ea530-0000-7000-0000-000000000000" not found.',
-				hint: expect.stringContaining("omp --resume"),
+				hint: expect.stringContaining("amaze --resume"),
 			});
 		} finally {
 			vi.restoreAllMocks();

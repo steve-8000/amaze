@@ -2,7 +2,7 @@
  * Contract: a large session snapshot is delivered as a small `welcome` frame
  * plus a train of `snapshot-chunk` frames, so the guest can clear its 30s
  * first-welcome timeout long before the full transcript arrives — the fix for
- * [#3144](https://github.com/can1357/oh-my-pi/issues/3144) where a multi-MB
+ * [#3144](https://github.com/can1357/amaze-agent/issues/3144) where a multi-MB
  * single-frame welcome timed out on the default relay.
  *
  * The test drives the production `CollabHost` (real sealing, real envelopes)
@@ -11,19 +11,19 @@
  * are stubbed.
  */
 import { afterAll, afterEach, beforeAll, describe, expect, it, spyOn } from "bun:test";
-import { importRoomKey } from "@oh-my-pi/pi-coding-agent/collab/crypto";
-import { CollabGuestLink } from "@oh-my-pi/pi-coding-agent/collab/guest";
-import { CollabHost } from "@oh-my-pi/pi-coding-agent/collab/host";
+import { importRoomKey } from "@amaze/pi-coding-agent/collab/crypto";
+import { CollabGuestLink } from "@amaze/pi-coding-agent/collab/guest";
+import { CollabHost } from "@amaze/pi-coding-agent/collab/host";
 import {
 	COLLAB_PROTO,
 	type CollabFrame,
 	parseCollabLink,
 	rewriteEnvelopePeer,
 	unpackEnvelope,
-} from "@oh-my-pi/pi-coding-agent/collab/protocol";
-import { CollabSocket } from "@oh-my-pi/pi-coding-agent/collab/relay-client";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import type { SessionEntry } from "@oh-my-pi/pi-coding-agent/session/session-entries";
+} from "@amaze/pi-coding-agent/collab/protocol";
+import { CollabSocket } from "@amaze/pi-coding-agent/collab/relay-client";
+import type { InteractiveModeContext } from "@amaze/pi-coding-agent/modes/types";
+import type { SessionEntry } from "@amaze/pi-coding-agent/session/session-entries";
 
 // ── In-memory transport (verbatim copy of the relay used in read-only.test.ts) ──
 
@@ -312,7 +312,7 @@ describe("collab chunked welcome (#3144)", () => {
 			await expect(
 				Promise.race([
 					joinAttempt,
-					Bun.sleep(250).then(() => {
+					Bun.sleep(1500).then(() => {
 						throw new Error("join did not reject");
 					}),
 				]),

@@ -4,17 +4,18 @@
  * paid for. Regression guard for issue #2190.
  */
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import type { Rule } from "@oh-my-pi/pi-coding-agent/capability/rule";
-import type { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { ToolPathWithSource } from "@oh-my-pi/pi-coding-agent/extensibility/custom-tools";
-import type { LoadExtensionsResult } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/types";
-import type { CreateAgentSessionResult } from "@oh-my-pi/pi-coding-agent/sdk";
-import * as sdkModule from "@oh-my-pi/pi-coding-agent/sdk";
-import type { AgentSession, AgentSessionEvent, PromptOptions } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { runSubprocess } from "@oh-my-pi/pi-coding-agent/task/executor";
-import type { AgentDefinition } from "@oh-my-pi/pi-coding-agent/task/types";
-import { EventBus } from "@oh-my-pi/pi-coding-agent/utils/event-bus";
+import type { Rule } from "@amaze/pi-coding-agent/capability/rule";
+import type { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
+import { Settings } from "@amaze/pi-coding-agent/config/settings";
+import type { ToolPathWithSource } from "@amaze/pi-coding-agent/extensibility/custom-tools";
+import type { LoadExtensionsResult } from "@amaze/pi-coding-agent/extensibility/extensions/types";
+import type { CreateAgentSessionResult } from "@amaze/pi-coding-agent/sdk";
+import * as sdkModule from "@amaze/pi-coding-agent/sdk";
+import type { AgentSession, AgentSessionEvent, PromptOptions } from "@amaze/pi-coding-agent/session/agent-session";
+import { createSubagentSettings, runSubprocess } from "@amaze/pi-coding-agent/task/executor";
+import { buildSubagentLaunchSpec } from "@amaze/pi-coding-agent/task/subagent-launch-spec";
+import type { AgentDefinition } from "@amaze/pi-coding-agent/task/types";
+import { EventBus } from "@amaze/pi-coding-agent/utils/event-bus";
 
 function createMockSession(onPrompt: (params: { emit: (event: AgentSessionEvent) => void }) => void): AgentSession {
 	const listeners: Array<(event: AgentSessionEvent) => void> = [];
@@ -86,7 +87,6 @@ const baseOptions = {
 	id: "subagent-pass-through",
 	settings: Settings.isolated(),
 	modelRegistry: { refresh: async () => {} } as unknown as ModelRegistry,
-	enableLsp: false,
 };
 
 describe("runSubprocess parent-discovery pass-through (issue #2190)", () => {
@@ -94,21 +94,46 @@ describe("runSubprocess parent-discovery pass-through (issue #2190)", () => {
 		vi.restoreAllMocks();
 	});
 
-	it("forwards rules, preloadedExtensionPaths, and preloadedCustomToolPaths to createAgentSession", async () => {
+	it("turns off main-session autolearn and eager prompts in subagent settings", () => {
+		const settings = createSubagentSettings(
+			Settings.isolated({
+				"autolearn.enabled": true,
+				"todo.reminders": true,
+				"todo.eager": "always",
+				"task.eager": "always",
+			}),
+		);
+
+		expect(settings.get("autolearn.enabled")).toBe(false);
+		expect(settings.get("todo.eager")).toBe("default");
+		expect(settings.get("task.eager")).toBe("default");
+	});
+
+	it("forwards rules, preloadedExtensionPaths, and preloadedCustomToolPaths while stripping parent context payloads", async () => {
 		const session = yieldEmittingSession();
 		const spy = vi.spyOn(sdkModule, "createAgentSession").mockResolvedValue(createSessionResult(session));
 
 		const rules: Rule[] = [{ name: "rule-a" } as unknown as Rule];
-		const preloadedExtensionPaths = ["/abs/parent/.omp/extensions/foo.ts"];
+		const preloadedExtensionPaths = ["/abs/parent/.amaze/extensions/foo.ts"];
 		const preloadedCustomToolPaths: ToolPathWithSource[] = [
 			{ path: "tools/x.ts", source: { provider: "config", providerName: "Config", level: "project" } },
 		];
+		const contextFiles = [{ path: "/tmp/AGENTS.md", content: "# parent context" }];
+		const workspaceTree = {
+			rootPath: "/tmp",
+			rendered: "parent tree",
+			truncated: false,
+			totalLines: 7,
+			agentsMdFiles: ["/tmp/AGENTS.md"],
+		};
 
 		const result = await runSubprocess({
 			...baseOptions,
 			rules,
 			preloadedExtensionPaths,
 			preloadedCustomToolPaths,
+			contextFiles,
+			workspaceTree,
 		});
 
 		expect(result.exitCode).toBe(0);
@@ -118,6 +143,36 @@ describe("runSubprocess parent-discovery pass-through (issue #2190)", () => {
 		expect(forwarded?.rules).toBe(rules);
 		expect(forwarded?.preloadedExtensionPaths).toBe(preloadedExtensionPaths);
 		expect(forwarded?.preloadedCustomToolPaths).toBe(preloadedCustomToolPaths);
+		expect(forwarded?.contextFiles).toEqual([]);
+		expect(forwarded?.allowExtensionContextHooks).toBe(false);
+		expect(forwarded?.workspaceTree).toEqual({
+			rootPath: "/tmp",
+			rendered: "",
+			truncated: false,
+			totalLines: 0,
+			agentsMdFiles: [],
+		});
+	});
+
+	it("maps the contract launch spec extension policy into session creation", async () => {
+		const session = yieldEmittingSession();
+		const spy = vi.spyOn(sdkModule, "createAgentSession").mockResolvedValue(createSessionResult(session));
+		const launchSpec = buildSubagentLaunchSpec({
+			id: "subagent-policy",
+			agent: baseAgent,
+			displayName: "task",
+			taskDepth: 0,
+			task: "do work",
+		});
+
+		const result = await runSubprocess({
+			...baseOptions,
+			id: "subagent-policy",
+			launchSpec,
+		});
+
+		expect(result.exitCode).toBe(0);
+		expect(spy.mock.calls[0]?.[0]?.allowExtensionContextHooks).toBe(false);
 	});
 
 	it("forwards undefined when the parent has not pre-discovered state", async () => {

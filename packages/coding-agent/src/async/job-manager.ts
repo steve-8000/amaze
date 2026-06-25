@@ -1,4 +1,4 @@
-import { logger } from "@oh-my-pi/pi-utils";
+import { logger } from "@amaze/pi-utils";
 
 const DELIVERY_RETRY_BASE_MS = 500;
 const DELIVERY_RETRY_MAX_MS = 30_000;
@@ -82,6 +82,8 @@ export interface AsyncJobRegisterOptions {
 	onProgress?: (text: string, details?: Record<string, unknown>) => void | Promise<void>;
 	/** Register the job in queued state; see {@link AsyncJob.queued}. */
 	queued?: boolean;
+	/** Whether successful completion should be delivered into the owning session. Failures still deliver. */
+	deliverOnSuccess?: boolean;
 }
 
 /**
@@ -223,7 +225,9 @@ export class AsyncJobManager {
 				}
 				job.status = "completed";
 				job.resultText = text;
-				this.#enqueueDelivery(id, text);
+				if (options?.deliverOnSuccess !== false) {
+					this.#enqueueDelivery(id, text);
+				}
 				this.#scheduleEviction(id);
 			} catch (error) {
 				if (job.status === "cancelled") {

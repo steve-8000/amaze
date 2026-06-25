@@ -18,5 +18,5 @@ Structural AST-aware rewrites via ast-grep.
 
 <critical>
 - Parse issues mean the rewrite is malformed or mis-scoped — fix the pattern before assuming a clean no-op
-- For one-off local text edits, you SHOULD prefer the Edit tool
+- For code, prefer `ast_edit` over line-based edits when the change fits one stable AST pattern; keep the Edit tool for non-code text or changes that do not fit one AST shape
 </critical>

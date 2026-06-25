@@ -1,5 +1,5 @@
 import * as fs from "node:fs/promises";
-import { isEnoent, logger, ptree } from "@oh-my-pi/pi-utils";
+import { isEnoent, logger, ptree } from "@amaze/pi-utils";
 import { NON_INTERACTIVE_ENV } from "../exec/non-interactive-env";
 import { ToolAbortError } from "../tools/tool-errors";
 import type {
@@ -453,7 +453,7 @@ export class DapClient {
 		const reader = this.#readable.getReader();
 
 		// Incoming bytes are buffered as a list of chunks and only joined when a
-		// full message is framed (mirrors the LSP reader) — concatenating the
+		// full message is framed (matching the JSON-RPC reader pattern) — concatenating the
 		// accumulator on every read is O(n^2) for messages spanning many reads.
 		const pendingChunks: Buffer[] = [];
 		let pendingLen = 0;

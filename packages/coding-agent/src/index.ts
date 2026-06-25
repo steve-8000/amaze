@@ -3,9 +3,9 @@ import { HookEditorComponent, HookInputComponent, HookSelectorComponent } from "
 // Core session management
 
 // Re-export TUI components for custom tool rendering
-export { Container, Markdown, Spacer, Text } from "@oh-my-pi/pi-tui";
+export { Container, Markdown, Spacer, Text } from "@amaze/pi-tui";
 // Logging
-export { getAgentDir, logger, VERSION } from "@oh-my-pi/pi-utils";
+export { getAgentDir, logger, VERSION } from "@amaze/pi-utils";
 export * as zod from "zod/v4";
 export { z } from "zod/v4";
 export * from "./config/keybindings";
@@ -15,6 +15,7 @@ export type * from "./config/prompt-templates";
 export * from "./config/prompt-templates";
 export type { RetrySettings, SkillsSettings } from "./config/settings";
 export { Settings, settings } from "./config/settings";
+export * from "./context";
 // Custom commands
 export type * from "./extensibility/custom-commands/types";
 export type * from "./extensibility/custom-tools";
@@ -28,7 +29,6 @@ export * from "./extensibility/extensions";
 export * from "./extensibility/skills";
 // Slash commands
 export { type FileSlashCommand, loadSlashCommands as discoverSlashCommands } from "./extensibility/slash-commands";
-export type * from "./lsp";
 // Main entry point
 export * from "./main";
 // Run modes for programmatic SDK usage
@@ -53,6 +53,7 @@ export * from "./session/session-manager";
 export * from "./session/session-migrations";
 export * from "./session/session-storage";
 export * from "./session/sql-session-storage";
+export * from "./session/turn-scheduler";
 export * from "./task/executor";
 export type * from "./task/types";
 // Tools (detail types and utilities)

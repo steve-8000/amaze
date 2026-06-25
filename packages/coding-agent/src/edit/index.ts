@@ -1,21 +1,13 @@
-import { MismatchError as HashlineMismatchError } from "@oh-my-pi/hashline";
-import hashlineGrammar from "@oh-my-pi/hashline/grammar.lark" with { type: "text" };
-import hashlineDescription from "@oh-my-pi/hashline/prompt.md" with { type: "text" };
-import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@oh-my-pi/pi-agent-core";
-import type { ToolExample } from "@oh-my-pi/pi-ai";
-import { prompt } from "@oh-my-pi/pi-utils";
-import {
-	createLspWritethrough,
-	type FileDiagnosticsResult,
-	type WritethroughCallback,
-	type WritethroughDeferredHandle,
-	writethroughNoop,
-} from "../lsp";
-import { getDiagnosticsLedger } from "../lsp/diagnostics-ledger";
+import { MismatchError as HashlineMismatchError } from "@amaze/hashline";
+import hashlineGrammar from "@amaze/hashline/grammar.lark" with { type: "text" };
+import hashlineDescription from "@amaze/hashline/prompt.md" with { type: "text" };
+import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@amaze/pi-agent-core";
+import type { ToolExample } from "@amaze/pi-ai";
+import { prompt } from "@amaze/pi-utils";
 import applyPatchDescription from "../prompts/tools/apply-patch.md" with { type: "text" };
 import patchDescription from "../prompts/tools/patch.md" with { type: "text" };
 import replaceDescription from "../prompts/tools/replace.md" with { type: "text" };
-import type { DeferredDiagnosticsEntry, ToolSession } from "../tools";
+import type { ToolSession } from "../tools";
 import { truncateForPrompt } from "../tools/approval";
 import { isInternalUrlPath } from "../tools/path-utils";
 import { type EditMode, normalizeEditMode, resolveEditMode } from "../utils/edit-mode";
@@ -24,10 +16,21 @@ import { type ApplyPatchParams, applyPatchSchema, expandApplyPatchToEntries } fr
 import applyPatchGrammar from "./modes/apply-patch.lark" with { type: "text" };
 import { executePatchSingle, type PatchEditEntry, type PatchParams, patchEditSchema } from "./modes/patch";
 import { executeReplaceSingle, type ReplaceEditEntry, type ReplaceParams, replaceEditSchema } from "./modes/replace";
-import { type EditToolDetails, type EditToolPerFileResult, getLspBatchRequest, type LspBatchRequest } from "./renderer";
+import {
+	type EditToolDetails,
+	type EditToolPerFileResult,
+	getWritethroughBatchRequest,
+	type WritethroughBatchRequest,
+} from "./renderer";
 import { EDIT_MODE_STRATEGIES } from "./streaming";
+import {
+	type FileDiagnosticsResult,
+	type WritethroughCallback,
+	type WritethroughDeferredHandle,
+	writethroughNoop,
+} from "./writethrough";
 
-export * from "@oh-my-pi/hashline";
+export * from "@amaze/hashline";
 export { DEFAULT_EDIT_MODE, type EditMode, normalizeEditMode } from "../utils/edit-mode";
 export * from "./apply-patch";
 export * from "./diff";
@@ -39,6 +42,7 @@ export * from "./modes/replace";
 export * from "./normalize";
 export * from "./renderer";
 export * from "./streaming";
+export * from "./writethrough";
 
 type TInput =
 	| typeof replaceEditSchema
@@ -58,7 +62,7 @@ type EditModeDefinition = {
 		tool: EditTool,
 		params: EditParams,
 		signal: AbortSignal | undefined,
-		batchRequest: LspBatchRequest | undefined,
+		batchRequest: WritethroughBatchRequest | undefined,
 		onUpdate?: (partialResult: AgentToolResult<EditToolDetails, TInput>) => void,
 	) => Promise<AgentToolResult<EditToolDetails, TInput>>;
 };
@@ -104,29 +108,17 @@ function resolveFuzzyThreshold(session: ToolSession, rawValue: string): number {
 	return threshold;
 }
 
-function createEditWritethrough(session: ToolSession): WritethroughCallback {
-	const enableLsp = session.enableLsp ?? true;
-	const enableDiagnostics = enableLsp && session.settings.get("lsp.diagnosticsOnEdit");
-	const enableFormat = enableLsp && session.settings.get("lsp.formatOnWrite");
-	const dedup = enableDiagnostics && session.settings.get("lsp.diagnosticsDeduplicate");
-	return enableLsp
-		? createLspWritethrough(session.cwd, {
-				enableFormat,
-				enableDiagnostics,
-				transformDiagnostics: dedup
-					? (path, result) => getDiagnosticsLedger(session).reduce(path, result)
-					: undefined,
-			})
-		: writethroughNoop;
+function createEditWritethrough(_session: ToolSession): WritethroughCallback {
+	return writethroughNoop;
 }
 
 /** Run apply_patch file operations and aggregate their multi-file result. */
 async function executeApplyPatchPerFile(
 	fileEntries: {
 		path: string;
-		run: (batchRequest: LspBatchRequest | undefined) => Promise<AgentToolResult<EditToolDetails>>;
+		run: (batchRequest: WritethroughBatchRequest | undefined) => Promise<AgentToolResult<EditToolDetails>>;
 	}[],
-	outerBatchRequest: LspBatchRequest | undefined,
+	outerBatchRequest: WritethroughBatchRequest | undefined,
 	onUpdate?: (partialResult: AgentToolResult<EditToolDetails, TInput>) => void,
 ): Promise<AgentToolResult<EditToolDetails, TInput>> {
 	if (fileEntries.length === 1) {
@@ -140,7 +132,7 @@ async function executeApplyPatchPerFile(
 	for (let i = 0; i < fileEntries.length; i++) {
 		const { path, run } = fileEntries[i];
 		const isLast = i === fileEntries.length - 1;
-		const batchRequest: LspBatchRequest | undefined = outerBatchRequest
+		const batchRequest: WritethroughBatchRequest | undefined = outerBatchRequest
 			? { id: outerBatchRequest.id, flush: isLast && outerBatchRequest.flush }
 			: undefined;
 
@@ -198,8 +190,8 @@ async function executeApplyPatchPerFile(
 
 async function executeSinglePathEntries(
 	path: string,
-	runs: ((batchRequest: LspBatchRequest | undefined) => Promise<AgentToolResult<EditToolDetails>>)[],
-	outerBatchRequest: LspBatchRequest | undefined,
+	runs: ((batchRequest: WritethroughBatchRequest | undefined) => Promise<AgentToolResult<EditToolDetails>>)[],
+	outerBatchRequest: WritethroughBatchRequest | undefined,
 	onUpdate?: (partialResult: AgentToolResult<EditToolDetails, TInput>) => void,
 ): Promise<AgentToolResult<EditToolDetails, TInput>> {
 	if (runs.length === 1) {
@@ -218,7 +210,7 @@ async function executeSinglePathEntries(
 
 	for (let i = 0; i < runs.length; i++) {
 		const isLast = i === runs.length - 1;
-		const batchRequest: LspBatchRequest | undefined = outerBatchRequest
+		const batchRequest: WritethroughBatchRequest | undefined = outerBatchRequest
 			? { id: outerBatchRequest.id, flush: isLast && outerBatchRequest.flush }
 			: undefined;
 
@@ -323,11 +315,10 @@ export class EditTool implements AgentTool<TInput> {
 	readonly #fuzzyThreshold: number;
 	readonly #writethrough: WritethroughCallback;
 	readonly #editMode?: EditMode;
-	readonly #dedupDiagnostics: boolean;
 	readonly #pendingDeferredFetches = new Map<string, AbortController>();
 	/** Fallback per-path mutation counter used only when the session does not expose
 	 *  a shared one. Prefer `session.bumpFileMutationVersion` so write (and any other
-	 *  tool) mutating the same file also invalidates pending late-diagnostics. */
+	 *  tool) mutating the same file also invalidates pending deferred work. */
 	readonly #editVersionByPath = new Map<string, number>();
 
 	constructor(private readonly session: ToolSession) {
@@ -340,10 +331,6 @@ export class EditTool implements AgentTool<TInput> {
 		this.#editMode = resolveConfiguredEditMode(envEditVariant);
 		this.#allowFuzzy = resolveAllowFuzzy(session, editFuzzy);
 		this.#fuzzyThreshold = resolveFuzzyThreshold(session, editFuzzyThreshold);
-		this.#dedupDiagnostics =
-			(session.enableLsp ?? true) &&
-			session.settings.get("lsp.diagnosticsOnEdit") &&
-			session.settings.get("lsp.diagnosticsDeduplicate");
 		this.#writethrough = createEditWritethrough(session);
 	}
 
@@ -404,7 +391,7 @@ export class EditTool implements AgentTool<TInput> {
 		context?: AgentToolContext,
 	): Promise<AgentToolResult<EditToolDetails, TInput>> {
 		const modeDefinition = this.#getModeDefinition();
-		return modeDefinition.execute(this, params, signal, getLspBatchRequest(context?.toolCall), onUpdate);
+		return modeDefinition.execute(this, params, signal, getWritethroughBatchRequest(context?.toolCall), onUpdate);
 	}
 
 	#getModeDefinition(): EditModeDefinition {
@@ -449,12 +436,12 @@ export class EditTool implements AgentTool<TInput> {
 					tool: EditTool,
 					params: EditParams,
 					signal: AbortSignal | undefined,
-					batchRequest: LspBatchRequest | undefined,
+					batchRequest: WritethroughBatchRequest | undefined,
 					onUpdate?: (partialResult: AgentToolResult<EditToolDetails, TInput>) => void,
 				) => {
 					const { edits, path } = params as PatchParams;
 					const runs = (edits as PatchEditEntry[]).map(
-						entry => (br: LspBatchRequest | undefined) =>
+						entry => (br: WritethroughBatchRequest | undefined) =>
 							executePatchSingle({
 								session: tool.session,
 								path,
@@ -485,7 +472,7 @@ export class EditTool implements AgentTool<TInput> {
 					tool: EditTool,
 					params: EditParams,
 					signal: AbortSignal | undefined,
-					batchRequest: LspBatchRequest | undefined,
+					batchRequest: WritethroughBatchRequest | undefined,
 					onUpdate?: (partialResult: AgentToolResult<EditToolDetails, TInput>) => void,
 				) => {
 					const entries = expandApplyPatchToEntries(params as ApplyPatchParams);
@@ -493,7 +480,7 @@ export class EditTool implements AgentTool<TInput> {
 						const { path, ...patchParams } = entry;
 						return {
 							path,
-							run: (br: LspBatchRequest | undefined) =>
+							run: (br: WritethroughBatchRequest | undefined) =>
 								executePatchSingle({
 									session: tool.session,
 									path,
@@ -517,7 +504,7 @@ export class EditTool implements AgentTool<TInput> {
 					tool: EditTool,
 					params: EditParams,
 					signal: AbortSignal | undefined,
-					batchRequest: LspBatchRequest | undefined,
+					batchRequest: WritethroughBatchRequest | undefined,
 					_onUpdate?: (partialResult: AgentToolResult<EditToolDetails, TInput>) => void,
 				) => {
 					const { input } = params as HashlineParams;
@@ -538,12 +525,12 @@ export class EditTool implements AgentTool<TInput> {
 					tool: EditTool,
 					params: EditParams,
 					signal: AbortSignal | undefined,
-					batchRequest: LspBatchRequest | undefined,
+					batchRequest: WritethroughBatchRequest | undefined,
 					onUpdate?: (partialResult: AgentToolResult<EditToolDetails, TInput>) => void,
 				) => {
 					const { edits, path } = params as ReplaceParams;
 					const runs = (edits as ReplaceEditEntry[]).map(
-						entry => (br: LspBatchRequest | undefined) =>
+						entry => (br: WritethroughBatchRequest | undefined) =>
 							executeReplaceSingle({
 								session: tool.session,
 								path,
@@ -587,22 +574,7 @@ export class EditTool implements AgentTool<TInput> {
 		};
 	}
 
-	#injectLateDiagnostics(path: string, diagnostics: FileDiagnosticsResult, editVersion: number): void {
-		const effective = this.#dedupDiagnostics
-			? getDiagnosticsLedger(this.session).reduce(path, diagnostics)
-			: diagnostics;
-		if (this.#dedupDiagnostics && effective.messages.length === 0) return;
-
-		const entry: DeferredDiagnosticsEntry = {
-			path,
-			summary: effective.summary ?? "",
-			messages: effective.messages ?? [],
-			errored: effective.errored,
-			// Drop at flush time if a later edit to the same file superseded this fetch.
-			isStale: () => this.#fileVersion(path) !== editVersion,
-		};
-		this.session.queueDeferredDiagnostics?.(entry);
-	}
+	#injectLateDiagnostics(_path: string, _diagnostics: FileDiagnosticsResult, _editVersion: number): void {}
 
 	/** Bump the file's mutation counter (session-global when available). */
 	#bumpFileVersion(path: string): number {
@@ -610,11 +582,5 @@ export class EditTool implements AgentTool<TInput> {
 		const next = (this.#editVersionByPath.get(path) ?? 0) + 1;
 		this.#editVersionByPath.set(path, next);
 		return next;
-	}
-
-	/** Read the file's current mutation counter (session-global when available). */
-	#fileVersion(path: string): number {
-		if (this.session.getFileMutationVersion) return this.session.getFileMutationVersion(path);
-		return this.#editVersionByPath.get(path) ?? 0;
 	}
 }

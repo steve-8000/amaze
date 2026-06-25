@@ -10,9 +10,9 @@
  * - Events: AgentSessionEvent objects streamed as they occur
  * - Extension UI: Extension UI requests are emitted, client responds with extension_ui_response
  */
-import { getOAuthProviders } from "@oh-my-pi/pi-ai/oauth";
-import { isZodSchema, zodToWireSchema } from "@oh-my-pi/pi-ai/utils/schema";
-import { $env, readJsonl, Snowflake } from "@oh-my-pi/pi-utils";
+import { getOAuthProviders } from "@amaze/pi-ai/oauth";
+import { isZodSchema, zodToWireSchema } from "@amaze/pi-ai/utils/schema";
+import { $env, readJsonl, Snowflake } from "@amaze/pi-utils";
 import { reset as resetCapabilities } from "../../capability";
 import { clearPluginRootsAndCaches, resolveActiveProjectRegistryPath } from "../../discovery/helpers";
 import {
@@ -25,6 +25,7 @@ import {
 import { buildSkillPromptMessage } from "../../extensibility/skills";
 import { loadSlashCommands } from "../../extensibility/slash-commands";
 import { type Theme, theme } from "../../modes/theme/theme";
+import { AgentLifecycleManager } from "../../registry/agent-lifecycle";
 import type { AgentSession } from "../../session/agent-session";
 import { SKILL_PROMPT_MESSAGE_TYPE, USER_INTERRUPT_LABEL } from "../../session/messages";
 import { executeAcpBuiltinSlashCommand } from "../../slash-commands/acp-builtins";
@@ -402,6 +403,22 @@ export async function runRpcMode(
 
 	// Shutdown request flag (wrapped in object to allow mutation with const)
 	const shutdownState = { requested: false };
+
+	let cleanupStarted = false;
+	const cleanupAndExit = async (disconnectReason: string): Promise<never> => {
+		if (cleanupStarted) {
+			await new Promise<never>(() => {});
+		}
+		cleanupStarted = true;
+
+		hostToolBridge.rejectAllPending(`${disconnectReason} before host tool execution completed`);
+		hostUriBridge.clear(`${disconnectReason} before host URI request completed`);
+		subagentRegistry?.dispose();
+		await AgentLifecycleManager.global().dispose();
+		await session.dispose();
+		process.exit(0);
+		await new Promise<never>(() => {});
+	};
 
 	/**
 	 * Extension UI context that uses the RPC protocol.
@@ -1099,12 +1116,7 @@ export async function runRpcMode(
 	 */
 	async function checkShutdownRequested(): Promise<void> {
 		if (!shutdownState.requested) return;
-
-		if (session.extensionRunner?.hasHandlers("session_shutdown")) {
-			await session.extensionRunner.emit({ type: "session_shutdown" });
-		}
-
-		process.exit(0);
+		await cleanupAndExit("RPC shutdown requested");
 	}
 
 	// Listen for JSON input using Bun's stdin
@@ -1149,8 +1161,5 @@ export async function runRpcMode(
 	}
 
 	// stdin closed — RPC client is gone, exit cleanly
-	hostToolBridge.rejectAllPending("RPC client disconnected before host tool execution completed");
-	hostUriBridge.clear("RPC client disconnected before host URI request completed");
-	subagentRegistry?.dispose();
-	process.exit(0);
+	return await cleanupAndExit("RPC client disconnected");
 }

@@ -2,9 +2,9 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { PlanModeState } from "@oh-my-pi/pi-coding-agent/plan-mode/state";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { enforcePlanModeWrite, resolvePlanPath } from "@oh-my-pi/pi-coding-agent/tools/plan-mode-guard";
+import type { PlanModeState } from "@amaze/pi-coding-agent/plan-mode/state";
+import type { ToolSession } from "@amaze/pi-coding-agent/tools";
+import { enforcePlanModeWrite, resolvePlanPath } from "@amaze/pi-coding-agent/tools/plan-mode-guard";
 
 const ARTIFACTS_DIR = path.join(os.tmpdir(), "agent-artifacts");
 const REPO_ROOT = path.join(os.tmpdir(), "repo");
@@ -43,7 +43,7 @@ describe("resolvePlanPath local:// support", () => {
 	it("falls back to os tmp root when artifacts dir is unavailable", () => {
 		const session = makeSession({ artifactsDir: null, sessionId: "session-42" });
 		expect(resolvePlanPath(session, "local://memo.txt")).toBe(
-			path.join(os.tmpdir(), "omp-local", "session-42", "memo.txt"),
+			path.join(os.tmpdir(), "amaze-local", "session-42", "memo.txt"),
 		);
 	});
 });

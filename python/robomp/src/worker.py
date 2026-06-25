@@ -126,7 +126,7 @@ def _stage_agent_home() -> None:
     if not _AGENT_HOME_STAGE.exists():
         return
 
-    for rel in (Path(".agent"), Path(".omp/agent")):
+    for rel in (Path(".agent"), Path(".amaze/agent")):
         src = _AGENT_HOME_STAGE / rel
         if not src.exists():
             continue
@@ -176,7 +176,7 @@ def _stage_agent_home() -> None:
 
 
 def _build_extra_env(settings: Settings) -> dict[str, str]:
-    """Build the env overlay passed to the omp subprocess.
+    """Build the env overlay passed to the amaze subprocess.
 
     `omp_rpc` merges this dict on top of `os.environ`, so overlaying empty
     strings for the sensitive keys is what actually masks them in the
@@ -352,7 +352,7 @@ def _drive_turn(
 
 
 def _has_prior_session(session_dir: Path) -> bool:
-    """Return True iff `session_dir` already contains an omp JSONL transcript.
+    """Return True iff `session_dir` already contains an amaze JSONL transcript.
 
     pi's `coding-agent` writes one `*.jsonl` per session into `--session-dir`.
     The presence of any such file is the signal that `--continue` will pick
@@ -485,7 +485,7 @@ def _run_rpc_blocking(
     rpc_env.update(_safe_directory_env(bindings.workspace.repo_dir))
     rpc_env.update(_git_identity_env(inputs.settings.resolved_author_name, inputs.settings.git_author_email))
     # Bare worktrees have no node_modules; install (idempotently) so the agent
-    # can resolve workspace packages (@oh-my-pi/pi-*) and actually run tests.
+    # can resolve workspace packages (@amaze/pi-*) and actually run tests.
     host_tools.ensure_workspace_dependencies(bindings)
     resuming = _has_prior_session(bindings.workspace.session_dir)
     extra_args: tuple[str, ...] = ("--continue",) if resuming else ()
@@ -548,9 +548,9 @@ def _run_rpc_blocking(
         extra_args=extra_args,
         user=inputs.slot_uid,
         group=inputs.slot_uid if inputs.slot_uid is not None else None,
-        extra_groups=["omp"] if inputs.slot_uid is not None else None,
+        extra_groups=["amaze"] if inputs.slot_uid is not None else None,
     ) as client:
-        # Arm cancellation: from this point the API can kill the omp subprocess
+        # Arm cancellation: from this point the API can kill the amaze subprocess
         # out from under us, which makes `prompt_and_wait` raise an `RpcError`
         # we'll let propagate. The `with` exit calls `client.stop()` again, but
         # it's idempotent.
@@ -656,13 +656,13 @@ def _run_rpc_blocking(
             finally:
                 hard_timer.cancel()
             if hard_timeout_fired.is_set():
-                raise TimeoutError("omp task exceeded hard timeout")
+                raise TimeoutError("amaze task exceeded hard timeout")
             if turn is not None and turn.assistant_message is not None:
                 stop_reason = turn.assistant_message.get("stopReason")
                 if stop_reason == "error":
                     error_msg = turn.assistant_message.get("errorMessage") or "model returned error"
                     raise RuntimeError(
-                        f"omp agent error (stopReason=error): {error_msg}"
+                        f"amaze agent error (stopReason=error): {error_msg}"
                     )
             log.info(
                 "rpc_done",

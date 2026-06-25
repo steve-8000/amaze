@@ -1,5 +1,5 @@
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-import type { ImageContent, MessageAttribution, ServiceTier, TextContent } from "@oh-my-pi/pi-ai";
+import type { AgentMessage } from "@amaze/pi-agent-core";
+import type { ImageContent, MessageAttribution, ServiceTier, TextContent } from "@amaze/pi-ai";
 
 export const CURRENT_SESSION_VERSION = 3;
 
@@ -126,6 +126,8 @@ export interface SessionInitEntry extends SessionEntryBase {
 	systemPrompt: string;
 	/** Initial task/user message */
 	task: string;
+	/** Concrete subagent definition name (for example: finder, coder, checker). */
+	agentName?: string;
 	/** Tools available to the agent */
 	tools: string[];
 	/** Output schema if structured output was requested */
@@ -134,6 +136,10 @@ export interface SessionInitEntry extends SessionEntryBase {
 	spawns?: string;
 	/** The agent's `readSummarize` setting (`false` = read summarization disabled); absent uses the session default. */
 	readSummarize?: boolean;
+	/** Whether a parked session may be revived. Completed contract subagents set this false. */
+	revivable?: boolean;
+	/** Allowed/denied context-source ledger for contract subagent launches. */
+	contextAudit?: Array<{ status: "allowed" | "denied"; source: string; reason: string }>;
 }
 
 /** Mode change entry - tracks agent mode transitions (e.g. plan mode). */

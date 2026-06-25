@@ -1,15 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { Agent } from "@oh-my-pi/pi-agent-core";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { SettingPath } from "@oh-my-pi/pi-coding-agent/config/settings-schema";
-import { IrcBus, type IrcMessage } from "@oh-my-pi/pi-coding-agent/irc/bus";
-import { AgentLifecycleManager } from "@oh-my-pi/pi-coding-agent/registry/agent-lifecycle";
-import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
-import { AgentSession, type AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import type { CustomMessage } from "@oh-my-pi/pi-coding-agent/session/messages";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { IrcTool } from "@oh-my-pi/pi-coding-agent/tools/irc";
+import { Agent } from "@amaze/pi-agent-core";
+import { Settings } from "@amaze/pi-coding-agent/config/settings";
+import type { SettingPath } from "@amaze/pi-coding-agent/config/settings-schema";
+import { IrcBus, type IrcMessage } from "@amaze/pi-coding-agent/irc/bus";
+import { AgentLifecycleManager } from "@amaze/pi-coding-agent/registry/agent-lifecycle";
+import { AgentRegistry } from "@amaze/pi-coding-agent/registry/agent-registry";
+import { AgentSession, type AgentSessionEvent } from "@amaze/pi-coding-agent/session/agent-session";
+import type { CustomMessage } from "@amaze/pi-coding-agent/session/messages";
+import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
+import type { ToolSession } from "@amaze/pi-coding-agent/tools";
+import { IrcTool } from "@amaze/pi-coding-agent/tools/irc";
 
 interface FakeSession {
 	session: AgentSession;
@@ -132,6 +132,37 @@ describe("IRC", () => {
 			expect(bus.unreadCount("0-Sub")).toBe(0);
 		});
 
+		it("annotates delivered messages with concrete agent types and display names", async () => {
+			const finder = makeFakeSession();
+			const checker = makeFakeSession();
+			registry.register({
+				id: "DocsScan",
+				agentName: "finder",
+				displayName: "API docs scan",
+				kind: "sub",
+				session: finder.session,
+			});
+			registry.register({
+				id: "RiskAudit",
+				agentName: "checker",
+				displayName: "Risk audit",
+				kind: "sub",
+				session: checker.session,
+			});
+
+			const receipt = await bus.send({ from: "DocsScan", to: "RiskAudit", body: "watch the revive path" });
+
+			expect(receipt).toEqual({ to: "RiskAudit", outcome: "injected" });
+			expect(checker.delivered[0]).toMatchObject({
+				from: "DocsScan",
+				fromAgentName: "finder",
+				fromDisplayName: "API docs scan",
+				to: "RiskAudit",
+				toAgentName: "checker",
+				toDisplayName: "Risk audit",
+			});
+		});
+
 		it("relays only subagent-to-subagent traffic to the main UI", async () => {
 			const main = makeFakeSession();
 			registry.register({ id: "Main", displayName: "main", kind: "main", session: main.session });
@@ -145,7 +176,7 @@ describe("IRC", () => {
 			await bus.send({ from: "0-A", to: "0-B", body: "sibling note" });
 
 			expect(main.relayed).toHaveLength(1);
-			expect(main.relayed[0]?.details).toEqual({ from: "0-A", to: "0-B", body: "sibling note" });
+			expect(main.relayed[0]?.details).toMatchObject({ from: "0-A", to: "0-B", body: "sibling note" });
 		});
 
 		it("send to an unknown or aborted agent fails", async () => {
@@ -171,7 +202,13 @@ describe("IRC", () => {
 		it("send revives a parked recipient through the lifecycle manager", async () => {
 			const sub = makeFakeSession();
 			sub.setOutcome("woken");
-			registry.register({ id: "0-Parked", displayName: "task", kind: "sub", session: null, status: "parked" });
+			registry.register({
+				id: "0-Parked",
+				displayName: "task",
+				kind: "sub",
+				session: null,
+				status: "parked",
+			});
 			AgentLifecycleManager.global().adopt("0-Parked", {
 				idleTtlMs: 0,
 				revive: async () => sub.session,
@@ -183,8 +220,40 @@ describe("IRC", () => {
 			expect(registry.get("0-Parked")?.status).toBe("idle");
 		});
 
+		it("send treats non-revivable parked subagents as transcript-only", async () => {
+			const sub = makeFakeSession();
+			registry.register({
+				id: "0-Done",
+				displayName: "task",
+				kind: "sub",
+				session: null,
+				status: "parked",
+				revivable: false,
+			});
+			AgentLifecycleManager.global().adopt("0-Done", {
+				idleTtlMs: 0,
+				revive: async () => sub.session,
+			});
+
+			const receipt = await bus.send({ from: "0-Main", to: "0-Done", body: "wake up" });
+
+			expect(receipt).toEqual({
+				to: "0-Done",
+				outcome: "failed",
+				error: 'Agent "0-Done" is transcript-only and cannot be revived. Read history://0-Done or spawn a new task.',
+			});
+			expect(sub.delivered).toEqual([]);
+			expect(registry.get("0-Done")?.status).toBe("parked");
+		});
+
 		it("send fails cleanly when a parked recipient has no reviver", async () => {
-			registry.register({ id: "0-Parked", displayName: "task", kind: "sub", session: null, status: "parked" });
+			registry.register({
+				id: "0-Parked",
+				displayName: "task",
+				kind: "sub",
+				session: null,
+				status: "parked",
+			});
 			AgentLifecycleManager.global().adopt("0-Parked", { idleTtlMs: 0 });
 			const receipt = await bus.send({ from: "0-Main", to: "0-Parked", body: "wake up" });
 			expect(receipt.outcome).toBe("failed");
@@ -335,7 +404,13 @@ describe("IRC", () => {
 		});
 
 		it("send surfaces the reviver's error message when revival fails", async () => {
-			registry.register({ id: "0-Parked", displayName: "task", kind: "sub", session: null, status: "parked" });
+			registry.register({
+				id: "0-Parked",
+				displayName: "task",
+				kind: "sub",
+				session: null,
+				status: "parked",
+			});
 			AgentLifecycleManager.global().adopt("0-Parked", {
 				idleTtlMs: 0,
 				revive: async () => {
@@ -417,7 +492,14 @@ describe("IRC", () => {
 				parentId: "0-Main",
 				session: sub.session,
 			});
-			registry.register({ id: "0-Parked", displayName: "task", kind: "sub", session: null, status: "parked" });
+			registry.register({
+				id: "0-Parked",
+				displayName: "task",
+				kind: "sub",
+				session: null,
+				status: "parked",
+				revivable: false,
+			});
 			const main = makeFakeSession();
 			registry.register({ id: "0-Main", displayName: "main", kind: "main", session: main.session });
 			sub.setError(new Error("temporarily unavailable"));
@@ -428,10 +510,10 @@ describe("IRC", () => {
 			expect(result.details?.op).toBe("list");
 			expect(result.details?.peers).toMatchObject([
 				{ id: "0-AuthLoader", status: "running", parentId: "0-Main", unread: 1 },
-				{ id: "0-Parked", status: "parked", unread: 0 },
+				{ id: "0-Parked", status: "parked", unread: 0, revivable: false },
 			]);
 			const text = result.content[0]?.type === "text" ? result.content[0].text : "";
-			expect(text).toContain("Parked agents are revived automatically");
+			expect(text).toContain("Some parked agents may be revivable");
 		});
 
 		it("op=list hides advisor-kind refs from the peer roster", async () => {
@@ -608,6 +690,34 @@ describe("IRC", () => {
 
 			const event = await ircEvent;
 			expect(event.type).toBe("irc_message");
+		});
+
+		it("caps consecutive idle IRC wake turns", async () => {
+			const { session } = createRealSession();
+			sessions.push(session);
+			const promptSpy = vi.spyOn(session.agent, "prompt").mockResolvedValue(undefined);
+			const waitForIdle = async () => {
+				const deadline = Date.now() + 500;
+				while (Date.now() < deadline) {
+					if (!session.isStreaming) return;
+					await Bun.sleep(1);
+				}
+				throw new Error("Timed out waiting for IRC wake turn to settle");
+			};
+
+			for (let i = 1; i <= 4; i++) {
+				const outcome = await session.deliverIrcMessage({
+					id: `msg-${i}`,
+					from: "0-Peer",
+					to: "0-Me",
+					body: `wake ${i}`,
+					ts: Date.now() + i,
+				});
+				expect(outcome).toBe("woken");
+				await waitForIdle();
+			}
+
+			expect(promptSpy).toHaveBeenCalledTimes(3);
 		});
 
 		it("queues a non-interrupting aside when a turn is streaming", async () => {

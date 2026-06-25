@@ -1,17 +1,7 @@
+import { padding, type SelectItem, SelectList, type SgrMouseEvent, truncateToWidth, visibleWidth } from "@amaze/pi-tui";
 import {
-	padding,
-	type SelectItem,
-	SelectList,
-	type SgrMouseEvent,
-	truncateToWidth,
-	visibleWidth,
-} from "@oh-my-pi/pi-tui";
-import {
-	enableAutoTheme,
-	getAvailableThemes,
 	getCurrentThemeName,
 	getSelectListTheme,
-	isLightTheme,
 	previewTheme,
 	type SymbolPreset,
 	setColorBlindMode,
@@ -23,12 +13,11 @@ import type { SetupScene, SetupSceneController, SetupSceneHost } from "./types";
 type ThemeMode = "curated" | "all";
 
 const CURATED_ITEMS: readonly SelectItem[] = [
-	{ value: "auto", label: "Match terminal", description: "Titanium in dark terminals, Light in light terminals" },
-	{ value: "theme:titanium", label: "Titanium", description: "Default dark theme" },
-	{ value: "theme:light", label: "Light", description: "Default light theme" },
-	{ value: "colorblind", label: "Colorblind colors", description: "Adjust red/green contrast" },
-	{ value: "ansi", label: "ANSI-safe", description: "ASCII glyphs with the dark terminal theme" },
-	{ value: "browse", label: "Browse all…", description: "Show every built-in and custom theme" },
+	{
+		value: "theme:erid",
+		label: "Erid",
+		description: "Amaze's fixed orbital theme",
+	},
 ];
 
 function fitLine(line: string, width: number): string {
@@ -64,7 +53,7 @@ function renderMockEditor(width: number): string[] {
 	const horizontal = box.horizontal.repeat(innerWidth);
 	const top = theme.fg("borderAccent", `${box.topLeft}${horizontal}${box.topRight}`);
 	const bottom = theme.fg("borderMuted", `${box.bottomLeft}${horizontal}${box.bottomRight}`);
-	const prompt = `${theme.fg("accent", ">")} ${theme.fg("text", "Ask anything, edit files, run tools")}${theme.inverse(" ")}`;
+	const prompt = `${theme.fg("accent", ">")} ${theme.fg("text", "Ask Amaze, edit files, run tools")}${theme.inverse(" ")}`;
 	const hint = theme.fg("dim", "enter send · shift+enter newline · / commands");
 	return [
 		top,
@@ -88,8 +77,8 @@ function renderThemePreview(width: number): string[] {
 }
 
 class ThemeSceneController implements SetupSceneController {
-	title = "Pick a theme";
-	subtitle = "Move through the list to preview; Enter saves the highlighted choice.";
+	title = "Lock in Erid";
+	subtitle = "Amaze ships one theme now. Enter keeps Erid; Esc skips this step.";
 	#mode: ThemeMode = "curated";
 	#selectList: SelectList;
 	#loadingAllThemes = false;
@@ -144,10 +133,8 @@ class ThemeSceneController implements SetupSceneController {
 
 	render(width: number): readonly string[] {
 		const lines = [
-			theme.fg("muted", "Theme changes preview live. Nothing is saved until you press Enter."),
-			this.#mode === "all"
-				? theme.fg("dim", "Browsing all themes · Esc returns to curated choices")
-				: theme.fg("dim", "Esc skips this step"),
+			theme.fg("muted", "Erid previews live. Nothing is saved until you press Enter."),
+			theme.fg("dim", "Esc skips this step"),
 			"",
 			...renderThemePreview(width),
 			"",
@@ -188,9 +175,6 @@ class ThemeSceneController implements SetupSceneController {
 	}
 
 	#currentCuratedIndex(): number {
-		const current = getCurrentThemeName();
-		if (current === "titanium") return 1;
-		if (current === "light") return 2;
 		return 0;
 	}
 
@@ -201,94 +185,26 @@ class ThemeSceneController implements SetupSceneController {
 	}
 
 	async #select(value: string): Promise<void> {
-		if (value === "browse") {
-			await this.#showAllThemes();
-			return;
-		}
 		await this.#commit(value);
 		this.host.finish("done");
 	}
 
-	async #showAllThemes(): Promise<void> {
-		if (this.#loadingAllThemes) return;
-		this.#loadingAllThemes = true;
-		this.#message = undefined;
-		this.host.requestRender();
-		try {
-			const themes = await getAvailableThemes();
-			if (this.#disposed) return;
-			const items = themes.map(name => ({
-				value: `theme:${name}`,
-				label: name,
-				description: name === this.#originalTheme ? "current" : undefined,
-			}));
-			const selectedIndex = Math.max(0, themes.indexOf(this.#originalTheme ?? ""));
-			this.#mode = "all";
-			this.#selectList = this.#createSelectList(items, selectedIndex);
-		} catch (error) {
-			const message = error instanceof Error ? error.message : String(error);
-			this.#message = theme.fg("error", `Failed to load themes: ${message}`);
-		} finally {
-			this.#loadingAllThemes = false;
-			this.host.requestRender();
-		}
-	}
-
 	async #commit(value: string): Promise<void> {
-		if (value === "auto") {
-			this.host.ctx.settings.set("theme.dark", "titanium");
-			this.host.ctx.settings.set("theme.light", "light");
-			await this.#applyPreviewPresentation(this.#originalSymbolPreset, this.#originalColorBlindMode);
-			enableAutoTheme();
-			return;
-		}
-		if (value === "colorblind") {
-			this.host.ctx.settings.set("colorBlindMode", true);
-			await this.#applyPreviewPresentation(this.#originalSymbolPreset, true);
-			return;
-		}
-		if (value === "ansi") {
-			this.host.ctx.settings.set("symbolPreset", "ascii");
-			this.host.ctx.settings.set("theme.dark", "dark-terminal");
-			await this.#applyPreviewPresentation("ascii", this.#originalColorBlindMode);
-			enableAutoTheme();
-			return;
-		}
-		const themeName = this.#themeNameFromValue(value);
-		if (!themeName) return;
+		const themeName = this.#themeNameFromValue(value) ?? "erid";
 		await this.#applyPreviewPresentation(this.#originalSymbolPreset, this.#originalColorBlindMode);
-		if (isLightTheme(themeName)) {
-			this.host.ctx.settings.set("theme.light", themeName);
-		} else {
-			this.host.ctx.settings.set("theme.dark", themeName);
-		}
+		this.host.ctx.settings.set("theme.dark", "erid");
+		this.host.ctx.settings.set("theme.light", "erid");
 		await previewTheme(themeName);
 	}
 
 	async #preview(value: string): Promise<void> {
 		const request = ++this.#previewRequest;
 		this.#message = undefined;
-		if (value === "browse") {
-			this.host.requestRender();
-			return;
-		}
 
 		let result: { success: boolean; error?: string } = { success: true };
-		if (value === "auto") {
-			await this.#applyPreviewPresentation(this.#originalSymbolPreset, this.#originalColorBlindMode);
-			enableAutoTheme();
-		} else if (value === "colorblind") {
-			await this.#applyPreviewPresentation(this.#originalSymbolPreset, true);
-		} else if (value === "ansi") {
-			await this.#applyPreviewPresentation("ascii", this.#originalColorBlindMode);
-			result = await previewTheme("dark-terminal");
-		} else {
-			const themeName = this.#themeNameFromValue(value);
-			if (themeName) {
-				await this.#applyPreviewPresentation(this.#originalSymbolPreset, this.#originalColorBlindMode);
-				result = await previewTheme(themeName);
-			}
-		}
+		const themeName = this.#themeNameFromValue(value) ?? "erid";
+		await this.#applyPreviewPresentation(this.#originalSymbolPreset, this.#originalColorBlindMode);
+		result = await previewTheme(themeName);
 		if (request !== this.#previewRequest || this.#disposed) return;
 		if (!result.success) {
 			this.#message = theme.fg("error", result.error ?? "Theme preview failed");

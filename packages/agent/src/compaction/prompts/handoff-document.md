@@ -13,7 +13,7 @@ Capture exact technical state, not abstractions.
 </instruction>
 
 <output>
-Use exactly this structure:
+Use exactly this structure. Omit `## Next Steps` when no unfinished executable work remains:
 
 ## Goal
 [What the user is trying to accomplish]

@@ -2,12 +2,12 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { AsyncJobManager } from "@oh-my-pi/pi-coding-agent/async/job-manager";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { createAgentSession } from "@oh-my-pi/pi-coding-agent/sdk";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { Snowflake } from "@oh-my-pi/pi-utils";
+import { AsyncJobManager } from "@amaze/pi-coding-agent/async/job-manager";
+import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
+import { Settings } from "@amaze/pi-coding-agent/config/settings";
+import { createAgentSession } from "@amaze/pi-coding-agent/sdk";
+import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
+import { Snowflake } from "@amaze/pi-utils";
 
 describe("AsyncJobManager singleton across concurrent top-level sessions", () => {
 	const tempDirs: string[] = [];
@@ -54,7 +54,6 @@ describe("AsyncJobManager singleton across concurrent top-level sessions", () =>
 			promptTemplates: [],
 			slashCommands: [],
 			enableMCP: false,
-			enableLsp: false,
 			modelRegistry: sharedModelRegistry,
 		});
 		return session;
@@ -174,7 +173,6 @@ describe("AsyncJobManager singleton across concurrent top-level sessions", () =>
 				promptTemplates: [],
 				slashCommands: [],
 				enableMCP: false,
-				enableLsp: false,
 				modelRegistry: sharedModelRegistry,
 				systemPrompt: () => {
 					throw new Error("forced startup failure");

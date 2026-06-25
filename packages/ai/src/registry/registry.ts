@@ -1,4 +1,4 @@
-import type { KnownProvider } from "@oh-my-pi/pi-catalog";
+import type { KnownProvider } from "@amaze/pi-catalog";
 import { aimlApiProvider } from "./aimlapi";
 import { alibabaCodingPlanProvider } from "./alibaba-coding-plan";
 import { amazonBedrockProvider } from "./amazon-bedrock";
@@ -10,6 +10,7 @@ import { cursorProvider } from "./cursor";
 import { deepseekProvider } from "./deepseek";
 import { firepassProvider } from "./firepass";
 import { fireworksProvider } from "./fireworks";
+import { gemma12BProvider } from "./gemma-12b";
 import { githubCopilotProvider } from "./github-copilot";
 import { gitlabDuoProvider } from "./gitlab-duo";
 import { googleProvider } from "./google";
@@ -99,6 +100,7 @@ const ALL = [
 	moonshotProvider,
 	cerebrasProvider,
 	fireworksProvider,
+	gemma12BProvider,
 	togetherProvider,
 	nvidiaProvider,
 	huggingfaceProvider,

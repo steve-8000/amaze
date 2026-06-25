@@ -1,10 +1,10 @@
 import { beforeAll, describe, expect, test, vi } from "bun:test";
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-import { initTheme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { UiHelpers } from "@oh-my-pi/pi-coding-agent/modes/utils/ui-helpers";
-import { buildSessionContext, type SessionContext } from "@oh-my-pi/pi-coding-agent/session/session-context";
-import { type Component, Container } from "@oh-my-pi/pi-tui";
+import type { AgentMessage } from "@amaze/pi-agent-core";
+import { initTheme } from "@amaze/pi-coding-agent/modes/theme/theme";
+import type { InteractiveModeContext } from "@amaze/pi-coding-agent/modes/types";
+import { UiHelpers } from "@amaze/pi-coding-agent/modes/utils/ui-helpers";
+import { buildSessionContext, type SessionContext } from "@amaze/pi-coding-agent/session/session-context";
+import { type Component, Container } from "@amaze/pi-tui";
 
 function renderLastLine(container: Container, width = 120): string {
 	const last = container.children[container.children.length - 1];
@@ -144,5 +144,27 @@ describe("InteractiveMode.showStatus", () => {
 		// handler owns this lifecycle and uses it to guard against clearing the
 		// user's in-progress editor draft during an optimistic send (#783).
 		expect(ctx.optimisticUserMessageSignature).toBe("hello\u00001");
+	});
+
+	test("hides successful task async-result banners while keeping bash ones", () => {
+		const { ctx, helpers } = createInitialRenderHarness();
+		helpers.addMessageToChat({
+			role: "custom",
+			customType: "async-result",
+			content: "Background result",
+			display: true,
+			attribution: "agent",
+			details: {
+				jobs: [
+					{ jobId: "task-job", type: "task", status: "completed" },
+					{ jobId: "bash-job", type: "bash", status: "completed" },
+				],
+			},
+			timestamp: Date.now(),
+		} as AgentMessage);
+
+		const rendered = Bun.stripANSI(renderContainer(ctx.chatContainer));
+		expect(rendered).toContain("Background job completed [bash] bash-job");
+		expect(rendered).not.toContain("task-job");
 	});
 });

@@ -103,7 +103,7 @@ async function parseProgram(code: string): Promise<{ program: { body: ReadonlyAr
 // working in foreign realms while in-worker code still resolves against the session cwd.
 const DYNAMIC_IMPORT_CALLEE = '(typeof __omp_import__ === "function" ? __omp_import__ : (s, o) => import(s, o))';
 
-function buildOmpImportCall(sourceLiteral: string, optionsLiteral: string | undefined): string {
+function buildAmazeImportCall(sourceLiteral: string, optionsLiteral: string | undefined): string {
 	// Route every static import through the worker-injected `__omp_import__` helper so the
 	// specifier resolves against the session cwd (and `with`-attribute imports keep working).
 	return optionsLiteral ? `__omp_import__(${sourceLiteral}, ${optionsLiteral})` : `__omp_import__(${sourceLiteral})`;
@@ -146,7 +146,7 @@ function buildOptionsLiteral(node: BabelImportDeclaration): string | undefined {
 function rewriteImportNode(node: BabelImportDeclaration): string {
 	const sourceLiteral = JSON.stringify(node.source.value);
 	const optionsLiteral = buildOptionsLiteral(node);
-	const importCall = buildOmpImportCall(sourceLiteral, optionsLiteral);
+	const importCall = buildAmazeImportCall(sourceLiteral, optionsLiteral);
 
 	let defaultName: string | undefined;
 	let namespaceName: string | undefined;

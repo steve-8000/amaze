@@ -1,4 +1,4 @@
-import { getMCPConfigPath, logger } from "@oh-my-pi/pi-utils";
+import { getMCPConfigPath, logger } from "@amaze/pi-utils";
 import { connectToServer, disconnectServer, listPrompts, listResources, listTools } from "../../mcp/client";
 import {
 	addMCPServer,
@@ -352,7 +352,7 @@ async function handleSmitherySearchCommand(rest: string, runtime: SlashCommandRu
 		const message = errorMessage(err);
 		if (/401|403|unauthorized|forbidden/i.test(message)) {
 			return usage(
-				"Smithery authentication required. Run /mcp smithery-login in the TUI client or add an API key to ~/.omp/agent/smithery.json.",
+				"Smithery authentication required. Run /mcp smithery-login in the TUI client or add an API key to ~/.amaze/agent/smithery.json.",
 				runtime,
 			);
 		}

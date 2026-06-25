@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type MCPServer, mcpCapability } from "@oh-my-pi/pi-coding-agent/capability/mcp";
-import { loadCapability } from "@oh-my-pi/pi-coding-agent/discovery";
+import { type MCPServer, mcpCapability } from "@amaze/pi-coding-agent/capability/mcp";
+import { loadCapability } from "@amaze/pi-coding-agent/discovery";
 
 async function loadOpenCodeMcpConfig(cwd: string): Promise<MCPServer[]> {
 	const result = await loadCapability<MCPServer>(mcpCapability.id, {
@@ -15,12 +15,17 @@ async function loadOpenCodeMcpConfig(cwd: string): Promise<MCPServer[]> {
 
 describe("OpenCode MCP discovery", () => {
 	let tempDir = "";
+	let originalHome: string | undefined;
 
 	beforeEach(async () => {
-		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-opencode-mcp-"));
+		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "amaze-opencode-mcp-"));
+		originalHome = process.env.HOME;
+		process.env.HOME = tempDir;
 	});
 
 	afterEach(async () => {
+		if (originalHome === undefined) delete process.env.HOME;
+		else process.env.HOME = originalHome;
 		await fs.rm(tempDir, { recursive: true, force: true });
 	});
 
@@ -88,7 +93,7 @@ describe("OpenCode MCP discovery", () => {
 			}),
 		);
 
-		const [server] = await loadOpenCodeMcpConfig(tempDir);
+		const server = (await loadOpenCodeMcpConfig(tempDir)).find(candidate => candidate.name === "plain");
 
 		expect(server?.command).toBe("server-bin");
 		expect(server?.args).toBeUndefined();

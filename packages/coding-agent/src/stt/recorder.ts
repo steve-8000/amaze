@@ -1,7 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { $which, logger, Snowflake } from "@oh-my-pi/pi-utils";
+import { $which, logger, Snowflake } from "@amaze/pi-utils";
 import { $, type Subprocess } from "bun";
 import { ensureTool, getToolPath } from "../utils/tools-manager";
 import { decodePcmS16LE } from "./wav";
@@ -197,7 +197,7 @@ if (Test-Path $outPath) {
 
 async function startPowerShellRecording(outputPath: string): Promise<RecordingHandle> {
 	// Write script to temp file — avoids quoting/escaping issues with -Command
-	const scriptPath = path.join(os.tmpdir(), `omp-stt-record-${Snowflake.next()}.ps1`);
+	const scriptPath = path.join(os.tmpdir(), `amaze-stt-record-${Snowflake.next()}.ps1`);
 	await Bun.write(scriptPath, PS_RECORD_SCRIPT);
 
 	const proc = Bun.spawn(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", scriptPath, outputPath], {
@@ -355,7 +355,7 @@ async function startRecordingWithRecorder(recorder: ResolvedRecorder, outputPath
 export async function startRecording(outputPath: string): Promise<RecordingHandle> {
 	const recorders = detectRecorders();
 	if (recorders.length === 0) {
-		throw new Error("No audio recorder available — run `omp setup speech`");
+		throw new Error("No audio recorder available — run `amaze setup speech`");
 	}
 
 	const failures: string[] = [];
@@ -372,7 +372,7 @@ export async function startRecording(outputPath: string): Promise<RecordingHandl
 			});
 		}
 	}
-	throw new Error(`No audio recorder could start — run \`omp setup speech\`.\n${failures.join("\n")}`);
+	throw new Error(`No audio recorder could start — run \`amaze setup speech\`.\n${failures.join("\n")}`);
 }
 
 /**
@@ -515,7 +515,7 @@ export async function startStreamingRecording(
 ): Promise<StreamingRecordingHandle | null> {
 	const recorders = detectRecorders();
 	if (recorders.length === 0) {
-		throw new Error("No audio recorder available — run `omp setup speech`");
+		throw new Error("No audio recorder available — run `amaze setup speech`");
 	}
 	const streamingRecorders = recorders.filter(recorder => recorder.tool !== "powershell");
 	if (streamingRecorders.length === 0) return null;

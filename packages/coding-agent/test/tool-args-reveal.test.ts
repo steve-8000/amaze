@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { STREAMING_REVEAL_FRAME_MS } from "@oh-my-pi/pi-coding-agent/modes/controllers/streaming-reveal";
-import { ToolArgsRevealController } from "@oh-my-pi/pi-coding-agent/modes/controllers/tool-args-reveal";
+import { STREAMING_REVEAL_FRAME_MS } from "@amaze/pi-coding-agent/modes/controllers/streaming-reveal";
+import { ToolArgsRevealController } from "@amaze/pi-coding-agent/modes/controllers/tool-args-reveal";
 
 class RecordingArgsComponent {
 	frames: Array<Record<string, unknown>> = [];

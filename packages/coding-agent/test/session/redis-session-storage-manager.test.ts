@@ -9,12 +9,12 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import type { Usage } from "@oh-my-pi/pi-ai";
+import type { Usage } from "@amaze/pi-ai";
 import {
 	RedisSessionStorage,
 	type RedisSessionStorageClient,
-} from "@oh-my-pi/pi-coding-agent/session/redis-session-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+} from "@amaze/pi-coding-agent/session/redis-session-storage";
+import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
 
 interface FakeRedis extends RedisSessionStorageClient {
 	strings: Map<string, string>;
@@ -150,7 +150,7 @@ describe("SessionManager + RedisSessionStorage", () => {
 		await manager.close();
 
 		// Redis now contains the JSONL — header + one message entry.
-		const stored = redis.strings.get(`omp:sessions:file:${sessionFilePath}`);
+		const stored = redis.strings.get(`amaze:sessions:file:${sessionFilePath}`);
 		expect(stored).toBeDefined();
 		const lines = (stored as string).trim().split("\n");
 		expect(lines.length).toBeGreaterThanOrEqual(2);

@@ -8,15 +8,15 @@
  * pin a banner.
  */
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import type { AssistantMessage } from "@oh-my-pi/pi-ai";
-import { THINKING_LOOP_ERROR_MARKER } from "@oh-my-pi/pi-ai/utils/thinking-loop";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { AssistantMessageComponent } from "@oh-my-pi/pi-coding-agent/modes/components/assistant-message";
-import { ErrorBannerComponent } from "@oh-my-pi/pi-coding-agent/modes/components/error-banner";
-import { EventController } from "@oh-my-pi/pi-coding-agent/modes/controllers/event-controller";
-import { initTheme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import type { AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import type { AssistantMessage } from "@amaze/pi-ai";
+import { THINKING_LOOP_ERROR_MARKER } from "@amaze/pi-ai/utils/thinking-loop";
+import { resetSettingsForTest, Settings } from "@amaze/pi-coding-agent/config/settings";
+import { AssistantMessageComponent } from "@amaze/pi-coding-agent/modes/components/assistant-message";
+import { ErrorBannerComponent } from "@amaze/pi-coding-agent/modes/components/error-banner";
+import { EventController } from "@amaze/pi-coding-agent/modes/controllers/event-controller";
+import { initTheme } from "@amaze/pi-coding-agent/modes/theme/theme";
+import type { InteractiveModeContext } from "@amaze/pi-coding-agent/modes/types";
+import type { AgentSessionEvent } from "@amaze/pi-coding-agent/session/agent-session";
 
 function makeAssistantMessage(overrides: Partial<AssistantMessage> = {}): AssistantMessage {
 	return {

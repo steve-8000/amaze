@@ -1,4 +1,4 @@
-import { getProjectDir, logger } from "@oh-my-pi/pi-utils";
+import { getProjectDir, logger } from "@amaze/pi-utils";
 import {
 	type AutocompleteProvider,
 	type CombinedAutocompleteProvider,
@@ -689,9 +689,7 @@ export class Editor implements Component, Focusable {
 
 	#getStyledInputCursor(): { text: string; width: number } {
 		const cursorChar = this.#theme.symbols.inputCursor;
-		// Keep the software cursor steady. Ghostty/cmux can leave visual
-		// afterimages for SGR blink cells during rapid input-row repaints.
-		return { text: cursorChar, width: visibleWidth(cursorChar) };
+		return { text: `\x1b[5m${cursorChar}\x1b[0m`, width: visibleWidth(cursorChar) };
 	}
 
 	#renderEndOfLineCursorAtWidthLimit(

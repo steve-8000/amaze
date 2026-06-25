@@ -5,10 +5,10 @@
  */
 
 import path from "node:path";
-import type { AgentEvent, AgentIdentity, AgentTelemetryConfig, ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import { recordHandoff, resolveTelemetry } from "@oh-my-pi/pi-agent-core";
-import type { Api, Model, Usage } from "@oh-my-pi/pi-ai";
-import { logger, popLoopPhase, prompt, pushLoopPhase, untilAborted } from "@oh-my-pi/pi-utils";
+import type { AgentEvent, AgentIdentity, AgentTelemetryConfig, ThinkingLevel } from "@amaze/pi-agent-core";
+import { recordHandoff, resolveTelemetry } from "@amaze/pi-agent-core";
+import type { Api, Model, Usage } from "@amaze/pi-ai";
+import { logger, popLoopPhase, prompt, pushLoopPhase, untilAborted } from "@amaze/pi-utils";
 import type { Rule } from "../capability/rule";
 import { ModelRegistry } from "../config/model-registry";
 import {
@@ -20,19 +20,17 @@ import {
 import type { PromptTemplate } from "../config/prompt-templates";
 import { Settings } from "../config/settings";
 import { SETTINGS_SCHEMA, type SettingPath } from "../config/settings-schema";
+import { allowExtensionContextHooks } from "../context/context-policy";
 import type { ToolPathWithSource } from "../extensibility/custom-tools";
 import type { CustomTool } from "../extensibility/custom-tools/types";
 import { runExtensionCompact, runExtensionSetModel } from "../extensibility/extensions/compact-handler";
 import { getSessionSlashCommands } from "../extensibility/extensions/get-commands-handler";
 import { buildSkillPromptMessage, type Skill } from "../extensibility/skills";
-import type { HindsightSessionState } from "../hindsight/state";
 import type { LocalProtocolOptions } from "../internal-urls";
 import { callTool } from "../mcp/client";
 import type { MCPManager } from "../mcp/manager";
-import type { MnemopiSessionState } from "../mnemopi/state";
 import subagentSystemPromptTemplate from "../prompts/system/subagent-system-prompt.md" with { type: "text" };
 import submitReminderTemplate from "../prompts/system/subagent-yield-reminder.md" with { type: "text" };
-import { AgentLifecycleManager } from "../registry/agent-lifecycle";
 import { AgentRegistry } from "../registry/agent-registry";
 import { type CreateAgentSessionOptions, createAgentSession, discoverAuthStorage } from "../sdk";
 import type { AgentSession, AgentSessionEvent } from "../session/agent-session";
@@ -55,6 +53,7 @@ import { ToolAbortError } from "../tools/tool-errors";
 import type { EventBus } from "../utils/event-bus";
 import { buildNamedToolChoice } from "../utils/tool-choice";
 import type { WorkspaceTree } from "../workspace-tree";
+import type { SubagentLaunchSpec } from "./subagent-launch-spec";
 import { subprocessToolRegistry } from "./subprocess-tool-registry";
 import {
 	type AgentDefinition,
@@ -81,8 +80,9 @@ const MCP_CALL_TIMEOUT_MS = 60_000;
  * overridden via the `task.softRequestBudget` setting (0 disables the guard).
  */
 export const SOFT_REQUEST_BUDGET: Record<string, number> = {
-	explore: 40,
-	quick_task: 40,
+	finder: 40,
+	fixer: 40,
+	helper: 40,
 	default: 90,
 };
 
@@ -196,15 +196,12 @@ function installSubagentRetryFallbackChain(args: {
 function renderIrcPeerRoster(selfId: string): string {
 	const peers = AgentRegistry.global()
 		.list()
-		.filter(ref => ref.id !== selfId && ref.status !== "aborted" && ref.kind !== "advisor");
+		.filter(ref => ref.id !== selfId && ref.kind !== "advisor" && ref.status === "running");
 	if (peers.length === 0) return "- (no other agents)";
 	const lines = peers.map(
 		peer =>
 			`- \`${peer.id}\` — ${peer.displayName} (${peer.kind}, ${peer.status})${peer.activity ? `: ${peer.activity}` : ""}`,
 	);
-	if (peers.some(peer => peer.status === "idle" || peer.status === "parked")) {
-		lines.push("Idle/parked peers are not gone: messaging them wakes (or revives) them.");
-	}
 	return lines.join("\n");
 }
 
@@ -299,7 +296,6 @@ export interface ExecutorOptions {
 	 * watchdog is already suspended for the call's duration.
 	 */
 	maxRuntimeMs?: number;
-	enableLsp?: boolean;
 	signal?: AbortSignal;
 	onProgress?: (progress: AgentProgress) => void;
 	/**
@@ -330,11 +326,13 @@ export interface ExecutorOptions {
 	preloadedExtensionPaths?: string[];
 	/**
 	 * Parent's discovered custom-tool source paths. Forwarded to skip the
-	 * `.omp/tools/` FS scan in the subagent; the subagent then re-binds each
+	 * `.amaze/tools/` FS scan in the subagent; the subagent then re-binds each
 	 * tool against its own `CustomToolAPI` (cwd, exec, pushPendingAction, UI).
 	 */
 	preloadedCustomToolPaths?: ToolPathWithSource[];
 	mcpManager?: MCPManager;
+	/** @deprecated Deprecated no-op retained for callers after LSP removal. */
+	enableLsp?: boolean;
 	authStorage?: AuthStorage;
 	modelRegistry?: ModelRegistry;
 	settings?: Settings;
@@ -346,8 +344,8 @@ export interface ExecutorOptions {
 	 * artifacts directory (no per-subagent subdir).
 	 */
 	parentArtifactManager?: ArtifactManager;
-	parentHindsightSessionState?: HindsightSessionState;
-	parentMnemopiSessionState?: MnemopiSessionState;
+	/** Normalized contract/profile metadata for this subagent launch. */
+	launchSpec?: SubagentLaunchSpec;
 	/** Parent agent's eval executor session id. Subagents reuse it so eval state is shared. */
 	parentEvalSessionId?: string;
 	/**
@@ -740,6 +738,9 @@ export function createSubagentSettings(
 		...snapshot,
 		"async.enabled": false,
 		"bash.autoBackground.enabled": false,
+		"autolearn.enabled": false,
+		"task.eager": "default",
+		"todo.eager": "default",
 
 		// Subagents run headless — there is no UI to confirm prompts against, so
 		// the parent task approval is the authorization boundary. Use yolo mode
@@ -1683,6 +1684,8 @@ async function finalizeRunResult(args: FinalizeRunArgs): Promise<SingleResult> {
 		usage: monitor.hasUsage() ? monitor.accumulatedUsage : undefined,
 		outputPath,
 		extractedToolData: progress.extractedToolData,
+		toolCount: progress.toolCount,
+		recentTools: progress.recentTools.map(tool => ({ ...tool })),
 		retryFailure: progress.retryFailure,
 		outputMeta,
 	};
@@ -1703,7 +1706,6 @@ export async function runSubprocess(options: ExecutorOptions): Promise<SingleRes
 		modelOverride,
 		thinkingLevel,
 		outputSchema,
-		enableLsp,
 		signal,
 		onProgress,
 	} = options;
@@ -1758,9 +1760,6 @@ export async function runSubprocess(options: ExecutorOptions): Promise<SingleRes
 		0,
 		Math.trunc(Number(options.maxRuntimeMs ?? settings.get("task.maxRuntimeMs") ?? 0) || 0),
 	);
-	// TTL before an adopted idle subagent is parked by the lifecycle manager.
-	// <= 0 disables parking (the session stays live until process teardown).
-	const agentIdleTtlMs = Math.trunc(Number(settings.get("task.agentIdleTtlMs") ?? 420_000) || 0);
 	const configuredDefaultBudget = Math.max(
 		0,
 		Math.trunc(Number(settings.get("task.softRequestBudget") ?? SOFT_REQUEST_BUDGET.default) || 0),
@@ -1808,7 +1807,6 @@ export async function runSubprocess(options: ExecutorOptions): Promise<SingleRes
 				? "*"
 				: agent.spawns.join(",");
 
-	const lspEnabled = enableLsp ?? true;
 	const ircEnabled = isIrcEnabled(subagentSettings, childDepth);
 	const skipPythonPreflight = Array.isArray(toolNames) && !toolNames.includes("eval");
 
@@ -1831,11 +1829,9 @@ export async function runSubprocess(options: ExecutorOptions): Promise<SingleRes
 	});
 	const progress = monitor.progress;
 	let unsubscribe: (() => void) | null = null;
-	let reviveSession: (() => Promise<AgentSession>) | null = null;
-	// Adopted (kept-alive) subagents flip registry status from session events on
-	// later turns: revive/wake → running, turn drained → idle. The subscription
-	// intentionally survives this run; a disposed session emits nothing, so it
-	// needs no teardown.
+	// Live subagents flip registry status from session events while their
+	// contract turn is running. After yield, the executor parks the ref and
+	// disposes the session instead of adopting it for later wake/revive.
 	const installRegistryStatusSync = (target: AgentSession): void => {
 		target.subscribe(event => {
 			if (event.type === "agent_start") {
@@ -2025,14 +2021,21 @@ export async function runSubprocess(options: ExecutorOptions): Promise<SingleRes
 				toolNames,
 				outputSchema,
 				requireYieldTool: true,
-				contextFiles: options.contextFiles,
+				contextFiles: [],
 				skills: options.skills,
 				promptTemplates: options.promptTemplates,
-				workspaceTree: options.workspaceTree,
+				workspaceTree: {
+					rootPath: worktree ?? cwd,
+					rendered: "",
+					truncated: false,
+					totalLines: 0,
+					agentsMdFiles: [],
+				},
 				rules: options.rules,
 				preloadedExtensionPaths: options.preloadedExtensionPaths,
 				preloadedCustomToolPaths: options.preloadedCustomToolPaths,
-				systemPrompt: defaultPrompt => {
+				allowExtensionContextHooks: allowExtensionContextHooks("contract", options.launchSpec),
+				systemPrompt: _defaultPrompt => {
 					const subagentPrompt = prompt.render(subagentSystemPromptTemplate, {
 						agent: agent.systemPrompt,
 						role: subagentRole ? oneLineLabel(subagentRole) : "",
@@ -2044,21 +2047,17 @@ export async function runSubprocess(options: ExecutorOptions): Promise<SingleRes
 						ircPeers: ircEnabled ? renderIrcPeerRoster(id) : "",
 						ircSelfId: ircEnabled ? id : "",
 					});
-					return defaultPrompt.length === 0
-						? [subagentPrompt]
-						: [...defaultPrompt.slice(0, -1), subagentPrompt, defaultPrompt[defaultPrompt.length - 1]];
+					return [subagentPrompt];
 				},
 				sessionManager: sessionManagerForRun,
 				hasUI: false,
 				spawns: spawnsEnv,
 				taskDepth: childDepth,
-				parentHindsightSessionState: options.parentHindsightSessionState,
-				parentMnemopiSessionState: options.parentMnemopiSessionState,
 				parentTaskPrefix: id,
 				parentAgentId: options.parentAgentId,
 				agentId: id,
+				agentName: agent.name,
 				agentDisplayName: subagentDisplayName,
-				enableLsp: lspEnabled,
 				skipPythonPreflight,
 				enableMCP,
 				mcpManager: options.mcpManager,
@@ -2077,7 +2076,7 @@ export async function runSubprocess(options: ExecutorOptions): Promise<SingleRes
 				({ session } = await awaitAbortable(sessionPromise));
 			} catch (err) {
 				// Abort raced session startup. The session may still resolve later
-				// holding live LSP/MCP child processes — dispose it when it does so
+				// holding live MCP child processes — dispose it when it does so
 				// a cancelled subagent cannot leak them.
 				void sessionPromise.then(created => created.session.dispose()).catch(() => {});
 				throw err;
@@ -2086,24 +2085,6 @@ export async function runSubprocess(options: ExecutorOptions): Promise<SingleRes
 
 			monitor.setActiveSession(session);
 			installRegistryStatusSync(session);
-			if (sessionFile !== null && worktree === undefined) {
-				// Lifecycle reviver: park closed the JSONL writer, so reopening takes
-				// the single-writer lock cleanly and restores the full message history
-				// (createAgentSession → agent.replaceMessages). Isolated runs are not
-				// resumable (worktree is merged + cleaned) and never get a reviver.
-				reviveSession = async () => {
-					const reopened = await SessionManager.open(sessionFile, undefined, undefined, {
-						suppressBreadcrumb: true,
-					});
-					if (options.parentArtifactManager) {
-						reopened.adoptArtifactManager(options.parentArtifactManager);
-					}
-					const { session: revived } = await createAgentSession(buildSubagentSessionOptions(reopened));
-					installRegistryStatusSync(revived);
-					return revived;
-				};
-			}
-
 			// Emit lifecycle start event
 			if (options.eventBus) {
 				options.eventBus.emit(TASK_SUBAGENT_LIFECYCLE_CHANNEL, {
@@ -2129,10 +2110,12 @@ export async function runSubprocess(options: ExecutorOptions): Promise<SingleRes
 			session.sessionManager.appendSessionInit({
 				systemPrompt: session.agent.state.systemPrompt.join("\n\n"),
 				task,
+				agentName: agent.name,
 				tools: session.getActiveToolNames(),
 				spawns: spawnsEnv,
 				readSummarize: agent.readSummarize,
 				outputSchema,
+				contextAudit: options.launchSpec?.contextAudit,
 			});
 
 			abortSignal.addEventListener(
@@ -2260,8 +2243,24 @@ export async function runSubprocess(options: ExecutorOptions): Promise<SingleRes
 			if (session) {
 				monitor.captureSalvage(session);
 				const registry = AgentRegistry.global();
+				const revivable = options.launchSpec?.irc.revivable ?? false;
+				const markContractTerminal = (): void => {
+					session.sessionManager.appendSessionInit({
+						systemPrompt: session.agent.state.systemPrompt.join("\n\n"),
+						task,
+						agentName: agent.name,
+						tools: session.getActiveToolNames(),
+						spawns: spawnsEnv,
+						readSummarize: agent.readSummarize,
+						outputSchema,
+						revivable,
+						contextAudit: options.launchSpec?.contextAudit,
+					});
+					registry.setRevivable(id, revivable);
+				};
 				if (aborted) {
 					// Hard abort (caller signal / wall-clock / budget): terminal teardown.
+					markContractTerminal();
 					registry.setStatus(id, "aborted");
 					try {
 						await untilAborted(AbortSignal.timeout(5000), () => session.dispose());
@@ -2274,6 +2273,7 @@ export async function runSubprocess(options: ExecutorOptions): Promise<SingleRes
 					// transcript stays reachable (history://), but ensureLive will throw.
 					// Status must flip to "parked" before dispose so the sdk dispose
 					// wrapper skips unregister.
+					markContractTerminal();
 					registry.setStatus(id, "parked");
 					try {
 						await untilAborted(AbortSignal.timeout(5000), () => session.dispose());
@@ -2282,13 +2282,19 @@ export async function runSubprocess(options: ExecutorOptions): Promise<SingleRes
 					}
 					registry.detachSession(id);
 				} else {
-					// Keep-alive: finished and failed subagents both stay interrogable.
-					// The lifecycle manager owns idle-TTL parking + revival from here on.
-					registry.setStatus(id, "idle");
-					AgentLifecycleManager.global().adopt(id, {
-						idleTtlMs: agentIdleTtlMs,
-						revive: reviveSession ?? undefined,
-					});
+					// Contract runs are terminal after their single yield/result. Do not
+					// leave them live-idle or revivable: an IRC wake would start another
+					// model turn under the same "yield exactly once" contract and can
+					// produce repeated returns. Keep only the registry ref/sessionFile so
+					// history:// remains available.
+					markContractTerminal();
+					registry.setStatus(id, "parked");
+					try {
+						await untilAborted(AbortSignal.timeout(5000), () => session.dispose());
+					} catch {
+						// Ignore cleanup errors
+					}
+					registry.detachSession(id);
 				}
 			}
 		}

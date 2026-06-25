@@ -2,9 +2,9 @@
  * Task tool - Delegate tasks to specialized agents.
  *
  * Discovers agent definitions from:
- *   - Bundled agents (shipped with omp-coding-agent)
- *   - ~/.omp/agent/agents/*.md (user-level)
- *   - .omp/agents/*.md (project-level)
+ *   - Bundled agents (shipped with amaze-coding-agent)
+ *   - ~/.amaze/agent/agents/*.md (user-level)
+ *   - .amaze/agents/*.md (project-level)
  *
  * Supports:
  *   - Single agent spawn per call (parallelism = parallel task calls)
@@ -16,9 +16,9 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import path from "node:path";
-import type { AgentTool, AgentToolResult, AgentToolUpdateCallback } from "@oh-my-pi/pi-agent-core";
-import type { Usage } from "@oh-my-pi/pi-ai";
-import { $env, logger, prompt, Snowflake } from "@oh-my-pi/pi-utils";
+import type { AgentTool, AgentToolResult, AgentToolUpdateCallback } from "@amaze/pi-agent-core";
+import type { Usage } from "@amaze/pi-ai";
+import { $env, logger, prompt, Snowflake } from "@amaze/pi-utils";
 import type { ToolSession } from "..";
 import { resolveAgentModelPatterns } from "../config/model-resolver";
 import { MCPManager } from "../mcp/manager";
@@ -35,6 +35,7 @@ import {
 	type AgentProgress,
 	canSpawnAtDepth,
 	getTaskSchema,
+	resolveSubagentDisplayName,
 	type SingleResult,
 	type TaskItem,
 	type TaskParams,
@@ -51,11 +52,12 @@ import { generateCommitMessage } from "../utils/commit-message-generator";
 import * as git from "../utils/git";
 import { type DiscoveryResult, discoverAgents, getAgent } from "./discovery";
 import { runSubprocess } from "./executor";
-import { generateTaskName } from "./name-generator";
+import { generateSubagentName } from "./name-generator";
 import { AgentOutputManager } from "./output-manager";
 import { mapWithConcurrencyLimit, Semaphore } from "./parallel";
 import { renderResult, renderCall as renderTaskCall } from "./render";
 import { repairTaskParams } from "./repair-args";
+import { buildSubagentLaunchSpec } from "./subagent-launch-spec";
 import {
 	applyNestedPatches,
 	captureBaseline,
@@ -335,34 +337,18 @@ function spawnParamsFor(params: TaskParams, item: TaskItem): TaskParams {
 	return spawn;
 }
 
-/** Generic worker agents whose output sharpens with a tailored `role` rather than the bare type. */
-const GENERIC_SPAWN_AGENTS: ReadonlySet<string> = new Set(["task", "quick_task"]);
-
 /**
- * Advisory — never a rejection — nudging the spawner toward tailored
- * specialists when it spawns generic role-less workers and still holds spawn
- * capacity (DepthCapacity: it currently has the `task` tool). Fires when a
- * generic `task`/`quick_task` spawn carries no `role`, or when one call clones
- * the same agent ≥2× all without roles. Returns undefined when no nudge applies.
+ * Specialization advisories are intentionally disabled after task fanout.
  */
 export function buildSpecializationAdvisory(
 	agentName: string | undefined,
 	items: TaskItem[],
 	depthCapacity: boolean,
 ): string | undefined {
-	if (!depthCapacity) return undefined;
-	const rolelessCount = items.filter(item => !item.role?.trim()).length;
-	if (rolelessCount === 0) return undefined;
-	const generic = agentName !== undefined && GENERIC_SPAWN_AGENTS.has(agentName);
-	const cloned = items.length >= 2 && rolelessCount === items.length;
-	if (!generic && !cloned) return undefined;
-	const label = agentName ?? "task";
-	return (
-		`Tip: spawned ${rolelessCount} \`${label}\` worker${rolelessCount === 1 ? "" : "s"} without a \`role\`. ` +
-		`Tailored specialists outperform generic workers — give each spawn a \`role\` naming its expertise ` +
-		`(e.g. "Auth-flow security reviewer"). Depth budget remains, so decompose into named specialists ` +
-		`rather than cloning one generic worker.`
-	);
+	void agentName;
+	void items;
+	void depthCapacity;
+	return undefined;
 }
 
 /**
@@ -384,12 +370,10 @@ export function buildCoordinationAdvisory(
 }
 
 /**
- * Compose the non-blocking advisory appended to a `task` result: the
- * specialization nudge, plus — only when the siblings keep running after this
- * call (`willRunAsync`) — the coordination suggestion. Coordination is gated on
- * async because a sync fanout's siblings have already finished, so a
- * "coordinate while they run" hint would misfire. Returns undefined when
- * neither applies.
+ * Compose the non-blocking advisory appended to a `task` result. Only the
+ * async coordination suggestion remains, because sync siblings have already
+ * finished by the time this call returns. Returns undefined when no
+ * coordination hint applies.
  */
 export function composeSpawnAdvisory(args: {
 	agentName: string | undefined;
@@ -630,7 +614,7 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 		const spawns: Array<{ agentId: string; item: TaskItem; progress: AgentProgress }> = [];
 		for (let index = 0; index < spawnItems.length; index++) {
 			const item = spawnItems[index];
-			const agentId = await outputManager.allocate(item.id?.trim() || generateTaskName());
+			const agentId = await outputManager.allocate(item.id?.trim() || generateSubagentName(agentLabel));
 			const assignment = (item.assignment ?? "").trim();
 			spawns.push({
 				agentId,
@@ -730,7 +714,7 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 				content: [
 					{
 						type: "text",
-						text: `Spawned agent \`${agentId}\` (job \`${jobId}\`)${descriptionSuffix}. The result will be delivered when it yields. ${coordinationHint}`,
+						text: `Spawned agent \`${agentId}\` (job \`${jobId}\`)${descriptionSuffix}. Use \`irc\` only while it runs; after it finishes, read \`history://${agentId}\`. Failures will surface automatically. ${coordinationHint}`,
 					},
 				],
 				details: buildAsyncDetails("running", jobId),
@@ -758,7 +742,7 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 			content: [
 				{
 					type: "text",
-					text: `Spawned ${started.length} background agents using ${agentLabel}.${scheduleFailureSummary} Each result will be delivered when that agent yields.\n${startedListing}\n${coordinationHint}`,
+					text: `Spawned ${started.length} background agents using ${agentLabel}.${scheduleFailureSummary} Use \`irc\` only while they run; after they finish, read \`history://<id>\`. Failures will surface automatically.\n${startedListing}\n${coordinationHint}`,
 				},
 			],
 			details: buildAsyncDetails("running", primaryJobId),
@@ -767,9 +751,10 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 
 	/**
 	 * Register one background job that runs a single spawn to completion and
-	 * delivers its yield text. The job body mirrors the sync path; `buildDetails`
-	 * supplies the (possibly batch-shared) progress snapshot and `onSettled`
-	 * feeds the caller's aggregate counters.
+	 * retains successful yield text for history/polling while delivering failures.
+	 * The job body mirrors the sync path; `buildDetails` supplies the (possibly
+	 * batch-shared) progress snapshot and `onSettled` feeds the caller's aggregate
+	 * counters.
 	 */
 	#registerSpawnJob(options: {
 		manager: AsyncJobManager;
@@ -782,14 +767,15 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 		onUpdate?: AgentToolUpdateCallback<TaskToolDetails>;
 		onSettled?: (failed: boolean) => void;
 	}): string {
-		const { manager, toolCallId, spawnParams, agentId, progress, ircEnabled, buildDetails, onUpdate, onSettled } =
-			options;
-		const buildFollowUpHint = (aborted: boolean): string => {
-			if (aborted) {
+		const { manager, toolCallId, spawnParams, agentId, progress, buildDetails, onUpdate, onSettled } = options;
+		const buildFollowUpHint = (state: "completed" | "failed" | "aborted"): string => {
+			if (state === "aborted") {
 				return `\n\n${agentId} was aborted — transcript at history://${agentId}`;
 			}
-			const followUp = ircEnabled ? "message it via `irc` to follow up; " : "";
-			return `\n\n${agentId} is now idle — ${followUp}transcript at history://${agentId}`;
+			if (state === "failed") {
+				return `\n\n${agentId} failed — transcript at history://${agentId}`;
+			}
+			return `\n\n${agentId} completed — transcript at history://${agentId}`;
 		};
 		return manager.register(
 			"task",
@@ -849,7 +835,8 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 						content: [{ type: "text", text: statusText }],
 						details: buildDetails(resultFailed ? "failed" : "completed", ownJobId),
 					});
-					const deliveryText = `${finalText}${buildFollowUpHint(singleResult?.aborted === true)}`;
+					const followUpState = singleResult?.aborted === true ? "aborted" : resultFailed ? "failed" : "completed";
+					const deliveryText = `${finalText}${buildFollowUpHint(followUpState)}`;
 					if (resultFailed) {
 						// Mark the job itself failed; the failed agent stays interrogable.
 						throw new TaskJobError(deliveryText);
@@ -869,7 +856,7 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 						details: buildDetails("failed", ownJobId),
 					});
 					const message = error instanceof Error ? error.message : String(error);
-					const hint = AgentRegistry.global().get(agentId) ? buildFollowUpHint(false) : "";
+					const hint = AgentRegistry.global().get(agentId) ? buildFollowUpHint("failed") : "";
 					throw new TaskJobError(`${message}${hint}`);
 				} finally {
 					semaphore.release();
@@ -878,6 +865,7 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 			{
 				id: agentId,
 				queued: true,
+				deliverOnSuccess: false,
 				ownerId: this.session.getAgentId?.() ?? undefined,
 				onProgress: (text, details) => {
 					const progressDetails = (details as TaskToolDetails | undefined) ?? buildDetails("running", agentId);
@@ -1049,7 +1037,6 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 		const mergeMode = this.session.settings.get("task.isolation.merge");
 		const commitStyle = this.session.settings.get("task.isolation.commits");
 		const taskDepth = this.session.taskDepth ?? 0;
-		const subagentLspEnabled = (this.session.enableLsp ?? true) && this.session.settings.get("task.enableLsp");
 
 		if (isolationMode === "none" && "isolated" in params) {
 			return {
@@ -1084,7 +1071,7 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 		}
 
 		const planModeState = this.session.getPlanModeState?.();
-		const planModeBaseTools = ["read", "search", "find", "lsp", "web_search"];
+		const planModeBaseTools = ["read", "search", "find", "web_search"];
 		const planModeTools = [
 			...planModeBaseTools,
 			...(agent.tools ?? []).filter(
@@ -1138,7 +1125,7 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 		// Derive artifacts directory
 		const sessionFile = this.session.getSessionFile();
 		const artifactsDir = sessionFile ? sessionFile.slice(0, -6) : null;
-		const tempArtifactsDir = artifactsDir ? null : path.join(os.tmpdir(), `omp-task-${Snowflake.next()}`);
+		const tempArtifactsDir = artifactsDir ? null : path.join(os.tmpdir(), `amaze-task-${Snowflake.next()}`);
 		const effectiveArtifactsDir = artifactsDir || tempArtifactsDir!;
 
 		const localProtocolOptions: LocalProtocolOptions = this.session.localProtocolOptions ?? {
@@ -1201,7 +1188,7 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 			} else {
 				const outputManager =
 					this.session.agentOutputManager ?? new AgentOutputManager(this.session.getArtifactsDir ?? (() => null));
-				agentId = await outputManager.allocate(params.id?.trim() || generateTaskName());
+				agentId = await outputManager.allocate(params.id?.trim() || generateSubagentName(agentName));
 			}
 
 			const availableSkills = [...(this.session.skills ?? [])];
@@ -1263,6 +1250,27 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 						}
 					: undefined;
 
+			const spawnsSpec =
+				effectiveAgent.spawns === "*"
+					? "*"
+					: Array.isArray(effectiveAgent.spawns)
+						? effectiveAgent.spawns.join(",")
+						: "";
+			const launchSpec = buildSubagentLaunchSpec({
+				id: agentId,
+				agent: effectiveAgent,
+				displayName: resolveSubagentDisplayName(params.role, effectiveAgent.name),
+				modelSelector: modelOverride,
+				thinkingLevel: thinkingLevelOverride,
+				taskDepth,
+				task: renderSubagentUserPrompt(assignment),
+				assignment,
+				context: sharedContext,
+				tools: effectiveAgent.tools,
+				spawns: spawnsSpec,
+				ircEnabled: isIrcEnabled(this.session.settings, taskDepth + 1),
+			});
+
 			const sharedRunOptions = {
 				cwd: this.session.cwd,
 				agent: effectiveAgent,
@@ -1286,7 +1294,6 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 				sessionFile,
 				persistArtifacts: !!artifactsDir,
 				artifactsDir: effectiveArtifactsDir,
-				enableLsp: subagentLspEnabled,
 				signal,
 				eventBus: this.session.eventBus,
 				onProgress: (progress: AgentProgress) => {
@@ -1310,11 +1317,10 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 				preloadedCustomToolPaths: this.session.customToolPaths,
 				localProtocolOptions,
 				parentArtifactManager,
-				parentHindsightSessionState: this.session.getHindsightSessionState?.(),
-				parentMnemopiSessionState: this.session.getMnemopiSessionState?.(),
 				parentTelemetry: this.session.getTelemetry?.(),
 				parentEvalSessionId,
 				parentAgentId: this.session.getAgentId?.() ?? MAIN_AGENT_ID,
+				launchSpec,
 			};
 
 			const runTask = async (): Promise<SingleResult> => {
@@ -1357,7 +1363,7 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 							};
 						} catch (mergeErr) {
 							// Agent succeeded but branch commit failed — clean up stale branch
-							const branchName = `omp/task/${agentId}`;
+							const branchName = `amaze/task/${agentId}`;
 							await git.branch.tryDelete(repoRoot, branchName);
 							const msg = mergeErr instanceof Error ? mergeErr.message : String(mergeErr);
 							return { ...result, error: `Merge failed: ${msg}` };

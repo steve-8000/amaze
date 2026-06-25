@@ -1,19 +1,19 @@
 import { afterEach, beforeAll, describe, expect, test, vi } from "bun:test";
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-import type { ImageContent, TextContent } from "@oh-my-pi/pi-ai";
+import type { AgentMessage } from "@amaze/pi-agent-core";
+import type { ImageContent, TextContent } from "@amaze/pi-ai";
 import type {
 	ExtensionActions,
 	ExtensionCommandContextActions,
 	ExtensionContextActions,
 	ExtensionUIContext,
-} from "@oh-my-pi/pi-coding-agent/extensibility/extensions";
-import { ExtensionUiController } from "@oh-my-pi/pi-coding-agent/modes/controllers/extension-ui-controller";
-import { initTheme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { UiHelpers } from "@oh-my-pi/pi-coding-agent/modes/utils/ui-helpers";
-import { buildSessionContext, type SessionContext } from "@oh-my-pi/pi-coding-agent/session/session-context";
-import type { CustomMessageEntry, SessionEntry } from "@oh-my-pi/pi-coding-agent/session/session-entries";
-import { Container } from "@oh-my-pi/pi-tui";
+} from "@amaze/pi-coding-agent/extensibility/extensions";
+import { ExtensionUiController } from "@amaze/pi-coding-agent/modes/controllers/extension-ui-controller";
+import { initTheme } from "@amaze/pi-coding-agent/modes/theme/theme";
+import type { InteractiveModeContext } from "@amaze/pi-coding-agent/modes/types";
+import { UiHelpers } from "@amaze/pi-coding-agent/modes/utils/ui-helpers";
+import { buildSessionContext, type SessionContext } from "@amaze/pi-coding-agent/session/session-context";
+import type { CustomMessageEntry, SessionEntry } from "@amaze/pi-coding-agent/session/session-entries";
+import { Container } from "@amaze/pi-tui";
 
 /**
  * Issue #1955: `sendMessage` with `display: true` renders twice during

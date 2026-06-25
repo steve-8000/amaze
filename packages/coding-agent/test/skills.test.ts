@@ -1,10 +1,11 @@
-import { describe, expect, it, spyOn } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type Skill as CapabilitySkill, skillCapability } from "@oh-my-pi/pi-coding-agent/capability/skill";
-import { getCapability } from "@oh-my-pi/pi-coding-agent/discovery";
-import { loadSkills, loadSkillsFromDir, type Skill } from "@oh-my-pi/pi-coding-agent/extensibility/skills";
+import { type Skill as CapabilitySkill, skillCapability } from "@amaze/pi-coding-agent/capability/skill";
+import { getCapability } from "@amaze/pi-coding-agent/discovery";
+import { loadSkills, loadSkillsFromDir, type Skill } from "@amaze/pi-coding-agent/extensibility/skills";
+import { getAgentDir, setAgentDir } from "@amaze/pi-utils/dirs";
 
 const fixturesDir = path.resolve(import.meta.dirname, "fixtures/skills");
 const collisionFixturesDir = path.resolve(import.meta.dirname, "fixtures/skills-collision");
@@ -36,6 +37,22 @@ const DISABLE_ALL_BUILTIN_SKILLS = {
 	enableAgentsUser: false,
 	enableAgentsProject: false,
 } as const;
+
+const originalAgentDir = getAgentDir();
+let tempAgentDir: string | undefined;
+
+beforeEach(async () => {
+	tempAgentDir = await fs.mkdtemp(path.join(os.tmpdir(), "amaze-skills-agent-"));
+	setAgentDir(tempAgentDir);
+});
+
+afterEach(async () => {
+	setAgentDir(originalAgentDir);
+	if (tempAgentDir) {
+		await fs.rm(tempAgentDir, { recursive: true, force: true });
+		tempAgentDir = undefined;
+	}
+});
 
 describe("skills", () => {
 	describe("loadSkillsFromDir", () => {
@@ -197,7 +214,7 @@ describe("skills", () => {
 
 		// Regression for issue #2401: a user who disables the named third-party
 		// CLI toggles (codex/claude/native) MUST still see skills from the
-		// canonical OMP-native `~/.agent[s]/skills` (the `agents` provider).
+		// canonical Amaze-native `~/.agent[s]/skills` (the `agents` provider).
 		// Pre-fix `loadSkills` gated `agents` on `anyBuiltInSkillSourceEnabled`,
 		// so flipping the five third-party toggles off silently disabled it.
 		it("should still load ~/.agents/skills when codex/claude/native toggles are off (#2401)", async () => {
@@ -254,7 +271,7 @@ describe("skills", () => {
 
 		// Regression for PR #2405 review: the fall-through gate used by
 		// unknown third-party providers (opencode/github/claude-plugins/...)
-		// MUST NOT consider the OMP-native `enableAgentsUser`/`...Project`
+		// MUST NOT consider the Amaze-native `enableAgentsUser`/`...Project`
 		// toggles. Otherwise a user who disables Codex/Claude/Pi to silence
 		// third-party CLI noise but keeps the default agents toggles on still
 		// sees opencode skills resurface via the fallback branch.
@@ -305,7 +322,7 @@ describe("skills", () => {
 		});
 
 		it("should skip skills disabled via frontmatter", async () => {
-			const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-disabled-skill-"));
+			const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "amaze-disabled-skill-"));
 			const skillDir = path.join(tempDir, "disabled-skill");
 			await fs.mkdir(skillDir, { recursive: true });
 			await fs.writeFile(
@@ -329,7 +346,7 @@ enabled: false
 		});
 
 		it("should hide skills with disable-model-invocation frontmatter (Agent Skills spec)", async () => {
-			const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-dmi-skill-"));
+			const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "amaze-dmi-skill-"));
 			const skillDir = path.join(tempDir, "hidden-by-spec");
 			await fs.mkdir(skillDir, { recursive: true });
 			await fs.writeFile(
@@ -389,6 +406,65 @@ description: Skill loaded from a tilde-expanded custom directory.
 			expect(withTilde.some(skill => skill.name === "tilde-skill")).toBe(true);
 		} finally {
 			await fs.rm(tempHomeSkillsDir, { recursive: true, force: true });
+		}
+	});
+
+	it("should load flat Rocky skills from ROCKY_SKILLS_DIR", async () => {
+		const rockyDir = await fs.mkdtemp(path.join(os.tmpdir(), "rocky-skills-test-"));
+		const previousRockySkillsDir = process.env.ROCKY_SKILLS_DIR;
+		process.env.ROCKY_SKILLS_DIR = rockyDir;
+		try {
+			await fs.writeFile(
+				path.join(rockyDir, "rocky-example.md"),
+				`---
+name: rocky-example
+summary: Skill stored in Rocky's flat markdown registry.
+tags:
+  - test
+version: 1
+---
+
+# Rocky Example
+`,
+			);
+			const { skills } = await loadSkills({
+				...DISABLE_ALL_BUILTIN_SKILLS,
+				enablePiUser: true,
+			});
+			const skill = skills.find(item => item.name === "rocky-example");
+			expect(skill?.description).toBe("Skill stored in Rocky's flat markdown registry.");
+			expect(skill?.filePath).toBe(path.join(rockyDir, "rocky-example.md"));
+			expect(skill?.baseDir).toBe(rockyDir);
+		} finally {
+			if (previousRockySkillsDir === undefined) {
+				delete process.env.ROCKY_SKILLS_DIR;
+			} else {
+				process.env.ROCKY_SKILLS_DIR = previousRockySkillsDir;
+			}
+			await fs.rm(rockyDir, { recursive: true, force: true });
+		}
+	});
+
+	it("should keep a local Rocky skill-search bootstrap when the Rocky registry is empty", async () => {
+		const rockyDir = await fs.mkdtemp(path.join(os.tmpdir(), "rocky-skills-empty-test-"));
+		const previousRockySkillsDir = process.env.ROCKY_SKILLS_DIR;
+		process.env.ROCKY_SKILLS_DIR = rockyDir;
+		try {
+			const { skills } = await loadSkills({
+				...DISABLE_ALL_BUILTIN_SKILLS,
+				enablePiUser: true,
+			});
+			const skill = skills.find(item => item.name === "rocky-skill-search");
+			expect(skill?.description).toBe("Use Rocky skill_search/skill_get for skill discovery and management.");
+			expect(skill?.source).toBe("amaze:bootstrap");
+			expect(await Bun.file(skill!.filePath).text()).toContain("Rocky is the canonical skill registry");
+		} finally {
+			if (previousRockySkillsDir === undefined) {
+				delete process.env.ROCKY_SKILLS_DIR;
+			} else {
+				process.env.ROCKY_SKILLS_DIR = previousRockySkillsDir;
+			}
+			await fs.rm(rockyDir, { recursive: true, force: true });
 		}
 	});
 

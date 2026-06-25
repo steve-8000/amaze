@@ -1,8 +1,8 @@
 import * as path from "node:path";
 
 /**
- * Extension segment → [highlight language id, LSP language id].
- * Highlight ids match tree-sitter / native highlighter; LSP ids match Language Server Protocol.
+ * Extension segment → [highlight language id, protocol language id].
+ * Highlight ids match tree-sitter / native highlighter; protocol ids match editor/debug integrations.
  */
 const EXTENSION_LANG: Record<string, readonly [string, string]> = {
 	// TypeScript / JavaScript
@@ -193,7 +193,7 @@ function themeExtensionKey(filePath: string): string {
 	return extBeg !== -1 ? filePath.slice(extBeg + 1).toLowerCase() : filePath.toLowerCase();
 }
 
-function lspExtensionKey(filePath: string): string {
+function languageExtensionKey(filePath: string): string {
 	const ext = path.extname(filePath).toLowerCase();
 	return ext.startsWith(".") ? ext.slice(1) : "";
 }
@@ -218,7 +218,7 @@ export function getLanguageFromPath(filePath: string): string | undefined {
 }
 
 /**
- * LSP language identifier; falls back to `plaintext`.
+ * Editor/debug protocol language identifier; falls back to `plaintext`.
  */
 export function detectLanguageId(filePath: string): string {
 	const baseName = path.basename(filePath).toLowerCase();
@@ -235,10 +235,10 @@ export function detectLanguageId(filePath: string): string {
 		return "just";
 	}
 
-	const lspExt = lspExtensionKey(filePath);
-	if (baseName === "cmakelists.txt" || lspExt === "cmake") {
+	const languageExt = languageExtensionKey(filePath);
+	if (baseName === "cmakelists.txt" || languageExt === "cmake") {
 		return "cmake";
 	}
 
-	return EXTENSION_LANG[lspExt]?.[1] ?? "plaintext";
+	return EXTENSION_LANG[languageExt]?.[1] ?? "plaintext";
 }

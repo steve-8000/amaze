@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import type { Api, Model } from "@oh-my-pi/pi-ai";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { getBundledModels } from "@oh-my-pi/pi-catalog/models";
+import type { Api, Model } from "@amaze/pi-ai";
+import { buildModel } from "@amaze/pi-catalog/build";
+import { getBundledModels } from "@amaze/pi-catalog/models";
 import {
 	modelLacksWebpSupport,
 	normalizeModelContextImages,
 	webpExclusionForModel,
-} from "@oh-my-pi/pi-coding-agent/utils/image-loading";
+} from "@amaze/pi-coding-agent/utils/image-loading";
 
 // 1x1 red PNG seed, upscaled + re-encoded as WebP at test time so no binary
 // fixture is checked in. Bun.Image sniffs format from bytes.
@@ -81,7 +81,7 @@ describe("modelLacksWebpSupport", () => {
 		expect(modelLacksWebpSupport(undefined)).toBe(false);
 	});
 
-	test("webpExclusionForModel yields true|undefined so the OMP_NO_WEBP fallback survives", () => {
+	test("webpExclusionForModel yields true|undefined so the Amaze_NO_WEBP fallback survives", () => {
 		// `true` forces exclusion for Ollama...
 		expect(webpExclusionForModel({ provider: "ollama", api: "openai-responses" })).toBe(true);
 		// ...but a capable model returns `undefined` (NOT `false`), so resizeImage's

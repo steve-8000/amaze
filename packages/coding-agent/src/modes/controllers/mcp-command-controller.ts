@@ -4,8 +4,8 @@
  * Handles /mcp subcommands for managing MCP servers.
  */
 import * as path from "node:path";
-import { type Component, replaceTabs, Spacer, Text } from "@oh-my-pi/pi-tui";
-import { getMCPConfigPath, getProjectDir } from "@oh-my-pi/pi-utils";
+import { type Component, replaceTabs, Spacer, Text } from "@amaze/pi-tui";
+import { getMCPConfigPath, getProjectDir } from "@amaze/pi-utils";
 import type { SourceMeta } from "../../capability/types";
 import { expandEnvVarsDeep } from "../../discovery/helpers";
 import { analyzeAuthError, discoverOAuthEndpoints, loadAllMCPConfigs, MCPManager } from "../../mcp";
@@ -838,7 +838,7 @@ export class MCPCommandController {
 	/**
 	 * Resolve a server for an auth/test operation.
 	 *
-	 * Unlike {@link #findConfiguredServer} (which only reads writable OMP config
+	 * Unlike {@link #findConfiguredServer} (which only reads writable Amaze config
 	 * files), this also recognizes runtime-discovered servers that `/mcp list`
 	 * surfaces but that live in no writable config — e.g. servers from a Claude
 	 * Code marketplace plugin (`cloudflare:cloudflare-api`), `.cursor/mcp.json`,
@@ -885,7 +885,7 @@ export class MCPCommandController {
 		scopes?: string;
 		resource?: string;
 	}> {
-		// Stdio servers manage credentials inside the child process; OMP's OAuth
+		// Stdio servers manage credentials inside the child process; Amaze's OAuth
 		// flow only applies to http/sse transports. Without this guard the
 		// unauthenticated preflight below spawns the child, which happily reuses
 		// its own cached tokens (e.g. mcp-remote's machine-wide ~/.mcp-auth) and
@@ -896,8 +896,8 @@ export class MCPCommandController {
 			const usesMcpRemote = [config.command, ...(config.args ?? [])].some(part => part?.includes("mcp-remote"));
 			throw new Error(
 				usesMcpRemote
-					? `this server proxies OAuth through mcp-remote, which caches tokens machine-wide in ~/.mcp-auth (shared across every OMP profile). Clear ~/.mcp-auth to force a fresh login, or replace the proxy with ${httpHint} so OMP manages OAuth per profile.`
-					: `stdio servers manage their own credentials, so OMP has no OAuth to reauthorize. If the service supports OAuth over HTTP, configure it as ${httpHint} instead.`,
+					? `this server proxies OAuth through mcp-remote, which caches tokens machine-wide in ~/.mcp-auth (shared across every Amaze profile). Clear ~/.mcp-auth to force a fresh login, or replace the proxy with ${httpHint} so Amaze manages OAuth per profile.`
+					: `stdio servers manage their own credentials, so Amaze has no OAuth to reauthorize. If the service supports OAuth over HTTP, configure it as ${httpHint} instead.`,
 			);
 		}
 		// First test if server actually needs auth by connecting without OAuth
@@ -1044,30 +1044,12 @@ export class MCPCommandController {
 		} catch (error) {
 			const errorMsg = error instanceof Error ? error.message : String(error);
 
-			// Provide helpful error messages
-			let helpText = "";
-			if (errorMsg.includes("EACCES") || errorMsg.includes("permission denied")) {
-				helpText = "\n\nTip: Check file permissions for the config directory.";
-			} else if (errorMsg.includes("ENOSPC")) {
-				helpText = "\n\nTip: Insufficient disk space.";
-			} else if (errorMsg.includes("already exists")) {
-				helpText = `\n\nTip: Use ${theme.fg("accent", "/mcp list")} to see existing servers.`;
-			}
-
-			this.ctx.showError(`Failed to add server: ${errorMsg}${helpText}`);
+			this.ctx.showError(`Failed to add server: ${errorMsg}`);
 		}
 	}
 
 	#handleWizardCancel(): void {
-		this.#showMessage(
-			[
-				"",
-				theme.fg("muted", "Server creation cancelled."),
-				"",
-				theme.fg("dim", "Tip: Press Ctrl+C or Esc anytime to cancel"),
-				"",
-			].join("\n"),
-		);
+		this.#showMessage(["", theme.fg("muted", "Server creation cancelled."), ""].join("\n"));
 	}
 
 	/**
@@ -1271,9 +1253,7 @@ export class MCPCommandController {
 			const found = await this.#resolveServerForAuth(name);
 
 			if (!found) {
-				this.ctx.showError(
-					`Server "${name}" not found.\n\nTip: Run ${theme.fg("accent", "/mcp list")} to see available servers.`,
-				);
+				this.ctx.showError(`Server "${name}" not found.`);
 				return;
 			}
 
@@ -1331,21 +1311,7 @@ export class MCPCommandController {
 
 			const errorMsg = error instanceof Error ? error.message : String(error);
 
-			// Provide helpful error messages
-			let helpText = "";
-			if (errorMsg.includes("ENOENT") || errorMsg.includes("not found")) {
-				helpText = "\n\nTip: Check that the command or URL is correct.";
-			} else if (errorMsg.includes("EACCES")) {
-				helpText = "\n\nTip: Check file/command permissions.";
-			} else if (errorMsg.includes("ECONNREFUSED")) {
-				helpText = "\n\nTip: Check that the server is running and the URL/port is correct.";
-			} else if (errorMsg.includes("timeout")) {
-				helpText = "\n\nTip: The server may be slow or unresponsive. Try increasing the timeout.";
-			} else if (errorMsg.includes("401") || errorMsg.includes("403")) {
-				helpText = "\n\nTip: Check your authentication credentials.";
-			}
-
-			this.ctx.showError(`Failed to connect to "${name}": ${errorMsg}${helpText}`);
+			this.ctx.showError(`Failed to connect to "${name}": ${errorMsg}`);
 		} finally {
 			this.ctx.editor.onEscape = originalOnEscape;
 			if (connection) {

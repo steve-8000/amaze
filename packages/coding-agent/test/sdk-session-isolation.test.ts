@@ -2,16 +2,16 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AssistantMessage } from "@oh-my-pi/pi-ai";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import type { Rule } from "@oh-my-pi/pi-coding-agent/capability/rule";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { createAgentSession } from "@oh-my-pi/pi-coding-agent/sdk";
-import { SecretObfuscator } from "@oh-my-pi/pi-coding-agent/secrets";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { getSessionsDir, Snowflake } from "@oh-my-pi/pi-utils";
+import type { AssistantMessage } from "@amaze/pi-ai";
+import { getBundledModel } from "@amaze/pi-catalog/models";
+import type { Rule } from "@amaze/pi-coding-agent/capability/rule";
+import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
+import { Settings } from "@amaze/pi-coding-agent/config/settings";
+import { createAgentSession } from "@amaze/pi-coding-agent/sdk";
+import { SecretObfuscator } from "@amaze/pi-coding-agent/secrets";
+import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
+import { getSessionsDir, Snowflake } from "@amaze/pi-utils";
 
 function createTtsrRule(name: string): Rule {
 	return {
@@ -100,7 +100,6 @@ describe("createAgentSession session storage isolation", () => {
 			promptTemplates: [],
 			slashCommands: [],
 			enableMCP: false,
-			enableLsp: false,
 		});
 
 		try {
@@ -135,7 +134,6 @@ describe("createAgentSession session storage isolation", () => {
 			promptTemplates: [],
 			slashCommands: [],
 			enableMCP: false,
-			enableLsp: false,
 		});
 
 		try {
@@ -166,7 +164,6 @@ describe("createAgentSession session storage isolation", () => {
 				promptTemplates: [],
 				slashCommands: [],
 				enableMCP: false,
-				enableLsp: false,
 			};
 
 			const withoutSecrets = await createAgentSession(commonOptions);
@@ -176,8 +173,11 @@ describe("createAgentSession session storage isolation", () => {
 				await withoutSecrets.session.dispose();
 			}
 
-			fs.mkdirSync(path.join(cwd, ".omp"), { recursive: true });
-			fs.writeFileSync(path.join(cwd, ".omp", "secrets.yml"), "- type: plain\n  content: sdk-secret-token-123456\n");
+			fs.mkdirSync(path.join(cwd, ".amaze"), { recursive: true });
+			fs.writeFileSync(
+				path.join(cwd, ".amaze", "secrets.yml"),
+				"- type: plain\n  content: sdk-secret-token-123456\n",
+			);
 
 			const withSecrets = await createAgentSession(commonOptions);
 			try {
@@ -194,8 +194,11 @@ describe("createAgentSession session storage isolation", () => {
 			tempDirs.push(tempDir);
 			const cwd = path.join(tempDir, "project");
 			const agentDir = path.join(tempDir, "agent");
-			fs.mkdirSync(path.join(cwd, ".omp"), { recursive: true });
-			fs.writeFileSync(path.join(cwd, ".omp", "secrets.yml"), "- type: plain\n  content: sdk-secret-token-123456\n");
+			fs.mkdirSync(path.join(cwd, ".amaze"), { recursive: true });
+			fs.writeFileSync(
+				path.join(cwd, ".amaze", "secrets.yml"),
+				"- type: plain\n  content: sdk-secret-token-123456\n",
+			);
 
 			const model = getBundledModel("anthropic", "claude-sonnet-4-5");
 			if (!model) throw new Error("Expected anthropic model");
@@ -238,7 +241,6 @@ describe("createAgentSession session storage isolation", () => {
 				promptTemplates: [],
 				slashCommands: [],
 				enableMCP: false,
-				enableLsp: false,
 			});
 			try {
 				expect(getAssistantText(session.messages.at(-1) as AssistantMessage | undefined)).toContain(
