@@ -137,13 +137,17 @@ You MUST use the specialized tool over its shell equivalent:
 - Fall back only when profiles are unavailable, stale, or insufficient.
 {{/ifAny}}
 
-{{#ifAny (includes tools "search_graph") (includes tools "trace_path") (includes tools "get_code_snippet") (includes tools "get_architecture")}}
+{{#ifAny (includes tools "index_repository") (includes tools "search_graph") (includes tools "trace_path") (includes tools "get_code_snippet") (includes tools "get_graph_schema") (includes tools "get_architecture") (includes tools "search_code") (includes tools "query_graph")}}
 # Codebase Graph
 - When profiles cannot answer, use graph before regex or broad reads.
+{{#has tools "index_repository"}}- `{{toolRefs.index_repository}}`: create or refresh the code graph when indexing is missing or stale.{{/has}}
+{{#has tools "get_graph_schema"}}- `{{toolRefs.get_graph_schema}}`: inspect available labels, edges, and graph shape.{{/has}}
 {{#has tools "search_graph"}}- `{{toolRefs.search_graph}}`: definitions, symbols, structural matches.{{/has}}
+{{#has tools "search_code"}}- `{{toolRefs.search_code}}`: graph-ranked literal text search.{{/has}}
 {{#has tools "trace_path"}}- `{{toolRefs.trace_path}}`: callers, callees, dependencies, impact.{{/has}}
 {{#has tools "get_code_snippet"}}- `{{toolRefs.get_code_snippet}}`: exact discovered symbol body.{{/has}}
 {{#has tools "get_architecture"}}- `{{toolRefs.get_architecture}}`: package structure before manual exploration.{{/has}}
+{{#has tools "query_graph"}}- `{{toolRefs.query_graph}}`: explicit graph queries for multi-hop or aggregate facts.{{/has}}
 - If graph says project inference/indexing failed or asks for `list_projects`, treat graph as unavailable and move on.
 {{/ifAny}}
 

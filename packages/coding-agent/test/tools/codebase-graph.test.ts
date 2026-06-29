@@ -1,13 +1,23 @@
 import { describe, expect, it } from "bun:test";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { ToolSession } from "../../src/tools";
 import {
+	CODEBASE_MEMORY_NATIVE_TOOL_NAMES,
+	CodebaseMemoryNativeAdapter,
+	DeleteProjectTool,
+	DetectChangesTool,
 	GetArchitectureTool,
 	GetCodeSnippetTool,
+	GetGraphSchemaTool,
+	IndexRepositoryTool,
+	IndexStatusTool,
+	IngestTracesTool,
 	ListProjectsTool,
+	ManageAdrTool,
 	QueryGraphTool,
+	resolveCodebaseMemoryBinary,
 	SearchCodeTool,
 	SearchGraphTool,
 	TracePathTool,
@@ -54,7 +64,224 @@ async function withTempDir<T>(fn: (dir: string) => Promise<T>): Promise<T> {
 	}
 }
 
+async function writeExecutableBunScript(filePath: string, source: string): Promise<void> {
+	await writeFile(filePath, `#!/usr/bin/env bun\n${source}`);
+	await chmod(filePath, 0o755);
+}
+
 describe("codebase graph core tools", () => {
+	it("tracks the native codebase-memory-mcp 14-tool contract", () => {
+		expect(CODEBASE_MEMORY_NATIVE_TOOL_NAMES).toEqual([
+			"index_repository",
+			"search_graph",
+			"query_graph",
+			"trace_path",
+			"get_code_snippet",
+			"get_graph_schema",
+			"get_architecture",
+			"search_code",
+			"list_projects",
+			"delete_project",
+			"index_status",
+			"detect_changes",
+			"manage_adr",
+			"ingest_traces",
+		]);
+		expect(CODEBASE_MEMORY_NATIVE_TOOL_NAMES).toHaveLength(14);
+
+		const session = createTestSession();
+		const tools = [
+			new IndexRepositoryTool(session),
+			new SearchGraphTool(session),
+			new QueryGraphTool(session),
+			new TracePathTool(session),
+			new GetCodeSnippetTool(session),
+			new GetGraphSchemaTool(session),
+			new GetArchitectureTool(session),
+			new SearchCodeTool(session),
+			new ListProjectsTool(session),
+			new DeleteProjectTool(session),
+			new IndexStatusTool(session),
+			new DetectChangesTool(session),
+			new ManageAdrTool(session),
+			new IngestTracesTool(session),
+		];
+
+		expect(tools.map(tool => tool.name)).toEqual([...CODEBASE_MEMORY_NATIVE_TOOL_NAMES]);
+		expect(new IndexRepositoryTool(session).approval).toBe("write");
+		expect(new DeleteProjectTool(session).approval).toBe("write");
+		expect(new ManageAdrTool(session).approval).toBe("write");
+		expect(new IngestTracesTool(session).approval).toBe("write");
+	});
+
+	it("resolves explicit native binary paths and rejects directories", async () => {
+		await withTempDir(async root => {
+			const binaryPath = path.join(root, "codebase-memory-mcp");
+			const directoryPath = path.join(root, "directory-codebase-memory-mcp");
+			await writeExecutableBunScript(binaryPath, "process.exit(0);\n");
+			await mkdir(directoryPath);
+
+			expect(
+				resolveCodebaseMemoryBinary({
+					env: { AMAZE_CODEBASE_MEMORY_MCP_BIN: binaryPath },
+					packageDir: path.join(root, "package"),
+					platform: "darwin",
+					arch: "arm64",
+				}),
+			).toMatchObject({
+				path: binaryPath,
+				source: "env",
+				platform: "darwin-arm64",
+			});
+
+			expect(
+				resolveCodebaseMemoryBinary({
+					env: { AMAZE_CODEBASE_MEMORY_MCP_BIN: directoryPath },
+					packageDir: path.join(root, "package"),
+					platform: "darwin",
+					arch: "arm64",
+				}),
+			).toMatchObject({
+				source: "missing",
+				explicit: true,
+				platform: "darwin-arm64",
+			});
+		});
+	});
+
+	it("calls the native binary before Rocky or legacy HTTP endpoints", async () => {
+		await withTempDir(async root => {
+			const binaryPath = path.join(root, "codebase-memory-mcp");
+			await writeExecutableBunScript(
+				binaryPath,
+				`
+const [, , subcommand, jsonFlag, toolName, argsJson] = process.argv;
+if (subcommand !== "cli" || jsonFlag !== "--json") process.exit(2);
+const args = JSON.parse(argsJson);
+process.stdout.write(JSON.stringify({
+	content: [{ type: "text", text: JSON.stringify({ toolName, args, cwd: process.cwd() }) }],
+	structuredContent: { ok: true }
+}) + "\\n");
+`,
+			);
+			const fetch = async () => {
+				throw new Error("native path should not fetch");
+			};
+			const tool = new SearchGraphTool(createTestSession(root, { fetch }));
+
+			const result = await withEnv("AMAZE_CODEBASE_MEMORY_MCP_BIN", binaryPath, () =>
+				tool.execute("search-graph-native", { project: "demo", query: "defaultModelPerProvider" }),
+			);
+
+			expect(result.details?.serverName).toBe("codebase-memory-native");
+			expect(result.details?.binaryPath).toBe(binaryPath);
+			expect(result.content[0]?.type).toBe("text");
+			const text = result.content[0]?.type === "text" ? result.content[0].text : "";
+			const payload = JSON.parse(text) as { toolName: string; args: unknown; cwd: string };
+			expect(payload).toMatchObject({
+				toolName: "search_graph",
+				args: { project: "demo", query: "defaultModelPerProvider" },
+			});
+			expect(payload.cwd.endsWith(path.basename(root))).toBe(true);
+		});
+	});
+
+	it("preserves native MCP error envelopes in tool execution results", async () => {
+		await withTempDir(async root => {
+			const binaryPath = path.join(root, "codebase-memory-mcp");
+			await writeExecutableBunScript(
+				binaryPath,
+				`
+process.stdout.write(JSON.stringify({
+	isError: true,
+	content: [{ type: "text", text: JSON.stringify({ error: "project not indexed" }) }]
+}) + "\\n");
+`,
+			);
+			const tool = new SearchGraphTool(createTestSession(root));
+
+			const result = await withEnv("AMAZE_CODEBASE_MEMORY_MCP_BIN", binaryPath, () =>
+				tool.execute("search-graph-native-error", { project: "demo", query: "missing" }),
+			);
+
+			expect(result).toMatchObject({
+				content: [{ type: "text", text: JSON.stringify({ error: "project not indexed" }) }],
+				isError: true,
+			});
+			expect(result.details).toMatchObject({
+				serverName: "codebase-memory-native",
+				toolName: "search_graph",
+				isError: true,
+			});
+		});
+	});
+
+	it("round-trips graph schema, query_graph, and trace_path through a real native binary", async () => {
+		if (!process.env.AMAZE_CODEBASE_MEMORY_MCP_BIN) return;
+		await withTempDir(async root => {
+			const cacheDir = await mkdtemp(path.join(os.tmpdir(), "codebase-graph-native-cache-"));
+			await writeFile(
+				path.join(root, "model-resolver.ts"),
+				[
+					'export const defaultModelPerProvider: Record<string, string> = { openai: "gpt-5" };',
+					"export function caller() { return callee(); }",
+					"export function callee() { return defaultModelPerProvider.openai; }",
+					"",
+				].join("\n"),
+			);
+			const adapter = new CodebaseMemoryNativeAdapter({
+				cwd: root,
+				env: {
+					AMAZE_CODEBASE_MEMORY_MCP_BIN: process.env.AMAZE_CODEBASE_MEMORY_MCP_BIN,
+					CBM_CACHE_DIR: cacheDir,
+				},
+			});
+			try {
+				await expect(
+					adapter.callTool("index_repository", {
+						repo_path: root,
+						mode: "fast",
+						name: "amaze-native-real-smoke",
+					}),
+				).resolves.toMatchObject({ project: "amaze-native-real-smoke", status: "indexed" });
+				await expect(adapter.callTool("get_graph_schema", { project: "amaze-native-real-smoke" })).resolves.toEqual(
+					expect.objectContaining({
+						node_labels: expect.arrayContaining([expect.objectContaining({ label: "Function" })]),
+					}),
+				);
+				await expect(
+					adapter.callTool("query_graph", {
+						project: "amaze-native-real-smoke",
+						query: "MATCH (f:Function) RETURN f.name LIMIT 5",
+						max_rows: 5,
+					}),
+				).resolves.toMatchObject({
+					rows: expect.arrayContaining([["caller"], ["callee"]]),
+				});
+				await expect(
+					adapter.callTool("trace_path", {
+						project: "amaze-native-real-smoke",
+						function_name: "callee",
+						direction: "both",
+						depth: 2,
+					}),
+				).resolves.toMatchObject({
+					function: "callee",
+					callers: [expect.objectContaining({ name: "caller" })],
+				});
+				await expect(
+					adapter.callTool("search_code", {
+						project: "amaze-native-real-smoke",
+						pattern: "defaultModelPerProvider",
+						limit: 5,
+					}),
+				).resolves.toEqual(expect.objectContaining({ total_grep_matches: expect.any(Number) }));
+			} finally {
+				await rm(cacheDir, { recursive: true, force: true });
+			}
+		});
+	});
+
 	it("infers the current indexed project through the HTTP endpoint for search_graph", async () => {
 		const calls: unknown[] = [];
 		const fetch = async (input: TestFetchInput, init?: TestFetchInit) => {

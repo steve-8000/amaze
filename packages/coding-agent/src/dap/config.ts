@@ -18,7 +18,7 @@ function resolveCommand(command: string, cwd: string): string | null {
 	if (command.includes("/") && fs.existsSync(localCommand)) {
 		return localCommand;
 	}
-	return $which(command) ?? null;
+	return $which(command, { PATH: process.env.PATH }) ?? null;
 }
 
 function normalizeStringArray(value: unknown): string[] {

@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- Added native `codebase-memory-mcp` execution for the built-in codebase graph tools, exposing the upstream 14-tool contract with legacy Rocky/HTTP fallback when no native binary is packaged or configured.
+
 ### Fixed
 
 - Fixed `read history://<agentId>:<selector>` so line ranges and `:raw` are peeled before `history://` resolution instead of being treated as part of the agent id.

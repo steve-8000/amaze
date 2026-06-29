@@ -91,6 +91,7 @@ export interface MarketplacePluginEntry {
 	agents?: string | string[];
 	hooks?: string | Record<string, unknown>;
 	mcpServers?: string | Record<string, unknown>;
+	lspServers?: string | Record<string, unknown>;
 }
 
 // ── Plugin source variants ───────────────────────────────────────────

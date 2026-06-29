@@ -290,6 +290,7 @@ export class MarketplaceManager {
 		try {
 			version = await this.#resolvePluginVersion(pluginEntry, sourcePath);
 			cachePath = await cachePlugin(sourcePath, this.#opts.pluginsCacheDir, marketplace, name, version);
+			await this.#writeLspConfig(pluginEntry, sourcePath, cachePath);
 		} finally {
 			// Clean up temp clone dirs created by resolvePluginSource; leave user-supplied local dirs alone
 			if (tempCloneRoot) {
@@ -374,6 +375,23 @@ export class MarketplaceManager {
 		}
 
 		return "0.0.0";
+	}
+
+	async #writeLspConfig(entry: MarketplacePluginEntry, sourcePath: string, installPath: string): Promise<void> {
+		if (entry.lspServers === undefined) return;
+
+		const targetPath = path.join(installPath, ".lsp.json");
+		if (typeof entry.lspServers === "string") {
+			const sourceRoot = path.resolve(sourcePath);
+			const sourceConfigPath = path.resolve(sourceRoot, entry.lspServers);
+			if (sourceConfigPath !== sourceRoot && !sourceConfigPath.startsWith(`${sourceRoot}${path.sep}`)) {
+				throw new Error(`Invalid lspServers path for plugin "${entry.name}": "${entry.lspServers}"`);
+			}
+			await fs.copyFile(sourceConfigPath, targetPath);
+			return;
+		}
+
+		await Bun.write(targetPath, `${JSON.stringify({ servers: entry.lspServers }, null, 2)}\n`);
 	}
 
 	async uninstallPlugin(pluginId: string, scope?: "user" | "project"): Promise<void> {
