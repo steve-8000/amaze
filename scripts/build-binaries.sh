@@ -160,6 +160,12 @@ for platform in "${PLATFORMS[@]}"; do
     cp -r docs "$OUTPUT_DIR/$platform/"
     cp -r examples "$OUTPUT_DIR/$platform/"
 
+    native_required_args=()
+    if [[ "${AMAZE_REQUIRE_CODEBASE_MEMORY_MCP_BIN:-}" == "1" ]]; then
+        native_required_args=(--required)
+    fi
+    node ../../scripts/codebase-memory-native-assets.mjs copy --platform "$platform" --target "$OUTPUT_DIR/$platform" "${native_required_args[@]}" >/dev/null
+
     case "$platform" in
         darwin-arm64)
             clipboard_native_package="clipboard-darwin-arm64"

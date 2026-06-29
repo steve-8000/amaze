@@ -2,6 +2,7 @@
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { copyCodebaseMemoryNativeAsset } from "./codebase-memory-native-assets.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 
@@ -86,7 +87,21 @@ export function assertAmazePackedWorkspaceFiles(packed) {
 	}
 }
 
-export function prepareAmazeBundledWorkspaces(repoRoot = root) {
+export function prepareCodebaseMemoryNativeAsset(repoRoot = root, options = {}) {
+	return copyCodebaseMemoryNativeAsset({
+		env: options.env,
+		platform: options.platform,
+		required: options.required,
+		targetRoot: join(repoRoot, "packages/coding-agent"),
+	});
+}
+
+export function prepareAmazeBundledWorkspaces(repoRoot = root, options = {}) {
+	prepareCodebaseMemoryNativeAsset(repoRoot, {
+		env: options.env,
+		platform: options.codebaseMemoryNativePlatform,
+		required: options.requireCodebaseMemoryNative,
+	});
 	copyPublishDependencies(repoRoot);
 	const codingAgentNodeModules = join(repoRoot, "packages/coding-agent/node_modules/@steve-8000");
 

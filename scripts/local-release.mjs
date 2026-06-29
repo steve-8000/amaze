@@ -5,6 +5,12 @@ import { tmpdir } from "node:os";
 import { isAbsolute, join, relative, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import {
+	assertCodebaseMemoryNativeAsset,
+	assertCodebaseMemoryNativeNotices,
+	assertPackedCodebaseMemoryNativeAsset,
+	resolveCodebaseMemoryNativeSource,
+} from "./codebase-memory-native-assets.mjs";
 import { prepareAmazeBundledWorkspaces } from "./prepare-amaze-bundled-workspaces.mjs";
 
 const packages = [
@@ -28,12 +34,22 @@ Options:
   --skip-check         Do not run npm run check before building
   --skip-install       Only create tarballs; do not create isolated installs
   --skip-bun-install   Do not create the isolated Bun install
+  --require-codebase-memory-native
+                       Fail unless the current platform native codebase-memory-mcp
+                       binary is packaged into the Node tarball and Bun archive
   --help               Show this help
 `);
 }
 
 function parseArgs() {
-	const options = { force: false, outDir: undefined, skipBunInstall: false, skipCheck: false, skipInstall: false };
+	const options = {
+		force: false,
+		outDir: undefined,
+		requireCodebaseMemoryNative: false,
+		skipBunInstall: false,
+		skipCheck: false,
+		skipInstall: false,
+	};
 	const args = process.argv.slice(2);
 
 	for (let i = 0; i < args.length; i++) {
@@ -56,6 +72,10 @@ function parseArgs() {
 		}
 		if (arg === "--skip-bun-install") {
 			options.skipBunInstall = true;
+			continue;
+		}
+		if (arg === "--require-codebase-memory-native") {
+			options.requireCodebaseMemoryNative = true;
 			continue;
 		}
 		if (arg === "--out") {
@@ -184,7 +204,7 @@ function packPackage(pkg, tarballDirectory) {
 		cwd: pkg.directory,
 	});
 	const packed = JSON.parse(output)[0];
-	return join(tarballDirectory, packed.filename);
+	return { packed, tarball: join(tarballDirectory, packed.filename) };
 }
 
 function main() {
@@ -212,17 +232,28 @@ function main() {
 		run("npm", ["run", "build"], { cwd: pkg.directory });
 	}
 
-	prepareAmazeBundledWorkspaces(repoRoot);
+	prepareAmazeBundledWorkspaces(repoRoot, {
+		requireCodebaseMemoryNative: options.requireCodebaseMemoryNative,
+	});
+	const nativeSource = resolveCodebaseMemoryNativeSource();
+	const shouldAssertNative = options.requireCodebaseMemoryNative || Boolean(nativeSource.path);
 
 	const tarballs = new Map();
 	for (const pkg of packages) {
-		const tarball = packPackage(pkg, tarballDirectory);
+		const { tarball, packed } = packPackage(pkg, tarballDirectory);
 		tarballs.set(pkg.name, tarball);
+		if (pkg.name === "amaze" && shouldAssertNative) {
+			assertPackedCodebaseMemoryNativeAsset(packed, nativeSource.platform);
+		}
 	}
 
 	let binaryPlatform;
 	if (!options.skipInstall) {
 		binaryPlatform = buildBunBinaryRelease(binaryDirectory, outDir);
+		if (shouldAssertNative) {
+			assertCodebaseMemoryNativeAsset({ platform: binaryPlatform, targetRoot: binaryDirectory });
+			assertCodebaseMemoryNativeNotices({ targetRoot: binaryDirectory });
+		}
 
 		mkdirSync(nodeInstallDirectory, { recursive: true });
 		const dependencies = Object.fromEntries(

@@ -76,6 +76,13 @@ export {
 } from "./xenonite.ts";
 
 import type { AgentTool, AgentToolResult } from "@steve-8000/amaze-agent-core";
+import {
+	CODEBASE_MEMORY_NATIVE_TOOL_NAMES,
+	CodebaseMemoryNativeAdapter,
+	type CodebaseMemoryNativeToolName,
+	type CodebaseMemoryNativeToolOptions,
+	createCodebaseMemoryNativeToolDefinitions,
+} from "../codebase/index.ts";
 import type { ToolDefinition } from "../extensions/types.ts";
 import { type BashToolOptions, createBashTool, createBashToolDefinition } from "./bash.ts";
 import { createEditTool, createEditToolDefinition, type EditToolOptions } from "./edit.ts";
@@ -88,8 +95,28 @@ import { createXenoniteToolDefinitions, isXenoniteCoreEnabled, type XenoniteTool
 
 export type Tool = AgentTool<any>;
 export type ToolDef = ToolDefinition<any, any>;
-export type ToolName = "read" | "raw_read" | "bash" | "edit" | "write" | "grep" | "find" | "ls" | XenoniteToolName;
-export const allToolNames: Set<ToolName> = new Set(["read", "raw_read", "bash", "edit", "write", "grep", "find", "ls"]);
+export type ToolName =
+	| "read"
+	| "raw_read"
+	| "bash"
+	| "edit"
+	| "write"
+	| "grep"
+	| "find"
+	| "ls"
+	| XenoniteToolName
+	| CodebaseMemoryNativeToolName;
+export const allToolNames: Set<ToolName> = new Set([
+	"read",
+	"raw_read",
+	"bash",
+	"edit",
+	"write",
+	"grep",
+	"find",
+	"ls",
+	...CODEBASE_MEMORY_NATIVE_TOOL_NAMES,
+]);
 
 export interface ToolsOptions {
 	read?: ReadToolOptions;
@@ -99,6 +126,7 @@ export interface ToolsOptions {
 	grep?: GrepToolOptions;
 	find?: FindToolOptions;
 	ls?: LsToolOptions;
+	codebaseMemory?: CodebaseMemoryNativeToolOptions | false;
 	includeLegacyLocalSearchTools?: boolean;
 	includeRawReadTool?: boolean;
 }
@@ -122,6 +150,11 @@ export function createAllToolDefinitions(cwd: string, options?: ToolsOptions): R
 	}
 	if (isXenoniteCoreEnabled()) {
 		Object.assign(definitions, createXenoniteToolDefinitions(cwd));
+	}
+	if (options?.codebaseMemory && new CodebaseMemoryNativeAdapter(options.codebaseMemory).resolveBinary().path) {
+		for (const definition of createCodebaseMemoryNativeToolDefinitions(cwd, options?.codebaseMemory)) {
+			definitions[definition.name] = definition;
+		}
 	}
 	return definitions;
 }

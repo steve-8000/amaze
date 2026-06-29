@@ -22,6 +22,7 @@
 		"dist",
 		"docs",
 		"examples",
+		"native",
 		"containerization.md",
 		"CHANGELOG.md",
 		"npm-shrinkwrap.json"

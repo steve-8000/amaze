@@ -82,6 +82,10 @@
       "title": "Reference",
       "items": [
         {
+          "title": "codebase-memory native port",
+          "path": "codebase-memory-native-port.md"
+        },
+        {
           "title": "Session Format",
           "path": "session-format.md"
         }
