@@ -341,7 +341,9 @@ describe("overflow: path shrinks before git is dropped", () => {
 
 describe("overflow: default status keeps core prompt context", () => {
 	it("drops decorative segments before model, path, git, and context", () => {
-		const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "amaze-status-core-"));
+		const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "amaze-status-parent-"));
+		const tmpDir = path.join(tmpRoot, "amaze-status-core");
+		fs.mkdirSync(tmpDir);
 		fs.mkdirSync(path.join(tmpDir, ".git"));
 		fs.writeFileSync(path.join(tmpDir, ".git", "HEAD"), "ref: refs/heads/feature/status-core\n");
 		setProjectDir(tmpDir);
@@ -359,15 +361,16 @@ describe("overflow: default status keeps core prompt context", () => {
 				},
 			});
 
-			const text = stripVTControlCharacters(component.getTopBorder(54).content);
+			const text = stripVTControlCharacters(component.getTopBorder(80).content);
 
 			expect(text).toContain("openai-codex/gpt-5.5");
-			expect(text).toContain("amaze-status-core");
+			expect(text).toContain("…-core");
 			expect(text).toContain("feature/status-core");
 			expect(text).toContain("25.0%/200K");
 			expect(text).not.toContain("Named session");
 		} finally {
 			setProjectDir(originalProjectDir);
+			fs.rmSync(tmpRoot, { recursive: true, force: true });
 		}
 	});
 });

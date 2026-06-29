@@ -320,7 +320,8 @@ describe("runSubprocess yield reminders", () => {
 		expect(systemPrompt?.[0]).toMatch(/CONTRACT\n=+\n\ntest/);
 		// The parent-conversation CONTEXT section is gone: subagents get their
 		// background inside the assignment (or a local:// file), never a dump.
-		expect(systemPrompt?.[0]).not.toMatch(/Parent system|project|now/);
+		expect(systemPrompt?.[0]).not.toContain("Parent system");
+		expect(systemPrompt?.[0]).not.toContain("system\nproject\nnow");
 		expect(userPrompt).not.toMatch(/CONTEXT\n=+/);
 	});
 

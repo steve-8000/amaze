@@ -130,11 +130,15 @@ describe("system prompt tool inventory", () => {
 		for (const toolName of DEFAULT_SYSTEM_PROMPT_TOOL_NAMES) {
 			expect(inventory).toContain(`- \`${toolName}\``);
 		}
-		expect(inventory.indexOf("- `search_graph`")).toBeGreaterThan(inventory.indexOf("- `eval`"));
+		expect(inventory.indexOf("- `index_repository`")).toBeGreaterThan(inventory.indexOf("- `eval`"));
+		expect(inventory.indexOf("- `search_graph`")).toBeGreaterThan(inventory.indexOf("- `index_repository`"));
 		expect(inventory.indexOf("- `trace_path`")).toBeGreaterThan(inventory.indexOf("- `search_graph`"));
 		expect(inventory.indexOf("- `get_code_snippet`")).toBeGreaterThan(inventory.indexOf("- `trace_path`"));
-		expect(inventory.indexOf("- `get_architecture`")).toBeGreaterThan(inventory.indexOf("- `get_code_snippet`"));
-		expect(inventory.indexOf("- `ast_grep`")).toBeGreaterThan(inventory.indexOf("- `get_architecture`"));
+		expect(inventory.indexOf("- `get_graph_schema`")).toBeGreaterThan(inventory.indexOf("- `get_code_snippet`"));
+		expect(inventory.indexOf("- `get_architecture`")).toBeGreaterThan(inventory.indexOf("- `get_graph_schema`"));
+		expect(inventory.indexOf("- `search_code`")).toBeGreaterThan(inventory.indexOf("- `get_architecture`"));
+		expect(inventory.indexOf("- `query_graph`")).toBeGreaterThan(inventory.indexOf("- `search_code`"));
+		expect(inventory.indexOf("- `ast_grep`")).toBeGreaterThan(inventory.indexOf("- `query_graph`"));
 		expect(inventory.indexOf("- `ast_edit`")).toBeGreaterThan(inventory.indexOf("- `ast_grep`"));
 		expect(inventory.indexOf("- `edit`")).toBeGreaterThan(inventory.indexOf("- `ast_edit`"));
 		expect(inventory).not.toContain("- `browser`");

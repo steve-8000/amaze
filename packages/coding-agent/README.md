@@ -33,3 +33,9 @@ The agent supports three mutually-exclusive memory backends, selected via the `m
    - `HINDSIGHT_BANK_MISSION`, `HINDSIGHT_DEBUG`
 
 Switching backends mid-session is honoured on the next system-prompt rebuild and the next `/memory` slash command. Existing users with `memories.enabled = true|false` are migrated to `memory.backend = "local"|"off"` exactly once on first launch.
+
+## Native Codebase Graph
+
+The built-in codebase graph tools can call the upstream `codebase-memory-mcp` native binary directly. Amaze first checks `AMAZE_CODEBASE_MEMORY_MCP_BIN` or a packaged asset at `native/codebase-memory-mcp/<platform>/codebase-memory-mcp`, then falls back to the configured Rocky or legacy HTTP endpoint when no native binary is present.
+
+Packagers can provide prebuilt binaries without install-time compilation by setting `AMAZE_CODEBASE_MEMORY_MCP_BIN` plus `AMAZE_CODEBASE_MEMORY_MCP_NOTICE_DIR` during `bun pm pack`. The notice directory must contain upstream `LICENSE` and `THIRD_PARTY.md`.

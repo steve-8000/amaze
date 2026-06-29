@@ -1,9 +1,30 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { AgentToolResult, AgentToolUpdateCallback } from "@amaze/pi-agent-core";
+import type { AgentToolResult, AgentToolUpdateCallback, ToolTier } from "@amaze/pi-agent-core";
+import type { ImageContent, TextContent } from "@amaze/pi-ai";
 import { type } from "arktype";
 import type { ToolSession } from ".";
+import {
+	CODEBASE_MEMORY_NATIVE_TOOL_NAMES,
+	CodebaseMemoryNativeAdapter,
+	CodebaseMemoryNativeError,
+	type CodebaseMemoryNativeToolName,
+} from "./codebase-memory-native";
 import { ToolAbortError, ToolError, throwIfAborted } from "./tool-errors";
+
+export {
+	CODEBASE_MEMORY_NATIVE_TOOL_ALIASES,
+	CODEBASE_MEMORY_NATIVE_TOOL_NAMES,
+	type CodebaseMemoryBinaryResolution,
+	CodebaseMemoryNativeAdapter,
+	type CodebaseMemoryNativeCallResult,
+	CodebaseMemoryNativeError,
+	type CodebaseMemoryNativeToolAlias,
+	type CodebaseMemoryNativeToolName,
+	codebaseMemoryPlatformEnv,
+	currentCodebaseMemoryPlatform,
+	resolveCodebaseMemoryBinary,
+} from "./codebase-memory-native";
 
 type CodebaseProjectRecord = {
 	name: string;
@@ -13,10 +34,7 @@ type CodebaseProjectRecord = {
 type ListProjectsPayload = {
 	projects?: CodebaseProjectRecord[];
 };
-type CodebaseToolContent =
-	| { type: "text"; text: string }
-	| { type: "image"; mimeType: string }
-	| { type: "resource"; resource: { uri: string; text?: string } };
+type CodebaseToolContent = TextContent | ImageContent | { type: "resource"; resource: { uri: string; text?: string } };
 
 interface CodebaseToolCallResult {
 	content?: CodebaseToolContent[];
@@ -28,9 +46,29 @@ interface CodebaseToolDetails {
 	toolName: string;
 	isError?: boolean;
 	rawContent?: CodebaseToolContent[];
+	binaryPath?: string;
+	binarySource?: string;
+	platform?: string;
 }
 
+const projectSchema = type({
+	project: type("string").describe("indexed project name"),
+});
+const optionalProjectSchema = type({
+	"project?": type("string").describe(
+		"indexed project name; defaults to the current workspace when uniquely resolvable",
+	),
+});
 const listProjectsSchema = type({});
+const indexRepositorySchema = type({
+	repo_path: type("string").describe("absolute path to the repository to index"),
+	"mode?": type('"full" | "moderate" | "fast" | "cross-repo-intelligence"').describe(
+		"indexing mode; fast skips similarity/semantic edges, cross-repo-intelligence links existing projects",
+	),
+	"target_projects?": type("string").array().describe("projects for cross-repo-intelligence mode; use ['*'] for all"),
+	"name?": type("string").describe("override the derived indexed project name"),
+	"persistence?": type("boolean").describe("write .codebase-memory/graph.db.zst for team sharing"),
+});
 const searchGraphSchema = type({
 	"project?": type("string").describe(
 		"indexed project name; defaults to the current workspace when uniquely resolvable, including a unique nested repo/package root",
@@ -88,6 +126,7 @@ const tracePathSchema = type({
 	"risk_labels?": type("boolean").describe("attach hop-distance risk labels"),
 	"include_tests?": type("boolean").describe("include test files in the trace"),
 });
+const getGraphSchemaSchema = optionalProjectSchema;
 const getCodeSnippetSchema = type({
 	qualified_name: type("string").describe("full qualified_name from search_graph, or a short function name"),
 	"project?": type("string").describe(
@@ -96,10 +135,11 @@ const getCodeSnippetSchema = type({
 	"include_neighbors?": type("boolean").describe("include nearby declarations and helpers"),
 });
 const getArchitectureSchema = type({
-	aspects: type("string").array().atLeastLength(1).describe("architecture slices to summarize"),
+	"aspects?": type("string").array().atLeastLength(1).describe("architecture slices to summarize"),
 	"project?": type("string").describe(
 		"indexed project name; defaults to the current workspace when uniquely resolvable, including a unique nested repo/package root",
 	),
+	"path?": type("string").describe("optional path prefix scope"),
 });
 const queryGraphSchema = type({
 	query: type("string").describe("Cypher query"),
@@ -108,34 +148,78 @@ const queryGraphSchema = type({
 	),
 	"max_rows?": type("number").describe("optional result cap"),
 });
+const deleteProjectSchema = projectSchema;
+const indexStatusSchema = optionalProjectSchema;
+const detectChangesSchema = type({
+	"project?": type("string").describe("indexed project name"),
+	"scope?": type("string").describe("optional scope for change impact analysis"),
+	"depth?": type("number").describe("blast-radius traversal depth"),
+	"base_branch?": type("string").describe("base branch for git diff impact mapping"),
+	"since?": type("string").describe("git ref or tag to compare from, e.g. HEAD~5 or v0.5.0"),
+});
+const manageAdrSchema = type({
+	project: type("string").describe("indexed project name"),
+	"mode?": type('"get" | "update" | "sections"').describe("ADR operation"),
+	"content?": type("string").describe("ADR content for update mode"),
+	"sections?": type("string").array().describe("ADR sections to read or update"),
+});
+const traceRecordSchema = type({ "[string]": "unknown" });
+const ingestTracesSchema = type({
+	project: type("string").describe("indexed project name"),
+	traces: traceRecordSchema.array().describe("runtime trace records to ingest"),
+});
 
-const LIST_PROJECTS_DESCRIPTION = `List indexed Rocky codebase projects. Use this first when the current workspace is not the indexed project root, unique nested root, or when project resolution is ambiguous.`;
+const INDEX_REPOSITORY_DESCRIPTION = `Index a repository into the native codebase-memory knowledge graph. Use when no index exists or the graph is stale.`;
+const LIST_PROJECTS_DESCRIPTION = `List indexed codebase-memory projects. Use this first when the current workspace is not the indexed project root, unique nested root, or when project resolution is ambiguous.`;
 const SEARCH_GRAPH_DESCRIPTION = `Graph-augmented code discovery. Use this first to find functions, classes, routes, and variables by natural language, exact pattern, or semantic keywords. Defaults the project to the current workspace when uniquely resolvable, including a unique nested repo/package root.`;
 const SEARCH_CODE_DESCRIPTION = `Graph-ranked text search over the indexed codebase. Use for literal-code queries when structural graph search is too broad, but still want results deduplicated and ranked by containing symbol.`;
 const TRACE_PATH_DESCRIPTION = `Trace callers, callees, dependencies, and data flow through the code graph. Use after search_graph to understand impact and execution paths.`;
 const GET_CODE_SNIPPET_DESCRIPTION = `Read the source for a discovered symbol by qualified name. Use after search_graph to open the exact body instead of reading whole files.`;
+const GET_GRAPH_SCHEMA_DESCRIPTION = `Inspect node labels, relationship types, counts, and graph properties for the indexed project.`;
 const GET_ARCHITECTURE_DESCRIPTION = `Summarize package structure, dependencies, and graph clusters for the indexed project. Use before broad manual exploration.`;
 const QUERY_GRAPH_DESCRIPTION = `Run Cypher directly against the code graph for advanced multi-hop or aggregate analysis.`;
+const DELETE_PROJECT_DESCRIPTION = `Delete one project from the native codebase-memory index.`;
+const INDEX_STATUS_DESCRIPTION = `Inspect indexing status and graph statistics for one project.`;
+const DETECT_CHANGES_DESCRIPTION = `Map git changes to affected graph symbols and risk-classified blast radius.`;
+const MANAGE_ADR_DESCRIPTION = `Read, update, or inspect Architecture Decision Records associated with a project graph.`;
+const INGEST_TRACES_DESCRIPTION = `Ingest runtime traces into the native code graph for later impact and edge analysis.`;
 
 type ToolSchema =
 	| typeof listProjectsSchema
+	| typeof indexRepositorySchema
 	| typeof searchGraphSchema
 	| typeof searchCodeSchema
 	| typeof tracePathSchema
 	| typeof getCodeSnippetSchema
+	| typeof getGraphSchemaSchema
 	| typeof getArchitectureSchema
-	| typeof queryGraphSchema;
+	| typeof queryGraphSchema
+	| typeof deleteProjectSchema
+	| typeof indexStatusSchema
+	| typeof detectChangesSchema
+	| typeof manageAdrSchema
+	| typeof ingestTracesSchema;
 
 type CoreGraphDescriptor = {
-	name: string;
+	name: CodebaseMemoryNativeToolName;
 	label: string;
 	description: string;
-	toolName: string;
+	toolName: CodebaseMemoryNativeToolName;
 	schema: ToolSchema;
 	inferProject?: boolean;
+	approval?: ToolTier;
 };
 
 const CORE_GRAPH_DESCRIPTORS = {
+	index_repository: {
+		name: "index_repository",
+		label: "IndexRepository",
+		description: INDEX_REPOSITORY_DESCRIPTION,
+		toolName: "index_repository",
+		schema: indexRepositorySchema,
+		inferProject: false,
+		approval: "write",
+	},
 	list_projects: {
 		name: "list_projects",
 		label: "ListProjects",
@@ -176,6 +260,14 @@ const CORE_GRAPH_DESCRIPTORS = {
 		schema: getCodeSnippetSchema,
 		inferProject: true,
 	},
+	get_graph_schema: {
+		name: "get_graph_schema",
+		label: "GetGraphSchema",
+		description: GET_GRAPH_SCHEMA_DESCRIPTION,
+		toolName: "get_graph_schema",
+		schema: getGraphSchemaSchema,
+		inferProject: true,
+	},
 	get_architecture: {
 		name: "get_architecture",
 		label: "GetArchitecture",
@@ -192,11 +284,60 @@ const CORE_GRAPH_DESCRIPTORS = {
 		schema: queryGraphSchema,
 		inferProject: true,
 	},
+	delete_project: {
+		name: "delete_project",
+		label: "DeleteProject",
+		description: DELETE_PROJECT_DESCRIPTION,
+		toolName: "delete_project",
+		schema: deleteProjectSchema,
+		inferProject: true,
+		approval: "write",
+	},
+	index_status: {
+		name: "index_status",
+		label: "IndexStatus",
+		description: INDEX_STATUS_DESCRIPTION,
+		toolName: "index_status",
+		schema: indexStatusSchema,
+		inferProject: true,
+	},
+	detect_changes: {
+		name: "detect_changes",
+		label: "DetectChanges",
+		description: DETECT_CHANGES_DESCRIPTION,
+		toolName: "detect_changes",
+		schema: detectChangesSchema,
+		inferProject: true,
+	},
+	manage_adr: {
+		name: "manage_adr",
+		label: "ManageAdr",
+		description: MANAGE_ADR_DESCRIPTION,
+		toolName: "manage_adr",
+		schema: manageAdrSchema,
+		inferProject: true,
+		approval: "write",
+	},
+	ingest_traces: {
+		name: "ingest_traces",
+		label: "IngestTraces",
+		description: INGEST_TRACES_DESCRIPTION,
+		toolName: "ingest_traces",
+		schema: ingestTracesSchema,
+		inferProject: true,
+		approval: "write",
+	},
 } as const satisfies Record<string, CoreGraphDescriptor>;
+
+const REGISTERED_CORE_GRAPH_TOOL_NAMES = Object.keys(CORE_GRAPH_DESCRIPTORS).sort();
+const EXPECTED_CORE_GRAPH_TOOL_NAMES = [...CODEBASE_MEMORY_NATIVE_TOOL_NAMES].sort();
+if (JSON.stringify(REGISTERED_CORE_GRAPH_TOOL_NAMES) !== JSON.stringify(EXPECTED_CORE_GRAPH_TOOL_NAMES)) {
+	throw new Error("Codebase graph tool registry does not match the native codebase-memory-mcp 14-tool contract.");
+}
 
 function backendUnavailableError(): ToolError {
 	return new ToolError(
-		"Codebase graph backend unavailable. Set memory.backend=rocky with rocky.apiUrl, or set AMAZE_CODEBASE_ENDPOINT/ROCKY_CODEBASE_ENDPOINT before using core graph tools.",
+		"Codebase graph backend unavailable. Set AMAZE_CODEBASE_MEMORY_MCP_BIN, package a native codebase-memory-mcp binary, set memory.backend=rocky with rocky.apiUrl, or set AMAZE_CODEBASE_ENDPOINT/ROCKY_CODEBASE_ENDPOINT before using core graph tools.",
 	);
 }
 
@@ -232,6 +373,25 @@ function adaptRpcResult(result: CodebaseToolCallResult, toolName: string): Agent
 			toolName,
 			isError: result.isError,
 			rawContent: result.content,
+		},
+		...(result.isError ? { isError: true } : {}),
+	};
+}
+
+function adaptNativeResult(
+	result: Awaited<ReturnType<CodebaseMemoryNativeAdapter["callToolResult"]>>,
+	toolName: CodebaseMemoryNativeToolName,
+): AgentToolResult<CodebaseToolDetails> {
+	return {
+		content: result.content,
+		details: {
+			serverName: "codebase-memory-native",
+			toolName,
+			isError: result.isError,
+			rawContent: result.content,
+			binaryPath: result.binary.path,
+			binarySource: result.binary.source,
+			platform: result.binary.platform,
 		},
 		...(result.isError ? { isError: true } : {}),
 	};
@@ -356,6 +516,32 @@ function rockyApiBase(session: ToolSession): string | undefined {
 	const configured = session.settings?.get("rocky.apiUrl") || process.env.ROCKY_API_URL;
 	if (!configured) return undefined;
 	return configured.replace(/\/+$/, "");
+}
+
+async function callNativeCodebaseMemory(
+	session: ToolSession,
+	toolName: CodebaseMemoryNativeToolName,
+	args: Record<string, unknown>,
+	signal?: AbortSignal,
+): Promise<AgentToolResult<CodebaseToolDetails> | undefined> {
+	const adapter = new CodebaseMemoryNativeAdapter({ cwd: session.cwd });
+	const resolution = adapter.resolveBinary();
+	if (!resolution.path) {
+		if (resolution.explicit) {
+			throw new ToolError(
+				`codebase-memory-mcp native binary is configured but not executable for ${resolution.platform}. Checked:\n${resolution.checked_paths.join("\n")}`,
+			);
+		}
+		return undefined;
+	}
+	try {
+		return adaptNativeResult(await adapter.callToolResult(toolName, args, { signal }), toolName);
+	} catch (error) {
+		if (error instanceof CodebaseMemoryNativeError) {
+			throw new ToolError(error.message);
+		}
+		throw error;
+	}
 }
 
 function rockySearchScopeBody(session: ToolSession, args: Record<string, unknown>): Record<string, unknown> {
@@ -507,10 +693,12 @@ async function callRockyCodebaseEndpoint(
 
 async function callCoreCodebaseBackend(
 	session: ToolSession,
-	toolName: string,
+	toolName: CodebaseMemoryNativeToolName,
 	args: Record<string, unknown>,
 	signal?: AbortSignal,
 ): Promise<AgentToolResult<CodebaseToolDetails>> {
+	const nativeResult = await callNativeCodebaseMemory(session, toolName, args, signal);
+	if (nativeResult) return nativeResult;
 	const rockyResult = await callRockyCodebaseEndpoint(session, toolName, args, signal);
 	if (rockyResult) return rockyResult;
 	const endpointResult = await callCodebaseEndpoint(session, toolName, args, signal);
@@ -576,7 +764,7 @@ class CodebaseCoreTool<TSchema extends ToolSchema> {
 	readonly description: string;
 	readonly parameters: TSchema;
 	readonly strict = true;
-	readonly approval = "read" as const;
+	readonly approval: ToolTier;
 	readonly loadMode = "essential" as const;
 
 	constructor(
@@ -587,6 +775,7 @@ class CodebaseCoreTool<TSchema extends ToolSchema> {
 		this.label = descriptor.label;
 		this.description = descriptor.description;
 		this.parameters = descriptor.schema;
+		this.approval = descriptor.approval ?? "read";
 	}
 
 	async execute(
@@ -604,6 +793,12 @@ class CodebaseCoreTool<TSchema extends ToolSchema> {
 export class ListProjectsTool extends CodebaseCoreTool<typeof listProjectsSchema> {
 	constructor(session: ToolSession) {
 		super(session, CORE_GRAPH_DESCRIPTORS.list_projects);
+	}
+}
+
+export class IndexRepositoryTool extends CodebaseCoreTool<typeof indexRepositorySchema> {
+	constructor(session: ToolSession) {
+		super(session, CORE_GRAPH_DESCRIPTORS.index_repository);
 	}
 }
 
@@ -631,6 +826,12 @@ export class GetCodeSnippetTool extends CodebaseCoreTool<typeof getCodeSnippetSc
 	}
 }
 
+export class GetGraphSchemaTool extends CodebaseCoreTool<typeof getGraphSchemaSchema> {
+	constructor(session: ToolSession) {
+		super(session, CORE_GRAPH_DESCRIPTORS.get_graph_schema);
+	}
+}
+
 export class GetArchitectureTool extends CodebaseCoreTool<typeof getArchitectureSchema> {
 	constructor(session: ToolSession) {
 		super(session, CORE_GRAPH_DESCRIPTORS.get_architecture);
@@ -640,5 +841,35 @@ export class GetArchitectureTool extends CodebaseCoreTool<typeof getArchitecture
 export class QueryGraphTool extends CodebaseCoreTool<typeof queryGraphSchema> {
 	constructor(session: ToolSession) {
 		super(session, CORE_GRAPH_DESCRIPTORS.query_graph);
+	}
+}
+
+export class DeleteProjectTool extends CodebaseCoreTool<typeof deleteProjectSchema> {
+	constructor(session: ToolSession) {
+		super(session, CORE_GRAPH_DESCRIPTORS.delete_project);
+	}
+}
+
+export class IndexStatusTool extends CodebaseCoreTool<typeof indexStatusSchema> {
+	constructor(session: ToolSession) {
+		super(session, CORE_GRAPH_DESCRIPTORS.index_status);
+	}
+}
+
+export class DetectChangesTool extends CodebaseCoreTool<typeof detectChangesSchema> {
+	constructor(session: ToolSession) {
+		super(session, CORE_GRAPH_DESCRIPTORS.detect_changes);
+	}
+}
+
+export class ManageAdrTool extends CodebaseCoreTool<typeof manageAdrSchema> {
+	constructor(session: ToolSession) {
+		super(session, CORE_GRAPH_DESCRIPTORS.manage_adr);
+	}
+}
+
+export class IngestTracesTool extends CodebaseCoreTool<typeof ingestTracesSchema> {
+	constructor(session: ToolSession) {
+		super(session, CORE_GRAPH_DESCRIPTORS.ingest_traces);
 	}
 }

@@ -4,17 +4,11 @@ import path from "node:path";
 
 const ROOT = path.resolve(import.meta.dir, "..", "..", "..");
 const BLOCKED = new RegExp(
-	[
-		["mne", "mopi"].join(""),
-		["Mne", "mopi"].join(""),
-		["mnemo", "syne"].join(""),
-		["Mnemo", "syne"].join(""),
-		["codebase", "memory", "mcp"].join("-"),
-	]
+	[["mne", "mopi"].join(""), ["Mne", "mopi"].join(""), ["mnemo", "syne"].join(""), ["Mnemo", "syne"].join("")]
 		.map(value => `\\b${value}\\b`)
 		.join("|"),
 );
-const SKIP_DIRS = new Set([".git", "node_modules", "target", "dist", "build"]);
+const SKIP_DIRS = new Set([".amaze", ".git", "local-ignore", "node_modules", "target", "dist", "build"]);
 
 function* files(dir: string): Generator<string> {
 	for (const entry of readdirSync(dir)) {

@@ -419,14 +419,18 @@ describe("DebugTool launch validation", () => {
 		const sessionLaunchSpy = spyOn(dapModule.dapSessionManager, "launch").mockImplementation(async opts => {
 			throw Object.assign(new Error("captured launch"), { capturedOptions: opts });
 		});
+		const originalPath = process.env.PATH;
 		try {
 			const cwd = await fs.mkdtemp(path.join(os.tmpdir(), "amaze-debug-dlv-mixed-roots-"));
 			try {
 				await fs.writeFile(path.join(cwd, "go.mod"), "module hello\n\ngo 1.22\n");
 				await fs.writeFile(path.join(cwd, "Makefile"), "all:\n\tgo build ./...\n");
 				await fs.mkdir(path.join(cwd, "bin"));
-				await fs.writeFile(path.join(cwd, "bin", "dlv"), "");
-				await fs.writeFile(path.join(cwd, "bin", "gdb"), "");
+				await fs.writeFile(path.join(cwd, "bin", "dlv"), "#!/bin/sh\nexit 0\n");
+				await fs.writeFile(path.join(cwd, "bin", "gdb"), "#!/bin/sh\nexit 0\n");
+				await fs.chmod(path.join(cwd, "bin", "dlv"), 0o755);
+				await fs.chmod(path.join(cwd, "bin", "gdb"), 0o755);
+				process.env.PATH = `${path.join(cwd, "bin")}${path.delimiter}${originalPath ?? ""}`;
 				await fs.mkdir(path.join(cwd, "cmd", "hello"), { recursive: true });
 				const session: ToolSession = {
 					cwd,
@@ -447,6 +451,11 @@ describe("DebugTool launch validation", () => {
 				await fs.rm(cwd, { recursive: true, force: true });
 			}
 		} finally {
+			if (originalPath === undefined) {
+				delete process.env.PATH;
+			} else {
+				process.env.PATH = originalPath;
+			}
 			sessionLaunchSpy.mockRestore();
 		}
 	});

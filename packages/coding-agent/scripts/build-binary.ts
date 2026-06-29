@@ -95,6 +95,7 @@ async function main(): Promise<void> {
 			if (shouldAdhocSignDarwinBinary()) {
 				await runCommand(["codesign", "--force", "--sign", "-", outputPath]);
 			}
+			await runCommand(["bun", "../../scripts/codebase-memory-native-assets.mjs", "copy", "--target", "dist"]);
 		} finally {
 			await runCommand(["bun", "scripts/embed-mupdf-wasm.ts", "--reset"]);
 			await runCommand(["bun", "--cwd=../natives", "run", "embed:native", "--reset"]);

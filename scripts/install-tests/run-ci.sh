@@ -93,7 +93,7 @@ cp "$natives_pkg_backup" "$ROOT_DIR/packages/natives/package.json"
 # 3. Pack the remaining workspace packages (natives core and coding-agent
 #    handled separately). `collab-web` is private but still packed here so its
 #    prepack build and tarball file list stay release-safe.
-for pkg in utils wire hashline catalog ai rockyMemory snapcompact agent tui stats collab-web; do
+for pkg in utils wire hashline catalog ai rocky-memory snapcompact agent tui stats collab-web; do
    (
       cd "$ROOT_DIR/packages/$pkg"
       bun pm pack --destination "$TARBALL_DIR" --quiet >/dev/null
@@ -116,20 +116,20 @@ agent_rc=0
 cp "$agent_pkg_backup" "$ROOT_DIR/packages/coding-agent/package.json"
 [ "$agent_rc" -eq 0 ] || exit "$agent_rc"
 
-utils_tgz="$(find_tarball "$TARBALL_DIR"/amaze-agent-pi-utils-*.tgz)"
-wire_tgz="$(find_tarball "$TARBALL_DIR"/amaze-agent-pi-wire-*.tgz)"
-natives_tgz="$(find_tarball "$TARBALL_DIR"/amaze-agent-pi-natives-[0-9]*.tgz)"
-natives_leaf_tgz="$(find_tarball "$TARBALL_DIR"/amaze-agent-pi-natives-"$host_tag"-*.tgz)"
-hashline_tgz="$(find_tarball "$TARBALL_DIR"/amaze-agent-hashline-*.tgz)"
-catalog_tgz="$(find_tarball "$TARBALL_DIR"/amaze-agent-pi-catalog-*.tgz)"
-ai_tgz="$(find_tarball "$TARBALL_DIR"/amaze-agent-pi-ai-*.tgz)"
-rockyMemory_tgz="$(find_tarball "$TARBALL_DIR"/amaze-agent-pi-rocky-memory-*.tgz)"
-snapcompact_tgz="$(find_tarball "$TARBALL_DIR"/amaze-agent-snapcompact-*.tgz)"
-agent_tgz="$(find_tarball "$TARBALL_DIR"/amaze-agent-pi-agent-core-*.tgz)"
-tui_tgz="$(find_tarball "$TARBALL_DIR"/amaze-agent-pi-tui-*.tgz)"
-stats_tgz="$(find_tarball "$TARBALL_DIR"/amaze-agent-amaze-stats-*.tgz)"
-coding_agent_tgz="$(find_tarball "$TARBALL_DIR"/amaze-agent-pi-coding-agent-*.tgz)"
-collab_web_tgz="$(find_tarball "$TARBALL_DIR"/amaze-agent-collab-web-*.tgz)"
+utils_tgz="$(find_tarball "$TARBALL_DIR"/amaze-pi-utils-*.tgz)"
+wire_tgz="$(find_tarball "$TARBALL_DIR"/amaze-pi-wire-*.tgz)"
+natives_tgz="$(find_tarball "$TARBALL_DIR"/amaze-pi-natives-[0-9]*.tgz)"
+natives_leaf_tgz="$(find_tarball "$TARBALL_DIR"/amaze-pi-natives-"$host_tag"-*.tgz)"
+hashline_tgz="$(find_tarball "$TARBALL_DIR"/amaze-hashline-*.tgz)"
+catalog_tgz="$(find_tarball "$TARBALL_DIR"/amaze-pi-catalog-*.tgz)"
+ai_tgz="$(find_tarball "$TARBALL_DIR"/amaze-pi-ai-*.tgz)"
+rockyMemory_tgz="$(find_tarball "$TARBALL_DIR"/amaze-pi-rocky-memory-*.tgz)"
+snapcompact_tgz="$(find_tarball "$TARBALL_DIR"/amaze-snapcompact-*.tgz)"
+agent_tgz="$(find_tarball "$TARBALL_DIR"/amaze-pi-agent-core-*.tgz)"
+tui_tgz="$(find_tarball "$TARBALL_DIR"/amaze-pi-tui-*.tgz)"
+stats_tgz="$(find_tarball "$TARBALL_DIR"/amaze-amaze-stats-*.tgz)"
+coding_agent_tgz="$(find_tarball "$TARBALL_DIR"/amaze-pi-coding-agent-*.tgz)"
+collab_web_tgz="$(find_tarball "$TARBALL_DIR"/amaze-collab-web-*.tgz)"
 
 TARBALL_APP_DIR="$WORK_DIR/tarball-install"
 mkdir -p "$TARBALL_APP_DIR"
