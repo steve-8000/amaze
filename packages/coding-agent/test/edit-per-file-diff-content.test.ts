@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { resetSettingsForTest, Settings } from "@amaze/pi-coding-agent/config/settings";
+import { resetSettingsForTest, Settings } from "@steve-z8k/pi-coding-agent/config/settings";
 import {
 	DEFAULT_FUZZY_THRESHOLD,
 	EditTool,
@@ -10,8 +10,8 @@ import {
 	executePatchSingle,
 	executeReplaceSingle,
 	writethroughNoop,
-} from "@amaze/pi-coding-agent/edit";
-import type { ToolSession } from "@amaze/pi-coding-agent/tools";
+} from "@steve-z8k/pi-coding-agent/edit";
+import type { ToolSession } from "@steve-z8k/pi-coding-agent/tools";
 
 // ─── Minimal ToolSession stub ────────────────────────────────────────────────
 

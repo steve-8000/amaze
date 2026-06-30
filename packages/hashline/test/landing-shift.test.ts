@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { applyEdits, type BlockResolver, type BlockSpan, Patch, parsePatch } from "@amaze/hashline";
+import { applyEdits, type BlockResolver, type BlockSpan, Patch, parsePatch } from "@steve-z8k/hashline";
 
 /**
  * After-insert landing correction: an `insert after N:` body indented

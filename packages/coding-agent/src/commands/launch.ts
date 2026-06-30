@@ -2,9 +2,9 @@
  * Root command for the coding agent CLI.
  */
 
-import { THINKING_EFFORTS } from "@amaze/pi-catalog/effort";
-import { APP_NAME } from "@amaze/pi-utils";
-import { Args, Command, Flags } from "@amaze/pi-utils/cli";
+import { THINKING_EFFORTS } from "@steve-z8k/pi-catalog/effort";
+import { APP_NAME } from "@steve-z8k/pi-utils";
+import { Args, Command, Flags } from "@steve-z8k/pi-utils/cli";
 import { parseArgs } from "../cli/args";
 import { runRootCommand } from "../main";
 import { prepareAcpTerminalAuthArgs } from "../modes/acp/terminal-auth";
@@ -166,7 +166,6 @@ export default class Index extends Command {
 		`# Create a shell shortcut for a work profile\n  ${APP_NAME} --profile work --alias amaze-work`,
 		`# Use different model (fuzzy matching)\n  ${APP_NAME} --model opus "Help me refactor this code"`,
 		`# Limit model cycling to specific models\n  ${APP_NAME} --models claude-sonnet,claude-haiku,gpt-4o`,
-		`# Export a session file to HTML\n  ${APP_NAME} --export ~/.amaze/agent/sessions/--path--/session.jsonl`,
 	];
 
 	static strict = false;

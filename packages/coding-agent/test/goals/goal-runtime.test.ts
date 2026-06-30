@@ -5,9 +5,9 @@ import {
 	goalTokenDelta,
 	renderGoalPrompt,
 	renderTrustedObjective,
-} from "@amaze/pi-coding-agent/goals/runtime";
-import type { Goal, GoalModeState, GoalRuntimeEvent, GoalTokenUsage } from "@amaze/pi-coding-agent/goals/state";
-import { escapeXmlText } from "@amaze/pi-utils";
+} from "@steve-z8k/pi-coding-agent/goals/runtime";
+import type { Goal, GoalModeState, GoalRuntimeEvent, GoalTokenUsage } from "@steve-z8k/pi-coding-agent/goals/state";
+import { escapeXmlText } from "@steve-z8k/pi-utils";
 
 function createUsage(overrides: Partial<GoalTokenUsage> = {}): GoalTokenUsage {
 	return {

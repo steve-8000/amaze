@@ -2,25 +2,25 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { AuthStorage, type completeSimple, type ImageContent, type Model } from "@amaze/pi-ai";
-import { buildModel } from "@amaze/pi-catalog/build";
-import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import { getThemeByName } from "@amaze/pi-coding-agent/modes/theme/theme";
-import { createAgentSession } from "@amaze/pi-coding-agent/sdk";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import type { ToolSession } from "@amaze/pi-coding-agent/tools";
-import { InspectImageTool } from "@amaze/pi-coding-agent/tools/inspect-image";
-import { inspectImageToolRenderer } from "@amaze/pi-coding-agent/tools/inspect-image-renderer";
-import { toolRenderers } from "@amaze/pi-coding-agent/tools/renderers";
-import { sanitizeText } from "@amaze/pi-utils";
+import { AuthStorage, type completeSimple, type ImageContent, type Model } from "@steve-z8k/pi-ai";
+import { buildModel } from "@steve-z8k/pi-catalog/build";
+import { ModelRegistry } from "@steve-z8k/pi-coding-agent/config/model-registry";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { getThemeByName } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
+import { createAgentSession } from "@steve-z8k/pi-coding-agent/sdk";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import type { ToolSession } from "@steve-z8k/pi-coding-agent/tools";
+import { InspectImageTool } from "@steve-z8k/pi-coding-agent/tools/inspect-image";
+import { inspectImageToolRenderer } from "@steve-z8k/pi-coding-agent/tools/inspect-image-renderer";
+import { toolRenderers } from "@steve-z8k/pi-coding-agent/tools/renderers";
+import { sanitizeText } from "@steve-z8k/pi-utils";
 import { type } from "arktype";
 
 const TINY_PNG_BASE64 =
 	"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==";
 
 const visionModel: Model<"openai-responses"> = buildModel({
-	id: "gpt-4o",
+	id: "gpt-5.4",
 	name: "GPT-4o",
 	api: "openai-responses",
 	provider: "openai",
@@ -310,7 +310,7 @@ describe("InspectImageTool", () => {
 			{
 				content: [{ type: "text", text: "line 1\nline 2\nline 3\nline 4\nline 5" }],
 				details: {
-					model: "openai/gpt-4o",
+					model: "openai/gpt-5.4",
 					imagePath: "/tmp/screenshot.png",
 					mimeType: "image/png",
 				},
@@ -324,7 +324,7 @@ describe("InspectImageTool", () => {
 		expect(resultOutput).toContain("image/png");
 		expect(resultOutput).toContain("Question:");
 		expect(resultOutput).toContain("What error text is visible?");
-		expect(resultOutput).toContain("openai/gpt-4o");
+		expect(resultOutput).toContain("openai/gpt-5.4");
 		expect(resultOutput).toContain("more lines");
 	});
 
@@ -351,14 +351,14 @@ describe("InspectImageTool", () => {
 		expect(stub.calls).toHaveLength(0);
 	});
 
-	it("falls back to pi/default when vision role is unset", async () => {
+	it("falls back to pi/flash when vision role is unset", async () => {
 		const imagePath = path.join(testDir, "screen.png");
 		fs.writeFileSync(imagePath, Buffer.from(TINY_PNG_BASE64, "base64"));
 
 		const settings = Settings.isolated();
-		settings.setModelRole("default", `${visionModel.provider}/${visionModel.id}`);
+		settings.setModelRole("flash", `${visionModel.provider}/${visionModel.id}`);
 
-		const stub = createCompleteSimpleSuccessStub("Fallback default model used");
+		const stub = createCompleteSimpleSuccessStub("Fallback flash model used");
 		const tool = new InspectImageTool(
 			createSession(testDir, textOnlyModel, "test-key", settings, {
 				configureVisionRole: false,
@@ -369,10 +369,10 @@ describe("InspectImageTool", () => {
 		);
 
 		const result = await tool.execute("call-1c", { path: imagePath, question: "What text is visible?" });
-		expect(result.details?.model).toBe("openai/gpt-4o");
+		expect(result.details?.model).toBe("openai/gpt-5.4");
 		expect(stub.calls).toHaveLength(1);
 		const selectedModel = stub.calls[0]?.[0] as { id?: string } | undefined;
-		expect(selectedModel?.id).toBe("gpt-4o");
+		expect(selectedModel?.id).toBe("gpt-5.4");
 	});
 
 	it("fails with actionable error when resolved model does not support image input", async () => {

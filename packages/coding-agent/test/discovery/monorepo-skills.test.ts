@@ -9,10 +9,10 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { clearCache } from "@amaze/pi-coding-agent/capability/fs";
-import type { Skill } from "@amaze/pi-coding-agent/capability/skill";
-import type { LoadContext, LoadResult } from "@amaze/pi-coding-agent/capability/types";
-import { scanSkillsFromDir } from "@amaze/pi-coding-agent/discovery/helpers";
+import { clearCache } from "@steve-z8k/pi-coding-agent/capability/fs";
+import type { Skill } from "@steve-z8k/pi-coding-agent/capability/skill";
+import type { LoadContext, LoadResult } from "@steve-z8k/pi-coding-agent/capability/types";
+import { scanSkillsFromDir } from "@steve-z8k/pi-coding-agent/discovery/helpers";
 
 function writeSkill(dir: string, name: string, description: string): void {
 	const skillDir = path.join(dir, name);
@@ -76,11 +76,10 @@ describe("monorepo skill discovery", () => {
 		expect(names.indexOf("local-skill")).toBeLessThan(names.indexOf("root-skill"));
 	});
 
-	test("ignores disabled rocky-codebase skills before parsing frontmatter", async () => {
+	test("loads Clab-named skills alongside local skills", async () => {
 		const skillsDir = path.join(subProject, ".amaze", "skills");
-		const disabledSkillDir = path.join(skillsDir, "rocky-codebase");
-		fs.mkdirSync(disabledSkillDir, { recursive: true });
-		fs.writeFileSync(path.join(disabledSkillDir, "SKILL.md"), "---\nname: [broken\n---\n\nShould not parse.\n");
+		writeSkill(skillsDir, "clab-codebase", "From sub-project");
+		writeSkill(skillsDir, "clab-skills", "From sub-project");
 		writeSkill(skillsDir, "local-skill", "From sub-project");
 
 		const result = await scanSkillsFromDir(ctx, {
@@ -90,7 +89,7 @@ describe("monorepo skill discovery", () => {
 		});
 
 		expect(result.warnings).toEqual([]);
-		expect(result.items.map(skill => skill.name)).toEqual(["local-skill"]);
+		expect(result.items.map(skill => skill.name)).toEqual(["clab-codebase", "clab-skills", "local-skill"]);
 	});
 
 	test("closest skill wins when same name exists at multiple levels", async () => {

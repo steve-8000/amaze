@@ -1,5 +1,5 @@
 import { scheduler } from "node:timers/promises";
-import { toNumber } from "@amaze/pi-catalog/utils";
+import { toNumber } from "@steve-z8k/pi-catalog/utils";
 import { claudeCodeVersion } from "../providers/anthropic";
 import type {
 	CredentialRankingStrategy,

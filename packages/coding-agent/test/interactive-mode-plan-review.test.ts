@@ -1,23 +1,23 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { Agent, AgentBusyError } from "@amaze/pi-agent-core";
-import type { AssistantMessage, Usage } from "@amaze/pi-ai";
-import { KeybindingsManager } from "@amaze/pi-coding-agent/config/keybindings";
-import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings } from "@amaze/pi-coding-agent/config/settings";
-import { resolveLocalUrlToPath } from "@amaze/pi-coding-agent/internal-urls";
-import { AssistantMessageComponent } from "@amaze/pi-coding-agent/modes/components/assistant-message";
-import type { HookSelectorSlider } from "@amaze/pi-coding-agent/modes/components/hook-selector";
-import type { PlanReviewOverlay } from "@amaze/pi-coding-agent/modes/components/plan-review-overlay";
-import { InteractiveMode } from "@amaze/pi-coding-agent/modes/interactive-mode";
-import { initTheme } from "@amaze/pi-coding-agent/modes/theme/theme";
-import { AgentSession } from "@amaze/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
-import { SILENT_ABORT_MARKER, USER_INTERRUPT_LABEL } from "@amaze/pi-coding-agent/session/messages";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import { setKeybindings } from "@amaze/pi-tui";
-import { formatNumber, TempDir } from "@amaze/pi-utils";
+import { Agent, AgentBusyError } from "@steve-z8k/pi-agent-core";
+import type { AssistantMessage, Usage } from "@steve-z8k/pi-ai";
+import { KeybindingsManager } from "@steve-z8k/pi-coding-agent/config/keybindings";
+import { ModelRegistry } from "@steve-z8k/pi-coding-agent/config/model-registry";
+import { resetSettingsForTest, Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { resolveLocalUrlToPath } from "@steve-z8k/pi-coding-agent/internal-urls";
+import { AssistantMessageComponent } from "@steve-z8k/pi-coding-agent/modes/components/assistant-message";
+import type { HookSelectorSlider } from "@steve-z8k/pi-coding-agent/modes/components/hook-selector";
+import type { PlanReviewOverlay } from "@steve-z8k/pi-coding-agent/modes/components/plan-review-overlay";
+import { InteractiveMode } from "@steve-z8k/pi-coding-agent/modes/interactive-mode";
+import { initTheme } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
+import { AgentSession } from "@steve-z8k/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@steve-z8k/pi-coding-agent/session/auth-storage";
+import { SILENT_ABORT_MARKER, USER_INTERRUPT_LABEL } from "@steve-z8k/pi-coding-agent/session/messages";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import { setKeybindings } from "@steve-z8k/pi-tui";
+import { formatNumber, TempDir } from "@steve-z8k/pi-utils";
 
 /**
  * Matches the plan-approved synthetic-prompt dispatch. `#approvePlan` calls
@@ -93,9 +93,9 @@ describe("InteractiveMode plan review rendering", () => {
 		resetSettingsForTest();
 		tempDir = TempDir.createSync("@pi-plan-review-");
 		await Settings.init({ inMemory: true, cwd: tempDir.path() });
-		const model = modelRegistry.find("anthropic", "claude-sonnet-4-5");
+		const model = modelRegistry.find("anthropic", "claude-sonnet-4-6");
 		if (!model) {
-			throw new Error("Expected claude-sonnet-4-5 to exist in registry");
+			throw new Error("Expected claude-sonnet-4-6 to exist in registry");
 		}
 
 		session = new AgentSession({
@@ -444,7 +444,7 @@ describe("InteractiveMode plan review rendering", () => {
 		mode.stop();
 		await session.dispose();
 
-		const executionModel = modelRegistry.find("anthropic", "claude-sonnet-4-5");
+		const executionModel = modelRegistry.find("anthropic", "claude-sonnet-4-6");
 		const planModel = modelRegistry.find("anthropic", "claude-opus-4-6");
 		if (!executionModel?.contextWindow || !planModel?.contextWindow) {
 			throw new Error("Expected test models with context windows");
@@ -687,19 +687,19 @@ describe("InteractiveMode plan review rendering", () => {
 		// Regression: the model-tier slider's choice used to be applied BEFORE
 		// #approvePlan ran. #approvePlan → #exitPlanMode restores the model that
 		// was active before plan mode (#planModePreviousModelState), which silently
-		// reverted the operator's pick — sliding to "slow" still executed on the
-		// default model. The fix defers application until after the plan-mode exit.
+		// reverted the operator's pick — sliding to "deep" still executed on the
+		// flash model. The fix defers application until after the plan-mode exit.
 		authStorage.setRuntimeApiKey("anthropic", "test-key");
-		const slow = session.modelRegistry.find("anthropic", "claude-opus-4-5");
-		const def = session.modelRegistry.find("anthropic", "claude-sonnet-4-5");
-		if (!slow || !def) throw new Error("Expected sonnet + opus to exist in registry");
+		const deep = session.modelRegistry.find("anthropic", "claude-opus-4-8");
+		const flash = session.modelRegistry.find("anthropic", "claude-sonnet-4-6");
+		if (!deep || !flash) throw new Error("Expected sonnet + opus to exist in registry");
 
-		// plan === default === the session model: this is what makes plan-mode entry
-		// record a previous-model state for #exitPlanMode to restore. slow differs,
+		// plan === flash === the session model: this is what makes plan-mode entry
+		// record a previous-model state for #exitPlanMode to restore. deep differs,
 		// so an early application would be clobbered by that restore.
-		session.settings.setModelRole("default", "anthropic/claude-sonnet-4-5");
-		session.settings.setModelRole("slow", "anthropic/claude-opus-4-5");
-		session.settings.setModelRole("plan", "anthropic/claude-sonnet-4-5");
+		session.settings.setModelRole("flash", "anthropic/claude-sonnet-4-6");
+		session.settings.setModelRole("deep", "anthropic/claude-opus-4-8");
+		session.settings.setModelRole("plan", "anthropic/claude-sonnet-4-6");
 
 		const planFilePath = "local://PLAN.md";
 		const resolvedPlanPath = resolveLocalUrlToPath(planFilePath, {
@@ -710,7 +710,7 @@ describe("InteractiveMode plan review rendering", () => {
 
 		await mode.handlePlanModeCommand();
 		expect(session.getPlanModeState()?.enabled).toBe(true);
-		expect(session.model?.id).toBe(def.id);
+		expect(session.model?.id).toBe(flash.id);
 
 		// Keep-context path avoids newSession() so the assertion isolates the
 		// exit-plan-mode restore from session-clear effects.
@@ -723,10 +723,10 @@ describe("InteractiveMode plan review rendering", () => {
 				const slider = extra?.slider;
 				expect(slider).toBeDefined();
 				observedSegments = slider!.segments.map(segment => segment.label);
-				const slowIndex = slider!.segments.findIndex(segment => segment.label === "slow");
-				expect(slowIndex).toBeGreaterThanOrEqual(0);
-				// Simulate the operator sliding the tier to "slow" before approving.
-				slider!.onChange?.(slowIndex);
+				const deepIndex = slider!.segments.findIndex(segment => segment.label === "deep");
+				expect(deepIndex).toBeGreaterThanOrEqual(0);
+				// Simulate the operator sliding the lane to "deep" before approving.
+				slider!.onChange?.(deepIndex);
 				return "Approve and keep context";
 			},
 		);
@@ -737,19 +737,19 @@ describe("InteractiveMode plan review rendering", () => {
 			title: "PLAN",
 		});
 
-		expect(observedSegments).toEqual(["default", "slow"]);
+		expect(observedSegments).toEqual(["flash", "deep"]);
 		// The load-bearing assertion: the approved plan executes on the operator's
-		// selected tier, not the restored default.
-		expect(session.model?.id).toBe(slow.id);
+		// selected lane, not the restored flash lane.
+		expect(session.model?.id).toBe(deep.id);
 	});
 
 	it("compaction runs on the plan model and restores the pre-plan model after success", async () => {
-		const planModel = session.modelRegistry.find("anthropic", "claude-opus-4-5");
-		const prePlanModel = session.modelRegistry.find("anthropic", "claude-sonnet-4-5");
+		const planModel = session.modelRegistry.find("anthropic", "claude-opus-4-8");
+		const prePlanModel = session.modelRegistry.find("anthropic", "claude-sonnet-4-6");
 		if (!planModel || !prePlanModel) throw new Error("Expected sonnet + opus to exist in registry");
 
-		session.settings.setModelRole("default", "anthropic/claude-sonnet-4-5");
-		session.settings.setModelRole("plan", "anthropic/claude-opus-4-5");
+		session.settings.setModelRole("flash", "anthropic/claude-sonnet-4-6");
+		session.settings.setModelRole("plan", "anthropic/claude-opus-4-8");
 
 		const planFilePath = "local://PLAN.md";
 		const resolvedPlanPath = resolveLocalUrlToPath(planFilePath, {
@@ -782,11 +782,11 @@ describe("InteractiveMode plan review rendering", () => {
 	});
 
 	it("failed compaction stays on the plan model and still dispatches", async () => {
-		const planModel = session.modelRegistry.find("anthropic", "claude-opus-4-5");
+		const planModel = session.modelRegistry.find("anthropic", "claude-opus-4-8");
 		if (!planModel) throw new Error("Expected opus to exist in registry");
 
-		session.settings.setModelRole("default", "anthropic/claude-sonnet-4-5");
-		session.settings.setModelRole("plan", "anthropic/claude-opus-4-5");
+		session.settings.setModelRole("flash", "anthropic/claude-sonnet-4-6");
+		session.settings.setModelRole("plan", "anthropic/claude-opus-4-8");
 
 		const planFilePath = "local://PLAN.md";
 		const resolvedPlanPath = resolveLocalUrlToPath(planFilePath, {
@@ -820,18 +820,18 @@ describe("InteractiveMode plan review rendering", () => {
 	});
 
 	it("slider tier on the compact path applies after successful compaction", async () => {
-		const planModel = session.modelRegistry.find("anthropic", "claude-opus-4-5");
-		const execModel = session.modelRegistry.find("anthropic", "claude-sonnet-4-5");
+		const planModel = session.modelRegistry.find("anthropic", "claude-opus-4-8");
+		const execModel = session.modelRegistry.find("anthropic", "claude-sonnet-4-6");
 		if (!planModel || !execModel) throw new Error("Expected sonnet + opus to exist in registry");
 
-		// Plan model (opus) differs from the execution tier the operator slides to
-		// (default = sonnet) so the assertions distinguish the new defer-restore +
+		// Plan model (opus) differs from the execution lane the operator slides to
+		// (flash = sonnet) so the assertions distinguish the new defer-restore +
 		// success-gated transition from the old "restore pre-plan before compaction"
 		// path: under the old behavior compaction would have run on sonnet and the
 		// restore (not applyRoleModel) would have produced the final model.
-		session.settings.setModelRole("default", "anthropic/claude-sonnet-4-5");
-		session.settings.setModelRole("slow", "anthropic/claude-opus-4-5");
-		session.settings.setModelRole("plan", "anthropic/claude-opus-4-5");
+		session.settings.setModelRole("flash", "anthropic/claude-sonnet-4-6");
+		session.settings.setModelRole("deep", "anthropic/claude-opus-4-8");
+		session.settings.setModelRole("plan", "anthropic/claude-opus-4-8");
 
 		const planFilePath = "local://PLAN.md";
 		const resolvedPlanPath = resolveLocalUrlToPath(planFilePath, {
@@ -857,10 +857,10 @@ describe("InteractiveMode plan review rendering", () => {
 			async (_planContent, _title, _options, _dialogOptions, extra?: { slider?: HookSelectorSlider }) => {
 				const slider = extra?.slider;
 				expect(slider).toBeDefined();
-				const defaultIndex = slider!.segments.findIndex(segment => segment.label === "default");
-				expect(defaultIndex).toBeGreaterThanOrEqual(0);
-				// Operator planned on opus but slides execution down to the default tier.
-				slider!.onChange?.(defaultIndex);
+				const flashIndex = slider!.segments.findIndex(segment => segment.label === "flash");
+				expect(flashIndex).toBeGreaterThanOrEqual(0);
+				// Operator planned on opus but slides execution down to the flash lane.
+				slider!.onChange?.(flashIndex);
 				return "Approve and compact context";
 			},
 		);
@@ -873,7 +873,7 @@ describe("InteractiveMode plan review rendering", () => {
 
 		// Compaction ran on the plan model (defer-restore kept it warm) …
 		expect(compactModelId).toBe(planModel.id);
-		// … and the slider-selected execution tier was applied via applyRoleModel
+		// … and the slider-selected execution lane was applied via applyRoleModel
 		// (the executionModel branch, not the pre-plan restore which goes through
 		// setModelTemporary), only after the successful compaction.
 		expect(applyRoleSpy.mock.calls.some(call => call[0]?.model?.id === execModel.id)).toBe(true);
@@ -885,12 +885,12 @@ describe("InteractiveMode plan review rendering", () => {
 		// #planModePreviousModelState, so an aborted "Approve and compact context"
 		// left the next turn stranded on the plan model. The transition now runs
 		// for "cancelled" too (the operator aborted only compaction, not approval).
-		const planModel = session.modelRegistry.find("anthropic", "claude-opus-4-5");
-		const prePlanModel = session.modelRegistry.find("anthropic", "claude-sonnet-4-5");
+		const planModel = session.modelRegistry.find("anthropic", "claude-opus-4-8");
+		const prePlanModel = session.modelRegistry.find("anthropic", "claude-sonnet-4-6");
 		if (!planModel || !prePlanModel) throw new Error("Expected sonnet + opus to exist in registry");
 
-		session.settings.setModelRole("default", "anthropic/claude-sonnet-4-5");
-		session.settings.setModelRole("plan", "anthropic/claude-opus-4-5");
+		session.settings.setModelRole("flash", "anthropic/claude-sonnet-4-6");
+		session.settings.setModelRole("plan", "anthropic/claude-opus-4-8");
 
 		const planFilePath = "local://PLAN.md";
 		const resolvedPlanPath = resolveLocalUrlToPath(planFilePath, {
@@ -932,12 +932,12 @@ describe("InteractiveMode plan review rendering", () => {
 		// so the model transition must run inside the before-flush hook. Otherwise a
 		// turn queued during compaction dispatches on the plan model (the restore,
 		// recorded while streaming, lands one turn later via #pendingModelSwitch).
-		const planModel = session.modelRegistry.find("anthropic", "claude-opus-4-5");
-		const prePlanModel = session.modelRegistry.find("anthropic", "claude-sonnet-4-5");
+		const planModel = session.modelRegistry.find("anthropic", "claude-opus-4-8");
+		const prePlanModel = session.modelRegistry.find("anthropic", "claude-sonnet-4-6");
 		if (!planModel || !prePlanModel) throw new Error("Expected sonnet + opus to exist in registry");
 
-		session.settings.setModelRole("default", "anthropic/claude-sonnet-4-5");
-		session.settings.setModelRole("plan", "anthropic/claude-opus-4-5");
+		session.settings.setModelRole("flash", "anthropic/claude-sonnet-4-6");
+		session.settings.setModelRole("plan", "anthropic/claude-opus-4-8");
 
 		const planFilePath = "local://PLAN.md";
 		const resolvedPlanPath = resolveLocalUrlToPath(planFilePath, {
@@ -1308,7 +1308,7 @@ describe("InteractiveMode plan review rendering", () => {
 			content: [{ type: "text", text: "Approved plan; transitioning to compaction." }],
 			api: "openai-completions",
 			provider: "github-copilot",
-			model: "gpt-4o",
+			model: "gpt-5.4",
 			usage: {
 				input: 0,
 				output: 0,

@@ -1,5 +1,5 @@
 import { describe, expect, it, spyOn } from "bun:test";
-import { Command, type CommandEntry, Flags, run } from "@amaze/pi-utils/cli";
+import { Command, type CommandEntry, Flags, run } from "@steve-z8k/pi-utils/cli";
 
 class GoodCommand extends Command {
 	static description = "prints good things";

@@ -1,7 +1,7 @@
 /**
  * Shared wire types for the amaze collab live-session protocol.
  *
- * Dependency-free JSON shapes produced by `@amaze/pi-coding-agent`
+ * Dependency-free JSON shapes produced by `@steve-z8k/pi-coding-agent`
  * (`src/collab/protocol.ts` and friends). Browser and test clients import this
  * package instead of depending on the coding-agent runtime; conformance is
  * asserted type-only in `packages/coding-agent/test/collab/web-wire.types.ts`.

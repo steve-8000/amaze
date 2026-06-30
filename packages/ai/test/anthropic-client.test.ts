@@ -3,9 +3,9 @@ import {
 	AnthropicApiError,
 	AnthropicConnectionTimeoutError,
 	AnthropicMessagesClient,
-} from "@amaze/pi-ai/providers/anthropic-client";
-import type { MessageCreateParamsStreaming } from "@amaze/pi-ai/providers/anthropic-wire";
-import type { FetchImpl } from "@amaze/pi-ai/types";
+} from "@steve-z8k/pi-ai/providers/anthropic-client";
+import type { MessageCreateParamsStreaming } from "@steve-z8k/pi-ai/providers/anthropic-wire";
+import type { FetchImpl } from "@steve-z8k/pi-ai/types";
 
 const params: MessageCreateParamsStreaming = {
 	model: "claude-sonnet-4-5",

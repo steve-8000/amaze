@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { type SettingPath, Settings } from "@amaze/pi-coding-agent/config/settings";
-import { createTools, HIDDEN_TOOLS, type ToolSession } from "@amaze/pi-coding-agent/tools";
+import { type SettingPath, Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { createTools, HIDDEN_TOOLS, type ToolSession } from "@steve-z8k/pi-coding-agent/tools";
 
 Bun.env.PI_PYTHON_SKIP_CHECK = "1";
 
@@ -69,71 +69,27 @@ describe("createTools", () => {
 		const names = tools.map(t => t.name);
 
 		// Core tools should always be present
-		expect(names).toContain("eval");
 		expect(names).toContain("bash");
 		expect(names).toContain("read");
 		expect(names).toContain("edit");
 		expect(names).toContain("write");
 		expect(names).toContain("search");
 		expect(names).toContain("find");
-		expect(names).toContain("search_graph");
-		expect(names).toContain("trace_path");
-		expect(names).toContain("get_code_snippet");
-		expect(names).toContain("get_architecture");
-		expect(names).toContain("query_graph");
-		expect(names).toContain("codebase_plan");
-		expect(names).toContain("codebase_read");
-		expect(names).toContain("codebase_expand");
-		expect(names).toContain("codebase_validate");
+		expect(names).not.toContain("codebase");
+		expect(names).not.toContain("search_graph");
+		expect(names).not.toContain("trace_path");
+		expect(names).not.toContain("get_code_snippet");
+		expect(names).not.toContain("get_architecture");
+		expect(names).not.toContain("query_graph");
+		expect(names).not.toContain("codebase_plan");
+		expect(names).not.toContain("codebase_read");
+		expect(names).not.toContain("codebase_expand");
+		expect(names).not.toContain("codebase_validate");
 		expect(names).toContain("task");
 		expect(names).toContain("todo");
 		expect(names).toContain("web_search");
 		expect(names).toContain("resolve");
 		expect(names).not.toContain("vim");
-	});
-
-	it("includes bash and eval when both eval backends are allowed", async () => {
-		const session = createTestSession({
-			settings: createSettingsWithOverrides({
-				"eval.py": true,
-				"eval.js": true,
-			}),
-		});
-		const tools = await createTools(session);
-		const names = tools.map(t => t.name);
-
-		expect(names).toContain("eval");
-		expect(names).toContain("bash");
-	});
-
-	it("still exposes eval when only the js backend is allowed", async () => {
-		const session = createTestSession({
-			settings: createSettingsWithOverrides({
-				"eval.py": false,
-				"eval.js": true,
-			}),
-		});
-		const tools = await createTools(session);
-		const names = tools.map(t => t.name);
-
-		expect(names).toContain("bash");
-		expect(names).toContain("eval");
-	});
-
-	it("still exposes eval when python kernel is unavailable (dispatches to js)", async () => {
-		const session = createTestSession();
-		vi.spyOn(
-			await import("@amaze/pi-coding-agent/eval/py/kernel"),
-			"checkPythonKernelAvailability",
-		).mockResolvedValue({
-			ok: false,
-			reason: "missing python",
-		});
-		const tools = await createTools(session, ["eval"]);
-		const names = tools.map(t => t.name);
-
-		expect(names).toContain("eval");
-		expect(names).toContain("resolve");
 	});
 
 	it("ignores removed lsp tool when requested explicitly", async () => {

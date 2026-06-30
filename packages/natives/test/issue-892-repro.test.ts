@@ -1,12 +1,12 @@
 /**
- * Repro for https://github.com/can1357/amaze-agent/issues/892
+ * Repro for https://github.com/steve-8000/amaze/issues/892
  *
  * The old CommonJS fix depended on Bun's CJS-to-ESM analyzer statically
  * scanning `module.exports.<Name> = …` assignments. The loader is now ESM,
  * so named exports must be real `export const` declarations instead of CJS
  * assignments that Bun happens to detect.
  *
- * The contract this test pins down: ESM consumers of `@amaze/pi-natives`
+ * The contract this test pins down: ESM consumers of `@steve-z8k/pi-natives`
  * resolve to `native/index.js`, and that file declares every public symbol
  * from `native/index.d.ts` as a real ESM named export.
  */

@@ -13,8 +13,8 @@ import type {
 	AgentToolUpdateCallback,
 	ThinkingLevel,
 	ToolApproval,
-} from "@amaze/pi-agent-core";
-import type { CompactionResult } from "@amaze/pi-agent-core/compaction";
+} from "@steve-z8k/pi-agent-core";
+import type { CompactionResult } from "@steve-z8k/pi-agent-core/compaction";
 import type {
 	Api,
 	AssistantMessageEvent,
@@ -28,10 +28,10 @@ import type {
 	Static,
 	TextContent,
 	TSchema,
-} from "@amaze/pi-ai";
-import type { OAuthCredentials, OAuthLoginCallbacks } from "@amaze/pi-ai/oauth/types";
-import type { AutocompleteItem, Component, EditorTheme, KeyId, TUI } from "@amaze/pi-tui";
-import type { logger as PiLogger } from "@amaze/pi-utils";
+} from "@steve-z8k/pi-ai";
+import type { OAuthCredentials, OAuthLoginCallbacks } from "@steve-z8k/pi-ai/oauth/types";
+import type { AutocompleteItem, Component, EditorTheme, KeyId, TUI } from "@steve-z8k/pi-tui";
+import type { logger as PiLogger } from "@steve-z8k/pi-utils";
 import type { Type as arktype } from "arktype";
 import type * as zod from "zod/v4";
 import type { KeybindingsManager } from "../../config/keybindings";
@@ -315,7 +315,7 @@ export interface ExtensionModelQuery {
 	/** The current session model, if one is set. */
 	current(): Model | undefined;
 	/**
-	 * Resolve a model string (`provider/id`, bare id) or role alias (`pi/slow`, a
+	 * Resolve a model string (`provider/id`, bare id) or role alias (`pi/deep`, a
 	 * configured role) to a Model, using the same settings-backed aliases and match
 	 * preferences as core selection. Thinking/routing suffixes are accepted and resolved
 	 * to the base model (pass effort separately). Returns undefined when nothing matches.

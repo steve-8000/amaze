@@ -1,4 +1,4 @@
-import type { AgentTool, AgentToolResult } from "@amaze/pi-agent-core/types";
+import type { AgentTool, AgentToolResult } from "@steve-z8k/pi-agent-core/types";
 import { type } from "arktype";
 
 export interface GetCurrentTimeResult extends AgentToolResult<{ utcTimestamp: number }> {}

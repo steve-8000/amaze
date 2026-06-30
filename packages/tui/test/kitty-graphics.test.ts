@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { visibleWidth } from "@amaze/pi-natives";
+import { visibleWidth } from "@steve-z8k/pi-natives";
 import {
 	detectKittyUnicodePlaceholdersSupport,
 	encodeKittyPlaceholderGrid,
@@ -10,7 +10,7 @@ import {
 	kittyPlaceholdersFit,
 	renderKittyPlaceholderLines,
 	setKittyGraphics,
-} from "@amaze/pi-tui/kitty-graphics";
+} from "@steve-z8k/pi-tui/kitty-graphics";
 
 const ORIGINAL = { ...getKittyGraphics() };
 

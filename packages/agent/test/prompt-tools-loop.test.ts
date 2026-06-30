@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { agentLoop } from "@amaze/pi-agent-core/agent-loop";
-import type { AgentContext, AgentLoopConfig, AgentMessage, AgentTool } from "@amaze/pi-agent-core/types";
-import type { AssistantMessage, Context, Message, TextContent, ToolResultMessage } from "@amaze/pi-ai";
-import { createMockModel } from "@amaze/pi-ai/providers/mock";
+import { agentLoop } from "@steve-z8k/pi-agent-core/agent-loop";
+import type { AgentContext, AgentLoopConfig, AgentMessage, AgentTool } from "@steve-z8k/pi-agent-core/types";
+import type { AssistantMessage, Context, Message, TextContent, ToolResultMessage } from "@steve-z8k/pi-ai";
+import { createMockModel } from "@steve-z8k/pi-ai/providers/mock";
 import { type } from "arktype";
 import { createUserMessage } from "./helpers";
 

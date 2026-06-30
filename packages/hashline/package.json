@@ -1,6 +1,6 @@
 {
 	"type": "module",
-	"name": "@amaze/hashline",
+	"name": "@steve-z8k/hashline",
 	"version": "3.1.0",
 	"description": "Hashline: a compact, line-anchored patch language and applier. Pluggable FS/IO so it works over disk, in-memory, or any custom backend.",
 	"homepage": "https://amaze",
@@ -8,11 +8,11 @@
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/can1357/amaze-agent.git",
+		"url": "git+https://github.com/steve-8000/amaze.git",
 		"directory": "packages/hashline"
 	},
 	"bugs": {
-		"url": "https://github.com/can1357/amaze-agent/issues"
+		"url": "https://github.com/steve-8000/amaze/issues"
 	},
 	"keywords": [
 		"patch",

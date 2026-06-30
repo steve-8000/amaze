@@ -292,7 +292,7 @@ def ensure_workspace_dependencies(bindings: ToolBindings) -> None:
     A per-issue worktree is a bare source checkout (``git worktree add`` off
     the shared clone pool): it has the repo's ``package.json``/``bun.lock`` but
     no ``node_modules``. With bun's ``hoisted`` linker the workspace links
-    (``@amaze/pi-*``) only exist after an install, so without one any
+    (``@steve-z8k/pi-*``) only exist after an install, so without one any
     ``bun test``/``bun check`` the agent runs fails instantly with "Cannot find
     package" — the agent then reports it could not verify. We install before
     the agent starts, mirroring how the natives cache pre-populates ``.node``

@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import type { Api, Model } from "@amaze/pi-ai";
-import { buildModel } from "@amaze/pi-catalog/build";
-import { getBundledModels } from "@amaze/pi-catalog/models";
+import type { Api, Model } from "@steve-z8k/pi-ai";
+import { buildModel } from "@steve-z8k/pi-catalog/build";
+import { getBundledModels } from "@steve-z8k/pi-catalog/models";
 import {
 	modelLacksWebpSupport,
 	normalizeModelContextImages,
 	webpExclusionForModel,
-} from "@amaze/pi-coding-agent/utils/image-loading";
+} from "@steve-z8k/pi-coding-agent/utils/image-loading";
 
 // 1x1 red PNG seed, upscaled + re-encoded as WebP at test time so no binary
 // fixture is checked in. Bun.Image sniffs format from bytes.

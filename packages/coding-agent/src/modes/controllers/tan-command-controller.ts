@@ -1,7 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { AssistantMessage } from "@amaze/pi-ai";
-import { prompt, Snowflake } from "@amaze/pi-utils";
+import type { AssistantMessage } from "@steve-z8k/pi-ai";
+import { prompt, Snowflake } from "@steve-z8k/pi-utils";
 import backgroundTanDispatchPrompt from "../../prompts/system/background-tan-dispatch.md" with { type: "text" };
 import { AgentRegistry, MAIN_AGENT_ID } from "../../registry/agent-registry";
 import * as sdk from "../../sdk";

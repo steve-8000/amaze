@@ -1,7 +1,7 @@
 /**
  * Show provider usage limits for every authenticated account.
  */
-import { Command, Flags } from "@amaze/pi-utils/cli";
+import { Command, Flags } from "@steve-z8k/pi-utils/cli";
 import { runUsageCommand } from "../cli/usage-cli";
 
 export default class Usage extends Command {

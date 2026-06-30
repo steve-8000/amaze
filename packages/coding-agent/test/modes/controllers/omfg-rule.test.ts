@@ -1,14 +1,14 @@
 import { describe, expect, it } from "bun:test";
-import type { AgentMessage } from "@amaze/pi-agent-core";
-import type { AssistantMessage, Usage } from "@amaze/pi-ai";
-import type { Rule } from "@amaze/pi-coding-agent/capability/rule";
+import type { AgentMessage } from "@steve-z8k/pi-agent-core";
+import type { AssistantMessage, Usage } from "@steve-z8k/pi-ai";
+import type { Rule } from "@steve-z8k/pi-coding-agent/capability/rule";
 import {
 	type ParsedGeneratedRule,
 	parseGeneratedRule,
 	ruleMatchesAssistantHistory,
 	sanitizeRuleName,
 	validateParsedRuleAgainstAssistantHistory,
-} from "@amaze/pi-coding-agent/modes/controllers/omfg-rule";
+} from "@steve-z8k/pi-coding-agent/modes/controllers/omfg-rule";
 
 const usage: Usage = {
 	input: 0,
@@ -25,7 +25,7 @@ function createAssistantMessage(content: AssistantMessage["content"]): Assistant
 		content,
 		api: "anthropic-messages",
 		provider: "anthropic",
-		model: "claude-sonnet-4-5",
+		model: "claude-sonnet-4-6",
 		usage,
 		stopReason: "stop",
 		timestamp: Date.now(),

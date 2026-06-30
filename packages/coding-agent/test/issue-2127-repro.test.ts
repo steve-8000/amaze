@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { EnhancedPasteController } from "@amaze/pi-coding-agent/utils/enhanced-paste";
+import { EnhancedPasteController } from "@steve-z8k/pi-coding-agent/utils/enhanced-paste";
 
 /**
- * Regression for https://github.com/can1357/amaze-agent/issues/2127
+ * Regression for https://github.com/steve-8000/amaze/issues/2127
  *
  * On kitty (Linux/Wayland), the `/login` flow for OpenCode Zen (and any
  * other modal `Input` prompt: Perplexity OTP, GitHub Enterprise URL,

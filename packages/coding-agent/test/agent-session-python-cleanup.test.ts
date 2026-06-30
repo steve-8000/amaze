@@ -1,15 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "bun:test";
 import * as fs from "node:fs";
-import { getBundledModel } from "@amaze/pi-catalog/models";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import * as pythonExecutor from "@amaze/pi-coding-agent/eval/py/executor";
-import type { PythonKernel as PythonKernelInstance } from "@amaze/pi-coding-agent/eval/py/kernel";
-import * as pythonKernel from "@amaze/pi-coding-agent/eval/py/kernel";
-import { AgentRegistry } from "@amaze/pi-coding-agent/registry/agent-registry";
-import { createAgentSession, type ExtensionFactory, type WorkspaceTree } from "@amaze/pi-coding-agent/sdk";
-import { AgentStorage } from "@amaze/pi-coding-agent/session/agent-storage";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import { Snowflake, TempDir } from "@amaze/pi-utils";
+import { getBundledModel } from "@steve-z8k/pi-catalog/models";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import * as pythonExecutor from "@steve-z8k/pi-coding-agent/eval/py/executor";
+import type { PythonKernel as PythonKernelInstance } from "@steve-z8k/pi-coding-agent/eval/py/kernel";
+import * as pythonKernel from "@steve-z8k/pi-coding-agent/eval/py/kernel";
+import { AgentRegistry } from "@steve-z8k/pi-coding-agent/registry/agent-registry";
+import { createAgentSession, type ExtensionFactory, type WorkspaceTree } from "@steve-z8k/pi-coding-agent/sdk";
+import { AgentStorage } from "@steve-z8k/pi-coding-agent/session/agent-storage";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import { Snowflake, TempDir } from "@steve-z8k/pi-utils";
 
 const OK_EXECUTION = { status: "ok", cancelled: false, timedOut: false, stdinRequested: false } as const;
 
@@ -62,7 +62,7 @@ class FakeKernel {
 }
 
 const getModel = () => {
-	const model = getBundledModel("anthropic", "claude-sonnet-4-5");
+	const model = getBundledModel("anthropic", "claude-sonnet-4-6");
 	if (!model) throw new Error("Expected bundled model");
 	return model;
 };

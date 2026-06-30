@@ -5,7 +5,7 @@
  * (`ui.showOverlay(..., { fullscreen: true })`), so it borrows the terminal's
  * alternate screen buffer (the vim/less idiom) and paints the whole screen — no
  * compositing into the live transcript's scrollback. It renders a parked
- * subagent / advisor / collab-guest transcript that has no live in-view session.
+ * subagent or advisor transcript that has no live in-view session.
  *
  * The transcript is rebuilt from scratch on every refresh ({@link ChatTranscriptBuilder.rebuild})
  * rather than synced incrementally, so a growing file-backed transcript (the
@@ -14,14 +14,12 @@
  * until the reader scrolls up.
  *
  * Local agents re-read the whole session file whenever its size or mtime changes
- * (covering SessionManager's in-place rewrites, not just appends). Collab guests
- * keep the incremental byte cursor the host's capped `readTranscript` requires
- * and rebuild components from the accumulated entries.
+ * (covering SessionManager's in-place rewrites, not just appends).
  */
 import * as fs from "node:fs";
-import type { AgentTool } from "@amaze/pi-agent-core";
-import { type Component, Editor, matchesKey, parseSgrMouse, ScrollView, type TUI } from "@amaze/pi-tui";
-import { formatDuration, formatNumber, logger } from "@amaze/pi-utils";
+import type { AgentTool } from "@steve-z8k/pi-agent-core";
+import { type Component, Editor, matchesKey, parseSgrMouse, ScrollView, type TUI } from "@steve-z8k/pi-tui";
+import { formatDuration, formatNumber, logger } from "@steve-z8k/pi-utils";
 import type { KeyId } from "../../config/keybindings";
 import type { MessageRenderer } from "../../extensibility/extensions/types";
 import type { AgentLifecycleManager } from "../../registry/agent-lifecycle";
@@ -31,7 +29,6 @@ import { parseSessionEntries } from "../../session/session-loader";
 import type { ObservableSession, SessionObserverRegistry } from "../session-observer-registry";
 import { getEditorTheme, theme } from "../theme/theme";
 import { matchesSelectDown, matchesSelectUp } from "../utils/keybinding-matchers";
-import type { AgentHubRemote } from "./agent-hub";
 import { ChatTranscriptBuilder } from "./chat-transcript-builder";
 import { DynamicBorder } from "./dynamic-border";
 import { formatContextUsage } from "./status-line/context-thresholds";
@@ -39,8 +36,6 @@ import { formatContextUsage } from "./status-line/context-thresholds";
 export interface AgentTranscriptViewerDeps {
 	agentId: string;
 	registry: AgentRegistry;
-	/** Collab guest: read transcript from the host instead of a local file. */
-	remote?: AgentHubRemote;
 	/** Progress/cost snapshot source for the stats line. */
 	observers?: SessionObserverRegistry;
 	/** Revive+prompt path for messageable local agents. Lazy to avoid touching the global. */
@@ -87,13 +82,6 @@ export class AgentTranscriptViewer implements Component {
 
 	// Local file transcript state: re-read when the file size or mtime changes.
 	#lastSignature = "";
-	// Remote transcript state (incremental; the host caps each read).
-	#remoteEntries: SessionMessageEntry[] = [];
-	#remoteBytes = 0;
-	#remoteFetchInFlight = false;
-	#remoteToken = 0;
-	#remoteUnavailable = false;
-	#hasRemoteData = false;
 
 	#model: string | undefined;
 	#pollTimer: NodeJS.Timeout | undefined;
@@ -124,11 +112,11 @@ export class AgentTranscriptViewer implements Component {
 		this.#pollTimer.unref?.();
 	}
 
-	/** Advisor transcripts are read-only; everything else may be messaged. */
+	/** Advisor transcripts are read-only; subagents may be messaged through the lifecycle. */
 	get #sendable(): boolean {
 		const ref = this.deps.registry.get(this.deps.agentId);
 		if (!ref || ref.kind === "advisor") return false;
-		return Boolean(this.deps.remote || this.deps.lifecycle);
+		return Boolean(this.deps.lifecycle);
 	}
 
 	dispose(): void {
@@ -137,7 +125,6 @@ export class AgentTranscriptViewer implements Component {
 			clearInterval(this.#pollTimer);
 			this.#pollTimer = undefined;
 		}
-		this.#remoteToken++;
 		this.#builder.dispose();
 	}
 
@@ -148,10 +135,6 @@ export class AgentTranscriptViewer implements Component {
 	/** Re-read the transcript and rebuild components when it changed. */
 	#refresh(): void {
 		if (this.#disposed) return;
-		if (this.deps.remote) {
-			this.#fetchRemote();
-			return;
-		}
 		const sessionFile = this.deps.registry.get(this.deps.agentId)?.sessionFile;
 		if (!sessionFile) {
 			if (this.#lastSignature !== "none") {
@@ -187,55 +170,6 @@ export class AgentTranscriptViewer implements Component {
 		this.#lastSignature = signature;
 		this.#model = undefined;
 		this.#rebuild(this.#extractMessages(parseSessionEntries(text)));
-	}
-
-	#fetchRemote(): void {
-		const remote = this.deps.remote;
-		if (!remote || this.#remoteFetchInFlight) return;
-		const id = this.deps.agentId;
-		const fromByte = this.#remoteBytes;
-		this.#remoteFetchInFlight = true;
-		const token = ++this.#remoteToken;
-		void remote
-			.readTranscript(id, fromByte)
-			.then(result => {
-				if (token !== this.#remoteToken || this.#disposed) return;
-				this.#remoteFetchInFlight = false;
-				if (!result) {
-					if (!this.#hasRemoteData && !this.#remoteUnavailable) {
-						this.#remoteUnavailable = true;
-						this.deps.requestRender();
-					}
-					return;
-				}
-				if (result.newSize < fromByte) {
-					// Host transcript rotated/truncated — restart from 0.
-					this.#remoteBytes = 0;
-					this.#remoteEntries = [];
-					this.#fetchRemote();
-					return;
-				}
-				this.#remoteUnavailable = false;
-				const firstData = !this.#hasRemoteData;
-				this.#hasRemoteData = true;
-				const lastNewline = result.text.lastIndexOf("\n");
-				if (lastNewline >= 0) {
-					const completeChunk = result.text.slice(0, lastNewline + 1);
-					this.#remoteBytes = fromByte + Buffer.byteLength(completeChunk, "utf-8");
-					const parsed = this.#extractMessages(parseSessionEntries(completeChunk));
-					if (parsed.length > 0) {
-						this.#remoteEntries.push(...parsed);
-						this.#rebuild(this.#remoteEntries);
-						return;
-					}
-				}
-				// First completed fetch (even empty) clears the "Loading…" placeholder.
-				if (firstData) this.deps.requestRender();
-			})
-			.catch((error: unknown) => {
-				if (token === this.#remoteToken) this.#remoteFetchInFlight = false;
-				logger.warn("transcript viewer: remote fetch failed", { id, error: String(error) });
-			});
 	}
 
 	/** Filter to message entries, tracking the model from the first assistant / a model_change. */
@@ -343,11 +277,6 @@ export class AgentTranscriptViewer implements Component {
 		if (!trimmed) return;
 		this.#notice = undefined;
 		const id = this.deps.agentId;
-		if (this.deps.remote) {
-			this.deps.remote.chat(id, trimmed);
-			this.deps.requestRender();
-			return;
-		}
 		const lifecycle = this.deps.lifecycle;
 		if (!lifecycle) return;
 		void (async () => {
@@ -455,8 +384,6 @@ export class AgentTranscriptViewer implements Component {
 	}
 
 	#placeholder(): string {
-		if (this.deps.remote && this.#remoteUnavailable) return "Transcript lives on the host — not available.";
-		if (this.deps.remote && !this.#hasRemoteData) return "Loading transcript from host…";
 		if (!this.deps.registry.get(this.deps.agentId)?.sessionFile) return "No session file available yet.";
 		return "No messages yet.";
 	}

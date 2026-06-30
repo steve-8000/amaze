@@ -1,5 +1,5 @@
-import type { AgentMessage } from "@amaze/pi-agent-core";
-import type { ImageContent, MessageAttribution, ServiceTier, TextContent } from "@amaze/pi-ai";
+import type { AgentMessage } from "@steve-z8k/pi-agent-core";
+import type { ImageContent, MessageAttribution, ServiceTier, TextContent } from "@steve-z8k/pi-ai";
 
 export const CURRENT_SESSION_VERSION = 3;
 
@@ -49,7 +49,7 @@ export interface ModelChangeEntry extends SessionEntryBase {
 	type: "model_change";
 	/** Model in "provider/modelId" format */
 	model: string;
-	/** Role: "default", "smol", "slow", etc. Undefined treated as "default" */
+	/** Role: "flash", "deep", "ultra", etc. Undefined treated as "flash" */
 	role?: string;
 }
 

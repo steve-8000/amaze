@@ -1,4 +1,4 @@
-import { logger, ptree } from "@amaze/pi-utils";
+import { logger, ptree } from "@steve-z8k/pi-utils";
 import { Settings } from "../config/settings";
 import { OutputSink } from "../session/streaming-output";
 import { resolveOutputMaxColumns, resolveOutputSinkHeadBytes } from "../tools/output-meta";

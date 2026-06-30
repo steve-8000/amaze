@@ -14,10 +14,10 @@
 
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
-import { AuthStorage } from "@amaze/pi-ai";
-import { runModelsListing } from "@amaze/pi-coding-agent/cli/models-cli";
-import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
-import { TempDir } from "@amaze/pi-utils";
+import { AuthStorage } from "@steve-z8k/pi-ai";
+import { runModelsListing } from "@steve-z8k/pi-coding-agent/cli/models-cli";
+import { ModelRegistry } from "@steve-z8k/pi-coding-agent/config/model-registry";
+import { TempDir } from "@steve-z8k/pi-utils";
 
 let tmp: TempDir;
 let extPath: string;

@@ -2,18 +2,18 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Agent, isSoftToolRequirement } from "@amaze/pi-agent-core";
-import { createMockModel, type MockModel } from "@amaze/pi-ai/providers/mock";
-import { getBundledModel } from "@amaze/pi-catalog/models";
-import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import { AgentSession } from "@amaze/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import type { ToolSession } from "@amaze/pi-coding-agent/tools";
-import { queueResolveHandler, ResolveTool } from "@amaze/pi-coding-agent/tools/resolve";
-import { buildNamedToolChoice } from "@amaze/pi-coding-agent/utils/tool-choice";
-import { Snowflake } from "@amaze/pi-utils";
+import { Agent, isSoftToolRequirement } from "@steve-z8k/pi-agent-core";
+import { createMockModel, type MockModel } from "@steve-z8k/pi-ai/providers/mock";
+import { getBundledModel } from "@steve-z8k/pi-catalog/models";
+import { ModelRegistry } from "@steve-z8k/pi-coding-agent/config/model-registry";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { AgentSession } from "@steve-z8k/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@steve-z8k/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import type { ToolSession } from "@steve-z8k/pi-coding-agent/tools";
+import { queueResolveHandler, ResolveTool } from "@steve-z8k/pi-coding-agent/tools/resolve";
+import { buildNamedToolChoice } from "@steve-z8k/pi-coding-agent/utils/tool-choice";
+import { Snowflake } from "@steve-z8k/pi-utils";
 
 describe("AgentSession resolve reminder", () => {
 	let session: AgentSession;
@@ -26,7 +26,7 @@ describe("AgentSession resolve reminder", () => {
 		tempDir = path.join(os.tmpdir(), `pi-resolve-reminder-test-${Snowflake.next()}`);
 		fs.mkdirSync(tempDir, { recursive: true });
 
-		const model = getBundledModel("anthropic", "claude-sonnet-4-5");
+		const model = getBundledModel("anthropic", "claude-sonnet-4-6");
 		if (!model) {
 			throw new Error("Test model not found in registry");
 		}

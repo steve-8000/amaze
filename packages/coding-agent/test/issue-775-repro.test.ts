@@ -1,14 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@amaze/pi-agent-core";
-import { Effort, type Model } from "@amaze/pi-ai";
-import { getBundledModel } from "@amaze/pi-catalog/models";
-import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import { AgentSession } from "@amaze/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import { TempDir } from "@amaze/pi-utils";
+import { Agent } from "@steve-z8k/pi-agent-core";
+import { Effort, type Model } from "@steve-z8k/pi-ai";
+import { getBundledModel } from "@steve-z8k/pi-catalog/models";
+import { ModelRegistry } from "@steve-z8k/pi-coding-agent/config/model-registry";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { AgentSession } from "@steve-z8k/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@steve-z8k/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import { TempDir } from "@steve-z8k/pi-utils";
 
 describe("issue #775: per-model defaultLevel", () => {
 	let tempDir: TempDir;
@@ -30,14 +30,14 @@ describe("issue #775: per-model defaultLevel", () => {
 	});
 
 	function getOpus() {
-		const model = getBundledModel("anthropic", "claude-opus-4-5");
-		if (!model) throw new Error("expected claude-opus-4-5");
+		const model = getBundledModel("anthropic", "claude-opus-4-8");
+		if (!model) throw new Error("expected claude-opus-4-8");
 		return model;
 	}
 
 	function getSonnet() {
-		const model = getBundledModel("anthropic", "claude-sonnet-4-5");
-		if (!model) throw new Error("expected claude-sonnet-4-5");
+		const model = getBundledModel("anthropic", "claude-sonnet-4-6");
+		if (!model) throw new Error("expected claude-sonnet-4-6");
 		return model;
 	}
 

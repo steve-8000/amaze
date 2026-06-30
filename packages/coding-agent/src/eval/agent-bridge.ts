@@ -4,7 +4,7 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { prompt, Snowflake } from "@amaze/pi-utils";
+import { prompt, Snowflake } from "@steve-z8k/pi-utils";
 import { type } from "arktype";
 import { resolveAgentModelPatterns } from "../config/model-resolver";
 import type { LocalProtocolOptions } from "../internal-urls";
@@ -28,7 +28,7 @@ export const EVAL_AGENT_BRIDGE_NAME = "__agent__";
 /** Hard recursion limit for eval-driven subagents. */
 export const EVAL_AGENT_MAX_DEPTH = 3;
 
-const DEFAULT_AGENT_TYPE = "coder";
+const DEFAULT_AGENT_TYPE = "flash";
 const DEFAULT_AGENT_LABEL = "EvalAgent";
 
 const agentArgsSchema = type({

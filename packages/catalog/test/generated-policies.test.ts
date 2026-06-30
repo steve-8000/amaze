@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { Effort } from "@amaze/pi-catalog/effort";
-import type { Api, ModelSpec, Provider } from "@amaze/pi-catalog/types";
+import { Effort } from "@steve-z8k/pi-catalog/effort";
+import type { Api, ModelSpec, Provider } from "@steve-z8k/pi-catalog/types";
 import { applyGeneratedModelPolicies, linkOpenAIPromotionTargets } from "../scripts/generated-policies";
 
 function createSpec<TApi extends Api>(overrides: {

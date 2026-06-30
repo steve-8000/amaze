@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { __validateLegacyPiPackageRootOverrides } from "@amaze/pi-coding-agent/extensibility/plugins/legacy-pi-compat";
+import { __validateLegacyPiPackageRootOverrides } from "@steve-z8k/pi-coding-agent/extensibility/plugins/legacy-pi-compat";
 
 // Regression for issue #2168: in compiled-binary mode the package-root
 // override branch of `resolveCanonicalPiSpecifier` returned a bunfs path
@@ -13,8 +13,8 @@ import { __validateLegacyPiPackageRootOverrides } from "@amaze/pi-coding-agent/e
 describe("legacy pi compat package-root override validation (issue #2168)", () => {
 	it("keeps overrides whose targets exist", () => {
 		const candidates = {
-			"@amaze/pi-ai": "/tmp/exists-ai.js",
-			"@amaze/pi-utils": "/tmp/exists-utils.js",
+			"@steve-z8k/pi-ai": "/tmp/exists-ai.js",
+			"@steve-z8k/pi-utils": "/tmp/exists-utils.js",
 		};
 		const result = __validateLegacyPiPackageRootOverrides(candidates, () => true);
 		expect(result).toEqual(candidates);
@@ -22,29 +22,29 @@ describe("legacy pi compat package-root override validation (issue #2168)", () =
 
 	it("drops overrides whose targets are missing on disk", () => {
 		const candidates = {
-			"@amaze/pi-ai": "/tmp/exists-ai.js",
-			"@amaze/pi-coding-agent": "/tmp/exists-shim.js",
-			"@amaze/pi-utils": "/$bunfs/root/packages/utils/src/index.js",
-			"@amaze/pi-tui": "/$bunfs/root/packages/tui/src/index.js",
+			"@steve-z8k/pi-ai": "/tmp/exists-ai.js",
+			"@steve-z8k/pi-coding-agent": "/tmp/exists-shim.js",
+			"@steve-z8k/pi-utils": "/$bunfs/root/packages/utils/src/index.js",
+			"@steve-z8k/pi-tui": "/$bunfs/root/packages/tui/src/index.js",
 		};
 		const missing = new Set(["/$bunfs/root/packages/utils/src/index.js", "/$bunfs/root/packages/tui/src/index.js"]);
 		const result = __validateLegacyPiPackageRootOverrides(candidates, p => !missing.has(p));
 		expect(result).toEqual({
-			"@amaze/pi-ai": "/tmp/exists-ai.js",
-			"@amaze/pi-coding-agent": "/tmp/exists-shim.js",
+			"@steve-z8k/pi-ai": "/tmp/exists-ai.js",
+			"@steve-z8k/pi-coding-agent": "/tmp/exists-shim.js",
 		});
 		// `pi-utils` and `pi-tui` are absent so the resolver falls through to
 		// `getResolvedSpecifier` (which throws under bunfs), which triggers
 		// the catch in `rewriteLegacyPiImports` that leaves the specifier
 		// unchanged for native `node_modules` resolution.
-		expect(result).not.toHaveProperty("@amaze/pi-utils");
-		expect(result).not.toHaveProperty("@amaze/pi-tui");
+		expect(result).not.toHaveProperty("@steve-z8k/pi-utils");
+		expect(result).not.toHaveProperty("@steve-z8k/pi-tui");
 	});
 
 	it("drops every override when none of the targets exist", () => {
 		const candidates = {
-			"@amaze/pi-utils": "/$bunfs/root/packages/utils/src/index.js",
-			"@amaze/pi-tui": "/$bunfs/root/packages/tui/src/index.js",
+			"@steve-z8k/pi-utils": "/$bunfs/root/packages/utils/src/index.js",
+			"@steve-z8k/pi-tui": "/$bunfs/root/packages/tui/src/index.js",
 		};
 		const result = __validateLegacyPiPackageRootOverrides(candidates, () => false);
 		expect(result).toEqual({});

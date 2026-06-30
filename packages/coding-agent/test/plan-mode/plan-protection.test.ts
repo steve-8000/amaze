@@ -1,11 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import type { AgentToolCall } from "@amaze/pi-agent-core";
-import type { SessionMessageEntry } from "@amaze/pi-agent-core/compaction/entries";
-import { DEFAULT_PRUNE_CONFIG, pruneToolOutputs } from "@amaze/pi-agent-core/compaction/pruning";
-import { AGGRESSIVE_SHAKE_CONFIG, collectShakeRegions } from "@amaze/pi-agent-core/compaction/shake";
-import type { ProtectedToolContext } from "@amaze/pi-agent-core/compaction/tool-protection";
-import type { AssistantMessage, TextContent, ToolResultMessage, Usage } from "@amaze/pi-ai";
-import { createPlanReadMatcher } from "@amaze/pi-coding-agent/plan-mode/plan-protection";
+import type { AgentToolCall } from "@steve-z8k/pi-agent-core";
+import type { SessionMessageEntry } from "@steve-z8k/pi-agent-core/compaction/entries";
+import { DEFAULT_PRUNE_CONFIG, pruneToolOutputs } from "@steve-z8k/pi-agent-core/compaction/pruning";
+import { AGGRESSIVE_SHAKE_CONFIG, collectShakeRegions } from "@steve-z8k/pi-agent-core/compaction/shake";
+import type { ProtectedToolContext } from "@steve-z8k/pi-agent-core/compaction/tool-protection";
+import type { AssistantMessage, TextContent, ToolResultMessage, Usage } from "@steve-z8k/pi-ai";
+import { createPlanReadMatcher } from "@steve-z8k/pi-coding-agent/plan-mode/plan-protection";
 
 function context(opts: { toolName?: string; callName?: string | undefined; path?: string }): ProtectedToolContext {
 	const toolResult = {

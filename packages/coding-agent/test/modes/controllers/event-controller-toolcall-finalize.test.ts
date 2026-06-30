@@ -9,12 +9,12 @@
  * transcript reads as cut off for the whole args stream.
  */
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import type { AssistantMessage } from "@amaze/pi-ai";
-import { resetSettingsForTest, Settings, settings } from "@amaze/pi-coding-agent/config/settings";
-import { EventController } from "@amaze/pi-coding-agent/modes/controllers/event-controller";
-import { initTheme } from "@amaze/pi-coding-agent/modes/theme/theme";
-import type { InteractiveModeContext } from "@amaze/pi-coding-agent/modes/types";
-import type { AgentSessionEvent } from "@amaze/pi-coding-agent/session/agent-session";
+import type { AssistantMessage } from "@steve-z8k/pi-ai";
+import { resetSettingsForTest, Settings, settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { EventController } from "@steve-z8k/pi-coding-agent/modes/controllers/event-controller";
+import { initTheme } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
+import type { InteractiveModeContext } from "@steve-z8k/pi-coding-agent/modes/types";
+import type { AgentSessionEvent } from "@steve-z8k/pi-coding-agent/session/agent-session";
 
 beforeAll(async () => {
 	await initTheme();
@@ -26,7 +26,7 @@ function makeStreamingMessage(content: AssistantMessage["content"]): AssistantMe
 		content,
 		api: "anthropic-messages",
 		provider: "anthropic",
-		model: "claude-sonnet-4-5",
+		model: "claude-sonnet-4-6",
 		stopReason: "stop",
 		usage: {
 			input: 0,

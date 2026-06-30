@@ -1,5 +1,5 @@
-import type { ThinkingLevel } from "@amaze/pi-agent-core";
-import type { Effort } from "@amaze/pi-ai";
+import type { ThinkingLevel } from "@steve-z8k/pi-agent-core";
+import type { Effort } from "@steve-z8k/pi-ai";
 import {
 	type Component,
 	Container,
@@ -22,8 +22,8 @@ import {
 	Text,
 	truncateToWidth,
 	visibleWidth,
-} from "@amaze/pi-tui";
-import type { ShapeTarget } from "@amaze/snapcompact";
+} from "@steve-z8k/pi-tui";
+import type { ShapeTarget } from "@steve-z8k/snapcompact";
 import { getDefault, type SettingPath, settings } from "../../config/settings";
 import type {
 	SettingTab,

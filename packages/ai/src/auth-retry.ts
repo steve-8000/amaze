@@ -1,4 +1,4 @@
-import { extractHttpStatusFromError } from "@amaze/pi-utils";
+import { extractHttpStatusFromError } from "@steve-z8k/pi-utils";
 import type { OAuthAccess } from "./auth-storage";
 import { isUsageLimitError } from "./rate-limit-utils";
 

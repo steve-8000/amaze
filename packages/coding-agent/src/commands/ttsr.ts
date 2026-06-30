@@ -7,7 +7,7 @@ import * as path from "node:path";
  * TTSR matching pipeline and reports which rules would trigger. `amaze ttsr list`
  * shows every TTSR-registered rule the current project/user config would load.
  */
-import { Args, Command, Flags } from "@amaze/pi-utils/cli";
+import { Args, Command, Flags } from "@steve-z8k/pi-utils/cli";
 import {
 	runTtsrCommand,
 	TTSR_ACTIONS,

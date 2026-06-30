@@ -1,6 +1,6 @@
-import type { ThinkingLevel } from "@amaze/pi-agent-core";
-import type { Api, ApiKey, Model } from "@amaze/pi-ai";
-import { $env } from "@amaze/pi-utils";
+import type { ThinkingLevel } from "@steve-z8k/pi-agent-core";
+import type { Api, ApiKey, Model } from "@steve-z8k/pi-ai";
+import { $env } from "@steve-z8k/pi-utils";
 import { parseFileDiffs } from "../../commit/git/diff";
 import type { ConventionalAnalysis } from "../../commit/types";
 import { isExcludedFile } from "../../commit/utils/exclusions";

@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import type { RenderResultOptions } from "@amaze/pi-agent-core";
-import type { SettingPath, SettingValue } from "@amaze/pi-coding-agent/config/settings";
-import { resetSettingsForTest, Settings } from "@amaze/pi-coding-agent/config/settings";
-import { getThemeByName, setThemeInstance } from "@amaze/pi-coding-agent/modes/theme/theme";
-import { taskToolRenderer } from "@amaze/pi-coding-agent/task/render";
-import type { AgentProgress, SingleResult, TaskToolDetails } from "@amaze/pi-coding-agent/task/types";
+import type { RenderResultOptions } from "@steve-z8k/pi-agent-core";
+import type { SettingPath, SettingValue } from "@steve-z8k/pi-coding-agent/config/settings";
+import { resetSettingsForTest, Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { getThemeByName, setThemeInstance } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
+import { taskToolRenderer } from "@steve-z8k/pi-coding-agent/task/render";
+import type { AgentProgress, SingleResult, TaskToolDetails } from "@steve-z8k/pi-coding-agent/task/types";
 
 function runningProgress(overrides: Partial<AgentProgress> = {}): AgentProgress {
 	return {
@@ -396,6 +396,32 @@ describe("task result detail-less state", () => {
 		expect(stripped).toContain("Task");
 		expect(stripped).toContain("explore");
 		expect(stripped).toContain("Validation failed");
+	});
+
+	it("derives the header agent label from single-item batch args", async () => {
+		const theme = (await getThemeByName("dark"))!;
+		setThemeInstance(theme);
+		const options: RenderResultOptions = { expanded: false, isPartial: false };
+		const component = taskToolRenderer.renderResult(
+			{
+				content: [{ type: "text", text: "Background task ExtStateRefactor failed." }],
+				details: {
+					projectAgentsDir: null,
+					results: [finishedResult({ id: "ExtStateRefactor", agent: "flash", exitCode: 1, error: "boom" })],
+					totalDurationMs: 1000,
+				},
+			},
+			options,
+			theme,
+			{
+				context: "# Goal\nRefactor one state manager.",
+				tasks: [{ agent: "flash", id: "ExtStateRefactor", assignment: "Implement the refactor." }],
+			},
+		);
+		const stripped = Bun.stripANSI(component.render(120).join("\n"));
+
+		expect(stripped).toContain("Task 1 agent: flash");
+		expect(stripped).toContain("ExtStateRefactor");
 	});
 
 	it("renders a detail-less success with the accent bullet, not an error glyph", async () => {

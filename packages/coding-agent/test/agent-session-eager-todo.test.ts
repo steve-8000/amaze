@@ -1,20 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { Agent, type AgentMessage, type AgentTool } from "@amaze/pi-agent-core";
-import type { AssistantMessage, TextContent, ToolCall } from "@amaze/pi-ai";
-import { AssistantMessageEventStream } from "@amaze/pi-ai/utils/event-stream";
-import { getBundledModel } from "@amaze/pi-catalog/models";
-import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import { AgentSession } from "@amaze/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
-import { convertToLlm } from "@amaze/pi-coding-agent/session/messages";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import type { ToolSession } from "@amaze/pi-coding-agent/tools";
-import { TodoTool } from "@amaze/pi-coding-agent/tools";
-import { TempDir } from "@amaze/pi-utils";
+import { Agent, type AgentMessage, type AgentTool } from "@steve-z8k/pi-agent-core";
+import type { AssistantMessage, TextContent, ToolCall } from "@steve-z8k/pi-ai";
+import { AssistantMessageEventStream } from "@steve-z8k/pi-ai/utils/event-stream";
+import { getBundledModel } from "@steve-z8k/pi-catalog/models";
+import { ModelRegistry } from "@steve-z8k/pi-coding-agent/config/model-registry";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { AgentSession } from "@steve-z8k/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@steve-z8k/pi-coding-agent/session/auth-storage";
+import { convertToLlm } from "@steve-z8k/pi-coding-agent/session/messages";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import type { ToolSession } from "@steve-z8k/pi-coding-agent/tools";
+import { TodoTool } from "@steve-z8k/pi-coding-agent/tools";
+import { TempDir } from "@steve-z8k/pi-utils";
 import { type } from "arktype";
 import eagerTodoPrompt from "../src/prompts/system/eager-todo.md" with { type: "text" };
+import todoToolPrompt from "../src/prompts/tools/todo.md" with { type: "text" };
 import { createAssistantMessage } from "./helpers/agent-session-setup";
 
 type ObservedPromptCall = {
@@ -92,8 +93,8 @@ describe("AgentSession eager todo enforcement", () => {
 	const observedCalls: ObservedPromptCall[] = [];
 
 	async function createSession(settingsOverride: Record<string, unknown> = {}): Promise<void> {
-		const model = getBundledModel("anthropic", "claude-sonnet-4-5");
-		if (!model) throw new Error("Expected claude-sonnet-4-5 model to exist");
+		const model = getBundledModel("anthropic", "claude-sonnet-4-6");
+		if (!model) throw new Error("Expected claude-sonnet-4-6 model to exist");
 
 		authStorage = await AuthStorage.create(path.join(tempDir.path(), "testauth.db"));
 		authStorage.setRuntimeApiKey("anthropic", "test-key");
@@ -193,11 +194,21 @@ describe("AgentSession eager todo enforcement", () => {
 	it("keeps eager init instructions aligned with the todo schema", () => {
 		expect(eagerTodoPrompt).toContain("single `init` op");
 		expect(eagerTodoPrompt).toContain("phase names and task-label strings");
+		expect(eagerTodoPrompt).toContain("goal completion audit");
 		expect(eagerTodoPrompt).not.toContain("`details`");
 		expect(eagerTodoPrompt).not.toContain("in_progress");
 		expect(eagerTodoPrompt).not.toContain("pending");
 	});
 
+	it("advertises goal-aligned scorecard todo loops without schema metadata", () => {
+		expect(todoToolPrompt).toContain("## Goal-aligned evidence loops");
+		expect(todoToolPrompt).toContain("restate the objective as concrete deliverables");
+		expect(todoToolPrompt).toContain("Match verification scope to the task claim");
+		expect(todoToolPrompt).toContain("smallest point-scoring deliverable slices");
+		expect(todoToolPrompt).toContain("tool schema accepts only phase names and task-label strings");
+		expect(todoToolPrompt).not.toContain("points:");
+		expect(todoToolPrompt).not.toContain("metadata");
+	});
 	it("prepends a hidden eager todo reminder without repeating the prompt text", async () => {
 		await session.prompt("list all work trees");
 

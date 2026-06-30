@@ -1,5 +1,7 @@
 Finds files and directories via fast pattern matching, any codebase size.
 
+Use this for file names, globs, and directory layout. Do not substitute Circle MCP graph tools for this raw filesystem lookup.
+
 <instruction>
 - `paths`: array of globs, files, or directories.
 - `gitignore` (default `true`) hides `.gitignore` matches. Set `gitignore: false` to find `.env*`, `*.log`, fresh build outputs, or anything your repo ignores.

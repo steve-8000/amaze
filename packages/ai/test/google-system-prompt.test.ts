@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { streamGoogle } from "@amaze/pi-ai/providers/google";
-import type { Context, FetchImpl, Model } from "@amaze/pi-ai/types";
-import { buildModel } from "@amaze/pi-catalog/build";
+import { streamGoogle } from "@steve-z8k/pi-ai/providers/google";
+import type { Context, FetchImpl, Model } from "@steve-z8k/pi-ai/types";
+import { buildModel } from "@steve-z8k/pi-catalog/build";
 
 const model: Model<"google-generative-ai"> = buildModel({
 	id: "gemini-3-pro-preview",

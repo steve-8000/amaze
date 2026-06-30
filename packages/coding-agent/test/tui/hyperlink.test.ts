@@ -1,9 +1,9 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
 import * as url from "node:url";
-import { resetSettingsForTest, Settings, settings } from "@amaze/pi-coding-agent/config/settings";
-import { LocalProtocolHandler } from "@amaze/pi-coding-agent/internal-urls/local-protocol";
-import { AgentRegistry } from "@amaze/pi-coding-agent/registry/agent-registry";
+import { resetSettingsForTest, Settings, settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { LocalProtocolHandler } from "@steve-z8k/pi-coding-agent/internal-urls/local-protocol";
+import { AgentRegistry } from "@steve-z8k/pi-coding-agent/registry/agent-registry";
 import {
 	fileHyperlink,
 	isHyperlinkEnabled,
@@ -11,8 +11,8 @@ import {
 	uriHyperlink,
 	urlHyperlink,
 	urlHyperlinkAlways,
-} from "@amaze/pi-coding-agent/tui/hyperlink";
-import * as terminalCaps from "@amaze/pi-tui";
+} from "@steve-z8k/pi-coding-agent/tui/hyperlink";
+import * as terminalCaps from "@steve-z8k/pi-tui";
 
 // OSC 8 sequence markers
 const OSC = "\x1b]";

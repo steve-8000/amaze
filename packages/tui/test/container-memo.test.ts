@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import { Box, type Component, Container, Text } from "@amaze/pi-tui";
+import { Box, type Component, Container, Text } from "@steve-z8k/pi-tui";
 
 /**
  * Leaf component that returns a stable cached array and counts render calls.

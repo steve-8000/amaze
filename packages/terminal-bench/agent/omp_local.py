@@ -237,7 +237,7 @@ class OmpLocal(BaseInstalledAgent):
                 "if command -v apt-get >/dev/null 2>&1; then "
                 "  apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y curl unzip ca-certificates tar; "
                 "elif command -v apk >/dev/null 2>&1; then "
-                "  echo 'ERROR: Alpine/musl base image; @amaze/pi-natives ships no musl prebuilt' >&2; exit 3; "
+                "  echo 'ERROR: Alpine/musl base image; @steve-z8k/pi-natives ships no musl prebuilt' >&2; exit 3; "
                 "elif command -v dnf >/dev/null 2>&1; then dnf install -y curl unzip tar; "
                 "elif command -v yum >/dev/null 2>&1; then yum install -y curl unzip tar; "
                 "fi"
@@ -292,8 +292,8 @@ class OmpLocal(BaseInstalledAgent):
                 # Native leaf MUST match the bundle version exactly (loader/API skew
                 # otherwise). Read it straight from the packed package.json.
                 'ver=$(bun -e "process.stdout.write(require(\\"./package.json\\").version)"); '
-                'echo "pinning native @amaze/pi-natives-linux-$na@$ver"; '
-                'bun add --production "@amaze/pi-natives-linux-$na@$ver"'
+                'echo "pinning native @steve-z8k/pi-natives-linux-$na@$ver"; '
+                'bun add --production "@steve-z8k/pi-natives-linux-$na@$ver"'
             ),
             timeout_sec=900,
         )
@@ -301,7 +301,7 @@ class OmpLocal(BaseInstalledAgent):
 
     async def _install_published(self, environment: BaseEnvironment) -> str:
         app = f"{self._home}/.amaze-bench/app"
-        spec = f"@amaze/pi-coding-agent@{self._pkg_version}"
+        spec = f"@steve-z8k/pi-coding-agent@{self._pkg_version}"
         await self.exec_as_agent(
             environment,
             command=self._wrap(
@@ -312,7 +312,7 @@ class OmpLocal(BaseInstalledAgent):
             ),
             timeout_sec=900,
         )
-        return f"{app}/node_modules/@amaze/pi-coding-agent/dist/cli.js"
+        return f"{app}/node_modules/@steve-z8k/pi-coding-agent/dist/cli.js"
 
     async def _write_models_yaml(self, environment: BaseEnvironment) -> None:
         if self._models_yaml_path and os.path.isfile(self._models_yaml_path):

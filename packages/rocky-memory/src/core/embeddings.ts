@@ -1,7 +1,14 @@
 import { mkdirSync } from "node:fs";
-import { type ApiKey, getOpenRouterHeaders, ProviderHttpError, withAuth } from "@amaze/pi-ai";
-import { hostMatchesUrl } from "@amaze/pi-catalog/hosts";
-import { $env, $flag, extractHttpStatusFromError, fetchWithRetry, getFastembedCacheDir, logger } from "@amaze/pi-utils";
+import { type ApiKey, getOpenRouterHeaders, ProviderHttpError, withAuth } from "@steve-z8k/pi-ai";
+import { hostMatchesUrl } from "@steve-z8k/pi-catalog/hosts";
+import {
+	$env,
+	$flag,
+	extractHttpStatusFromError,
+	fetchWithRetry,
+	getFastembedCacheDir,
+	logger,
+} from "@steve-z8k/pi-utils";
 import type { EmbeddingModel } from "fastembed";
 import { LRUCache } from "lru-cache/raw";
 import { ensureFastembedModelSidecars } from "./fastembed-model-cache";

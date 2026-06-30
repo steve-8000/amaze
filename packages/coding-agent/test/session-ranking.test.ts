@@ -2,8 +2,8 @@ import { describe, expect, it } from "bun:test";
 import {
 	mergeSessionRanking,
 	rankSessionSearchMatches,
-} from "@amaze/pi-coding-agent/modes/components/session-selector";
-import type { SessionInfo } from "@amaze/pi-coding-agent/session/session-listing";
+} from "@steve-z8k/pi-coding-agent/modes/components/session-selector";
+import type { SessionInfo } from "@steve-z8k/pi-coding-agent/session/session-listing";
 
 function makeSession(id: string, overrides: Partial<SessionInfo> = {}): SessionInfo {
 	return {

@@ -3,15 +3,15 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { stripVTControlCharacters } from "node:util";
-import { resetSettingsForTest, Settings } from "@amaze/pi-coding-agent/config/settings";
-import type { StatusLineSegmentId } from "@amaze/pi-coding-agent/config/settings-schema";
-import { StatusLineComponent } from "@amaze/pi-coding-agent/modes/components/status-line";
-import type { SegmentContext } from "@amaze/pi-coding-agent/modes/components/status-line/segments";
-import { renderSegment } from "@amaze/pi-coding-agent/modes/components/status-line/segments";
-import { initTheme, theme } from "@amaze/pi-coding-agent/modes/theme/theme";
-import { getSessionAccentAnsi, getSessionAccentHex } from "@amaze/pi-coding-agent/utils/session-color";
-import { visibleWidth } from "@amaze/pi-tui";
-import { getProjectDir, setProjectDir } from "@amaze/pi-utils";
+import { resetSettingsForTest, Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import type { StatusLineSegmentId } from "@steve-z8k/pi-coding-agent/config/settings-schema";
+import { StatusLineComponent } from "@steve-z8k/pi-coding-agent/modes/components/status-line";
+import type { SegmentContext } from "@steve-z8k/pi-coding-agent/modes/components/status-line/segments";
+import { renderSegment } from "@steve-z8k/pi-coding-agent/modes/components/status-line/segments";
+import { initTheme, theme } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
+import { getSessionAccentAnsi, getSessionAccentHex } from "@steve-z8k/pi-coding-agent/utils/session-color";
+import { visibleWidth } from "@steve-z8k/pi-tui";
+import { getProjectDir, setProjectDir } from "@steve-z8k/pi-utils";
 
 const originalProjectDir = getProjectDir();
 
@@ -46,7 +46,6 @@ function createCtx(overrides?: { pathMaxLength?: number; branch?: string | null 
 		planMode: null,
 		loopMode: null,
 		goalMode: null,
-		collab: null,
 		usageStats: {
 			input: 0,
 			output: 0,

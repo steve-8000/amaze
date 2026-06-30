@@ -19,8 +19,8 @@
 
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { Model } from "@amaze/pi-ai";
-import { getStatsDbPath, isEnoent, logger } from "@amaze/pi-utils";
+import type { Model } from "@steve-z8k/pi-ai";
+import { getStatsDbPath, isEnoent, logger } from "@steve-z8k/pi-utils";
 
 export interface SnapcompactSavingsRecord {
 	/** Epoch milliseconds when the swap was applied. */

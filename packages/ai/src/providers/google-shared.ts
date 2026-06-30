@@ -3,8 +3,8 @@
  */
 
 import { scheduler } from "node:timers/promises";
-import { calculateCost } from "@amaze/pi-catalog/models";
-import { extractHttpStatusFromError, readSseJson } from "@amaze/pi-utils";
+import { calculateCost } from "@steve-z8k/pi-catalog/models";
+import { extractHttpStatusFromError, readSseJson } from "@steve-z8k/pi-utils";
 import { ProviderHttpError } from "../errors";
 import type {
 	Api,

@@ -1,7 +1,7 @@
-import type { Dialect as CatalogDialect } from "@amaze/pi-catalog/identity";
+import type { Dialect as CatalogDialect } from "@steve-z8k/pi-catalog/identity";
 import type { Context, Message, ToolCall } from "../types";
 
-export type { Dialect } from "@amaze/pi-catalog/identity";
+export type { Dialect } from "@steve-z8k/pi-catalog/identity";
 
 export type InbandScanEvent =
 	| { type: "text"; text: string }

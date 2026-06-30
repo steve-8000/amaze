@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { getBundledModel } from "@amaze/pi-catalog/models";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import { TempDir } from "@amaze/pi-utils";
+import { getBundledModel } from "@steve-z8k/pi-catalog/models";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import { TempDir } from "@steve-z8k/pi-utils";
 
 const tempDirs: TempDir[] = [];
 
@@ -18,7 +18,7 @@ afterEach(async () => {
 });
 
 function assistantMessage(text: string) {
-	const model = getBundledModel("anthropic", "claude-sonnet-4-5");
+	const model = getBundledModel("anthropic", "claude-sonnet-4-6");
 	if (!model) throw new Error("Expected built-in anthropic model to exist");
 	return {
 		role: "assistant" as const,

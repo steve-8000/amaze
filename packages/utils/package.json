@@ -1,6 +1,6 @@
 {
 	"type": "module",
-	"name": "@amaze/pi-utils",
+	"name": "@steve-z8k/pi-utils",
 	"version": "3.1.0",
 	"description": "Shared utilities for pi packages",
 	"homepage": "https://amaze",
@@ -8,11 +8,11 @@
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/can1357/amaze-agent.git",
+		"url": "git+https://github.com/steve-8000/amaze.git",
 		"directory": "packages/utils"
 	},
 	"bugs": {
-		"url": "https://github.com/can1357/amaze-agent/issues"
+		"url": "https://github.com/steve-8000/amaze/issues"
 	},
 	"keywords": [
 		"utilities",
@@ -31,7 +31,7 @@
 		"fmt": "biome format --write ."
 	},
 	"dependencies": {
-		"@amaze/pi-natives": "catalog:",
+		"@steve-z8k/pi-natives": "catalog:",
 		"handlebars": "catalog:",
 		"winston": "catalog:",
 		"winston-daily-rotate-file": "catalog:"

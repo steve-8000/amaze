@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { readImageMetadata } from "@amaze/pi-utils";
+import { readImageMetadata } from "@steve-z8k/pi-utils";
 
 describe("readImageMetadata", () => {
 	let testDir: string;

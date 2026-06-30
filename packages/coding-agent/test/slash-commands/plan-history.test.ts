@@ -1,6 +1,6 @@
 import { describe, expect, it, mock } from "bun:test";
-import type { InteractiveModeContext } from "@amaze/pi-coding-agent/modes/types";
-import { executeBuiltinSlashCommand } from "@amaze/pi-coding-agent/slash-commands/builtin-registry";
+import type { InteractiveModeContext } from "@steve-z8k/pi-coding-agent/modes/types";
+import { executeBuiltinSlashCommand } from "@steve-z8k/pi-coding-agent/slash-commands/builtin-registry";
 
 /**
  * Build a minimal ctx that simulates plan/goal-mode handlers.

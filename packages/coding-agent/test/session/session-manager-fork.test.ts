@@ -1,10 +1,10 @@
 import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { CURRENT_SESSION_VERSION, type SessionHeader } from "@amaze/pi-coding-agent/session/session-entries";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import { getTerminalId } from "@amaze/pi-tui";
-import { getAgentDir, getTerminalSessionsDir, setAgentDir, TempDir } from "@amaze/pi-utils";
+import { CURRENT_SESSION_VERSION, type SessionHeader } from "@steve-z8k/pi-coding-agent/session/session-entries";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import { getTerminalId } from "@steve-z8k/pi-tui";
+import { getAgentDir, getTerminalSessionsDir, setAgentDir, TempDir } from "@steve-z8k/pi-utils";
 
 interface JsonlMessageEntry {
 	type: "message";

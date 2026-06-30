@@ -6,8 +6,8 @@ import type {
 	ProviderPayload,
 	TextContent,
 	ToolResultMessage,
-} from "@amaze/pi-ai";
-import { prompt } from "@amaze/pi-utils";
+} from "@steve-z8k/pi-ai";
+import { prompt } from "@steve-z8k/pi-utils";
 import type { AgentMessage } from "../types";
 import branchSummaryContextPrompt from "./prompts/branch-summary-context.md" with { type: "text" };
 import compactionSummaryContextPrompt from "./prompts/compaction-summary-context.md" with { type: "text" };

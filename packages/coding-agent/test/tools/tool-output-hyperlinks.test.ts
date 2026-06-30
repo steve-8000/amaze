@@ -3,14 +3,14 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as url from "node:url";
-import { resetSettingsForTest, Settings, settings } from "@amaze/pi-coding-agent/config/settings";
-import { editToolRenderer } from "@amaze/pi-coding-agent/edit/renderer";
-import { getThemeByName, initTheme } from "@amaze/pi-coding-agent/modes/theme/theme";
-import type { ToolSession } from "@amaze/pi-coding-agent/tools";
-import { astGrepToolRenderer } from "@amaze/pi-coding-agent/tools/ast-grep";
-import { ReadTool, readToolRenderer } from "@amaze/pi-coding-agent/tools/read";
-import { searchToolRenderer } from "@amaze/pi-coding-agent/tools/search";
-import { WriteTool, writeToolRenderer } from "@amaze/pi-coding-agent/tools/write";
+import { resetSettingsForTest, Settings, settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { editToolRenderer } from "@steve-z8k/pi-coding-agent/edit/renderer";
+import { getThemeByName, initTheme } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
+import type { ToolSession } from "@steve-z8k/pi-coding-agent/tools";
+import { astGrepToolRenderer } from "@steve-z8k/pi-coding-agent/tools/ast-grep";
+import { ReadTool, readToolRenderer } from "@steve-z8k/pi-coding-agent/tools/read";
+import { searchToolRenderer } from "@steve-z8k/pi-coding-agent/tools/search";
+import { WriteTool, writeToolRenderer } from "@steve-z8k/pi-coding-agent/tools/write";
 
 // 1x1 PNG so the read tool takes its image branch.
 const TINY_PNG_BASE64 =

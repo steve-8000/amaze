@@ -2,7 +2,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { stripVTControlCharacters } from "node:util";
-import { ProcessTerminal } from "@amaze/pi-tui/terminal";
+import { ProcessTerminal } from "@steve-z8k/pi-tui/terminal";
 import {
 	type Component,
 	CURSOR_MARKER,
@@ -12,7 +12,7 @@ import {
 	type OverlayHandle,
 	type OverlayOptions,
 	TUI,
-} from "@amaze/pi-tui/tui";
+} from "@steve-z8k/pi-tui/tui";
 import {
 	Ellipsis,
 	extractSegments,
@@ -21,8 +21,8 @@ import {
 	truncateToWidth,
 	visibleWidth,
 	wrapTextWithAnsi,
-} from "@amaze/pi-tui/utils";
-import { setTerminalHeadless } from "@amaze/pi-utils";
+} from "@steve-z8k/pi-tui/utils";
+import { setTerminalHeadless } from "@steve-z8k/pi-utils";
 import { StressRenderScheduler } from "./render-stress-scheduler";
 import { VirtualTerminal } from "./virtual-terminal";
 

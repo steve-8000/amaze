@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { resetSettingsForTest, Settings, settings } from "@amaze/pi-coding-agent/config/settings";
-import { InteractiveMode } from "@amaze/pi-coding-agent/modes/interactive-mode";
-import { initTheme, theme } from "@amaze/pi-coding-agent/modes/theme/theme";
-import type { AgentSession } from "@amaze/pi-coding-agent/session/agent-session";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import * as sessionColor from "@amaze/pi-coding-agent/utils/session-color";
-import type { Container, NativeScrollbackLiveRegion } from "@amaze/pi-tui";
-import { TempDir } from "@amaze/pi-utils";
+import { resetSettingsForTest, Settings, settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { InteractiveMode } from "@steve-z8k/pi-coding-agent/modes/interactive-mode";
+import { initTheme, theme } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
+import type { AgentSession } from "@steve-z8k/pi-coding-agent/session/agent-session";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import * as sessionColor from "@steve-z8k/pi-coding-agent/utils/session-color";
+import type { Container, NativeScrollbackLiveRegion } from "@steve-z8k/pi-tui";
+import { TempDir } from "@steve-z8k/pi-utils";
 
 type Harness = {
 	mode: InteractiveMode;

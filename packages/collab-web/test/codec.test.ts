@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import type { WireFrame } from "@amaze/pi-wire";
+import type { WireFrame } from "@steve-z8k/pi-wire";
 import { generateRoomKey, importRoomKey, open, seal } from "../src/lib/codec";
 import { decodeBase64Url } from "../src/lib/link";
 

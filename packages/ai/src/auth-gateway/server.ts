@@ -18,8 +18,8 @@
  *   POST /v1/responses                     → OpenAI Responses in/out
  */
 
-import { Effort } from "@amaze/pi-catalog/effort";
-import { extractRetryHint, logger } from "@amaze/pi-utils";
+import { Effort } from "@steve-z8k/pi-catalog/effort";
+import { extractRetryHint, logger } from "@steve-z8k/pi-utils";
 import type { ApiKeyResolver } from "../auth-retry";
 import type { AuthStorage } from "../auth-storage";
 import * as anthropicMessages from "../providers/anthropic-messages-server";

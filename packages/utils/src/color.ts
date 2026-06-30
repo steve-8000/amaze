@@ -3,7 +3,7 @@
  *
  * @example
  * ```ts
- * import { hexToHsv, hsvToHex } from "@amaze/pi-utils";
+ * import { hexToHsv, hsvToHex } from "@steve-z8k/pi-utils";
  *
  * // Rotate the hue by 90°
  * const hsv = hexToHsv("#4ade80");

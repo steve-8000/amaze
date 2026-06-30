@@ -273,17 +273,17 @@ def test_parse_issue_ref_accepts_owner_repo_hash_number() -> None:
 
 def test_parse_issue_ref_accepts_github_issue_urls() -> None:
     cases = (
-        "https://github.com/can1357/amaze-agent/issues/1348",
-        "http://github.com/can1357/amaze-agent/issues/1348",
-        "github.com/can1357/amaze-agent/issues/1348",
-        "https://www.github.com/can1357/amaze-agent/issues/1348",
-        "https://github.com/can1357/amaze-agent/issues/1348/",
-        "https://github.com/can1357/amaze-agent/issues/1348?foo=bar",
-        "https://github.com/can1357/amaze-agent/issues/1348#issuecomment-99",
-        "  https://github.com/can1357/amaze-agent/issues/1348  ",
+        "https://github.com/steve-8000/amaze/issues/1348",
+        "http://github.com/steve-8000/amaze/issues/1348",
+        "github.com/steve-8000/amaze/issues/1348",
+        "https://www.github.com/steve-8000/amaze/issues/1348",
+        "https://github.com/steve-8000/amaze/issues/1348/",
+        "https://github.com/steve-8000/amaze/issues/1348?foo=bar",
+        "https://github.com/steve-8000/amaze/issues/1348#issuecomment-99",
+        "  https://github.com/steve-8000/amaze/issues/1348  ",
     )
     for case in cases:
-        assert parse_issue_ref(case) == ("can1357/amaze-agent", 1348), case
+        assert parse_issue_ref(case) == ("steve-8000/amaze", 1348), case
 
 
 def test_parse_issue_ref_rejects_garbage() -> None:

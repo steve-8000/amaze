@@ -1,15 +1,15 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@amaze/pi-agent-core";
-import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings } from "@amaze/pi-coding-agent/config/settings";
-import { EventController } from "@amaze/pi-coding-agent/modes/controllers/event-controller";
-import { InteractiveMode } from "@amaze/pi-coding-agent/modes/interactive-mode";
-import { initTheme } from "@amaze/pi-coding-agent/modes/theme/theme";
-import { AgentSession } from "@amaze/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import { TempDir } from "@amaze/pi-utils";
+import { Agent } from "@steve-z8k/pi-agent-core";
+import { ModelRegistry } from "@steve-z8k/pi-coding-agent/config/model-registry";
+import { resetSettingsForTest, Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { EventController } from "@steve-z8k/pi-coding-agent/modes/controllers/event-controller";
+import { InteractiveMode } from "@steve-z8k/pi-coding-agent/modes/interactive-mode";
+import { initTheme } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
+import { AgentSession } from "@steve-z8k/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@steve-z8k/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import { TempDir } from "@steve-z8k/pi-utils";
 
 /**
  * Regression for issue #2372 — pressing Ctrl+T (or any other rebuild path)
@@ -43,8 +43,8 @@ describe("issue #2372 pre-streaming chat rebuild preserves optimistic submission
 		await Settings.init({ inMemory: true, cwd: tempDir.path() });
 		authStorage = await AuthStorage.create(path.join(tempDir.path(), "testauth.db"));
 		const modelRegistry = new ModelRegistry(authStorage);
-		const model = modelRegistry.find("anthropic", "claude-sonnet-4-5");
-		if (!model) throw new Error("Expected claude-sonnet-4-5 test model");
+		const model = modelRegistry.find("anthropic", "claude-sonnet-4-6");
+		if (!model) throw new Error("Expected claude-sonnet-4-6 test model");
 
 		session = new AgentSession({
 			agent: new Agent({ initialState: { model, systemPrompt: ["Test"], tools: [], messages: [] } }),

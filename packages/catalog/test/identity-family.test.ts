@@ -11,7 +11,7 @@ import {
 	isReasoningGlmModelId,
 	modelFamilyToken,
 	supportsAdaptiveThinkingDisplay,
-} from "@amaze/pi-catalog/identity";
+} from "@steve-z8k/pi-catalog/identity";
 
 describe("isKimiModelId", () => {
 	test("matches Kimi namespace and delimiter forms", () => {

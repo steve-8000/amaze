@@ -1,4 +1,4 @@
-import { $env, extractHttpStatusFromError } from "@amaze/pi-utils";
+import { $env, extractHttpStatusFromError } from "@steve-z8k/pi-utils";
 import { getEnvApiKey } from "../stream";
 import type {
 	AssistantMessage,

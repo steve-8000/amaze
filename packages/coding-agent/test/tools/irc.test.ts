@@ -1,15 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { Agent } from "@amaze/pi-agent-core";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import type { SettingPath } from "@amaze/pi-coding-agent/config/settings-schema";
-import { IrcBus, type IrcMessage } from "@amaze/pi-coding-agent/irc/bus";
-import { AgentLifecycleManager } from "@amaze/pi-coding-agent/registry/agent-lifecycle";
-import { AgentRegistry } from "@amaze/pi-coding-agent/registry/agent-registry";
-import { AgentSession, type AgentSessionEvent } from "@amaze/pi-coding-agent/session/agent-session";
-import type { CustomMessage } from "@amaze/pi-coding-agent/session/messages";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import type { ToolSession } from "@amaze/pi-coding-agent/tools";
-import { IrcTool } from "@amaze/pi-coding-agent/tools/irc";
+import { Agent } from "@steve-z8k/pi-agent-core";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import type { SettingPath } from "@steve-z8k/pi-coding-agent/config/settings-schema";
+import { IrcBus, type IrcMessage } from "@steve-z8k/pi-coding-agent/irc/bus";
+import { AgentLifecycleManager } from "@steve-z8k/pi-coding-agent/registry/agent-lifecycle";
+import { AgentRegistry } from "@steve-z8k/pi-coding-agent/registry/agent-registry";
+import { AgentSession, type AgentSessionEvent } from "@steve-z8k/pi-coding-agent/session/agent-session";
+import type { CustomMessage } from "@steve-z8k/pi-coding-agent/session/messages";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import type { ToolSession } from "@steve-z8k/pi-coding-agent/tools";
+import { IrcTool } from "@steve-z8k/pi-coding-agent/tools/irc";
 
 interface FakeSession {
 	session: AgentSession;

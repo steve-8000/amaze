@@ -3,9 +3,9 @@
  * Codemod: rewrite relative test imports that reach into a package's `src/`
  * into the package's public subpath import.
  *
- *   ../src/format                  ->  @amaze/pi-utils/format
- *   ../../src/task/repair-args     ->  @amaze/pi-coding-agent/task/repair-args
- *   ../src/index                   ->  @amaze/pi-utils
+ *   ../src/format                  ->  @steve-z8k/pi-utils/format
+ *   ../../src/task/repair-args     ->  @steve-z8k/pi-coding-agent/task/repair-args
+ *   ../src/index                   ->  @steve-z8k/pi-utils
  *
  * Only specifiers that resolve onto a file under `<pkg>/src/` are touched, and
  * only when they have no extension or a `.ts`/`.js` extension (the package

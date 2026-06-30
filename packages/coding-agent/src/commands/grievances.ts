@@ -1,7 +1,7 @@
 /**
  * View, clean, and push reported tool issues from automated QA.
  */
-import { Args, Command, Flags } from "@amaze/pi-utils/cli";
+import { Args, Command, Flags } from "@steve-z8k/pi-utils/cli";
 import { cleanGrievances, listGrievances, pushGrievances } from "../cli/grievances-cli";
 
 export default class Grievances extends Command {

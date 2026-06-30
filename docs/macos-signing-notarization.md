@@ -3,7 +3,7 @@
 The compiled macOS `amaze` binaries shipped on GitHub Releases are signed with a
 **Developer ID Application** certificate and **notarized** by Apple. This makes
 them Gatekeeper-acceptable and is the prerequisite for an official Homebrew
-submission (see [#776](https://github.com/can1357/amaze-agent/issues/776)).
+submission (see [#776](https://github.com/steve-8000/amaze/issues/776)).
 
 Signing happens in CI, in the `release_binary` job's darwin matrix legs
 (`.github/workflows/ci.yml`), via `scripts/ci-macos-sign.sh`. It **auto-skips**
@@ -97,7 +97,7 @@ over stdin — no secret is ever printed to the terminal, argv, or shell history
 ```sh
 scripts/ci-macos-upload-secrets.sh ~/amaze-signing --dry-run   # validate first
 scripts/ci-macos-upload-secrets.sh ~/amaze-signing             # upload all five
-gh secret list --repo can1357/amaze-agent                       # confirm
+gh secret list --repo steve-8000/amaze                       # confirm
 ```
 
 Re-run it whenever the certificate is renewed.

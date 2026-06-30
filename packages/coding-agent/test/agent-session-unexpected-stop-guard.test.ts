@@ -1,16 +1,16 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent, type AgentMessage, type AgentTool } from "@amaze/pi-agent-core";
-import { z } from "@amaze/pi-ai";
-import { createMockModel, type MockModel, type MockResponse } from "@amaze/pi-ai/providers/mock";
-import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
-import { type SettingPath, Settings } from "@amaze/pi-coding-agent/config/settings";
-import { AgentSession } from "@amaze/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
-import { convertToLlm } from "@amaze/pi-coding-agent/session/messages";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import * as unexpectedStopClassifier from "@amaze/pi-coding-agent/session/unexpected-stop-classifier";
-import { logger, TempDir } from "@amaze/pi-utils";
+import { Agent, type AgentMessage, type AgentTool } from "@steve-z8k/pi-agent-core";
+import { z } from "@steve-z8k/pi-ai";
+import { createMockModel, type MockModel, type MockResponse } from "@steve-z8k/pi-ai/providers/mock";
+import { ModelRegistry } from "@steve-z8k/pi-coding-agent/config/model-registry";
+import { type SettingPath, Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { AgentSession } from "@steve-z8k/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@steve-z8k/pi-coding-agent/session/auth-storage";
+import { convertToLlm } from "@steve-z8k/pi-coding-agent/session/messages";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import * as unexpectedStopClassifier from "@steve-z8k/pi-coding-agent/session/unexpected-stop-classifier";
+import { logger, TempDir } from "@steve-z8k/pi-utils";
 
 const recordToolSchema = z.object({ value: z.string() });
 

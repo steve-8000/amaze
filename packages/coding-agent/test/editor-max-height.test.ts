@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { computeEditorMaxHeight } from "@amaze/pi-coding-agent/modes/interactive-mode";
+import { computeEditorMaxHeight } from "@steve-z8k/pi-coding-agent/modes/interactive-mode";
 
 describe("computeEditorMaxHeight", () => {
 	it("caps the editor within the comfortable band on roomy terminals", () => {

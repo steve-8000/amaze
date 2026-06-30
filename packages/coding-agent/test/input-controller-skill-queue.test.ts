@@ -7,21 +7,21 @@
  */
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@amaze/pi-agent-core";
-import { getBundledModel } from "@amaze/pi-catalog/models";
-import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import { EventController } from "@amaze/pi-coding-agent/modes/controllers/event-controller";
-import { InputController } from "@amaze/pi-coding-agent/modes/controllers/input-controller";
-import { getThemeByName, setThemeInstance } from "@amaze/pi-coding-agent/modes/theme/theme";
-import type { InteractiveModeContext } from "@amaze/pi-coding-agent/modes/types";
-import { UiHelpers } from "@amaze/pi-coding-agent/modes/utils/ui-helpers";
-import { AgentSession, type AgentSessionEvent } from "@amaze/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
-import { SKILL_PROMPT_MESSAGE_TYPE, type SkillPromptDetails } from "@amaze/pi-coding-agent/session/messages";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import { Container } from "@amaze/pi-tui";
-import { TempDir } from "@amaze/pi-utils";
+import { Agent } from "@steve-z8k/pi-agent-core";
+import { getBundledModel } from "@steve-z8k/pi-catalog/models";
+import { ModelRegistry } from "@steve-z8k/pi-coding-agent/config/model-registry";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { EventController } from "@steve-z8k/pi-coding-agent/modes/controllers/event-controller";
+import { InputController } from "@steve-z8k/pi-coding-agent/modes/controllers/input-controller";
+import { getThemeByName, setThemeInstance } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
+import type { InteractiveModeContext } from "@steve-z8k/pi-coding-agent/modes/types";
+import { UiHelpers } from "@steve-z8k/pi-coding-agent/modes/utils/ui-helpers";
+import { AgentSession, type AgentSessionEvent } from "@steve-z8k/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@steve-z8k/pi-coding-agent/session/auth-storage";
+import { SKILL_PROMPT_MESSAGE_TYPE, type SkillPromptDetails } from "@steve-z8k/pi-coding-agent/session/messages";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import { Container } from "@steve-z8k/pi-tui";
+import { TempDir } from "@steve-z8k/pi-utils";
 
 type StubEditor = {
 	setText: (text: string) => void;
@@ -197,7 +197,7 @@ async function createRealSession(): Promise<SessionFixture> {
 	const authStorage = await AuthStorage.create(path.join(tempDir.path(), "testauth.db"));
 	authStorage.setRuntimeApiKey("anthropic", "test-key");
 	const modelRegistry = new ModelRegistry(authStorage);
-	const model = getBundledModel("anthropic", "claude-sonnet-4-5");
+	const model = getBundledModel("anthropic", "claude-sonnet-4-6");
 	if (!model) throw new Error("Expected built-in anthropic model to exist");
 
 	const agent = new Agent({

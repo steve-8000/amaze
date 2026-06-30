@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { getBundledModel } from "@amaze/pi-catalog/models";
-import { runCommitAgentSession } from "@amaze/pi-coding-agent/commit/agentic/agent";
-import * as toolsModule from "@amaze/pi-coding-agent/commit/agentic/tools";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import type { CreateAgentSessionResult } from "@amaze/pi-coding-agent/sdk";
-import * as sdkModule from "@amaze/pi-coding-agent/sdk";
-import type { PromptOptions } from "@amaze/pi-coding-agent/session/agent-session";
+import { getBundledModel } from "@steve-z8k/pi-catalog/models";
+import { runCommitAgentSession } from "@steve-z8k/pi-coding-agent/commit/agentic/agent";
+import * as toolsModule from "@steve-z8k/pi-coding-agent/commit/agentic/tools";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import type { CreateAgentSessionResult } from "@steve-z8k/pi-coding-agent/sdk";
+import * as sdkModule from "@steve-z8k/pi-coding-agent/sdk";
+import type { PromptOptions } from "@steve-z8k/pi-coding-agent/session/agent-session";
 
 describe("commit agent prompt attribution", () => {
 	afterEach(() => {
@@ -25,9 +25,9 @@ describe("commit agent prompt attribution", () => {
 		vi.spyOn(sdkModule, "createAgentSession").mockResolvedValue({ session } as unknown as CreateAgentSessionResult);
 		vi.spyOn(toolsModule, "createCommitTools").mockReturnValue([]);
 
-		const model = getBundledModel("anthropic", "claude-sonnet-4-5");
+		const model = getBundledModel("anthropic", "claude-sonnet-4-6");
 		if (!model) {
-			throw new Error("Expected claude-sonnet-4-5 model to exist");
+			throw new Error("Expected claude-sonnet-4-6 model to exist");
 		}
 
 		await runCommitAgentSession({

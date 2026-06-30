@@ -1,9 +1,9 @@
 import { beforeAll, describe, expect, it, vi } from "bun:test";
-import { LogoutAccountSelectorComponent } from "@amaze/pi-coding-agent/modes/components/logout-account-selector";
-import { SelectorController } from "@amaze/pi-coding-agent/modes/controllers/selector-controller";
-import { initTheme } from "@amaze/pi-coding-agent/modes/theme/theme";
-import type { InteractiveModeContext } from "@amaze/pi-coding-agent/modes/types";
-import type { AuthStorage, StoredAuthCredential } from "@amaze/pi-coding-agent/session/auth-storage";
+import { LogoutAccountSelectorComponent } from "@steve-z8k/pi-coding-agent/modes/components/logout-account-selector";
+import { SelectorController } from "@steve-z8k/pi-coding-agent/modes/controllers/selector-controller";
+import { initTheme } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
+import type { InteractiveModeContext } from "@steve-z8k/pi-coding-agent/modes/types";
+import type { AuthStorage, StoredAuthCredential } from "@steve-z8k/pi-coding-agent/session/auth-storage";
 
 interface TestEditorContainer {
 	children: unknown[];

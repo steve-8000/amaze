@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import Plugin from "@amaze/pi-coding-agent/commands/plugin";
-import type { CliConfig } from "@amaze/pi-utils/cli";
+import Plugin from "@steve-z8k/pi-coding-agent/commands/plugin";
+import type { CliConfig } from "@steve-z8k/pi-utils/cli";
 
 const TEST_CONFIG: CliConfig = {
 	bin: "amaze",

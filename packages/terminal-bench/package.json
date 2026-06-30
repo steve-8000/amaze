@@ -1,7 +1,7 @@
 {
 	"type": "module",
 	"private": true,
-	"name": "@amaze/terminal-bench",
+	"name": "@steve-z8k/terminal-bench",
 	"version": "0.0.1",
 	"description": "Run harbor-framework/terminal-bench-2 against the local amaze build with a live progress/spend/success dashboard",
 	"homepage": "https://amaze",
@@ -9,7 +9,7 @@
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/can1357/amaze-agent.git",
+		"url": "git+https://github.com/steve-8000/amaze.git",
 		"directory": "packages/terminal-bench"
 	},
 	"bin": {

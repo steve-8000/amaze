@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { streamOpenAICompletions } from "@amaze/pi-ai/providers/openai-completions";
-import { streamOpenAIResponses } from "@amaze/pi-ai/providers/openai-responses";
-import type { Context, FetchImpl, Model, ModelSpec } from "@amaze/pi-ai/types";
-import { buildModel } from "@amaze/pi-catalog/build";
-import { Effort } from "@amaze/pi-catalog/effort";
+import { streamOpenAICompletions } from "@steve-z8k/pi-ai/providers/openai-completions";
+import { streamOpenAIResponses } from "@steve-z8k/pi-ai/providers/openai-responses";
+import type { Context, FetchImpl, Model, ModelSpec } from "@steve-z8k/pi-ai/types";
+import { buildModel } from "@steve-z8k/pi-catalog/build";
+import { Effort } from "@steve-z8k/pi-catalog/effort";
 
 // GLM-5.2 reasoning-effort dialects diverge per host (verified against live
 // endpoints): a direct GLM host (Fireworks) wants the top UI tier on the wire

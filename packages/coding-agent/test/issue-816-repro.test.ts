@@ -1,14 +1,14 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@amaze/pi-agent-core";
-import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings } from "@amaze/pi-coding-agent/config/settings";
-import { InteractiveMode } from "@amaze/pi-coding-agent/modes/interactive-mode";
-import { initTheme } from "@amaze/pi-coding-agent/modes/theme/theme";
-import { AgentSession } from "@amaze/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import { TempDir } from "@amaze/pi-utils";
+import { Agent } from "@steve-z8k/pi-agent-core";
+import { ModelRegistry } from "@steve-z8k/pi-coding-agent/config/model-registry";
+import { resetSettingsForTest, Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { InteractiveMode } from "@steve-z8k/pi-coding-agent/modes/interactive-mode";
+import { initTheme } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
+import { AgentSession } from "@steve-z8k/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@steve-z8k/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import { TempDir } from "@steve-z8k/pi-utils";
 
 describe("issue #816 — plan mode pendingModelSwitch leak", () => {
 	let tempDir: TempDir;
@@ -27,8 +27,8 @@ describe("issue #816 — plan mode pendingModelSwitch leak", () => {
 		await Settings.init({ inMemory: true, cwd: tempDir.path() });
 		authStorage = await AuthStorage.create(path.join(tempDir.path(), "testauth.db"));
 		modelRegistry = new ModelRegistry(authStorage);
-		const defaultModel = modelRegistry.find("anthropic", "claude-sonnet-4-5");
-		if (!defaultModel) throw new Error("Expected claude-sonnet-4-5 in registry");
+		const defaultModel = modelRegistry.find("anthropic", "claude-sonnet-4-6");
+		if (!defaultModel) throw new Error("Expected claude-sonnet-4-6 in registry");
 
 		session = new AgentSession({
 			agent: new Agent({
@@ -56,8 +56,8 @@ describe("issue #816 — plan mode pendingModelSwitch leak", () => {
 	});
 
 	it("does not switch to the plan-role model after exit when the entry switch was deferred by streaming", async () => {
-		const planModel = modelRegistry.find("anthropic", "claude-haiku-4-5");
-		if (!planModel) throw new Error("Expected claude-haiku-4-5 in registry");
+		const planModel = modelRegistry.find("anthropic", "claude-opus-4-7");
+		if (!planModel) throw new Error("Expected claude-opus-4-7 in registry");
 
 		// Stream is active throughout entry: #applyPlanModeModel snapshots the
 		// previous (default) model and queues a pending switch to the plan model

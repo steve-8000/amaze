@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import "./setup";
-import { BeamMemory } from "@amaze/pi-rocky-memory/core/beam";
-import { PolyphonicRecallEngine } from "@amaze/pi-rocky-memory/core/polyphonic-recall";
+import { BeamMemory } from "@steve-z8k/pi-rocky-memory/core/beam";
+import { PolyphonicRecallEngine } from "@steve-z8k/pi-rocky-memory/core/polyphonic-recall";
 
 function seedEmbedding(beam: BeamMemory, memoryId: string, vector: readonly number[]): void {
 	beam.db.run("INSERT OR REPLACE INTO memory_embeddings (memory_id, embedding_json, model) VALUES (?, ?, 'test')", [

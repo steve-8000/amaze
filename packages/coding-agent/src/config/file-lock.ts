@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import * as fs from "node:fs/promises";
-import { isEnoent, logger } from "@amaze/pi-utils";
+import { isEnoent, logger } from "@steve-z8k/pi-utils";
 
 export interface FileLockOptions {
 	staleMs?: number;

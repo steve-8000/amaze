@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { UsageLimit, UsageReport } from "@amaze/pi-ai";
+import type { UsageLimit, UsageReport } from "@steve-z8k/pi-ai";
 import {
 	limitMatchesActiveAccount,
 	reportMatchesActiveAccount,

@@ -1,6 +1,6 @@
 # SDK
 
-The SDK is the in-process integration surface for `@amaze/pi-coding-agent`.
+The SDK is the in-process integration surface for `@steve-z8k/pi-coding-agent`.
 Use it when you want direct access to agent state, event streaming, tool wiring, and session control from your own Bun/Node process.
 
 If you need cross-language/process isolation, use RPC mode instead.
@@ -8,12 +8,12 @@ If you need cross-language/process isolation, use RPC mode instead.
 ## Installation
 
 ```bash
-bun add @amaze/pi-coding-agent
+bun add @steve-z8k/pi-coding-agent
 ```
 
 ## Entry points
 
-`@amaze/pi-coding-agent` exports the SDK APIs from the package root (and also via `@amaze/pi-coding-agent/sdk`).
+`@steve-z8k/pi-coding-agent` exports the SDK APIs from the package root (and also via `@steve-z8k/pi-coding-agent/sdk`).
 
 Core exports for embedders:
 
@@ -29,7 +29,7 @@ Core exports for embedders:
 ## Quick start (auto-discovery defaults)
 
 ```ts
-import { createAgentSession } from "@amaze/pi-coding-agent";
+import { createAgentSession } from "@steve-z8k/pi-coding-agent";
 
 const { session, modelFallbackMessage } = await createAgentSession();
 
@@ -87,7 +87,7 @@ Typically you must provide only what you want to control:
 ### File-backed (default)
 
 ```ts
-import { createAgentSession, SessionManager } from "@amaze/pi-coding-agent";
+import { createAgentSession, SessionManager } from "@steve-z8k/pi-coding-agent";
 
 const { session } = await createAgentSession({
   sessionManager: SessionManager.create(process.cwd()),
@@ -103,7 +103,7 @@ console.log(session.sessionFile); // absolute .jsonl path
 ### In-memory
 
 ```ts
-import { createAgentSession, SessionManager } from "@amaze/pi-coding-agent";
+import { createAgentSession, SessionManager } from "@steve-z8k/pi-coding-agent";
 
 const { session } = await createAgentSession({
   sessionManager: SessionManager.inMemory(),
@@ -119,7 +119,7 @@ console.log(session.sessionFile); // undefined
 ### Resume/open/list helpers
 
 ```ts
-import { SessionManager } from "@amaze/pi-coding-agent";
+import { SessionManager } from "@steve-z8k/pi-coding-agent";
 
 const recent = await SessionManager.continueRecent(process.cwd());
 const listed = await SessionManager.list(process.cwd());
@@ -138,7 +138,7 @@ import {
   discoverAuthStorage,
   ModelRegistry,
   SessionManager,
-} from "@amaze/pi-coding-agent";
+} from "@steve-z8k/pi-coding-agent";
 
 const authStorage = await discoverAuthStorage();
 const modelRegistry = new ModelRegistry(authStorage);
@@ -331,7 +331,7 @@ import {
   ModelRegistry,
   SessionManager,
   Settings,
-} from "@amaze/pi-coding-agent";
+} from "@steve-z8k/pi-coding-agent";
 
 const authStorage = await discoverAuthStorage();
 const modelRegistry = new ModelRegistry(authStorage);

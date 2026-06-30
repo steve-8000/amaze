@@ -1,4 +1,4 @@
-import { logger } from "@amaze/pi-utils";
+import { logger } from "@steve-z8k/pi-utils";
 
 const DEFAULT_MCP_TIMEOUT_MS = 30_000;
 const MCP_TIMEOUT_ENV = "OMP_MCP_TIMEOUT_MS";

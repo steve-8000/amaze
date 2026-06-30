@@ -10,9 +10,9 @@ import {
 	getRepoRoot,
 	mergeTaskBranches,
 	parseIsolationMode,
-} from "@amaze/pi-coding-agent/task/worktree";
-import * as jj from "@amaze/pi-coding-agent/utils/jj";
-import * as natives from "@amaze/pi-natives";
+} from "@steve-z8k/pi-coding-agent/task/worktree";
+import * as jj from "@steve-z8k/pi-coding-agent/utils/jj";
+import * as natives from "@steve-z8k/pi-natives";
 
 const tempDirs: string[] = [];
 

@@ -1,7 +1,7 @@
 /**
  * Manage SSH host configurations.
  */
-import { Args, Command, Flags } from "@amaze/pi-utils/cli";
+import { Args, Command, Flags } from "@steve-z8k/pi-utils/cli";
 import { runSSHCommand, type SSHAction, type SSHCommandArgs } from "../cli/ssh-cli";
 import { initTheme } from "../modes/theme/theme";
 

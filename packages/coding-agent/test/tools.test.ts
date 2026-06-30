@@ -4,22 +4,22 @@ import * as os from "node:os";
 import * as path from "node:path";
 import * as url from "node:url";
 import * as zlib from "node:zlib";
-import type { AgentTool, AgentToolContext } from "@amaze/pi-agent-core";
-import { AsyncJobManager } from "@amaze/pi-coding-agent/async";
-import { DEFAULT_BASH_INTERCEPTOR_RULES, Settings } from "@amaze/pi-coding-agent/config/settings";
-import { EditTool } from "@amaze/pi-coding-agent/edit";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import type { ToolSession } from "@amaze/pi-coding-agent/tools";
-import { BashTool } from "@amaze/pi-coding-agent/tools/bash";
-import { FindTool } from "@amaze/pi-coding-agent/tools/find";
-import { JobTool } from "@amaze/pi-coding-agent/tools/job";
-import { wrapToolWithMetaNotice } from "@amaze/pi-coding-agent/tools/output-meta";
-import { ReadTool } from "@amaze/pi-coding-agent/tools/read";
-import { DEFAULT_FILE_LIMIT, MULTI_FILE_PER_FILE_MATCHES, SearchTool } from "@amaze/pi-coding-agent/tools/search";
-import * as toolTimeouts from "@amaze/pi-coding-agent/tools/tool-timeouts";
-import { WriteTool } from "@amaze/pi-coding-agent/tools/write";
-import { unzip } from "@amaze/pi-coding-agent/utils/zip";
-import { $which, removeSyncWithRetries, Snowflake } from "@amaze/pi-utils";
+import type { AgentTool, AgentToolContext } from "@steve-z8k/pi-agent-core";
+import { AsyncJobManager } from "@steve-z8k/pi-coding-agent/async";
+import { DEFAULT_BASH_INTERCEPTOR_RULES, Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { EditTool } from "@steve-z8k/pi-coding-agent/edit";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import type { ToolSession } from "@steve-z8k/pi-coding-agent/tools";
+import { BashTool } from "@steve-z8k/pi-coding-agent/tools/bash";
+import { FindTool } from "@steve-z8k/pi-coding-agent/tools/find";
+import { JobTool } from "@steve-z8k/pi-coding-agent/tools/job";
+import { wrapToolWithMetaNotice } from "@steve-z8k/pi-coding-agent/tools/output-meta";
+import { ReadTool } from "@steve-z8k/pi-coding-agent/tools/read";
+import { DEFAULT_FILE_LIMIT, MULTI_FILE_PER_FILE_MATCHES, SearchTool } from "@steve-z8k/pi-coding-agent/tools/search";
+import * as toolTimeouts from "@steve-z8k/pi-coding-agent/tools/tool-timeouts";
+import { WriteTool } from "@steve-z8k/pi-coding-agent/tools/write";
+import { unzip } from "@steve-z8k/pi-coding-agent/utils/zip";
+import { $which, removeSyncWithRetries, Snowflake } from "@steve-z8k/pi-utils";
 
 // Helper to extract text from content blocks
 function getTextOutput(result: any): string {

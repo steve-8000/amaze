@@ -1,4 +1,4 @@
-import type { FetchImpl } from "@amaze/pi-ai/types";
+import type { FetchImpl } from "@steve-z8k/pi-ai/types";
 
 type FetchHandler = (input: string | URL | Request, init?: RequestInit) => Response | Promise<Response>;
 

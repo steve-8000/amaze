@@ -1,13 +1,13 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@amaze/pi-agent-core";
-import type { AssistantMessage, Model, ProviderSessionState } from "@amaze/pi-ai";
-import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import { AgentSession } from "@amaze/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import { TempDir } from "@amaze/pi-utils";
+import { Agent } from "@steve-z8k/pi-agent-core";
+import type { AssistantMessage, Model, ProviderSessionState } from "@steve-z8k/pi-ai";
+import { ModelRegistry } from "@steve-z8k/pi-coding-agent/config/model-registry";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { AgentSession } from "@steve-z8k/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@steve-z8k/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import { TempDir } from "@steve-z8k/pi-utils";
 
 describe("AgentSession context promotion", () => {
 	let tempDir: TempDir;

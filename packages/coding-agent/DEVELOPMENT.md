@@ -1,4 +1,4 @@
-# Developing `@amaze/pi-coding-agent`
+# Developing `@steve-z8k/pi-coding-agent`
 
 This package is the `amaze` CLI. This file is a **developer's map**: where things live
 in `src/`, how to run the local loops, and — for each subsystem — which document in

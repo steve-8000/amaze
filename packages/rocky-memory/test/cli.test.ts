@@ -2,8 +2,8 @@ import { describe, expect, it } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { cmdRecall, cmdRemember, cmdStats, runCli } from "@amaze/pi-rocky-memory/cli";
-import { BeamMemory } from "@amaze/pi-rocky-memory/core/beam";
+import { cmdRecall, cmdRemember, cmdStats, runCli } from "@steve-z8k/pi-rocky-memory/cli";
+import { BeamMemory } from "@steve-z8k/pi-rocky-memory/core/beam";
 
 function tempRoot(): string {
 	return mkdtempSync(join(tmpdir(), "rockyMemory-ts-cli-"));

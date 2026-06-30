@@ -1,6 +1,6 @@
 import type { Database } from "bun:sqlite";
 import { afterEach, describe, expect, it } from "bun:test";
-import { initBeam } from "@amaze/pi-rocky-memory/core/beam";
+import { initBeam } from "@steve-z8k/pi-rocky-memory/core/beam";
 import {
 	consolidateToEpisodic,
 	degradeEpisodic,
@@ -12,10 +12,10 @@ import {
 	memoriaRetrieve,
 	sleep,
 	sleepAllSessions,
-} from "@amaze/pi-rocky-memory/core/beam/consolidate";
-import type { BeamMemoryState } from "@amaze/pi-rocky-memory/core/beam/types";
-import { REGEX_EXTRACTION_MAX_INPUT_CHARS } from "@amaze/pi-rocky-memory/core/entities";
-import { closeQuietly, openDatabase } from "@amaze/pi-rocky-memory/db";
+} from "@steve-z8k/pi-rocky-memory/core/beam/consolidate";
+import type { BeamMemoryState } from "@steve-z8k/pi-rocky-memory/core/beam/types";
+import { REGEX_EXTRACTION_MAX_INPUT_CHARS } from "@steve-z8k/pi-rocky-memory/core/entities";
+import { closeQuietly, openDatabase } from "@steve-z8k/pi-rocky-memory/db";
 
 function state(sessionId = "s1"): BeamMemoryState {
 	const db = openDatabase(":memory:", { create: true, readwrite: true });

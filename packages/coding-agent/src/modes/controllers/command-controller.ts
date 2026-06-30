@@ -1,22 +1,17 @@
 import * as fs from "node:fs/promises";
-import * as os from "node:os";
-import * as path from "node:path";
-import { CompactionCancelledError, type CompactionOutcome } from "@amaze/pi-agent-core/compaction";
+import { CompactionCancelledError, type CompactionOutcome } from "@steve-z8k/pi-agent-core/compaction";
 import {
 	getEnvApiKey,
 	getProviderDetails,
 	type ProviderDetails,
 	type UsageLimit,
 	type UsageReport,
-} from "@amaze/pi-ai";
-import { Loader, Markdown, padding, Spacer, Text, visibleWidth } from "@amaze/pi-tui";
-import { formatDuration, Snowflake } from "@amaze/pi-utils";
+} from "@steve-z8k/pi-ai";
+import { Loader, Markdown, padding, Spacer, Text, visibleWidth } from "@steve-z8k/pi-tui";
+import { formatDuration } from "@steve-z8k/pi-utils";
 import { shouldEnableAppendOnlyContext } from "../../config/append-only-context-mode";
-import { type LoadedCustomShare, loadCustomShare } from "../../export/custom-share";
-import { shareSession } from "../../export/share";
 import type { CompactOptions } from "../../extensibility/extensions/types";
 import { BashExecutionComponent } from "../../modes/components/bash-execution";
-import { BorderedLoader } from "../../modes/components/bordered-loader";
 import { DynamicBorder } from "../../modes/components/dynamic-border";
 import { EvalExecutionComponent } from "../../modes/components/eval-execution";
 import { TranscriptBlock } from "../../modes/components/transcript-container";
@@ -33,7 +28,6 @@ import { formatShakeSummary, type ShakeMode, type ShakeResult } from "../../sess
 import { limitMatchesActiveAccount } from "../../slash-commands/helpers/active-oauth-account";
 import { outputMeta } from "../../tools/output-meta";
 import { resolveToCwd, stripOuterDoubleQuotes } from "../../tools/path-utils";
-import { replaceTabs } from "../../tools/render-utils";
 import { getChangelogPath, parseChangelog } from "../../utils/changelog";
 import { copyToClipboard } from "../../utils/clipboard";
 import { openPath } from "../../utils/open";
@@ -54,24 +48,6 @@ export class CommandController {
 
 	openInBrowser(urlOrPath: string): void {
 		openPath(urlOrPath);
-	}
-
-	async handleExportCommand(text: string): Promise<void> {
-		const parts = text.split(/\s+/);
-		const arg = parts.length > 1 ? parts[1] : undefined;
-
-		if (arg === "--copy" || arg === "clipboard" || arg === "copy") {
-			this.ctx.showWarning("Use /dump to copy the session to clipboard.");
-			return;
-		}
-
-		try {
-			const filePath = await this.ctx.session.exportToHtml(arg);
-			this.ctx.showStatus(`Session exported to: ${filePath}`);
-			this.openInBrowser(filePath);
-		} catch (error: unknown) {
-			this.ctx.showError(`Failed to export session: ${error instanceof Error ? error.message : "Unknown error"}`);
-		}
 	}
 
 	async handleDumpCommand(): Promise<void> {
@@ -120,108 +96,6 @@ export class CommandController {
 			this.ctx.showError(
 				`Failed to copy advisor history: ${error instanceof Error ? error.message : "Unknown error"}`,
 			);
-		}
-	}
-
-	async handleDebugTranscriptCommand(): Promise<void> {
-		try {
-			const width = Math.max(1, this.ctx.ui.terminal.columns);
-			const renderedLines = this.ctx.chatContainer.render(width).map(line => replaceTabs(Bun.stripANSI(line)));
-			const rendered = renderedLines.join("\n").trimEnd();
-			if (!rendered) {
-				this.ctx.showError("No messages to dump yet.");
-				return;
-			}
-			const tmpPath = path.join(os.tmpdir(), `${Snowflake.next()}-tmp.txt`);
-			await Bun.write(tmpPath, `${rendered}\n`);
-			this.ctx.showStatus(`Debug transcript written to:\n${tmpPath}`);
-		} catch (error: unknown) {
-			this.ctx.showError(
-				`Failed to write debug transcript: ${error instanceof Error ? error.message : "Unknown error"}`,
-			);
-		}
-	}
-
-	async handleShareCommand(): Promise<void> {
-		let customShare: LoadedCustomShare | null;
-		try {
-			customShare = await loadCustomShare();
-		} catch (err) {
-			this.ctx.showError(err instanceof Error ? err.message : String(err));
-			return;
-		}
-
-		const loader = new BorderedLoader(this.ctx.ui, theme, "Sharing session...");
-		this.ctx.editorContainer.clear();
-		this.ctx.editorContainer.addChild(loader);
-		this.ctx.ui.setFocus(loader);
-		this.ctx.ui.requestRender();
-
-		const restoreEditor = () => {
-			loader.dispose();
-			this.ctx.editorContainer.clear();
-			this.ctx.editorContainer.addChild(this.ctx.editor);
-			this.ctx.ui.setFocus(this.ctx.editor);
-		};
-		loader.onAbort = () => {
-			restoreEditor();
-			this.ctx.showStatus("Share cancelled");
-		};
-
-		// Custom share scripts keep their legacy contract: they receive a path
-		// to a standalone HTML export. No fallback to the default flow on error.
-		if (customShare) {
-			const tmpFile = path.join(os.tmpdir(), `${Snowflake.next()}.html`);
-			try {
-				await this.ctx.session.exportToHtml(tmpFile);
-				const result = await customShare.fn(tmpFile);
-				if (loader.signal.aborted) return;
-				restoreEditor();
-
-				if (typeof result === "string") {
-					this.ctx.showStatus(`Share URL: ${result}`);
-					this.openInBrowser(result);
-				} else if (result) {
-					const parts: string[] = [];
-					if (result.url) parts.push(`Share URL: ${result.url}`);
-					if (result.message) parts.push(result.message);
-					if (parts.length > 0) this.ctx.showStatus(parts.join("\n"));
-					if (result.url) this.openInBrowser(result.url);
-				} else {
-					this.ctx.showStatus("Session shared");
-				}
-			} catch (err) {
-				if (!loader.signal.aborted) {
-					restoreEditor();
-					this.ctx.showError(`Custom share failed: ${err instanceof Error ? err.message : String(err)}`);
-				}
-			} finally {
-				await fs.rm(tmpFile, { force: true }).catch(() => {});
-			}
-			return;
-		}
-
-		// Default: encrypted snapshot to a secret gist (preferred) or the share
-		// server; the key rides in the link fragment and never leaves the client.
-		try {
-			const result = await shareSession(this.ctx.session.sessionManager, {
-				serverUrl: this.ctx.settings.get("share.serverUrl"),
-				state: this.ctx.session.state,
-				obfuscator: this.ctx.settings.get("share.redactSecrets") ? this.ctx.session.obfuscator : undefined,
-			});
-			if (loader.signal.aborted) return;
-			restoreEditor();
-
-			const lines = [`Share URL: ${result.url}`];
-			if (result.gistUrl) lines.push(`Gist: ${result.gistUrl}`);
-			if (result.truncated) lines.push("Note: large content was trimmed to fit the share size limit.");
-			this.ctx.showStatus(lines.join("\n"));
-			this.openInBrowser(result.url);
-		} catch (error: unknown) {
-			if (!loader.signal.aborted) {
-				restoreEditor();
-				this.ctx.showError(`Failed to share session: ${error instanceof Error ? error.message : "Unknown error"}`);
-			}
 		}
 	}
 
@@ -898,10 +772,14 @@ export class CommandController {
 const BAR_WIDTH_MAX = 24;
 const BAR_WIDTH_MIN = 4;
 
+function formatJobType(job: AsyncJobSnapshotItem): string {
+	return job.type === "task" && job.agentName ? `${job.type}:${job.agentName}` : job.type;
+}
+
 function renderJobLine(job: AsyncJobSnapshotItem, now: number): string {
 	const duration = formatDuration(Math.max(0, now - job.startTime));
 	const status = formatJobStatus(job.status);
-	return `${theme.fg("dim", job.id)} ${theme.fg("dim", `[${job.type}]`)} ${status} ${theme.fg("dim", `(${duration})`)}`;
+	return `${theme.fg("dim", job.id)} ${theme.fg("dim", `[${formatJobType(job)}]`)} ${status} ${theme.fg("dim", `(${duration})`)}`;
 }
 
 function formatJobStatus(status: AsyncJobSnapshotItem["status"]): string {

@@ -2,16 +2,16 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AssistantMessage } from "@amaze/pi-ai";
-import { getBundledModel } from "@amaze/pi-catalog/models";
-import type { Rule } from "@amaze/pi-coding-agent/capability/rule";
-import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import { createAgentSession } from "@amaze/pi-coding-agent/sdk";
-import { SecretObfuscator } from "@amaze/pi-coding-agent/secrets";
-import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import { getSessionsDir, Snowflake } from "@amaze/pi-utils";
+import type { AssistantMessage } from "@steve-z8k/pi-ai";
+import { getBundledModel } from "@steve-z8k/pi-catalog/models";
+import type { Rule } from "@steve-z8k/pi-coding-agent/capability/rule";
+import { ModelRegistry } from "@steve-z8k/pi-coding-agent/config/model-registry";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { createAgentSession } from "@steve-z8k/pi-coding-agent/sdk";
+import { SecretObfuscator } from "@steve-z8k/pi-coding-agent/secrets";
+import { AuthStorage } from "@steve-z8k/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import { getSessionsDir, Snowflake } from "@steve-z8k/pi-utils";
 
 function createTtsrRule(name: string): Rule {
 	return {
@@ -200,7 +200,7 @@ describe("createAgentSession session storage isolation", () => {
 				"- type: plain\n  content: sdk-secret-token-123456\n",
 			);
 
-			const model = getBundledModel("anthropic", "claude-sonnet-4-5");
+			const model = getBundledModel("anthropic", "claude-sonnet-4-6");
 			if (!model) throw new Error("Expected anthropic model");
 
 			const obfuscator = new SecretObfuscator([{ type: "plain", content: "sdk-secret-token-123456" }]);

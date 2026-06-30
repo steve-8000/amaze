@@ -1,6 +1,6 @@
 import * as path from "node:path";
-import type { Component } from "@amaze/pi-tui";
-import { Container, Text } from "@amaze/pi-tui";
+import type { Component } from "@steve-z8k/pi-tui";
+import { Container, Text } from "@steve-z8k/pi-tui";
 import { InternalUrlRouter } from "../../internal-urls";
 import { getLanguageFromPath, theme } from "../../modes/theme/theme";
 import { parseLineRanges, selectorLineRanges, splitPathAndSel } from "../../tools/path-utils";

@@ -1,15 +1,15 @@
 import { afterEach, describe, expect, test, vi } from "bun:test";
-import type { AgentMessage } from "@amaze/pi-agent-core";
+import type { AgentMessage } from "@steve-z8k/pi-agent-core";
 import {
 	type CompactionPreparation,
 	compact,
 	createFileOps,
 	DEFAULT_COMPACTION_SETTINGS,
 	generateHandoff,
-} from "@amaze/pi-agent-core/compaction";
-import type { AssistantMessage, Model } from "@amaze/pi-ai";
-import * as ai from "@amaze/pi-ai";
-import { getBundledModel } from "@amaze/pi-catalog/models";
+} from "@steve-z8k/pi-agent-core/compaction";
+import type { AssistantMessage, Model } from "@steve-z8k/pi-ai";
+import * as ai from "@steve-z8k/pi-ai";
+import { getBundledModel } from "@steve-z8k/pi-catalog/models";
 
 // Pins the fix for the "raw 401 surfaced as Compaction failed:" bug.
 //

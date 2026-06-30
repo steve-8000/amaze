@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import "./setup";
-import { BeamMemory } from "@amaze/pi-rocky-memory/core/beam";
+import { BeamMemory } from "@steve-z8k/pi-rocky-memory/core/beam";
 
 function createVecEpisodes(beam: BeamMemory): void {
 	beam.db.run("CREATE TABLE vec_episodes (rowid INTEGER PRIMARY KEY, embedding TEXT NOT NULL)");

@@ -5,17 +5,17 @@ import {
 	extractFactsSafe,
 	heuristicExtractFacts,
 	parseFacts,
-} from "@amaze/pi-rocky-memory/core/extraction";
-import { getExtractionStats, resetExtractionStats } from "@amaze/pi-rocky-memory/core/extraction/diagnostics";
+} from "@steve-z8k/pi-rocky-memory/core/extraction";
+import { getExtractionStats, resetExtractionStats } from "@steve-z8k/pi-rocky-memory/core/extraction/diagnostics";
 import {
 	CallableLlmBackend,
 	resetHostLlmBackendForTests,
 	setHostLlmBackend,
-} from "@amaze/pi-rocky-memory/core/llm-backends";
+} from "@steve-z8k/pi-rocky-memory/core/llm-backends";
 import {
 	type ResolvedRockyMemoryRuntimeOptions,
 	withRockyMemoryRuntimeOptions,
-} from "@amaze/pi-rocky-memory/core/runtime-options";
+} from "@steve-z8k/pi-rocky-memory/core/runtime-options";
 
 const OLD_ENV = { ...process.env };
 function restoreEnv(): void {

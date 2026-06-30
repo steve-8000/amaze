@@ -2,7 +2,7 @@
  * ORCID handler for web-fetch
  */
 
-import { tryParseJson } from "@amaze/pi-utils";
+import { tryParseJson } from "@steve-z8k/pi-utils";
 import type { RenderResult, SpecialHandler } from "./types";
 import { buildResult, loadPage } from "./types";
 

@@ -14,7 +14,7 @@
 
 ### Fixed
 
-- Fixed the guest hanging in the "waiting" phase on large host sessions: the client now accumulates `snapshot-chunk` frames into the transcript snapshot and only transitions to `live` after the final chunk lands (or immediately when the host's snapshot is empty). ([#3144](https://github.com/can1357/amaze-agent/issues/3144))
+- Fixed the guest hanging in the "waiting" phase on large host sessions: the client now accumulates `snapshot-chunk` frames into the transcript snapshot and only transitions to `live` after the final chunk lands (or immediately when the host's snapshot is empty). ([#3144](https://github.com/steve-8000/amaze/issues/3144))
 
 ## [16.0.10] - 2026-06-18
 
@@ -114,7 +114,7 @@
 
 - Changed relay socket behavior to retry transient disconnections with exponential backoff while treating terminal relay-close conditions and decryption failures as non-retriable
 - Changed subagent transcript decoding to handle streamed JSONL payload chunks incrementally by preserving carry-over data across chunks
-- Replaced the vendored collab wire type mirror with shared `@amaze/pi-wire` protocol contracts.
+- Replaced the vendored collab wire type mirror with shared `@steve-z8k/pi-wire` protocol contracts.
 
 ### Security
 

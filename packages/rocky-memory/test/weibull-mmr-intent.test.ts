@@ -1,12 +1,12 @@
 import { describe, expect, it } from "bun:test";
-import { mmrRerank } from "@amaze/pi-rocky-memory/core/mmr";
-import { adjustWeights, classifyIntent } from "@amaze/pi-rocky-memory/core/query-intent";
+import { mmrRerank } from "@steve-z8k/pi-rocky-memory/core/mmr";
+import { adjustWeights, classifyIntent } from "@steve-z8k/pi-rocky-memory/core/query-intent";
 import {
 	DEFAULT_HALFLIFE_HOURS,
 	WEIBULL_PARAMS,
 	weibullBoost,
 	weibullDecayFactor,
-} from "@amaze/pi-rocky-memory/core/weibull";
+} from "@steve-z8k/pi-rocky-memory/core/weibull";
 
 describe("Weibull decay", () => {
 	it("exposes parameters for memory types used by recall", () => {

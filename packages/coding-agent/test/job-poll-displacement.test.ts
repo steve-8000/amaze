@@ -11,12 +11,12 @@
  *    poll from the transcript; any other tool seals it in place.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { resetSettingsForTest, Settings } from "@amaze/pi-coding-agent/config/settings";
-import { ToolExecutionComponent } from "@amaze/pi-coding-agent/modes/components/tool-execution";
-import { EventController } from "@amaze/pi-coding-agent/modes/controllers/event-controller";
-import { initTheme } from "@amaze/pi-coding-agent/modes/theme/theme";
-import type { InteractiveModeContext } from "@amaze/pi-coding-agent/modes/types";
-import type { Component, TUI } from "@amaze/pi-tui";
+import { resetSettingsForTest, Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { ToolExecutionComponent } from "@steve-z8k/pi-coding-agent/modes/components/tool-execution";
+import { EventController } from "@steve-z8k/pi-coding-agent/modes/controllers/event-controller";
+import { initTheme } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
+import type { InteractiveModeContext } from "@steve-z8k/pi-coding-agent/modes/types";
+import type { Component, TUI } from "@steve-z8k/pi-tui";
 
 const uiStub = { requestRender() {} } as unknown as TUI;
 

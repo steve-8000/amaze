@@ -13,10 +13,12 @@
 {{/if}}
 
 <parameters>
-- `agent`: agent type to spawn
+{{#if batchEnabled}}- `agent`: optional default agent type for all `tasks[]`; omit only when every task item sets `agent`
+{{else}}- `agent`: REQUIRED non-empty agent type to spawn; choose one from `<agents>`{{/if}}
 {{#if batchEnabled}}
 - `context`: shared background prepended to every assignment — goal, constraints, shared contract (see context-fmt); REQUIRED, session-specific only
 - `tasks`: tasks to spawn — one subagent per item, all in parallel:
+  - `agent`: agent type for this item; defaults to top-level `agent` when omitted
   - `assignment`: complete self-contained instructions; one-liners and missing acceptance criteria are PROHIBITED
   - `id`: stable agent id, CamelCase, ≤32 chars; generated when omitted
   - `description`: UI label only — subagent never sees it
@@ -37,12 +39,11 @@
 
 <rules>
 - Pick the agent by job type:
-  - `thinker`: hard judgment, design, root-cause analysis, unclear decisions.
-  - `coder`: complex implementation across files, tests, state, types, or behavior.
-  - `finder`: read-only investigation, locating code, collecting facts, summarizing context.
-  - `fixer`: small, clear, low-risk code edits with narrow scope.
-  - `checker`: review, challenge, risk checks, adversarial second opinions.
-  - `helper`: cheap summarization, extraction, list building, text cleanup.
+  - `ultra`: hardest architecture, root-cause analysis, and implementation.
+  - `deep`: auditor for validation, merge synthesis, final fixes, and quality gates.
+  - `flash`: fast implementer for small/medium work and independent candidate generation.
+  - `spark`: GitHub commit workflows and web information search.
+- Small/medium coding work SHOULD start with `flash`; complex/risky comparisons SHOULD use `flash` for isolated implementation candidates and `deep` for review, audit, validation, or merge synthesis.
 - Use the simplest correct agent. When unsure between two, choose the more capable one.
 - **Maximize fan-out only when the work naturally splits.** Issue the widest {{#if batchEnabled}}`tasks[]` batch{{else}}set of parallel `task` calls{{/if}} that has clear, non-overlapping contracts.
 - **Subagents do not verify, lint, or format unless explicitly contracted to.** You run final project-wide gates once across the union of changed files.

@@ -1,5 +1,5 @@
-import { ProcessTerminal, TUI } from "@amaze/pi-tui";
-import { logger } from "@amaze/pi-utils";
+import { ProcessTerminal, TUI } from "@steve-z8k/pi-tui";
+import { logger } from "@steve-z8k/pi-utils";
 import { SessionSelectorComponent } from "../modes/components/session-selector";
 import { HistoryStorage } from "../session/history-storage";
 import type { SessionInfo } from "../session/session-listing";

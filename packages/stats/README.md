@@ -1,4 +1,4 @@
-# @amaze/amaze-stats
+# @steve-z8k/amaze-stats
 
 Local observability dashboard for AI usage statistics.
 
@@ -41,7 +41,7 @@ amaze stats --json
 ### Programmatic
 
 ```typescript
-import { getDashboardStats, syncAllSessions } from "@amaze/amaze-stats";
+import { getDashboardStats, syncAllSessions } from "@steve-z8k/amaze-stats";
 
 // Sync session logs to database
 const { processed, files } = await syncAllSessions();

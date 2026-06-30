@@ -5,7 +5,7 @@ import {
 	type NativeScrollbackLiveRegion,
 	type RenderStablePrefix,
 	type ViewportTailProvider,
-} from "@amaze/pi-tui";
+} from "@steve-z8k/pi-tui";
 
 const kSnapshot = Symbol("transcript.liveDiffSnapshot");
 

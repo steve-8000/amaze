@@ -3,7 +3,7 @@
  * Replaces per-provider JSON files with a single cache.db.
  */
 import { Database } from "bun:sqlite";
-import { getModelDbPath } from "@amaze/pi-utils";
+import { getModelDbPath } from "@steve-z8k/pi-utils";
 import type { Api, Model, ModelSpec } from "./types";
 
 // Rows persist ModelSpec JSON (sparse `compat`, never the resolved record);
@@ -49,7 +49,7 @@ let sharedDbPath: string | null = null;
 function openDb(resolvedPath: string): Database {
 	const db = new Database(resolvedPath, { create: true });
 	// Install the busy handler BEFORE any lock-taking statement. See
-	// https://github.com/can1357/amaze-agent/issues/2421.
+	// https://github.com/steve-8000/amaze/issues/2421.
 	db.run("PRAGMA busy_timeout = 3000");
 	db.run("PRAGMA journal_mode = WAL");
 	db.run(`

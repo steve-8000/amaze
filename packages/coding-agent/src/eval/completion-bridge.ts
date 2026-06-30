@@ -11,9 +11,9 @@
  * The call is oneshot and toolless from the model's perspective — pure text
  * in, text (or, with `schema`, a structured object) out.
  */
-import { instrumentedCompleteSimple, resolveTelemetry } from "@amaze/pi-agent-core";
-import { type Api, Effort, type Model, type Tool } from "@amaze/pi-ai";
-import { getSupportedEfforts } from "@amaze/pi-catalog/model-thinking";
+import { instrumentedCompleteSimple, resolveTelemetry } from "@steve-z8k/pi-agent-core";
+import { type Api, Effort, type Model, type Tool } from "@steve-z8k/pi-ai";
+import { getSupportedEfforts } from "@steve-z8k/pi-catalog/model-thinking";
 import { type } from "arktype";
 import { extractTextContent, extractToolCall, parseJsonPayload } from "../commit/utils";
 
@@ -23,6 +23,7 @@ import {
 	getModelMatchPreferences,
 	resolveModelFromString,
 } from "../config/model-resolver";
+import type { ModelRole } from "../config/model-roles";
 import type { ToolSession } from "../tools";
 import { ToolError } from "../tools/tool-errors";
 import { withBridgeTimeoutPause } from "./bridge-timeout";
@@ -34,17 +35,18 @@ export const EVAL_COMPLETION_BRIDGE_NAME = "__completion__";
 /** Synthetic tool the model is forced to call when a `schema` is supplied. */
 const STRUCTURED_TOOL_NAME = "respond";
 
-type CompletionTier = "smol" | "default" | "slow";
+type CompletionTier = ModelRole;
 
 const TIER_TO_PATTERN: Record<CompletionTier, string> = {
-	smol: "pi/smol",
-	default: "pi/default",
-	slow: "pi/slow",
+	flash: "pi/flash",
+	spark: "pi/spark",
+	deep: "pi/deep",
+	ultra: "pi/ultra",
 };
 
 const completionArgsSchema = type({
 	prompt: "string>0",
-	"model?": "'smol'|'default'|'slow'",
+	"model?": "'flash'|'spark'|'deep'|'ultra'",
 	"system?": "string",
 	"schema?": "Record<string,unknown>",
 });
@@ -61,9 +63,9 @@ export interface EvalCompletionResult {
 }
 
 /**
- * Resolve a tier to a concrete {@link Model}. `default` prefers the session's
- * active model and falls back to the `pi/default` role; `smol`/`slow` resolve
- * their respective role patterns. Returns `undefined` when nothing matches.
+ * Resolve a lane to a concrete {@link Model}. `flash` prefers the session's
+ * active model and falls back to the `pi/flash` role; every other lane
+ * resolves its respective role pattern. Returns `undefined` when nothing matches.
  */
 function resolveTierModel(tier: CompletionTier, session: ToolSession): Model<Api> | undefined {
 	const modelRegistry = session.modelRegistry;
@@ -78,23 +80,25 @@ function resolveTierModel(tier: CompletionTier, session: ToolSession): Model<Api
 		return resolveModelFromString(expanded, available, matchPreferences, modelRegistry);
 	};
 
-	if (tier === "default") {
+	if (tier === "flash") {
 		const activePattern = session.getActiveModelString?.() ?? session.getModelString?.();
-		return resolve(activePattern) ?? resolve(TIER_TO_PATTERN.default);
+		return resolve(activePattern) ?? resolve(TIER_TO_PATTERN.flash);
 	}
 	return resolve(TIER_TO_PATTERN[tier]);
 }
 
 /**
- * Choose the reasoning effort for a tier. Only `slow` opts into thinking, and
- * only on reasoning-capable models — guarding against `requireSupportedEffort`
- * throwing downstream on models that cannot reason. Clamps to the highest
- * supported effort so a reasoning model without `high` does not 400.
+ * Choose the reasoning effort for a lane. `deep` and `ultra` opt into
+ * reasoning on capable models; other lanes stay lightweight by default.
+ * Clamps to the highest supported effort so a reasoning model without the
+ * requested effort does not 400.
  */
 function reasoningForTier(tier: CompletionTier, model: Model<Api>): Effort | undefined {
-	if (tier !== "slow" || !model.reasoning) return undefined;
+	if (!model.reasoning) return undefined;
 	const efforts = getSupportedEfforts(model);
 	if (efforts.length === 0) return undefined;
+	if (tier === "ultra") return efforts.includes(Effort.XHigh) ? Effort.XHigh : efforts[efforts.length - 1];
+	if (tier !== "deep") return undefined;
 	return efforts.includes(Effort.High) ? Effort.High : efforts[efforts.length - 1];
 }
 
@@ -113,12 +117,12 @@ export async function runEvalCompletion(
 	}
 	const { prompt, model: modelTier, system, schema } = parsed;
 	// Apply default value for model if not provided
-	const finalTier: CompletionTier = modelTier ?? "default";
+	const finalTier: CompletionTier = modelTier ?? "flash";
 
 	const model = resolveTierModel(finalTier, options.session);
 	if (!model) {
 		throw new ToolError(
-			`completion() could not resolve a model for the "${finalTier}" tier. Configure modelRoles.${finalTier === "default" ? "default" : finalTier} or ensure a provider is available.`,
+			`completion() could not resolve a model for the "${finalTier}" lane. Configure modelRoles.${finalTier} or ensure a provider is available.`,
 		);
 	}
 

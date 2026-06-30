@@ -9,9 +9,9 @@
  * surface automatically with no catalog edits.
  */
 import { describe, expect, it } from "bun:test";
-import { buildModel } from "@amaze/pi-catalog/build";
-import { fireworksModelManagerOptions } from "@amaze/pi-catalog/provider-models/openai-compat";
-import type { FetchImpl, ModelSpec } from "@amaze/pi-catalog/types";
+import { buildModel } from "@steve-z8k/pi-catalog/build";
+import { fireworksModelManagerOptions } from "@steve-z8k/pi-catalog/provider-models/openai-compat";
+import type { FetchImpl, ModelSpec } from "@steve-z8k/pi-catalog/types";
 
 function jsonResponse(body: unknown): Response {
 	return new Response(JSON.stringify(body), {

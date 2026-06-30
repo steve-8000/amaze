@@ -6,4 +6,4 @@
 
 ### Fixed
 
-- Fixed swarm `/swarm run` failing with authStorage/modelRegistry identity error ([#1472](https://github.com/can1357/amaze-agent/issues/1472))
+- Fixed swarm `/swarm run` failing with authStorage/modelRegistry identity error ([#1472](https://github.com/steve-8000/amaze/issues/1472))

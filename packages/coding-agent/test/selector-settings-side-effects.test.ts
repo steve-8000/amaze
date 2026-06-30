@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import { SelectorController } from "@amaze/pi-coding-agent/modes/controllers/selector-controller";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { SelectorController } from "@steve-z8k/pi-coding-agent/modes/controllers/selector-controller";
 import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "./helpers/settings-test-state";
 
 let settingsState: SettingsTestState | undefined;

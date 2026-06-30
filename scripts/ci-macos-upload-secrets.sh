@@ -29,7 +29,7 @@ for arg in "$@"; do
 	esac
 done
 DIR="${DIR:-${OMP_SIGNING_DIR:-$HOME/amaze-signing}}"
-REPO="${OMP_REPO:-can1357/amaze-agent}"
+REPO="${OMP_REPO:-steve-8000/amaze}"
 
 die() {
 	echo "ci-macos-upload-secrets: $1" >&2

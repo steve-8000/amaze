@@ -9,8 +9,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import { getOrFetchIssue, getOrFetchPr } from "@amaze/pi-coding-agent/tools/gh";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { getOrFetchIssue, getOrFetchPr } from "@steve-z8k/pi-coding-agent/tools/gh";
 import {
 	clearAll,
 	getCached,
@@ -18,9 +18,9 @@ import {
 	openDb,
 	putCached,
 	resetForTests as resetCacheForTests,
-} from "@amaze/pi-coding-agent/tools/github-cache";
-import { ToolAbortError, throwIfAborted } from "@amaze/pi-coding-agent/tools/tool-errors";
-import * as git from "@amaze/pi-coding-agent/utils/git";
+} from "@steve-z8k/pi-coding-agent/tools/github-cache";
+import { ToolAbortError, throwIfAborted } from "@steve-z8k/pi-coding-agent/tools/tool-errors";
+import * as git from "@steve-z8k/pi-coding-agent/utils/git";
 
 const TEST_REPO = "owner/example";
 const TEST_AUTH_KEY = "test-auth";

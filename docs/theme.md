@@ -10,7 +10,7 @@ The theme system drives:
 - markdown styling adapters (`getMarkdownTheme()`)
 - selector/editor/settings list adapters (`getSelectListTheme()`, `getEditorTheme()`, `getSettingsListTheme()`)
 - symbol preset + symbol overrides (`unicode`, `nerd`, `ascii`)
-- syntax highlighting colors used by native highlighter (`@amaze/pi-natives`)
+- syntax highlighting colors used by native highlighter (`@steve-z8k/pi-natives`)
 - status line segment colors
 
 Primary implementation: `src/modes/theme/theme.ts`.

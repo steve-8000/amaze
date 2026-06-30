@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { type BeamMemoryState, initBeam, type RecallResult } from "@amaze/pi-rocky-memory/core/beam";
-import { orchestrateRecall } from "@amaze/pi-rocky-memory/core/orchestrator";
-import { PolyphonicRecallEngine } from "@amaze/pi-rocky-memory/core/polyphonic-recall";
-import { closeQuietly, openDatabase } from "@amaze/pi-rocky-memory/db";
+import { type BeamMemoryState, initBeam, type RecallResult } from "@steve-z8k/pi-rocky-memory/core/beam";
+import { orchestrateRecall } from "@steve-z8k/pi-rocky-memory/core/orchestrator";
+import { PolyphonicRecallEngine } from "@steve-z8k/pi-rocky-memory/core/polyphonic-recall";
+import { closeQuietly, openDatabase } from "@steve-z8k/pi-rocky-memory/db";
 
 interface FakeBeam extends BeamMemoryState {
 	linearCalls: number;

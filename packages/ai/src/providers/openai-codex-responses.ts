@@ -1,7 +1,12 @@
 import * as os from "node:os";
 import { scheduler } from "node:timers/promises";
-import { calculateCost } from "@amaze/pi-catalog/models";
-import { CODEX_BASE_URL, getCodexAccountId, OPENAI_HEADER_VALUES, OPENAI_HEADERS } from "@amaze/pi-catalog/wire/codex";
+import { calculateCost } from "@steve-z8k/pi-catalog/models";
+import {
+	CODEX_BASE_URL,
+	getCodexAccountId,
+	OPENAI_HEADER_VALUES,
+	OPENAI_HEADERS,
+} from "@steve-z8k/pi-catalog/wire/codex";
 import {
 	$env,
 	$flag,
@@ -11,7 +16,7 @@ import {
 	logger,
 	readSseJson,
 	structuredCloneJSON,
-} from "@amaze/pi-utils";
+} from "@steve-z8k/pi-utils";
 import { type } from "arktype";
 import packageJson from "../../package.json" with { type: "json" };
 import { getEnvApiKey } from "../stream";

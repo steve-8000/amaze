@@ -2,14 +2,14 @@ import { afterEach, describe, expect, it, spyOn, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { ReviewCommand } from "@amaze/pi-coding-agent/extensibility/custom-commands/bundled/review";
-import type { CustomCommandAPI } from "@amaze/pi-coding-agent/extensibility/custom-commands/types";
-import type { HookCommandContext } from "@amaze/pi-coding-agent/extensibility/hooks/types";
-import type { SessionEntry } from "@amaze/pi-coding-agent/session/session-entries";
-import type { PrDiffPayload, ViewLookupResult } from "@amaze/pi-coding-agent/tools/gh";
-import * as gh from "@amaze/pi-coding-agent/tools/gh";
-import * as git from "@amaze/pi-coding-agent/utils/git";
-import * as jj from "@amaze/pi-coding-agent/utils/jj";
+import { ReviewCommand } from "@steve-z8k/pi-coding-agent/extensibility/custom-commands/bundled/review";
+import type { CustomCommandAPI } from "@steve-z8k/pi-coding-agent/extensibility/custom-commands/types";
+import type { HookCommandContext } from "@steve-z8k/pi-coding-agent/extensibility/hooks/types";
+import type { SessionEntry } from "@steve-z8k/pi-coding-agent/session/session-entries";
+import type { PrDiffPayload, ViewLookupResult } from "@steve-z8k/pi-coding-agent/tools/gh";
+import * as gh from "@steve-z8k/pi-coding-agent/tools/gh";
+import * as git from "@steve-z8k/pi-coding-agent/utils/git";
+import * as jj from "@steve-z8k/pi-coding-agent/utils/jj";
 
 const SAMPLE_JJ_DIFF = `diff --git a/src/workspace.ts b/src/workspace.ts
 --- a/src/workspace.ts

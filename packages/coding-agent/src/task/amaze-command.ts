@@ -1,6 +1,6 @@
 import process from "node:process";
 
-import { $env } from "@amaze/pi-utils";
+import { $env } from "@steve-z8k/pi-utils";
 
 interface AmazeCommand {
 	cmd: string;

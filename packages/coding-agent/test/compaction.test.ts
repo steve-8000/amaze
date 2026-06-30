@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import type { AgentMessage } from "@amaze/pi-agent-core";
+import type { AgentMessage } from "@steve-z8k/pi-agent-core";
 import {
 	type CompactionSettings,
 	calculateContextTokens,
@@ -12,21 +12,21 @@ import {
 	getLastAssistantUsage,
 	prepareCompaction,
 	shouldCompact,
-} from "@amaze/pi-agent-core/compaction/compaction";
-import * as ai from "@amaze/pi-ai";
-import { encodeTextSignatureV1 } from "@amaze/pi-ai/providers/openai-shared";
-import type { AssistantMessage, Model, ProviderPayload, Usage } from "@amaze/pi-ai/types";
-import { getBundledModel } from "@amaze/pi-catalog/models";
-import { buildSessionContext } from "@amaze/pi-coding-agent/session/session-context";
+} from "@steve-z8k/pi-agent-core/compaction/compaction";
+import * as ai from "@steve-z8k/pi-ai";
+import { encodeTextSignatureV1 } from "@steve-z8k/pi-ai/providers/openai-shared";
+import type { AssistantMessage, Model, ProviderPayload, Usage } from "@steve-z8k/pi-ai/types";
+import { getBundledModel } from "@steve-z8k/pi-catalog/models";
+import { buildSessionContext } from "@steve-z8k/pi-coding-agent/session/session-context";
 import type {
 	CompactionEntry,
 	ModelChangeEntry,
 	SessionEntry,
 	SessionMessageEntry,
 	ThinkingLevelChangeEntry,
-} from "@amaze/pi-coding-agent/session/session-entries";
-import { parseSessionEntries } from "@amaze/pi-coding-agent/session/session-loader";
-import { migrateSessionEntries } from "@amaze/pi-coding-agent/session/session-migrations";
+} from "@steve-z8k/pi-coding-agent/session/session-entries";
+import { parseSessionEntries } from "@steve-z8k/pi-coding-agent/session/session-loader";
+import { migrateSessionEntries } from "@steve-z8k/pi-coding-agent/session/session-migrations";
 import { mockFetch } from "./helpers/fetch-mock";
 import { e2eApiKey } from "./utilities";
 
@@ -66,7 +66,7 @@ function createAssistantMessage(text: string, usage?: Usage): AssistantMessage {
 		timestamp: Date.now(),
 		api: "anthropic-messages",
 		provider: "anthropic",
-		model: "claude-sonnet-4-5",
+		model: "claude-sonnet-4-6",
 	};
 }
 
@@ -359,8 +359,8 @@ describe("estimateTokens excludeEncryptedReasoning (compaction floor)", () => {
 
 describe("remote compaction setting", () => {
 	it("forwards an explicit initiator override to local summarization requests", async () => {
-		const model = getBundledModel("anthropic", "claude-sonnet-4-5");
-		if (!model) throw new Error("Expected anthropic/claude-sonnet-4-5 model to exist");
+		const model = getBundledModel("anthropic", "claude-sonnet-4-6");
+		if (!model) throw new Error("Expected anthropic/claude-sonnet-4-6 model to exist");
 
 		const entries: SessionEntry[] = [
 			createMessageEntry(createUserMessage("Turn 1")),
@@ -395,7 +395,7 @@ describe("remote compaction setting", () => {
 	});
 
 	it("uses local summarization when remote compaction is disabled", async () => {
-		const model = getBundledModel("openai", "gpt-4o");
+		const model = getBundledModel("openai", "gpt-5.4");
 		if (!model) {
 			throw new Error("Expected openai/gpt-4o model to exist");
 		}
@@ -444,9 +444,9 @@ describe("remote compaction setting", () => {
 	});
 
 	it("preserves prior compaction items and encrypted reasoning for OpenAI remote compaction", async () => {
-		const model = getBundledModel("openai", "gpt-5.1");
+		const model = getBundledModel("openai", "gpt-5.4");
 		if (!model) {
-			throw new Error("Expected openai/gpt-5.1 model to exist");
+			throw new Error("Expected openai/gpt-5.4 model to exist");
 		}
 
 		const oldUser = createMessageEntry(createUserMessage("Older turn"));
@@ -544,8 +544,8 @@ describe("remote compaction setting", () => {
 		});
 	});
 	it("prefers persisted assistant native history snapshots for OpenAI remote compaction", async () => {
-		const model = getBundledModel("openai", "gpt-5.1");
-		if (!model) throw new Error("Expected openai/gpt-5.1 model to exist");
+		const model = getBundledModel("openai", "gpt-5.4");
+		if (!model) throw new Error("Expected openai/gpt-5.4 model to exist");
 
 		const assistantHistory = [
 			{ type: "message", role: "user", content: [{ type: "input_text", text: "Canonical user" }] },
@@ -593,8 +593,8 @@ describe("remote compaction setting", () => {
 	});
 
 	it("uses the ChatGPT Codex compact endpoint for openai-codex models", async () => {
-		const baseModel = getBundledModel("openai", "gpt-5.1");
-		if (!baseModel) throw new Error("Expected openai/gpt-5.1 model to exist");
+		const baseModel = getBundledModel("openai", "gpt-5.4");
+		if (!baseModel) throw new Error("Expected openai/gpt-5.4 model to exist");
 
 		const model: Model = {
 			...baseModel,
@@ -631,8 +631,8 @@ describe("remote compaction setting", () => {
 	});
 
 	it("preserves codex assistant text signature metadata in remote compaction history", async () => {
-		const baseModel = getBundledModel("openai", "gpt-5.1");
-		if (!baseModel) throw new Error("Expected openai/gpt-5.1 model to exist");
+		const baseModel = getBundledModel("openai", "gpt-5.4");
+		if (!baseModel) throw new Error("Expected openai/gpt-5.4 model to exist");
 
 		const model: Model = {
 			...baseModel,
@@ -690,8 +690,8 @@ describe("remote compaction setting", () => {
 	});
 
 	it("filters remote compact output and uses explicit remote instructions", async () => {
-		const model = getBundledModel("openai", "gpt-5.1");
-		if (!model) throw new Error("Expected openai/gpt-5.1 model to exist");
+		const model = getBundledModel("openai", "gpt-5.4");
+		if (!model) throw new Error("Expected openai/gpt-5.4 model to exist");
 
 		const entries: SessionEntry[] = [
 			createMessageEntry(createUserMessage("Turn 1")),
@@ -745,8 +745,8 @@ describe("remote compaction setting", () => {
 	});
 
 	it("clears stale OpenAI remote preserve data when local compaction runs", async () => {
-		const model = getBundledModel("anthropic", "claude-sonnet-4-5");
-		if (!model) throw new Error("Expected anthropic/claude-sonnet-4-5 model to exist");
+		const model = getBundledModel("anthropic", "claude-sonnet-4-6");
+		if (!model) throw new Error("Expected anthropic/claude-sonnet-4-6 model to exist");
 
 		const oldUser = createMessageEntry(createUserMessage("Older turn"));
 		const oldAssistant = createMessageEntry(createAssistantMessage("Older answer"));
@@ -862,7 +862,7 @@ describe("buildSessionContext", () => {
 		const loaded = buildSessionContext(entries);
 		expect(loaded.messages.length).toBe(4);
 		expect(loaded.thinkingLevel).toBe("off");
-		expect(loaded.models.default).toBe("anthropic/claude-sonnet-4-5");
+		expect(loaded.models.flash).toBe("anthropic/claude-sonnet-4-6");
 	});
 
 	it("should handle single compaction", () => {
@@ -983,7 +983,7 @@ describe("buildSessionContext", () => {
 
 		const loaded = buildSessionContext(entries);
 		// Issue #849: explicit model_change wins over assistant-message inference.
-		expect(loaded.models.default).toBe("openai/gpt-4");
+		expect(loaded.models.flash).toBe("openai/gpt-4");
 		expect(loaded.thinkingLevel).toBe("high");
 	});
 });
@@ -1012,7 +1012,7 @@ describe.skipIf(!e2eApiKey("ANTHROPIC_API_KEY"))("LLM summarization", () => {
 	it("should produce valid session after compaction", async () => {
 		const entries = await loadLargeSessionEntries();
 		const loaded = buildSessionContext(entries);
-		const model = getBundledModel("anthropic", "claude-sonnet-4-5")!;
+		const model = getBundledModel("anthropic", "claude-sonnet-4-6")!;
 
 		const preparation = prepareCompaction(entries, DEFAULT_COMPACTION_SETTINGS);
 		expect(preparation).toBeDefined();

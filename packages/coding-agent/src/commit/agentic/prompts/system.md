@@ -27,7 +27,7 @@ Tool guidance:
 - git_file_diff: diff for specific files
 - git_hunk: specific hunks for large diffs
 - recent_commits: recent commit subjects + style stats
-- analyze_files: spawn finder subagents in parallel for analysis
+- analyze_files: spawn spark subagents in parallel for commit-relevant analysis
 - propose_changelog: provide changelog entries for each changelog target
 - propose_commit: submit final commit proposal and run validation
 - split_commit: propose multiple commit groups (no overlapping files; all staged files covered)

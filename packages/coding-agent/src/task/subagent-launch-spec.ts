@@ -1,14 +1,7 @@
-import type { ThinkingLevel } from "@amaze/pi-agent-core";
+import type { ThinkingLevel } from "@steve-z8k/pi-agent-core";
 import type { AgentDefinition } from "./types";
 
-export const SUBAGENT_MODEL_PROFILE_KEYS = [
-	"claude_high",
-	"claude_low",
-	"codex_high",
-	"codex_low",
-	"xai",
-	"local_llm",
-] as const;
+export const SUBAGENT_MODEL_PROFILE_KEYS = ["ultra", "deep", "flash", "spark"] as const;
 
 export type SubagentModelProfileKey = (typeof SUBAGENT_MODEL_PROFILE_KEYS)[number];
 export type SubagentContextProfile = "contract";

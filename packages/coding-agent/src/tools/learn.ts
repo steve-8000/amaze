@@ -1,10 +1,10 @@
-import type { AgentTool, AgentToolResult } from "@amaze/pi-agent-core";
+import type { AgentTool, AgentToolResult } from "@steve-z8k/pi-agent-core";
 import { type } from "arktype";
 import { sanitizeSkillName } from "../autolearn/managed-skills";
 import { isNameClaimedByAuthoredSkill } from "../extensibility/skills";
 import learnDescription from "../prompts/tools/learn.md" with { type: "text" };
 import type { ToolSession } from ".";
-import { writeRockyManagedSkill } from "./rocky-skill-backend";
+import { writeManagedSkill } from "./skill-backend";
 
 const learnSchema = type({
 	memory: type("string").describe("the durable, self-contained lesson to capture (what, when, why)"),
@@ -23,9 +23,9 @@ export type LearnParams = typeof learnSchema.infer;
  * Capture one durable lesson as a managed skill.
  */
 export class LearnTool implements AgentTool<typeof learnSchema> {
-	readonly name = "learn";
+	readonly name = "capture_lesson";
 	readonly approval = "write" as const;
-	readonly label = "Learn";
+	readonly label = "Capture Lesson";
 	readonly description = learnDescription;
 	readonly parameters = learnSchema;
 	readonly strict = true;
@@ -62,7 +62,7 @@ export class LearnTool implements AgentTool<typeof learnSchema> {
 			params.skill.body ??
 			["## Lesson", "", params.memory, ...(params.context ? ["", "## Context", "", params.context] : [])].join("\n");
 		try {
-			await writeRockyManagedSkill(this._session, {
+			await writeManagedSkill(this._session, {
 				action: params.skill.action,
 				name: params.skill.name,
 				description: params.skill.description,
@@ -76,7 +76,7 @@ export class LearnTool implements AgentTool<typeof learnSchema> {
 		const action = params.skill.action === "create" ? "created" : "updated";
 		return {
 			content: [
-				{ type: "text", text: `Captured lesson as Rocky managed skill "${params.skill.name}" (${action}).` },
+				{ type: "text", text: `Captured lesson as Circle managed skill "${params.skill.name}" (${action}).` },
 			],
 			details: { skill: params.skill.name },
 		};

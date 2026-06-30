@@ -1,15 +1,15 @@
 import { describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@amaze/pi-agent-core";
-import { getBundledModel } from "@amaze/pi-catalog/models";
-import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import { InputController } from "@amaze/pi-coding-agent/modes/controllers/input-controller";
-import type { InteractiveModeContext } from "@amaze/pi-coding-agent/modes/types";
-import { AgentSession } from "@amaze/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import { TempDir } from "@amaze/pi-utils";
+import { Agent } from "@steve-z8k/pi-agent-core";
+import { getBundledModel } from "@steve-z8k/pi-catalog/models";
+import { ModelRegistry } from "@steve-z8k/pi-coding-agent/config/model-registry";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { InputController } from "@steve-z8k/pi-coding-agent/modes/controllers/input-controller";
+import type { InteractiveModeContext } from "@steve-z8k/pi-coding-agent/modes/types";
+import { AgentSession } from "@steve-z8k/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@steve-z8k/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import { TempDir } from "@steve-z8k/pi-utils";
 
 /**
  * Regression: a submission arriving while the main loop has no input waiter
@@ -145,7 +145,7 @@ describe("InputController orphaned submit", () => {
 		let session: AgentSession | undefined;
 		let authStorage: AuthStorage | undefined;
 		try {
-			const model = getBundledModel("anthropic", "claude-sonnet-4-5");
+			const model = getBundledModel("anthropic", "claude-sonnet-4-6");
 			if (!model) throw new Error("Expected built-in anthropic model to exist");
 			authStorage = await AuthStorage.create(path.join(tempDir.path(), "testauth.db"));
 			authStorage.setRuntimeApiKey("anthropic", "test-key");

@@ -1,22 +1,22 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { ImageContent, TextContent } from "@amaze/pi-ai";
-import { createSessionRuntime } from "@amaze/pi-coding-agent/autoresearch/state";
+import type { ImageContent, TextContent } from "@steve-z8k/pi-ai";
+import { createSessionRuntime } from "@steve-z8k/pi-coding-agent/autoresearch/state";
 import {
 	type AutoresearchStorage,
 	closeAllAutoresearchStorages,
 	openAutoresearchStorage,
 	type SessionRow,
-} from "@amaze/pi-coding-agent/autoresearch/storage";
-import { createInitExperimentTool } from "@amaze/pi-coding-agent/autoresearch/tools/init-experiment";
-import { createLogExperimentTool } from "@amaze/pi-coding-agent/autoresearch/tools/log-experiment";
-import { createRunExperimentTool } from "@amaze/pi-coding-agent/autoresearch/tools/run-experiment";
-import { createUpdateNotesTool } from "@amaze/pi-coding-agent/autoresearch/tools/update-notes";
-import type { ASIData, LogDetails, NumericMetricMap, RunDetails } from "@amaze/pi-coding-agent/autoresearch/types";
-import type { ExtensionAPI, ExtensionContext } from "@amaze/pi-coding-agent/extensibility/extensions";
-import * as git from "@amaze/pi-coding-agent/utils/git";
-import { TempDir } from "@amaze/pi-utils";
+} from "@steve-z8k/pi-coding-agent/autoresearch/storage";
+import { createInitExperimentTool } from "@steve-z8k/pi-coding-agent/autoresearch/tools/init-experiment";
+import { createLogExperimentTool } from "@steve-z8k/pi-coding-agent/autoresearch/tools/log-experiment";
+import { createRunExperimentTool } from "@steve-z8k/pi-coding-agent/autoresearch/tools/run-experiment";
+import { createUpdateNotesTool } from "@steve-z8k/pi-coding-agent/autoresearch/tools/update-notes";
+import type { ASIData, LogDetails, NumericMetricMap, RunDetails } from "@steve-z8k/pi-coding-agent/autoresearch/types";
+import type { ExtensionAPI, ExtensionContext } from "@steve-z8k/pi-coding-agent/extensibility/extensions";
+import * as git from "@steve-z8k/pi-coding-agent/utils/git";
+import { TempDir } from "@steve-z8k/pi-utils";
 import { $ } from "bun";
 
 afterEach(() => {

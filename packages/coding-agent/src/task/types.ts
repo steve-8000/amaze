@@ -1,6 +1,6 @@
-import type { ThinkingLevel } from "@amaze/pi-agent-core";
-import type { Usage } from "@amaze/pi-ai";
-import { $env } from "@amaze/pi-utils";
+import type { ThinkingLevel } from "@steve-z8k/pi-agent-core";
+import type { Usage } from "@steve-z8k/pi-ai";
+import { $env } from "@steve-z8k/pi-utils";
 import { type } from "arktype";
 import type { AgentSessionEvent } from "../session/agent-session";
 import type { NestedRepoPatch } from "./worktree";
@@ -81,6 +81,7 @@ export const ROLE_INPUT_MAX = 256;
 const ROLE_INPUT_SCHEMA = `string <= ${ROLE_INPUT_MAX}` as const;
 
 export const taskItemSchema = type({
+	"agent?": "string>0",
 	"id?": "string",
 	"description?": "string",
 	"role?": ROLE_INPUT_SCHEMA,
@@ -88,6 +89,7 @@ export const taskItemSchema = type({
 	"+": "delete",
 });
 const taskItemSchemaIsolated = type({
+	"agent?": "string>0",
 	"id?": "string",
 	"description?": "string",
 	"role?": ROLE_INPUT_SCHEMA,
@@ -98,6 +100,8 @@ const taskItemSchemaIsolated = type({
 
 /** Single task item. Fields are optional defensively: args stream in token by token. */
 export interface TaskItem {
+	/** Agent type for this batch item; defaults to the top-level `agent` when omitted. */
+	agent?: string;
 	/** Stable agent id; default = generated AdjectiveNoun. */
 	id?: string;
 	/** UI label, not seen by the subagent. */
@@ -111,7 +115,7 @@ export interface TaskItem {
 }
 
 export const taskSchema = type({
-	agent: "string",
+	agent: "string>0",
 	"id?": "string",
 	"description?": "string",
 	"role?": ROLE_INPUT_SCHEMA,
@@ -120,7 +124,7 @@ export const taskSchema = type({
 	"+": "delete",
 });
 const taskSchemaNoIsolation = type({
-	agent: "string",
+	agent: "string>0",
 	"id?": "string",
 	"description?": "string",
 	"role?": ROLE_INPUT_SCHEMA,
@@ -128,14 +132,14 @@ const taskSchemaNoIsolation = type({
 	"+": "delete",
 });
 const taskSchemaBatch = type({
-	agent: "string",
-	context: "string",
+	"agent?": "string>0",
+	context: "string>0",
 	tasks: taskItemSchemaIsolated.array(),
 	"+": "delete",
 });
 const taskSchemaBatchNoIsolation = type({
-	agent: "string",
-	context: "string",
+	"agent?": "string>0",
+	context: "string>0",
 	tasks: taskItemSchema.array(),
 	"+": "delete",
 });

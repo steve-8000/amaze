@@ -4,7 +4,7 @@ A persistent per-install UUID that identifies a single amaze-agent installation 
 
 ## API
 
-Exported from `@amaze/pi-utils` (`packages/utils/src/dirs.ts`):
+Exported from `@steve-z8k/pi-utils` (`packages/utils/src/dirs.ts`):
 
 | Symbol                                  | Purpose                                                                                                                           |
 | --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |

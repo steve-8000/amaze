@@ -1,4 +1,4 @@
-import type { KnownProvider } from "@amaze/pi-catalog";
+import type { KnownProvider } from "@steve-z8k/pi-catalog";
 import { aimlApiProvider } from "./aimlapi";
 import { alibabaCodingPlanProvider } from "./alibaba-coding-plan";
 import { amazonBedrockProvider } from "./amazon-bedrock";

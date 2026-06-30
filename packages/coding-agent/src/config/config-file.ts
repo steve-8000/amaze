@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { getAgentDir, isEnoent, logger } from "@amaze/pi-utils";
+import { getAgentDir, isEnoent, logger } from "@steve-z8k/pi-utils";
 import type { Type } from "arktype";
 import { JSONC, YAML } from "bun";
 

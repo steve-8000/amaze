@@ -503,11 +503,11 @@ if "__omp_prelude_loaded__" not in globals():
 
     tool = _ToolProxy()
 
-    def completion(prompt, *, model="default", system=None, schema=None):
-        """Oneshot, stateless completion against a model tier.
+    def completion(prompt, *, model="flash", system=None, schema=None):
+        """Oneshot, stateless completion against a model lane.
 
-        `model` selects a tier: "smol", "default" (the session's active model),
-        or "slow". Pass `system` for a system prompt. Pass a JSON-Schema dict
+        `model` selects a lane: "flash", "spark", "deep", or "ultra".
+        Pass `system` for a system prompt. Pass a JSON-Schema dict
         as `schema` to force a structured response; the parsed object is then
         returned instead of the completion text.
         """
@@ -520,10 +520,10 @@ if "__omp_prelude_loaded__" not in globals():
         text = res.get("text") if isinstance(res, dict) else res
         return json.loads(text) if schema is not None else text
 
-    def agent(prompt, *, agent_type="coder", model=None, label=None, schema=None, return_handle=False):
+    def agent(prompt, *, agent_type="flash", model=None, label=None, schema=None, return_handle=False):
         """Run a subagent and return its final output.
 
-        `agent_type` selects the subagent definition (default "coder"). Pass
+        `agent_type` selects the subagent definition (default "flash"). Pass
         `model` to override that agent's model, `label` for the output artifact
         id, and `schema` to request structured JSON output; when `schema` is
         supplied the parsed object is returned. Share background by writing a

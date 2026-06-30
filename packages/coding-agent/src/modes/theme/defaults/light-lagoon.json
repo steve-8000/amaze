@@ -1,5 +1,5 @@
 {
-	"$schema": "https://raw.githubusercontent.com/can1357/amaze-agent/main/packages/coding-agent/theme-schema.json",
+	"$schema": "https://raw.githubusercontent.com/steve-8000/amaze/main/packages/coding-agent/theme-schema.json",
 	"name": "light-lagoon",
 	"vars": {
 		"lagoonBg": "#EEF6F8",

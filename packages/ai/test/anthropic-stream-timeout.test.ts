@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { streamAnthropic } from "@amaze/pi-ai/providers/anthropic";
-import { AnthropicApiError, type AnthropicMessagesClientLike } from "@amaze/pi-ai/providers/anthropic-client";
-import type { Context, Model } from "@amaze/pi-ai/types";
-import { buildModel } from "@amaze/pi-catalog/build";
+import { streamAnthropic } from "@steve-z8k/pi-ai/providers/anthropic";
+import { AnthropicApiError, type AnthropicMessagesClientLike } from "@steve-z8k/pi-ai/providers/anthropic-client";
+import type { Context, Model } from "@steve-z8k/pi-ai/types";
+import { buildModel } from "@steve-z8k/pi-catalog/build";
 import { waitForDelayOrAbort } from "./helpers";
 
 const model: Model<"anthropic-messages"> = buildModel({

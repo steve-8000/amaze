@@ -10,11 +10,11 @@ const COPILOT_PREMIUM_MULTIPLIERS: Record<string, number> = {
 };
 
 import * as path from "node:path";
-import { discoverAuthStorage } from "@amaze/pi-ai/auth-broker/discover";
-import type { OAuthAccess } from "@amaze/pi-ai/auth-storage";
-import type { OAuthProvider } from "@amaze/pi-ai/oauth/types";
-import { getGitLabDuoModels } from "@amaze/pi-ai/providers/gitlab-duo";
-import { $env } from "@amaze/pi-utils";
+import { discoverAuthStorage } from "@steve-z8k/pi-ai/auth-broker/discover";
+import type { OAuthAccess } from "@steve-z8k/pi-ai/auth-storage";
+import type { OAuthProvider } from "@steve-z8k/pi-ai/oauth/types";
+import { getGitLabDuoModels } from "@steve-z8k/pi-ai/providers/gitlab-duo";
+import { $env } from "@steve-z8k/pi-utils";
 import { ANTIGRAVITY_PRIMARY_ENDPOINT, fetchAntigravityDiscoveryModels } from "../src/discovery/antigravity";
 import { fetchCodexModels } from "../src/discovery/codex";
 import { createModelManager } from "../src/model-manager";
@@ -336,6 +336,31 @@ function normalizeAntigravityEndpoint(models: readonly ModelSpec[]): ModelSpec[]
 	});
 }
 
+const LITE_CATALOG_PROVIDERS = new Set(["anthropic", "openai", "openai-codex", "xai", "xai-oauth"]);
+
+function isLiteOpenAIModel(id: string): boolean {
+	return /^gpt-5\.(?:3|4|5)(?:$|[-.])/.test(id) || id === "gpt-5.4-mini" || id === "gpt-5.4" || id === "gpt-5.5";
+}
+
+function isLiteAnthropicModel(id: string): boolean {
+	const bare = id.startsWith("anthropic/") ? id.slice("anthropic/".length) : id;
+	return /^(?:claude-)?opus-4[.-](?:7|8)(?:$|[-.:])/.test(bare) || /^(?:claude-)?sonnet-4[.-]6(?:$|[-.:])/.test(bare);
+}
+
+function isLiteGrokModel(id: string): boolean {
+	const bare = id.startsWith("x-ai/") ? id.slice("x-ai/".length) : id;
+	return bare === "grok-4.3";
+}
+
+function filterLiteCatalogModels(models: readonly ModelSpec[]): ModelSpec[] {
+	return models.filter(model => {
+		if (!LITE_CATALOG_PROVIDERS.has(model.provider)) return false;
+		if (model.provider === "anthropic") return isLiteAnthropicModel(model.id);
+		if (model.provider === "xai" || model.provider === "xai-oauth") return isLiteGrokModel(model.id);
+		return isLiteOpenAIModel(model.id);
+	});
+}
+
 const ANTIGRAVITY_ENDPOINT = ANTIGRAVITY_PRIMARY_ENDPOINT;
 
 async function getOAuthAccessFromStorage(provider: OAuthProvider): Promise<OAuthAccess | null> {
@@ -567,6 +592,8 @@ async function generateModels() {
 	// Fill remaining null endpoint limits from each model's canonical-family
 	// reference. Runs last so canonical ids and explicit policy limits are final.
 	applyCanonicalLimitFallback(allModels);
+
+	allModels = filterLiteCatalogModels(allModels);
 
 	// Group by provider and sort each provider's models
 	const providers: Record<string, Record<string, ModelSpec>> = {};

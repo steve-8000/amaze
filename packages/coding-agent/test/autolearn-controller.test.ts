@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { AutoLearnController, buildAutoLearnInstructions } from "@amaze/pi-coding-agent/autolearn/controller";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import type { AgentSession, AgentSessionEvent } from "@amaze/pi-coding-agent/session/agent-session";
-import type { AutoTurnDecision, AutoTurnRequest } from "@amaze/pi-coding-agent/session/turn-scheduler";
+import { AutoLearnController, buildAutoLearnInstructions } from "@steve-z8k/pi-coding-agent/autolearn/controller";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import type { AgentSession, AgentSessionEvent } from "@steve-z8k/pi-coding-agent/session/agent-session";
+import type { AutoTurnDecision, AutoTurnRequest } from "@steve-z8k/pi-coding-agent/session/turn-scheduler";
 
 interface CapturedNudge {
 	message: { customType: string; content: string; display?: boolean; attribution?: string };

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import type { Model } from "@amaze/pi-ai";
-import { buildModel } from "@amaze/pi-catalog/build";
-import { mergeDiscoveredModel } from "@amaze/pi-coding-agent/config/model-registry";
+import type { Model } from "@steve-z8k/pi-ai";
+import { buildModel } from "@steve-z8k/pi-catalog/build";
+import { mergeDiscoveredModel } from "@steve-z8k/pi-coding-agent/config/model-registry";
 
 /**
  * Regression for v15.2.4 tp- key bug: when Xiaomi `tp-` token-plan keys hit

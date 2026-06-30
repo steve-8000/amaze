@@ -4,9 +4,9 @@ import {
 	enhancedRecallEnabled,
 	polyphonicRecallEnabled,
 	proactiveLinkingEnabled,
-} from "@amaze/pi-rocky-memory/config";
-import { polyphonicRecallIsEnabled } from "@amaze/pi-rocky-memory/core/polyphonic-recall";
-import { isEnhancedRecallEnabled, isQueryCacheEnabled } from "@amaze/pi-rocky-memory/core/query-cache";
+} from "@steve-z8k/pi-rocky-memory/config";
+import { polyphonicRecallIsEnabled } from "@steve-z8k/pi-rocky-memory/core/polyphonic-recall";
+import { isEnhancedRecallEnabled, isQueryCacheEnabled } from "@steve-z8k/pi-rocky-memory/core/query-cache";
 
 afterEach(() => {
 	configureRecallFeatures({ polyphonicRecall: false, enhancedRecall: false, proactiveLinking: false });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { isValidJsonSchema, toolWireSchema } from "@amaze/pi-ai/utils/schema";
-import { type TSchema, Type } from "@amaze/pi-coding-agent/extensibility/typebox";
+import { isValidJsonSchema, toolWireSchema } from "@steve-z8k/pi-ai/utils/schema";
+import { type TSchema, Type } from "@steve-z8k/pi-coding-agent/extensibility/typebox";
 
 /**
  * The typebox shim's `Type.*` builders return arktype-backed validator wrappers

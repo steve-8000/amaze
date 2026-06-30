@@ -1,12 +1,12 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import type { AssistantMessage } from "@amaze/pi-ai";
-import { resetSettingsForTest, Settings } from "@amaze/pi-coding-agent/config/settings";
-import { AssistantMessageComponent } from "@amaze/pi-coding-agent/modes/components/assistant-message";
-import { TranscriptContainer } from "@amaze/pi-coding-agent/modes/components/transcript-container";
-import { initTheme } from "@amaze/pi-coding-agent/modes/theme/theme";
-import { USER_INTERRUPT_LABEL } from "@amaze/pi-coding-agent/session/messages";
-import { type Component, Text } from "@amaze/pi-tui";
+import type { AssistantMessage } from "@steve-z8k/pi-ai";
+import { resetSettingsForTest, Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { AssistantMessageComponent } from "@steve-z8k/pi-coding-agent/modes/components/assistant-message";
+import { TranscriptContainer } from "@steve-z8k/pi-coding-agent/modes/components/transcript-container";
+import { initTheme } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
+import { USER_INTERRUPT_LABEL } from "@steve-z8k/pi-coding-agent/session/messages";
+import { type Component, Text } from "@steve-z8k/pi-tui";
 
 // Models a transcript block that re-lays-out (tool preview collapsing, assistant
 // message finalizing, late async result) after newer blocks were appended below
@@ -134,7 +134,7 @@ function makeAssistantMessage(overrides: Partial<AssistantMessage> = {}): Assist
 		content: [{ type: "text", text: "Continuing." }],
 		api: "anthropic-messages",
 		provider: "anthropic",
-		model: "claude-sonnet-4-5",
+		model: "claude-sonnet-4-6",
 		stopReason: "stop",
 		usage: {
 			input: 0,

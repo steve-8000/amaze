@@ -3,13 +3,13 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } fr
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Effort, type FetchImpl, type Model, type OpenAICompat, type ThinkingConfig } from "@amaze/pi-ai";
-import { buildModel } from "@amaze/pi-catalog/build";
-import { writeModelCache } from "@amaze/pi-catalog/model-cache";
-import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings } from "@amaze/pi-coding-agent/config/settings";
-import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
-import { Snowflake } from "@amaze/pi-utils";
+import { Effort, type FetchImpl, type Model, type OpenAICompat, type ThinkingConfig } from "@steve-z8k/pi-ai";
+import { buildModel } from "@steve-z8k/pi-catalog/build";
+import { writeModelCache } from "@steve-z8k/pi-catalog/model-cache";
+import { ModelRegistry } from "@steve-z8k/pi-coding-agent/config/model-registry";
+import { resetSettingsForTest, Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { AuthStorage } from "@steve-z8k/pi-coding-agent/session/auth-storage";
+import { Snowflake } from "@steve-z8k/pi-utils";
 
 describe("ModelRegistry", () => {
 	let tempDir: string;
@@ -89,7 +89,7 @@ describe("ModelRegistry", () => {
 		sharedBuiltin = readonlyRegistry({ providers: {} });
 		sharedBuiltin.getAll();
 		sharedBuiltin.getAvailable();
-		sharedBuiltin.getCanonicalVariants("claude-sonnet-4-5");
+		sharedBuiltin.getCanonicalVariants("claude-sonnet-4-6");
 		sharedBuiltin.getCanonicalModels({ availableOnly: false, candidates: sharedBuiltin.getAll() });
 	});
 
@@ -239,7 +239,7 @@ describe("ModelRegistry", () => {
 					demo: providerConfig("https://demo.example.com/v1", [
 						{ id: "anthropic/claude-sonnet-4.5" },
 						{ id: "anthropic/claude-opus-4.5" },
-						{ id: "claude-opus-4-5-20251101" },
+						{ id: "claude-opus-4-8-20251101" },
 						{ id: "claude-4.5-opus-high-thinking" },
 						{ id: "hf:zai-org/GLM-4.7" },
 						{ id: "zai-glm-4.7" },
@@ -269,7 +269,7 @@ describe("ModelRegistry", () => {
 						auth: "none",
 						models: [
 							{
-								id: "deepseek-v4-pro:cloud",
+								id: "gpt-5.4:cloud",
 								name: "DeepSeek V4 Pro (Ollama Cloud)",
 								reasoning: true,
 								input: ["text"],
@@ -284,7 +284,7 @@ describe("ModelRegistry", () => {
 				providers: {
 					"proxy-anthropic": providerConfig("https://demo.example.com/v1", [{ id: "corp-sonnet" }]),
 				},
-				equivalence: { overrides: { "proxy-anthropic/corp-sonnet": "claude-sonnet-4-5" } },
+				equivalence: { overrides: { "proxy-anthropic/corp-sonnet": "claude-sonnet-4-6" } },
 			});
 			equivExclude = readonlyRegistry({
 				providers: {
@@ -321,15 +321,15 @@ describe("ModelRegistry", () => {
 		afterAll(() => parityAuth.close());
 
 		test("groups dotted provider variants under the bundled canonical id", () => {
-			const variants = canonical.getCanonicalVariants("claude-sonnet-4-5");
-			expect(variants.some(variant => variant.selector === "anthropic/claude-sonnet-4-5")).toBe(true);
+			const variants = canonical.getCanonicalVariants("claude-sonnet-4-6");
+			expect(variants.some(variant => variant.selector === "anthropic/claude-sonnet-4-6")).toBe(true);
 			expect(variants.some(variant => variant.selector === "demo/anthropic/claude-sonnet-4.5")).toBe(true);
 		});
 
 		test("collapses wrapped, dated, and tuned anthropic variants under the base canonical id", () => {
-			const variants = canonical.getCanonicalVariants("claude-opus-4-5");
+			const variants = canonical.getCanonicalVariants("claude-opus-4-8");
 			expect(variants.some(variant => variant.selector === "demo/anthropic/claude-opus-4.5")).toBe(true);
-			expect(variants.some(variant => variant.selector === "demo/claude-opus-4-5-20251101")).toBe(true);
+			expect(variants.some(variant => variant.selector === "demo/claude-opus-4-8-20251101")).toBe(true);
 			expect(variants.some(variant => variant.selector === "demo/claude-4.5-opus-high-thinking")).toBe(true);
 		});
 
@@ -345,8 +345,8 @@ describe("ModelRegistry", () => {
 		});
 
 		test("collapses compact and reordered claude aliases into the upstream canonical id", () => {
-			const opusVariants = canonical.getCanonicalVariants("claude-opus-4-5");
-			const sonnetVariants = canonical.getCanonicalVariants("claude-sonnet-4-5");
+			const opusVariants = canonical.getCanonicalVariants("claude-opus-4-8");
+			const sonnetVariants = canonical.getCanonicalVariants("claude-sonnet-4-6");
 			expect(opusVariants.some(variant => variant.selector === "demo/claude-opus-45")).toBe(true);
 			expect(sonnetVariants.some(variant => variant.selector === "demo/claude-4.5-sonnet")).toBe(true);
 		});
@@ -381,21 +381,21 @@ describe("ModelRegistry", () => {
 		});
 
 		test("uses bundled metadata for Ollama cloud aliases in custom local-proxy configs", () => {
-			const model = canonical.find("ollama", "deepseek-v4-pro:cloud");
-			const variants = canonical.getCanonicalVariants("deepseek-v4-pro");
+			const model = canonical.find("ollama", "gpt-5.4:cloud");
+			const variants = canonical.getCanonicalVariants("gpt-5.4");
 			expect(model?.cost.cacheRead).toBeGreaterThan(0);
 			expect(model?.thinking?.efforts.at(-1)).toBe(Effort.XHigh);
-			expect(variants.some(variant => variant.selector === "ollama/deepseek-v4-pro:cloud")).toBe(true);
+			expect(variants.some(variant => variant.selector === "ollama/gpt-5.4:cloud")).toBe(true);
 		});
 
 		test("collapses anthropic latest aliases into the best upstream claude family id", () => {
 			const opusVariants = canonical.getCanonicalVariants("claude-opus-4-8");
-			const haikuVariants = canonical.getCanonicalVariants("claude-haiku-4-5");
+			const haikuVariants = canonical.getCanonicalVariants("claude-opus-4-7");
 			expect(opusVariants.some(variant => variant.selector === "demo/anthropic/claude-opus-latest")).toBe(true);
 			expect(haikuVariants.some(variant => variant.selector === "demo/anthropic/claude-haiku-latest")).toBe(true);
 			expect(
 				canonical
-					.getCanonicalVariants("claude-haiku-4-5-20251001-thinking")
+					.getCanonicalVariants("claude-opus-4-7-20251001-thinking")
 					.some(variant => variant.selector === "demo/anthropic/claude-haiku-latest"),
 			).toBe(false);
 		});
@@ -438,12 +438,12 @@ describe("ModelRegistry", () => {
 		});
 
 		test("applies explicit equivalence overrides from config", () => {
-			const variants = equivOverrides.getCanonicalVariants("claude-sonnet-4-5");
+			const variants = equivOverrides.getCanonicalVariants("claude-sonnet-4-6");
 			expect(variants.some(variant => variant.selector === "proxy-anthropic/corp-sonnet")).toBe(true);
 		});
 
 		test("exclusions keep variants out of canonical grouping", () => {
-			const grouped = equivExclude.getCanonicalVariants("claude-sonnet-4-5");
+			const grouped = equivExclude.getCanonicalVariants("claude-sonnet-4-6");
 			const fallback = equivExclude.getCanonicalVariants("anthropic/claude-sonnet-4.5");
 			expect(grouped.some(variant => variant.selector === "demo/anthropic/claude-sonnet-4.5")).toBe(false);
 			expect(fallback.some(variant => variant.selector === "demo/anthropic/claude-sonnet-4.5")).toBe(true);
@@ -461,7 +461,7 @@ describe("ModelRegistry", () => {
 			});
 
 			const registry = new ModelRegistry(authStorage, modelsJsonPath);
-			const resolved = registry.resolveCanonicalModel("claude-sonnet-4-5", {
+			const resolved = registry.resolveCanonicalModel("claude-sonnet-4-6", {
 				availableOnly: false,
 				candidates: registry.getAll(),
 			});
@@ -872,7 +872,7 @@ describe("ModelRegistry", () => {
 						headers: { "X-Proxy": "proxy" },
 						apiKey: "TEST_KEY",
 						api: "openai-completions",
-						models: [{ id: "gpt-4o" }],
+						models: [{ id: "gpt-5.4" }],
 					},
 				},
 			});
@@ -1019,7 +1019,7 @@ describe("ModelRegistry", () => {
 		});
 
 		test("custom same-id replacement does not keep bundled headers", () => {
-			const model = copilotReplace.find("github-copilot", "gpt-4o");
+			const model = copilotReplace.find("github-copilot", "gpt-5.4");
 			expect(model?.headers).toEqual({ "X-Proxy": "proxy" });
 			expect(model?.headers?.["User-Agent"]).toBeUndefined();
 			expect(model?.headers?.["Editor-Version"]).toBeUndefined();
@@ -1568,7 +1568,7 @@ describe("ModelRegistry", () => {
 			]);
 
 			const registry = new ModelRegistry(authStorage, modelsJsonPath);
-			const model = registry.find("github-copilot", "gpt-4o");
+			const model = registry.find("github-copilot", "gpt-5.4");
 			expect(model).toBeDefined();
 			if (!model) throw new Error("Expected github-copilot/gpt-4o model");
 
@@ -1611,7 +1611,7 @@ describe("ModelRegistry", () => {
 						JSON.stringify({
 							data: [
 								{
-									id: "gpt-5-mini",
+									id: "gpt-5.4-mini",
 									name: "GPT-5 mini",
 								},
 							],
@@ -1791,7 +1791,7 @@ describe("ModelRegistry", () => {
 		let nonAnthropic: ModelRegistry;
 		const proxyAnthropicModels = [
 			{
-				id: "claude-sonnet-4-5",
+				id: "claude-sonnet-4-6",
 				name: "Claude Sonnet 4.5",
 				reasoning: true,
 				input: ["text"],
@@ -1865,19 +1865,19 @@ describe("ModelRegistry", () => {
 		afterAll(() => oauthAuth.close());
 
 		test("models from a provider with auth: oauth are marked isOAuth=true", () => {
-			const model = explicitOAuth.find("proxy-anthropic", "claude-sonnet-4-5");
+			const model = explicitOAuth.find("proxy-anthropic", "claude-sonnet-4-6");
 			expect(model).toBeDefined();
 			expect(model?.isOAuth).toBe(true);
 		});
 
 		test("anthropic-messages providers default to isOAuth=true even without explicit auth", () => {
-			const model = defaultOAuth.find("proxy-anthropic", "claude-sonnet-4-5");
+			const model = defaultOAuth.find("proxy-anthropic", "claude-sonnet-4-6");
 			expect(model).toBeDefined();
 			expect(model?.isOAuth).toBe(true);
 		});
 
 		test("auth: apiKey opts out of the anthropic-messages default", () => {
-			const model = apiKeyOptOut.find("proxy-anthropic", "claude-sonnet-4-5");
+			const model = apiKeyOptOut.find("proxy-anthropic", "claude-sonnet-4-6");
 			expect(model).toBeDefined();
 			expect(model?.isOAuth).toBeUndefined();
 		});
@@ -1932,7 +1932,7 @@ describe("ModelRegistry", () => {
 							Date.now(),
 							[
 								buildModel({
-									id: "gpt-4o",
+									id: "gpt-5.4",
 									name: "GPT-4o",
 									api: "openai-completions",
 									provider: "openai",
@@ -1966,7 +1966,7 @@ describe("ModelRegistry", () => {
 							Date.now(),
 							[
 								buildModel({
-									id: "deepseek-v4-pro",
+									id: "gpt-5.4",
 									name: "DeepSeek V4 Pro",
 									api: "ollama-chat",
 									provider: "ollama-cloud",
@@ -2104,7 +2104,7 @@ describe("ModelRegistry", () => {
 		});
 
 		test("legacy cached discovery sentinels are ignored after nullable limit cutover", () => {
-			const model = legacySentinels.find("openai", "gpt-4o");
+			const model = legacySentinels.find("openai", "gpt-5.4");
 			expect(model).toBeDefined();
 			// The bundled gpt-4o has correct limits, not the retired sentinels.
 			expect(model!.contextWindow).not.toBe(222_222);
@@ -2114,7 +2114,7 @@ describe("ModelRegistry", () => {
 		});
 
 		test("loads cached standard provider discovery models on startup", () => {
-			const model = standardCache.find("ollama-cloud", "deepseek-v4-pro");
+			const model = standardCache.find("ollama-cloud", "gpt-5.4");
 			expect(model?.maxTokens).toBe(384_000);
 			expect(model?.omitMaxOutputTokens).toBe(true);
 			const cacheOnlyModel = standardCache.find("ollama-cloud", "future-cloud-only:999b");

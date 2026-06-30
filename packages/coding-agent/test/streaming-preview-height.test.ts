@@ -2,13 +2,13 @@ import { afterEach, beforeAll, beforeEach, describe, expect, test } from "bun:te
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentTool } from "@amaze/pi-agent-core";
-import { resetSettingsForTest, Settings } from "@amaze/pi-coding-agent/config/settings";
-import { EDIT_MODE_STRATEGIES } from "@amaze/pi-coding-agent/edit";
-import { ToolExecutionComponent } from "@amaze/pi-coding-agent/modes/components/tool-execution";
-import { theme as activeTheme, initTheme } from "@amaze/pi-coding-agent/modes/theme/theme";
-import { previewWindowRows } from "@amaze/pi-coding-agent/tools/render-utils";
-import { TUI, visibleWidth } from "@amaze/pi-tui";
+import type { AgentTool } from "@steve-z8k/pi-agent-core";
+import { resetSettingsForTest, Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { EDIT_MODE_STRATEGIES } from "@steve-z8k/pi-coding-agent/edit";
+import { ToolExecutionComponent } from "@steve-z8k/pi-coding-agent/modes/components/tool-execution";
+import { theme as activeTheme, initTheme } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
+import { previewWindowRows } from "@steve-z8k/pi-coding-agent/tools/render-utils";
+import { TUI, visibleWidth } from "@steve-z8k/pi-tui";
 import { VirtualTerminal } from "../../tui/test/virtual-terminal";
 
 // The streaming edit preview is a fixed-height tail window ("cursor"): the last

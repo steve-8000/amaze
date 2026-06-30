@@ -6,7 +6,7 @@ import {
 	type SchemaCompatibilityResult,
 	validateSchemaCompatibility,
 	validateStrictSchemaEnforcement,
-} from "@amaze/pi-ai/utils/schema";
+} from "@steve-z8k/pi-ai/utils/schema";
 
 function hasRule(result: SchemaCompatibilityResult, rule: string): boolean {
 	return result.violations.some(violation => violation.rule === rule);

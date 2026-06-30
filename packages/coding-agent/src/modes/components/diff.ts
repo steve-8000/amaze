@@ -1,4 +1,4 @@
-import { DEFAULT_TAB_WIDTH, sanitizeText } from "@amaze/pi-utils";
+import { DEFAULT_TAB_WIDTH, sanitizeText } from "@steve-z8k/pi-utils";
 import * as Diff from "diff";
 import { getLanguageFromPath, highlightCode, theme } from "../../modes/theme/theme";
 import { type CodeFrameMarker, formatCodeFrameLine, replaceTabs } from "../../tools/render-utils";

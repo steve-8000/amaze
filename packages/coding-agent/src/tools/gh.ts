@@ -8,9 +8,9 @@ import type {
 	AgentToolResult,
 	AgentToolUpdateCallback,
 	ToolApprovalDecision,
-} from "@amaze/pi-agent-core";
+} from "@steve-z8k/pi-agent-core";
 
-import { getWorktreeDir, hashPath, isEnoent, prompt, untilAborted } from "@amaze/pi-utils";
+import { getWorktreeDir, hashPath, isEnoent, prompt, untilAborted } from "@steve-z8k/pi-utils";
 import { type } from "arktype";
 import type { Settings } from "../config/settings";
 import githubDescription from "../prompts/tools/github.md" with { type: "text" };

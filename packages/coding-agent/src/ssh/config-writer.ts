@@ -5,7 +5,7 @@
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { isEnoent } from "@amaze/pi-utils";
+import { isEnoent } from "@steve-z8k/pi-utils";
 
 export interface SSHHostConfig {
 	host: string;

@@ -1,6 +1,6 @@
 import { afterAll, afterEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { TempDir } from "@amaze/pi-utils";
+import { TempDir } from "@steve-z8k/pi-utils";
 import { Settings } from "../../config/settings";
 import type { PlanModeState } from "../../plan-mode/state";
 import * as taskDiscovery from "../../task/discovery";
@@ -16,21 +16,21 @@ import { disposeAllVmContexts } from "../js/context-manager";
 import { executeJs } from "../js/executor";
 import { disposeAllKernelSessions, executePython } from "../py/executor";
 
-const coderAgent = {
-	name: "coder",
-	description: "Coder agent",
+const flashAgent = {
+	name: "flash",
+	description: "Fast sandbox coding worker for independent implementation attempts",
 	systemPrompt: "Run the coding contract.",
 	source: "bundled",
 	spawns: "*",
-	model: ["pi/coder"],
+	model: ["pi/flash"],
 } satisfies AgentDefinition;
 
-const checkerAgent = {
-	name: "checker",
-	description: "Checker agent",
+const deepAgent = {
+	name: "deep",
+	description: "Deep validator agent",
 	systemPrompt: "Review the contract.",
 	source: "bundled",
-	model: ["pi/checker"],
+	model: ["pi/deep"],
 } satisfies AgentDefinition;
 
 interface SessionOptions {
@@ -77,7 +77,7 @@ function makeSession(options: SessionOptions = {}): ToolSession {
 	};
 }
 
-function mockAgents(agents: AgentDefinition[] = [coderAgent, checkerAgent]): void {
+function mockAgents(agents: AgentDefinition[] = [flashAgent, deepAgent]): void {
 	vi.spyOn(taskDiscovery, "discoverAgents").mockResolvedValue({ agents, projectAgentsDir: null });
 }
 
@@ -151,7 +151,7 @@ describe("runEvalAgent", () => {
 		vi.restoreAllMocks();
 	});
 
-	it("resolves the default coder agent and agentType overrides", async () => {
+	it("resolves the default flash agent and agentType overrides", async () => {
 		mockAgents();
 		const runSpy = vi.spyOn(taskExecutor, "runSubprocess").mockImplementation(async options =>
 			singleResult(options, {
@@ -161,16 +161,16 @@ describe("runEvalAgent", () => {
 		const session = makeSession();
 
 		const defaultResult = await runEvalAgent({ prompt: "hello" }, { session });
-		const overrideResult = await runEvalAgent({ prompt: "hello", agentType: "checker" }, { session });
+		const overrideResult = await runEvalAgent({ prompt: "hello", agentType: "deep" }, { session });
 
-		expect(defaultResult.text).toBe("coder");
-		expect(overrideResult.text).toBe("checker");
-		expect(runSpy.mock.calls[0]?.[0].agent.name).toBe("coder");
-		expect(runSpy.mock.calls[1]?.[0].agent.name).toBe("checker");
+		expect(defaultResult.text).toBe("flash");
+		expect(overrideResult.text).toBe("deep");
+		expect(runSpy.mock.calls[0]?.[0].agent.name).toBe("flash");
+		expect(runSpy.mock.calls[1]?.[0].agent.name).toBe("deep");
 	});
 
 	it("throws for an unknown agent", async () => {
-		mockAgents([coderAgent]);
+		mockAgents([flashAgent]);
 		vi.spyOn(taskExecutor, "runSubprocess").mockImplementation(async options => singleResult(options));
 
 		await expect(runEvalAgent({ prompt: "hello", agentType: "missing" }, { session: makeSession() })).rejects.toThrow(
@@ -185,8 +185,8 @@ describe("runEvalAgent", () => {
 		await expect(runEvalAgent({ prompt: "hello" }, { session: makeSession({ spawns: "" }) })).rejects.toThrow(
 			"spawns disabled",
 		);
-		await expect(runEvalAgent({ prompt: "hello" }, { session: makeSession({ spawns: "checker" }) })).rejects.toThrow(
-			"Allowed: checker",
+		await expect(runEvalAgent({ prompt: "hello" }, { session: makeSession({ spawns: "deep" }) })).rejects.toThrow(
+			"Allowed: deep",
 		);
 		await expect(
 			runEvalAgent({ prompt: "hello" }, { session: makeSession({ depth: EVAL_AGENT_MAX_DEPTH }) }),
@@ -252,7 +252,7 @@ describe("runEvalAgent", () => {
 		const result = await runEvalAgent({ prompt: "hello" }, { session: makeSession() });
 		expect(result).toEqual({
 			text: "done",
-			details: { agent: "coder", id: "0-EvalAgent", model: "p/model", structured: false },
+			details: { agent: "flash", id: "0-EvalAgent", model: "p/model", structured: false },
 		});
 		await expect(runEvalAgent({ prompt: "fail" }, { session: makeSession() })).rejects.toThrow("boom");
 	});
@@ -304,7 +304,7 @@ describe("runEvalAgent", () => {
 		// Last resort: still produce a non-empty message even when nothing useful is set,
 		// so Python never falls back to `bridge call '__agent__' failed`.
 		await expect(runEvalAgent({ prompt: "blank" }, { session: makeSession() })).rejects.toThrow(
-			"agent() subagent 'coder' failed.",
+			"agent() subagent 'flash' failed.",
 		);
 	});
 });

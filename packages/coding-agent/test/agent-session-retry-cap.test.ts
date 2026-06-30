@@ -1,17 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
 import { scheduler } from "node:timers/promises";
-import { Agent } from "@amaze/pi-agent-core";
-import type { ApiKeyResolveContext, AssistantMessage, ToolCall } from "@amaze/pi-ai";
-import { createMockModel } from "@amaze/pi-ai/providers/mock";
-import { AssistantMessageEventStream } from "@amaze/pi-ai/utils/event-stream";
-import { getBundledModel } from "@amaze/pi-catalog/models";
-import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import { AgentSession, type AgentSessionEvent } from "@amaze/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import { TempDir } from "@amaze/pi-utils";
+import { Agent } from "@steve-z8k/pi-agent-core";
+import type { ApiKeyResolveContext, AssistantMessage, ToolCall } from "@steve-z8k/pi-ai";
+import { createMockModel } from "@steve-z8k/pi-ai/providers/mock";
+import { AssistantMessageEventStream } from "@steve-z8k/pi-ai/utils/event-stream";
+import { getBundledModel } from "@steve-z8k/pi-catalog/models";
+import { ModelRegistry } from "@steve-z8k/pi-coding-agent/config/model-registry";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { AgentSession, type AgentSessionEvent } from "@steve-z8k/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@steve-z8k/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import { TempDir } from "@steve-z8k/pi-utils";
 
 type AutoRetryEndEvent = Extract<AgentSessionEvent, { type: "auto_retry_end" }>;
 type AutoRetryStartEvent = Extract<AgentSessionEvent, { type: "auto_retry_start" }>;
@@ -69,7 +69,7 @@ describe("AgentSession retry delay cap", () => {
 	});
 
 	it("bails immediately when retry-after exceeds retry.maxDelayMs", async () => {
-		const model = getBundledModel("anthropic", "claude-sonnet-4-5");
+		const model = getBundledModel("anthropic", "claude-sonnet-4-6");
 		if (!model) {
 			throw new Error("Expected bundled Anthropic test model to exist");
 		}
@@ -142,7 +142,7 @@ describe("AgentSession retry delay cap", () => {
 	});
 
 	it("switches credentials instead of failing the delay cap for account rate limits", async () => {
-		const model = getBundledModel("anthropic", "claude-sonnet-4-5");
+		const model = getBundledModel("anthropic", "claude-sonnet-4-6");
 		if (!model) {
 			throw new Error("Expected bundled Anthropic test model to exist");
 		}
@@ -225,7 +225,7 @@ describe("AgentSession retry delay cap", () => {
 		// the fail-fast cap ("gave up after 1 attempt") — even though a sibling
 		// would have been usable seconds later. The retry delay must track the
 		// earliest sibling unblock, not the provider window.
-		const model = getBundledModel("anthropic", "claude-sonnet-4-5");
+		const model = getBundledModel("anthropic", "claude-sonnet-4-6");
 		if (!model) {
 			throw new Error("Expected bundled Anthropic test model to exist");
 		}
@@ -307,7 +307,7 @@ describe("AgentSession retry delay cap", () => {
 	it("still retries normally when the delay is under retry.maxDelayMs", async () => {
 		// Sanity check: a small retry-after MUST still go through the retry
 		// loop so we don't regress the existing transient-error recovery.
-		const model = getBundledModel("anthropic", "claude-sonnet-4-5");
+		const model = getBundledModel("anthropic", "claude-sonnet-4-6");
 		if (!model) {
 			throw new Error("Expected bundled Anthropic test model to exist");
 		}
@@ -364,7 +364,7 @@ describe("AgentSession retry delay cap", () => {
 	});
 
 	it("does not auto-retry a timeout after streaming a complete write tool call", async () => {
-		const model = getBundledModel("anthropic", "claude-sonnet-4-5");
+		const model = getBundledModel("anthropic", "claude-sonnet-4-6");
 		if (!model) {
 			throw new Error("Expected bundled Anthropic test model to exist");
 		}
@@ -466,7 +466,7 @@ describe("AgentSession retry delay cap", () => {
 	});
 
 	it("retries a transient socket close after partial text and thinking", async () => {
-		const model = getBundledModel("anthropic", "claude-sonnet-4-5");
+		const model = getBundledModel("anthropic", "claude-sonnet-4-6");
 		if (!model) {
 			throw new Error("Expected bundled Anthropic test model to exist");
 		}
@@ -600,7 +600,7 @@ describe("AgentSession retry delay cap", () => {
 		// message contains no "503", "overloaded", or "network error" hooks, so without the
 		// dedicated HTTP2(StreamReset|RefusedStream|EnhanceYourCalm) carveout the assistant
 		// turn fails terminally even though the underlying condition is transient.
-		const model = getBundledModel("anthropic", "claude-sonnet-4-5");
+		const model = getBundledModel("anthropic", "claude-sonnet-4-6");
 		if (!model) {
 			throw new Error("Expected bundled Anthropic test model to exist");
 		}
@@ -656,7 +656,7 @@ describe("AgentSession retry delay cap", () => {
 		expect(last.stopReason).toBe("stop");
 	});
 	it("retries generic upstream_error gateway failures", async () => {
-		const model = getBundledModel("anthropic", "claude-sonnet-4-5");
+		const model = getBundledModel("anthropic", "claude-sonnet-4-6");
 		if (!model) {
 			throw new Error("Expected bundled Anthropic test model to exist");
 		}
@@ -713,7 +713,7 @@ describe("AgentSession retry delay cap", () => {
 	});
 
 	it("retries empty reasonless aborted turns", async () => {
-		const model = getBundledModel("anthropic", "claude-sonnet-4-5");
+		const model = getBundledModel("anthropic", "claude-sonnet-4-6");
 		if (!model) {
 			throw new Error("Expected bundled Anthropic test model to exist");
 		}
@@ -774,7 +774,7 @@ describe("AgentSession retry delay cap", () => {
 	});
 
 	it("does not retry reasonless aborted turns that have partial content", async () => {
-		const model = getBundledModel("anthropic", "claude-sonnet-4-5");
+		const model = getBundledModel("anthropic", "claude-sonnet-4-6");
 		if (!model) {
 			throw new Error("Expected bundled Anthropic test model to exist");
 		}
@@ -824,7 +824,7 @@ describe("AgentSession retry delay cap", () => {
 	});
 
 	it("does not auto-retry empty reasonless aborts once the session is disposing", async () => {
-		const model = getBundledModel("anthropic", "claude-sonnet-4-5");
+		const model = getBundledModel("anthropic", "claude-sonnet-4-6");
 		if (!model) {
 			throw new Error("Expected bundled Anthropic test model to exist");
 		}
@@ -885,7 +885,7 @@ describe("AgentSession retry delay cap", () => {
 	});
 
 	it("defaults 502 auto-retry to ten capped backoff attempts", async () => {
-		const model = getBundledModel("anthropic", "claude-sonnet-4-5");
+		const model = getBundledModel("anthropic", "claude-sonnet-4-6");
 		if (!model) {
 			throw new Error("Expected bundled Anthropic test model to exist");
 		}

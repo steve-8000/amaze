@@ -1,12 +1,11 @@
 {
-  "$schema": "https://raw.githubusercontent.com/can1357/amaze-agent/main/packages/coding-agent/src/config/mcp-schema.json",
+  "$schema": "https://raw.githubusercontent.com/steve-8000/amaze/main/packages/coding-agent/src/config/mcp-schema.json",
   "mcpServers": {
-    "rocky-skills": {
-      "type": "http",
-      "url": "http://localhost:7777/mcp",
-      "headers": {
-        "Authorization": "Bearer rocky-secret"
-      }
+    "circle": {
+      "type": "stdio",
+      "command": "/Users/steve/circle/build/c/circle",
+      "args": [],
+      "cwd": "/Users/steve/circle"
     }
   }
 }

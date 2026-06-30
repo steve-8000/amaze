@@ -1,11 +1,11 @@
 import * as path from "node:path";
 import { createInterface } from "node:readline/promises";
-import { $env, getProjectDir, isEnoent, prompt } from "@amaze/pi-utils";
+import { $env, getProjectDir, isEnoent, prompt } from "@steve-z8k/pi-utils";
 import { applyChangelogProposals } from "../../commit/changelog";
 import { detectChangelogBoundaries } from "../../commit/changelog/detect";
 import { parseUnreleasedSection } from "../../commit/changelog/parse";
 import { formatCommitMessage } from "../../commit/message";
-import { resolvePrimaryModel, resolveSmolModel } from "../../commit/model-selection";
+import { resolveFlashModel, resolvePrimaryModel } from "../../commit/model-selection";
 import type { CommitCommandArgs, ConventionalAnalysis } from "../../commit/types";
 import { ModelRegistry } from "../../config/model-registry";
 import { Settings } from "../../config/settings";
@@ -46,7 +46,7 @@ export async function runAgenticCommit(args: CommitCommandArgs): Promise<void> {
 	const { model: primaryModel, apiKey: primaryApiKey } = primaryModelResult;
 	process.stdout.write(`  └─ ${primaryModel.name}\n`);
 
-	const { model: agentModel, thinkingLevel: agentThinkingLevel } = await resolveSmolModel(
+	const { model: agentModel, thinkingLevel: agentThinkingLevel } = await resolveFlashModel(
 		settings,
 		modelRegistry,
 		primaryModel,

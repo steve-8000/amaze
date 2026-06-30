@@ -8,9 +8,9 @@
  *
  * Reported failures the test covers:
  *   - `@juicesharp/rpiv-ask-user-question` ⇒ `@earendil-works/pi-tui`
- *   - `@amaze/swarm-extension`         ⇒ `@amaze/pi-utils`
- *   - `@plannotator/pi-extension`         ⇒ `@amaze/pi-agent-core`
- *   - `@runfusion/fusion`                 ⇒ `@amaze/pi-coding-agent/...`
+ *   - `@steve-z8k/swarm-extension`         ⇒ `@steve-z8k/pi-utils`
+ *   - `@plannotator/pi-extension`         ⇒ `@steve-z8k/pi-agent-core`
+ *   - `@runfusion/fusion`                 ⇒ `@steve-z8k/pi-coding-agent/...`
  *
  * Plus the two upstream-only surfaces that turned up via real-plugin E2E:
  *   - `Key` runtime helper from `pi-tui` (used by plannotator + rpiv-*).
@@ -19,20 +19,20 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { loadExtensions } from "@amaze/pi-coding-agent/extensibility/extensions/loader";
-import { TempDir } from "@amaze/pi-utils";
+import { loadExtensions } from "@steve-z8k/pi-coding-agent/extensibility/extensions/loader";
+import { TempDir } from "@steve-z8k/pi-utils";
 
-const canonicalCodingAgent = Bun.resolveSync("@amaze/pi-coding-agent", import.meta.dir);
+const canonicalCodingAgent = Bun.resolveSync("@steve-z8k/pi-coding-agent", import.meta.dir);
 const canonicalCodingAgentExtensions = Bun.resolveSync(
-	"@amaze/pi-coding-agent/extensibility/extensions",
+	"@steve-z8k/pi-coding-agent/extensibility/extensions",
 	import.meta.dir,
 );
-const canonicalUtils = Bun.resolveSync("@amaze/pi-utils", import.meta.dir);
-const canonicalTui = Bun.resolveSync("@amaze/pi-tui", import.meta.dir);
+const canonicalUtils = Bun.resolveSync("@steve-z8k/pi-utils", import.meta.dir);
+const canonicalTui = Bun.resolveSync("@steve-z8k/pi-tui", import.meta.dir);
 // Subpath: upstream `pi-ai/oauth` re-exported `utils/oauth/index`; our pi-ai now
-// exposes the same surface at the real `@amaze/pi-ai/oauth` export, so the
+// exposes the same surface at the real `@steve-z8k/pi-ai/oauth` export, so the
 // legacy `@mariozechner/pi-ai/oauth` specifier canonicalizes straight to it.
-const canonicalAiOauth = Bun.resolveSync("@amaze/pi-ai/oauth", import.meta.dir);
+const canonicalAiOauth = Bun.resolveSync("@steve-z8k/pi-ai/oauth", import.meta.dir);
 
 interface AliasCase {
 	id: string;
@@ -51,10 +51,10 @@ const CASES: readonly AliasCase[] = [
 	},
 	// @amaze self-import — canonical scope must still flow through the shim
 	// so a duplicate copy is never dragged in from a plugin's own node_modules.
-	{ id: "ohmypi-utils", aliasSpecifier: "@amaze/pi-utils", canonicalPath: canonicalUtils, symbol: "logger" },
+	{ id: "ohmypi-utils", aliasSpecifier: "@steve-z8k/pi-utils", canonicalPath: canonicalUtils, symbol: "logger" },
 	{
 		id: "ohmypi-coding-agent",
-		aliasSpecifier: "@amaze/pi-coding-agent",
+		aliasSpecifier: "@steve-z8k/pi-coding-agent",
 		canonicalPath: canonicalCodingAgent,
 		symbol: "isToolCallEventType",
 	},
@@ -65,7 +65,7 @@ const CASES: readonly AliasCase[] = [
 		canonicalPath: canonicalCodingAgentExtensions,
 		symbol: "isToolCallEventType",
 	},
-	// Subpath: legacy `pi-ai/oauth` resolves to the real `@amaze/pi-ai/oauth`.
+	// Subpath: legacy `pi-ai/oauth` resolves to the real `@steve-z8k/pi-ai/oauth`.
 	{
 		id: "mariozechner-ai-oauth",
 		aliasSpecifier: "@mariozechner/pi-ai/oauth",

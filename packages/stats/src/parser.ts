@@ -1,7 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { type AssistantMessage, getPriorityPremiumRequests, type ServiceTier } from "@amaze/pi-ai";
-import { getSessionsDir, isEnoent } from "@amaze/pi-utils";
+import { type AssistantMessage, getPriorityPremiumRequests, type ServiceTier } from "@steve-z8k/pi-ai";
+import { getSessionsDir, isEnoent } from "@steve-z8k/pi-utils";
 import type {
 	MessageStats,
 	SessionEntry,

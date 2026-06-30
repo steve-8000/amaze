@@ -1,18 +1,18 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent, type AgentMessage } from "@amaze/pi-agent-core";
-import { estimateTokens } from "@amaze/pi-agent-core/compaction/compaction";
-import type { AssistantMessage, Message, Model } from "@amaze/pi-ai";
-import { createMockModel } from "@amaze/pi-ai/providers/mock";
-import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import { StatusLineComponent } from "@amaze/pi-coding-agent/modes/components/status-line";
-import { initTheme } from "@amaze/pi-coding-agent/modes/theme/theme";
-import { computeContextBreakdown } from "@amaze/pi-coding-agent/modes/utils/context-usage";
-import { AgentSession } from "@amaze/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import { TempDir } from "@amaze/pi-utils";
+import { Agent, type AgentMessage } from "@steve-z8k/pi-agent-core";
+import { estimateTokens } from "@steve-z8k/pi-agent-core/compaction/compaction";
+import type { AssistantMessage, Message, Model } from "@steve-z8k/pi-ai";
+import { createMockModel } from "@steve-z8k/pi-ai/providers/mock";
+import { ModelRegistry } from "@steve-z8k/pi-coding-agent/config/model-registry";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { StatusLineComponent } from "@steve-z8k/pi-coding-agent/modes/components/status-line";
+import { initTheme } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
+import { computeContextBreakdown } from "@steve-z8k/pi-coding-agent/modes/utils/context-usage";
+import { AgentSession } from "@steve-z8k/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@steve-z8k/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import { TempDir } from "@steve-z8k/pi-utils";
 
 describe("Context usage consolidation", () => {
 	let sharedDir: TempDir;

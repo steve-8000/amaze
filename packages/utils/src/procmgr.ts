@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { Process, ProcessStatus } from "@amaze/pi-natives";
+import { Process, ProcessStatus } from "@steve-z8k/pi-natives";
 import type { Subprocess } from "bun";
 import { $env, filterProcessEnv } from "./env";
 import { $which } from "./which";

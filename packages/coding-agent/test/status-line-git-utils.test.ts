@@ -5,15 +5,15 @@ import {
 	isSamePrCacheContext,
 	parseDefaultBranch,
 	parseGitHubRepo,
-} from "@amaze/pi-coding-agent/modes/components/status-line/git-utils";
+} from "@steve-z8k/pi-coding-agent/modes/components/status-line/git-utils";
 
 describe("parseGitHubRepo", () => {
 	test("parses HTTPS URL", () => {
-		expect(parseGitHubRepo("https://github.com/can1357/amaze-agent.git")).toBe("can1357/amaze-agent");
+		expect(parseGitHubRepo("https://github.com/steve-8000/amaze.git")).toBe("steve-8000/amaze");
 	});
 
 	test("parses HTTPS URL without .git suffix", () => {
-		expect(parseGitHubRepo("https://github.com/can1357/amaze-agent")).toBe("can1357/amaze-agent");
+		expect(parseGitHubRepo("https://github.com/steve-8000/amaze")).toBe("steve-8000/amaze");
 	});
 
 	test("parses SSH scp-style URL", () => {

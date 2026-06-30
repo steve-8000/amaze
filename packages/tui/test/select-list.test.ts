@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { SelectList } from "@amaze/pi-tui/components/select-list";
-import { KeybindingsManager, setKeybindings, TUI_KEYBINDINGS } from "@amaze/pi-tui/keybindings";
-import { visibleWidth } from "@amaze/pi-tui/utils";
+import { SelectList } from "@steve-z8k/pi-tui/components/select-list";
+import { KeybindingsManager, setKeybindings, TUI_KEYBINDINGS } from "@steve-z8k/pi-tui/keybindings";
+import { visibleWidth } from "@steve-z8k/pi-tui/utils";
 
 const testTheme = {
 	selectedPrefix: (text: string) => text,

@@ -5,8 +5,8 @@ import {
 	AuthStorage,
 	type CredentialDisabledEvent,
 	type StoredAuthCredential,
-} from "@amaze/pi-ai/auth-storage";
-import * as oauthUtils from "@amaze/pi-ai/registry/oauth";
+} from "@steve-z8k/pi-ai/auth-storage";
+import * as oauthUtils from "@steve-z8k/pi-ai/registry/oauth";
 
 // Env vars short-circuit AuthStorage.getApiKey before the OAuth refresh path runs; suppress
 // them for every test in this file so the credential-disable code path can be exercised.

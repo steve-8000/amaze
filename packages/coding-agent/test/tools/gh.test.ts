@@ -2,18 +2,18 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:te
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { toolWireSchema } from "@amaze/pi-ai/utils/schema";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import type { ToolSession } from "@amaze/pi-coding-agent/tools";
+import { toolWireSchema } from "@steve-z8k/pi-ai/utils/schema";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import type { ToolSession } from "@steve-z8k/pi-coding-agent/tools";
 import {
 	buildSearchDateQualifier,
 	GithubTool,
 	parsePrUnifiedDiff,
 	parseSearchDateBound,
 	resolveDefaultRepoMemoized,
-} from "@amaze/pi-coding-agent/tools/gh";
-import * as git from "@amaze/pi-coding-agent/utils/git";
-import { getAgentDir, hashPath, setAgentDir } from "@amaze/pi-utils";
+} from "@steve-z8k/pi-coding-agent/tools/gh";
+import * as git from "@steve-z8k/pi-coding-agent/utils/git";
+import { getAgentDir, hashPath, setAgentDir } from "@steve-z8k/pi-utils";
 
 // Isolate every `git` invocation in this file from the developer's host
 // configuration. The fixture spawns dozens of git subprocesses against tiny

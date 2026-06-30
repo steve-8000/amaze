@@ -1,14 +1,14 @@
 import { afterEach, describe, expect, it, type Mock, vi } from "bun:test";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import type { Skill } from "@amaze/pi-coding-agent/extensibility/skills";
-import * as skillsModule from "@amaze/pi-coding-agent/extensibility/skills";
-import type { CreateAgentSessionResult } from "@amaze/pi-coding-agent/sdk";
-import * as sdkModule from "@amaze/pi-coding-agent/sdk";
-import type { AgentSession, AgentSessionEvent, PromptOptions } from "@amaze/pi-coding-agent/session/agent-session";
-import { SKILL_PROMPT_MESSAGE_TYPE } from "@amaze/pi-coding-agent/session/messages";
-import { runSubprocess } from "@amaze/pi-coding-agent/task/executor";
-import type { AgentDefinition } from "@amaze/pi-coding-agent/task/types";
-import { EventBus } from "@amaze/pi-coding-agent/utils/event-bus";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import type { Skill } from "@steve-z8k/pi-coding-agent/extensibility/skills";
+import * as skillsModule from "@steve-z8k/pi-coding-agent/extensibility/skills";
+import type { CreateAgentSessionResult } from "@steve-z8k/pi-coding-agent/sdk";
+import * as sdkModule from "@steve-z8k/pi-coding-agent/sdk";
+import type { AgentSession, AgentSessionEvent, PromptOptions } from "@steve-z8k/pi-coding-agent/session/agent-session";
+import { SKILL_PROMPT_MESSAGE_TYPE } from "@steve-z8k/pi-coding-agent/session/messages";
+import { runSubprocess } from "@steve-z8k/pi-coding-agent/task/executor";
+import type { AgentDefinition } from "@steve-z8k/pi-coding-agent/task/types";
+import { EventBus } from "@steve-z8k/pi-coding-agent/utils/event-bus";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -61,7 +61,7 @@ function createSessionResult(session: AgentSession): CreateAgentSessionResult {
 	return {
 		session,
 		extensionsResult:
-			{} as unknown as import("@amaze/pi-coding-agent/extensibility/extensions/types").LoadExtensionsResult,
+			{} as unknown as import("@steve-z8k/pi-coding-agent/extensibility/extensions/types").LoadExtensionsResult,
 		setToolUIContext: () => {},
 		eventBus: new EventBus(),
 	};
@@ -90,7 +90,7 @@ describe("autoloadSkills in executor", () => {
 		settings: Settings.isolated(),
 		modelRegistry: {
 			refresh: async () => {},
-		} as unknown as import("@amaze/pi-coding-agent/config/model-registry").ModelRegistry,
+		} as unknown as import("@steve-z8k/pi-coding-agent/config/model-registry").ModelRegistry,
 	};
 
 	it("calls sendCustomMessage for each autoloaded skill before prompt", async () => {

@@ -4,15 +4,15 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Agent } from "@amaze/pi-agent-core";
-import { getBundledModel } from "@amaze/pi-catalog/models";
-import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import { AgentSession } from "@amaze/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import { createTools, type ToolSession } from "@amaze/pi-coding-agent/tools";
-import { Snowflake } from "@amaze/pi-utils";
+import { Agent } from "@steve-z8k/pi-agent-core";
+import { getBundledModel } from "@steve-z8k/pi-catalog/models";
+import { ModelRegistry } from "@steve-z8k/pi-coding-agent/config/model-registry";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { AgentSession } from "@steve-z8k/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@steve-z8k/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import { createTools, type ToolSession } from "@steve-z8k/pi-coding-agent/tools";
+import { Snowflake } from "@steve-z8k/pi-utils";
 import { e2eApiKey } from "../../ai/test/oauth";
 
 export { e2eApiKey };
@@ -86,7 +86,7 @@ export async function createTestSession(options: TestSessionOptions = {}): Promi
 	};
 	const tools = await createTools(toolSession);
 
-	const model = getBundledModel("anthropic", "claude-sonnet-4-5")!;
+	const model = getBundledModel("anthropic", "claude-sonnet-4-6")!;
 	const agent = new Agent({
 		getApiKey: () => e2eApiKey("ANTHROPIC_API_KEY"),
 		initialState: {

@@ -1,14 +1,14 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@amaze/pi-agent-core";
-import type { Model } from "@amaze/pi-ai";
-import { getBundledModel } from "@amaze/pi-catalog/models";
-import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import { AgentSession } from "@amaze/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import { TempDir } from "@amaze/pi-utils";
+import { Agent } from "@steve-z8k/pi-agent-core";
+import type { Model } from "@steve-z8k/pi-ai";
+import { getBundledModel } from "@steve-z8k/pi-catalog/models";
+import { ModelRegistry } from "@steve-z8k/pi-coding-agent/config/model-registry";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { AgentSession } from "@steve-z8k/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@steve-z8k/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import { TempDir } from "@steve-z8k/pi-utils";
 
 describe("AgentSession advisor toggle", () => {
 	let sharedDir: TempDir;
@@ -21,7 +21,7 @@ describe("AgentSession advisor toggle", () => {
 		authStorage = await AuthStorage.create(path.join(sharedDir.path(), "testauth.db"));
 		authStorage.setRuntimeApiKey("anthropic", "test-key");
 		modelRegistry = new ModelRegistry(authStorage);
-		const bundled = getBundledModel("anthropic", "claude-sonnet-4-5");
+		const bundled = getBundledModel("anthropic", "claude-sonnet-4-6");
 		if (!bundled) throw new Error("Expected built-in anthropic model to exist");
 		model = bundled;
 	});
@@ -72,16 +72,16 @@ describe("AgentSession advisor toggle", () => {
 	});
 
 	it("toggle enables the advisor and runtime", () => {
-		session.settings.setModelRole("advisor", "anthropic/claude-sonnet-4-5");
+		session.settings.setModelRole("deep", "anthropic/claude-sonnet-4-6");
 		const active = session.toggleAdvisorEnabled();
 		expect(active).toBe(true);
 		expect(session.isAdvisorActive()).toBe(true);
 		expect(session.isAdvisorEnabled()).toBe(true);
-		expect(session.formatAdvisorStatus()).toContain("Advisor is enabled (anthropic/claude-sonnet-4-5)");
+		expect(session.formatAdvisorStatus()).toContain("Advisor is enabled (anthropic/claude-sonnet-4-6)");
 	});
 
 	it("explicit enable overrides default-off setting for the session only", () => {
-		session.settings.setModelRole("advisor", "anthropic/claude-sonnet-4-5");
+		session.settings.setModelRole("deep", "anthropic/claude-sonnet-4-6");
 		session.settings.override("advisor.enabled", false);
 		const customSession = new AgentSession({
 			agent: session.agent,
@@ -101,7 +101,7 @@ describe("AgentSession advisor toggle", () => {
 	});
 
 	it("toggle disables the advisor and runtime", () => {
-		session.settings.setModelRole("advisor", "anthropic/claude-sonnet-4-5");
+		session.settings.setModelRole("deep", "anthropic/claude-sonnet-4-6");
 		session.toggleAdvisorEnabled();
 		const active = session.toggleAdvisorEnabled();
 		expect(active).toBe(false);
@@ -115,13 +115,13 @@ describe("AgentSession advisor toggle", () => {
 		expect(session.isAdvisorActive()).toBe(false);
 		expect(session.isAdvisorEnabled()).toBe(true);
 		expect(session.formatAdvisorStatus()).toBe(
-			"Advisor setting is enabled, but no model is assigned to the 'advisor' role.",
+			"Advisor setting is enabled, but no model is assigned to the 'deep' lane.",
 		);
 	});
 
 	it("keeps sessions isolated when sharing a Settings instance", async () => {
 		const sharedSettings = Settings.isolated({ "compaction.enabled": false });
-		sharedSettings.setModelRole("advisor", "anthropic/claude-sonnet-4-5");
+		sharedSettings.setModelRole("deep", "anthropic/claude-sonnet-4-6");
 		expect(sharedSettings.get("advisor.enabled")).toBe(false);
 
 		const sessionA = new AgentSession({

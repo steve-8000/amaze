@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { AppendOnlyContextManager, AppendOnlyLog, StablePrefix } from "@amaze/pi-agent-core/append-only-context";
-import type { AgentContext, AgentTool } from "@amaze/pi-agent-core/types";
-import type { Message, Tool, ToolExample } from "@amaze/pi-ai";
-import { INTENT_FIELD } from "@amaze/pi-wire";
+import { AppendOnlyContextManager, AppendOnlyLog, StablePrefix } from "@steve-z8k/pi-agent-core/append-only-context";
+import type { AgentContext, AgentTool } from "@steve-z8k/pi-agent-core/types";
+import type { Message, Tool, ToolExample } from "@steve-z8k/pi-ai";
+import { INTENT_FIELD } from "@steve-z8k/pi-wire";
 import { type } from "arktype";
 
 // ---------------------------------------------------------------------------

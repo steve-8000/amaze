@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { computeUserMessageMetrics, EMPTY_USER_METRICS } from "@amaze/amaze-stats/user-metrics";
+import { computeUserMessageMetrics, EMPTY_USER_METRICS } from "@steve-z8k/amaze-stats/user-metrics";
 
 describe("computeUserMessageMetrics", () => {
 	it("returns zeros for empty / whitespace-only text", () => {

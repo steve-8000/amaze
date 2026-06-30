@@ -1,14 +1,14 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { getBundledModel } from "@amaze/pi-catalog/models";
-import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import { createAgentSession } from "@amaze/pi-coding-agent/sdk";
-import type { AgentSession } from "@amaze/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import { TempDir } from "@amaze/pi-utils";
+import { getBundledModel } from "@steve-z8k/pi-catalog/models";
+import { ModelRegistry } from "@steve-z8k/pi-coding-agent/config/model-registry";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { createAgentSession } from "@steve-z8k/pi-coding-agent/sdk";
+import type { AgentSession } from "@steve-z8k/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@steve-z8k/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import { TempDir } from "@steve-z8k/pi-utils";
 
 describe("advisor watchdog prompt discovery", () => {
 	const tempDirs: TempDir[] = [];
@@ -47,10 +47,10 @@ describe("advisor watchdog prompt discovery", () => {
 						"async.enabled": false,
 						"advisor.enabled": true,
 					});
-					s.setModelRole("advisor", "openai/gpt-4o-mini");
+					s.setModelRole("deep", "openai/gpt-5.4-mini");
 					return s;
 				})(),
-				model: getBundledModel("openai", "gpt-4o-mini"),
+				model: getBundledModel("openai", "gpt-5.4-mini"),
 				disableExtensionDiscovery: true,
 				skills: [],
 				contextFiles: [],
@@ -106,10 +106,10 @@ describe("advisor watchdog prompt discovery", () => {
 						"async.enabled": false,
 						"advisor.enabled": true,
 					});
-					s.setModelRole("advisor", "openai/gpt-4o-mini");
+					s.setModelRole("deep", "openai/gpt-5.4-mini");
 					return s;
 				})(),
-				model: getBundledModel("openai", "gpt-4o-mini"),
+				model: getBundledModel("openai", "gpt-5.4-mini"),
 				disableExtensionDiscovery: true,
 				skills: [],
 				contextFiles: [],
@@ -178,10 +178,10 @@ describe("advisor watchdog prompt discovery", () => {
 						"async.enabled": false,
 						"advisor.enabled": true,
 					});
-					s.setModelRole("advisor", "openai/gpt-4o-mini");
+					s.setModelRole("deep", "openai/gpt-5.4-mini");
 					return s;
 				})(),
-				model: getBundledModel("openai", "gpt-4o-mini"),
+				model: getBundledModel("openai", "gpt-5.4-mini"),
 				disableExtensionDiscovery: true,
 				skills: [],
 				contextFiles: [],

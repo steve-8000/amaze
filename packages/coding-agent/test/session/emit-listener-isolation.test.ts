@@ -5,15 +5,15 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Agent, type AgentEvent } from "@amaze/pi-agent-core";
-import { createMockModel } from "@amaze/pi-ai/providers/mock";
-import { getBundledModel } from "@amaze/pi-catalog/models";
-import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import { AgentSession } from "@amaze/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import { Snowflake } from "@amaze/pi-utils";
+import { Agent, type AgentEvent } from "@steve-z8k/pi-agent-core";
+import { createMockModel } from "@steve-z8k/pi-ai/providers/mock";
+import { getBundledModel } from "@steve-z8k/pi-catalog/models";
+import { ModelRegistry } from "@steve-z8k/pi-coding-agent/config/model-registry";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { AgentSession } from "@steve-z8k/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@steve-z8k/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import { Snowflake } from "@steve-z8k/pi-utils";
 
 function makeEvent(): AgentEvent {
 	return { type: "tool_execution_start", toolCallId: "probe-1", toolName: "probe", args: {} };
@@ -71,7 +71,7 @@ describe("#emit listener isolation", () => {
 		beforeEach(async () => {
 			tempDir = path.join(os.tmpdir(), `pi-emit-iso-${Snowflake.next()}`);
 			fs.mkdirSync(tempDir, { recursive: true });
-			const model = getBundledModel("anthropic", "claude-sonnet-4-5");
+			const model = getBundledModel("anthropic", "claude-sonnet-4-6");
 			if (!model) throw new Error("Test model not found");
 			authStorage = await AuthStorage.create(path.join(tempDir, "auth.db"));
 			authStorage.setRuntimeApiKey("anthropic", "test-key");

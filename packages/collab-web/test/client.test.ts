@@ -8,7 +8,7 @@ import type {
 	SessionState,
 	SubagentProgressPayload,
 	WireMessage,
-} from "@amaze/pi-wire";
+} from "@steve-z8k/pi-wire";
 import { GuestClient } from "../src/lib/client";
 import { encodeBase64Url } from "../src/lib/link";
 

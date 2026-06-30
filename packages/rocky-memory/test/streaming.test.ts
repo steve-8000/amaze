@@ -3,8 +3,14 @@ import { describe, expect, it } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { initBeam } from "@amaze/pi-rocky-memory/core/beam";
-import { DeltaSync, EventType, MemoryEvent, MemoryStream, SyncCheckpoint } from "@amaze/pi-rocky-memory/core/streaming";
+import { initBeam } from "@steve-z8k/pi-rocky-memory/core/beam";
+import {
+	DeltaSync,
+	EventType,
+	MemoryEvent,
+	MemoryStream,
+	SyncCheckpoint,
+} from "@steve-z8k/pi-rocky-memory/core/streaming";
 
 describe("MemoryEvent", () => {
 	it("serializes and restores Python-shaped events", () => {

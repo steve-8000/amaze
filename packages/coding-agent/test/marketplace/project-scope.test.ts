@@ -4,7 +4,7 @@
  * resolveActiveProjectRegistryPath: walk-up, .git fallback, null return, canonical path.
  * listClaudePluginRoots: project entries shadow user entries for same plugin ID.
  *
- * Note: helpers.ts imports @amaze/pi-natives (Rust addon via glob).
+ * Note: helpers.ts imports @steve-z8k/pi-natives (Rust addon via glob).
  * This file imports from helpers.ts directly — the native addon IS present in the
  * test environment (verified: `bun run import-helpers.ts` succeeds).
  */
@@ -16,14 +16,14 @@ import {
 	clearClaudePluginRootsCache,
 	listClaudePluginRoots,
 	resolveActiveProjectRegistryPath,
-} from "@amaze/pi-coding-agent/discovery/helpers";
-import type { InstalledPluginEntry } from "@amaze/pi-coding-agent/extensibility/plugins/marketplace";
+} from "@steve-z8k/pi-coding-agent/discovery/helpers";
+import type { InstalledPluginEntry } from "@steve-z8k/pi-coding-agent/extensibility/plugins/marketplace";
 import {
 	addInstalledPlugin,
 	buildPluginId,
 	readInstalledPluginsRegistry,
 	writeInstalledPluginsRegistry,
-} from "@amaze/pi-coding-agent/extensibility/plugins/marketplace";
+} from "@steve-z8k/pi-coding-agent/extensibility/plugins/marketplace";
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 

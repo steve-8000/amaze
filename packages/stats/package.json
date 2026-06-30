@@ -1,6 +1,6 @@
 {
 	"type": "module",
-	"name": "@amaze/amaze-stats",
+	"name": "@steve-z8k/amaze-stats",
 	"version": "3.1.0",
 	"description": "Local observability dashboard for pi AI usage statistics",
 	"homepage": "https://amaze",
@@ -8,11 +8,11 @@
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/can1357/amaze-agent.git",
+		"url": "git+https://github.com/steve-8000/amaze.git",
 		"directory": "packages/stats"
 	},
 	"bugs": {
-		"url": "https://github.com/can1357/amaze-agent/issues"
+		"url": "https://github.com/steve-8000/amaze/issues"
 	},
 	"keywords": [
 		"ai",
@@ -37,9 +37,9 @@
 		"fmt": "biome format --write ."
 	},
 	"dependencies": {
-		"@amaze/pi-ai": "catalog:",
-		"@amaze/pi-catalog": "catalog:",
-		"@amaze/pi-utils": "catalog:",
+		"@steve-z8k/pi-ai": "catalog:",
+		"@steve-z8k/pi-catalog": "catalog:",
+		"@steve-z8k/pi-utils": "catalog:",
 		"@tailwindcss/node": "catalog:",
 		"chart.js": "catalog:",
 		"date-fns": "catalog:",

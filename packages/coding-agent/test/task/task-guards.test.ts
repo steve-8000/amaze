@@ -1,14 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import type { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import type { LoadExtensionsResult } from "@amaze/pi-coding-agent/extensibility/extensions/types";
-import type { CreateAgentSessionResult } from "@amaze/pi-coding-agent/sdk";
-import * as sdkModule from "@amaze/pi-coding-agent/sdk";
-import type { AgentSession, AgentSessionEvent } from "@amaze/pi-coding-agent/session/agent-session";
-import { formatResultOutputFallback } from "@amaze/pi-coding-agent/task";
-import { runSubprocess } from "@amaze/pi-coding-agent/task/executor";
-import type { AgentDefinition } from "@amaze/pi-coding-agent/task/types";
-import { EventBus } from "@amaze/pi-coding-agent/utils/event-bus";
+import type { ModelRegistry } from "@steve-z8k/pi-coding-agent/config/model-registry";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import type { LoadExtensionsResult } from "@steve-z8k/pi-coding-agent/extensibility/extensions/types";
+import type { CreateAgentSessionResult } from "@steve-z8k/pi-coding-agent/sdk";
+import * as sdkModule from "@steve-z8k/pi-coding-agent/sdk";
+import type { AgentSession, AgentSessionEvent } from "@steve-z8k/pi-coding-agent/session/agent-session";
+import { formatResultOutputFallback } from "@steve-z8k/pi-coding-agent/task";
+import { runSubprocess } from "@steve-z8k/pi-coding-agent/task/executor";
+import type { AgentDefinition } from "@steve-z8k/pi-coding-agent/task/types";
+import { EventBus } from "@steve-z8k/pi-coding-agent/utils/event-bus";
 
 /**
  * Contract: runaway-subagent guards.

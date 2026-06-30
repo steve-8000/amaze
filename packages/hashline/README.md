@@ -1,4 +1,4 @@
-# @amaze/hashline
+# @steve-z8k/hashline
 
 A compact, line-anchored patch language and applier.
 
@@ -16,7 +16,7 @@ import {
 	InMemorySnapshotStore,
 	Patcher,
 	Patch,
-} from "@amaze/hashline";
+} from "@steve-z8k/hashline";
 
 const fs = new InMemoryFilesystem();
 const snapshots = new InMemorySnapshotStore();

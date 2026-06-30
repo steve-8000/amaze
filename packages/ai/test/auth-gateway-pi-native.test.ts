@@ -1,13 +1,13 @@
 import { describe, expect, it } from "bun:test";
-import { encodeStream, formatError, parseRequest } from "@amaze/pi-ai/providers/pi-native-server";
+import { encodeStream, formatError, parseRequest } from "@steve-z8k/pi-ai/providers/pi-native-server";
 import type {
 	AssistantMessage,
 	AssistantMessageEvent,
 	AssistantMessageEventStream,
 	Context,
 	Usage,
-} from "@amaze/pi-ai/types";
-import { Effort } from "@amaze/pi-catalog/effort";
+} from "@steve-z8k/pi-ai/types";
+import { Effort } from "@steve-z8k/pi-catalog/effort";
 
 function makeEventStream(events: AssistantMessageEvent[], final: AssistantMessage): AssistantMessageEventStream {
 	async function* iter() {

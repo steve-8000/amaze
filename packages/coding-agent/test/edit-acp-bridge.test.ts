@@ -2,14 +2,14 @@ import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { resetSettingsForTest, Settings } from "@amaze/pi-coding-agent/config/settings";
-import type { WritethroughCallback } from "@amaze/pi-coding-agent/edit";
-import { DEFAULT_FUZZY_THRESHOLD, executePatchSingle, executeReplaceSingle } from "@amaze/pi-coding-agent/edit";
-import { HashlineFilesystem } from "@amaze/pi-coding-agent/edit/hashline/filesystem";
-import { resolveLocalUrlToPath } from "@amaze/pi-coding-agent/internal-urls";
-import type { PlanModeState } from "@amaze/pi-coding-agent/plan-mode/state";
-import type { ClientBridge } from "@amaze/pi-coding-agent/session/client-bridge";
-import type { ToolSession } from "@amaze/pi-coding-agent/tools";
+import { resetSettingsForTest, Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import type { WritethroughCallback } from "@steve-z8k/pi-coding-agent/edit";
+import { DEFAULT_FUZZY_THRESHOLD, executePatchSingle, executeReplaceSingle } from "@steve-z8k/pi-coding-agent/edit";
+import { HashlineFilesystem } from "@steve-z8k/pi-coding-agent/edit/hashline/filesystem";
+import { resolveLocalUrlToPath } from "@steve-z8k/pi-coding-agent/internal-urls";
+import type { PlanModeState } from "@steve-z8k/pi-coding-agent/plan-mode/state";
+import type { ClientBridge } from "@steve-z8k/pi-coding-agent/session/client-bridge";
+import type { ToolSession } from "@steve-z8k/pi-coding-agent/tools";
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
 

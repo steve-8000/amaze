@@ -1,10 +1,9 @@
 /**
- * Contract: a custom message steered into a streaming session (the collab-host
- * and skill-prompt path: `promptCustomMessage(..., { streamingBehavior: "steer" })`)
- * is always delivered — never silently stranded in the agent's steering queue.
+ * Contract: a custom message steered into a streaming session
+ * (`promptCustomMessage(..., { streamingBehavior: "steer" })`) is always
+ * delivered — never silently stranded in the agent's steering queue.
  *
- * Two regression seams, both observed as "guest messages just disappear" in
- * collab sessions:
+ * Two regression seams:
  *  1. A steer landing at the run's yield boundary (after the stop-boundary
  *     dequeue) must force another turn instead of stranding.
  *  2. A steer landing while the prompt unwinds (isStreaming stays true through
@@ -15,18 +14,18 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Agent } from "@amaze/pi-agent-core";
-import { createMockModel, type MockModel, type MockResponse } from "@amaze/pi-ai/providers/mock";
-import { getBundledModel } from "@amaze/pi-catalog/models";
-import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import { AgentSession } from "@amaze/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
-import { USER_INTERRUPT_LABEL } from "@amaze/pi-coding-agent/session/messages";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import { Snowflake } from "@amaze/pi-utils";
+import { Agent } from "@steve-z8k/pi-agent-core";
+import { createMockModel, type MockModel, type MockResponse } from "@steve-z8k/pi-ai/providers/mock";
+import { getBundledModel } from "@steve-z8k/pi-catalog/models";
+import { ModelRegistry } from "@steve-z8k/pi-coding-agent/config/model-registry";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { AgentSession } from "@steve-z8k/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@steve-z8k/pi-coding-agent/session/auth-storage";
+import { USER_INTERRUPT_LABEL } from "@steve-z8k/pi-coding-agent/session/messages";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import { Snowflake } from "@steve-z8k/pi-utils";
 
-const COLLAB_PROMPT_TYPE = "collab-prompt";
+const CUSTOM_PROMPT_TYPE = "queued-steer-prompt";
 
 interface SteerHarness {
 	session: AgentSession;
@@ -53,7 +52,7 @@ describe("AgentSession queued steer delivery", () => {
 	});
 
 	async function createSession(responses: MockResponse[]): Promise<SteerHarness> {
-		const model = getBundledModel("anthropic", "claude-sonnet-4-5")!;
+		const model = getBundledModel("anthropic", "claude-sonnet-4-6")!;
 		const mock = createMockModel({ responses });
 		const agent = new Agent({
 			getApiKey: () => "test-key",
@@ -70,10 +69,10 @@ describe("AgentSession queued steer delivery", () => {
 		return { session, sessionManager, mock };
 	}
 
-	function steerCollabPrompt(target: AgentSession, text: string): Promise<void> {
+	function steerCustomPrompt(target: AgentSession, text: string): Promise<void> {
 		return target.promptCustomMessage(
 			{
-				customType: COLLAB_PROMPT_TYPE,
+				customType: CUSTOM_PROMPT_TYPE,
 				content: text,
 				display: true,
 				details: { from: "guest" },
@@ -102,23 +101,23 @@ describe("AgentSession queued steer delivery", () => {
 		return promise;
 	}
 
-	/** Resolves with the entry text when a collab-prompt entry is persisted. */
-	function nextCollabEntry(sessionManager: SessionManager): Promise<string> {
+	/** Resolves with the entry text when a queued-steer custom entry is persisted. */
+	function nextCustomEntry(sessionManager: SessionManager): Promise<string> {
 		const { promise, resolve } = Promise.withResolvers<string>();
 		sessionManager.onEntryAppended = entry => {
-			if (entry.type === "custom_message" && entry.customType === COLLAB_PROMPT_TYPE) {
+			if (entry.type === "custom_message" && entry.customType === CUSTOM_PROMPT_TYPE) {
 				resolve(typeof entry.content === "string" ? entry.content : JSON.stringify(entry.content));
 			}
 		};
 		return promise;
 	}
 
-	it("delivers a collab steer that lands at the run's yield boundary", async () => {
+	it("delivers a custom steer that lands at the run's yield boundary", async () => {
 		const { session, sessionManager, mock } = await createSession([
 			{ content: ["host answer"] },
 			{ content: ["ack guest"] },
 		]);
-		const entryAppended = nextCollabEntry(sessionManager);
+		const entryAppended = nextCustomEntry(sessionManager);
 
 		let streamingAtInject: boolean | undefined;
 		let injected = false;
@@ -127,7 +126,7 @@ describe("AgentSession queued steer delivery", () => {
 			injected = true;
 			// The session is still mid-prompt here, so this takes the steer path.
 			streamingAtInject = session.isStreaming;
-			await steerCollabPrompt(session, "guest steer at yield");
+			await steerCustomPrompt(session, "guest steer at yield");
 		});
 
 		await session.prompt("hello");
@@ -143,7 +142,7 @@ describe("AgentSession queued steer delivery", () => {
 			{ content: ["host answer"] },
 			{ content: ["ack guest"] },
 		]);
-		const entryAppended = nextCollabEntry(sessionManager);
+		const entryAppended = nextCustomEntry(sessionManager);
 
 		// Inject from the wire agent_end subscriber: it fires synchronously while
 		// the session settles (#promptInFlightCount just hit 0), after the agent
@@ -157,7 +156,7 @@ describe("AgentSession queued steer delivery", () => {
 			if (agentEnds === 1) {
 				session.agent.steer({
 					role: "custom",
-					customType: COLLAB_PROMPT_TYPE,
+					customType: CUSTOM_PROMPT_TYPE,
 					content: "guest steer at settle",
 					display: true,
 					details: { from: "guest" },

@@ -142,20 +142,20 @@ mkdir -p "$TARBALL_APP_DIR"
    node -e "
 		const pkg = JSON.parse(require('fs').readFileSync('package.json', 'utf8'));
 		pkg.overrides = {
-			'@amaze/pi-utils': '$utils_tgz',
-			'@amaze/pi-wire': '$wire_tgz',
-			'@amaze/pi-natives': '$natives_tgz',
-			'@amaze/pi-natives-$host_tag': '$natives_leaf_tgz',
-			'@amaze/hashline': '$hashline_tgz',
-			'@amaze/pi-ai': '$ai_tgz',
-			'@amaze/pi-catalog': '$catalog_tgz',
-			'@amaze/pi-rocky-memory': '$rockyMemory_tgz',
-			'@amaze/snapcompact': '$snapcompact_tgz',
-			'@amaze/pi-agent-core': '$agent_tgz',
-			'@amaze/pi-tui': '$tui_tgz',
-			'@amaze/amaze-stats': '$stats_tgz',
-			'@amaze/pi-coding-agent': '$coding_agent_tgz',
-			'@amaze/collab-web': '$collab_web_tgz'
+			'@steve-z8k/pi-utils': '$utils_tgz',
+			'@steve-z8k/pi-wire': '$wire_tgz',
+			'@steve-z8k/pi-natives': '$natives_tgz',
+			'@steve-z8k/pi-natives-$host_tag': '$natives_leaf_tgz',
+			'@steve-z8k/hashline': '$hashline_tgz',
+			'@steve-z8k/pi-ai': '$ai_tgz',
+			'@steve-z8k/pi-catalog': '$catalog_tgz',
+			'@steve-z8k/pi-rocky-memory': '$rockyMemory_tgz',
+			'@steve-z8k/snapcompact': '$snapcompact_tgz',
+			'@steve-z8k/pi-agent-core': '$agent_tgz',
+			'@steve-z8k/pi-tui': '$tui_tgz',
+			'@steve-z8k/amaze-stats': '$stats_tgz',
+			'@steve-z8k/pi-coding-agent': '$coding_agent_tgz',
+			'@steve-z8k/collab-web': '$collab_web_tgz'
 		};
 		require('fs').writeFileSync('package.json', JSON.stringify(pkg, null, 2));
 	"
@@ -164,17 +164,17 @@ mkdir -p "$TARBALL_APP_DIR"
    # The platform leaf must arrive through the core's optionalDependencies +
    # override, not as a direct dependency — assert it landed before smoking so a
    # resolution regression is distinguishable from a runtime loader bug.
-   leaf_dir="node_modules/@amaze/pi-natives-$host_tag"
+   leaf_dir="node_modules/@steve-z8k/pi-natives-$host_tag"
    [ -d "$leaf_dir" ] || {
       echo "Platform leaf package not installed: $leaf_dir"
       exit 1
    }
-   wire_proto="$(bun -e 'import { COLLAB_PROTO } from "@amaze/pi-wire"; process.stdout.write(String(COLLAB_PROTO));')"
+   wire_proto="$(bun -e 'import { COLLAB_PROTO } from "@steve-z8k/pi-wire"; process.stdout.write(String(COLLAB_PROTO));')"
    [ "$wire_proto" = "2" ] || {
-      echo "Unexpected @amaze/pi-wire COLLAB_PROTO: $wire_proto"
+      echo "Unexpected @steve-z8k/pi-wire COLLAB_PROTO: $wire_proto"
       exit 1
    }
-   [ -f "node_modules/@amaze/collab-web/dist/index.html" ] || {
+   [ -f "node_modules/@steve-z8k/collab-web/dist/index.html" ] || {
       echo "Collab web tarball did not install built dist/index.html"
       exit 1
    }

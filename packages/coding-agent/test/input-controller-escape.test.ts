@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "bun:test";
-import { resetSettingsForTest, Settings } from "@amaze/pi-coding-agent/config/settings";
-import { InputController } from "@amaze/pi-coding-agent/modes/controllers/input-controller";
-import type { InteractiveModeContext, SubmittedUserInput } from "@amaze/pi-coding-agent/modes/types";
-import { USER_INTERRUPT_LABEL } from "@amaze/pi-coding-agent/session/messages";
+import { resetSettingsForTest, Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { InputController } from "@steve-z8k/pi-coding-agent/modes/controllers/input-controller";
+import type { InteractiveModeContext, SubmittedUserInput } from "@steve-z8k/pi-coding-agent/modes/types";
+import { USER_INTERRUPT_LABEL } from "@steve-z8k/pi-coding-agent/session/messages";
 
 type Spy = Mock<(...args: unknown[]) => unknown>;
 type StartPendingSubmissionSpy = Mock<InteractiveModeContext["startPendingSubmission"]>;

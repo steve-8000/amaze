@@ -3,10 +3,10 @@ import {
 	containsOrchestrate,
 	highlightOrchestrate,
 	ORCHESTRATE_NOTICE,
-} from "@amaze/pi-coding-agent/modes/orchestrate";
-import { initTheme } from "@amaze/pi-coding-agent/modes/theme/theme";
-import { containsUltrathink, highlightUltrathink } from "@amaze/pi-coding-agent/modes/ultrathink";
-import { clearBundledCommandsCache, loadBundledCommands } from "@amaze/pi-coding-agent/task/commands";
+} from "@steve-z8k/pi-coding-agent/modes/orchestrate";
+import { initTheme } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
+import { containsUltrathink, highlightUltrathink } from "@steve-z8k/pi-coding-agent/modes/ultrathink";
+import { clearBundledCommandsCache, loadBundledCommands } from "@steve-z8k/pi-coding-agent/task/commands";
 
 beforeAll(() => {
 	// highlightOrchestrate/highlightUltrathink read the global theme's color mode.
@@ -14,15 +14,16 @@ beforeAll(() => {
 });
 
 describe("orchestrate keyword detection", () => {
-	it("matches the lowercase word delimited by whitespace or a string edge", () => {
+	it("matches clear English and Korean orchestration phrasing", () => {
 		expect(containsOrchestrate("orchestrate")).toBe(true);
 		expect(containsOrchestrate("please orchestrate this rollout")).toBe(true);
-		expect(containsOrchestrate("orchestrate the rollout")).toBe(true);
+		expect(containsOrchestrate("오케스트레이터로 진행해줘")).toBe(true);
+		expect(containsOrchestrate("오케스트레이션을 부탁해")).toBe(true);
 		// A newline is whitespace, and end-of-string is a valid right boundary.
 		expect(containsOrchestrate("do it now\norchestrate")).toBe(true);
 	});
 
-	it("ignores casing, inflections, punctuation-adjacent, and path-embedded forms", () => {
+	it("keeps the prose boundary and rejects path-like or code-like forms", () => {
 		expect(containsOrchestrate("Orchestrate")).toBe(false);
 		expect(containsOrchestrate("ORCHESTRATE")).toBe(false);
 		expect(containsOrchestrate("orchestrated the build")).toBe(false);
@@ -33,6 +34,7 @@ describe("orchestrate keyword detection", () => {
 		// The reported bug: a path/extension is not whitespace, so the word never triggers.
 		expect(containsOrchestrate("packages/coding-agent/src/modes/orchestrate.ts")).toBe(false);
 		expect(containsOrchestrate("do it. orchestrate.")).toBe(false);
+		expect(containsOrchestrate("오케스트레이터.ts")).toBe(false);
 		expect(containsOrchestrate("nothing to see here")).toBe(false);
 	});
 
@@ -51,6 +53,12 @@ describe("orchestrate keyword highlighting", () => {
 		expect(decorated).not.toBe("please orchestrate this");
 		expect(decorated).toContain("\x1b");
 		expect(Bun.stripANSI(decorated)).toBe("please orchestrate this");
+	});
+
+	it("highlights Korean orchestration phrasing too", () => {
+		const decorated = highlightOrchestrate("오케스트레이터로 진행해줘");
+		expect(decorated).not.toBe("오케스트레이터로 진행해줘");
+		expect(Bun.stripANSI(decorated)).toBe("오케스트레이터로 진행해줘");
 	});
 
 	it("leaves text without the standalone keyword untouched", () => {
@@ -76,6 +84,11 @@ describe("orchestrate notice", () => {
 		expect(ORCHESTRATE_NOTICE.startsWith("<system-notice>")).toBe(true);
 		expect(ORCHESTRATE_NOTICE.endsWith("</system-notice>")).toBe(true);
 		expect(ORCHESTRATE_NOTICE).toContain("orchestrator");
+		expect(ORCHESTRATE_NOTICE).toContain(
+			"Before dispatching or broad repo reads, choose the Circle work-type `profile`",
+		);
+		expect(ORCHESTRATE_NOTICE).toContain("symbol lookup → `find_definition`");
+		expect(ORCHESTRATE_NOTICE).toContain("impact/security review → `trace_impact`");
 		// The contract must not retain the slash-command input placeholder.
 		expect(ORCHESTRATE_NOTICE).not.toContain("$@");
 	});

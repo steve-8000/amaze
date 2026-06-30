@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 
-import { getProjectDir, logger } from "@amaze/pi-utils";
+import { getProjectDir, logger } from "@steve-z8k/pi-utils";
 import { Settings } from "../../config/settings";
 import { OutputSink } from "../../session/streaming-output";
 import type { ToolSession } from "../../tools";

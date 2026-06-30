@@ -1,4 +1,4 @@
-import { logger } from "@amaze/pi-utils";
+import { logger } from "@steve-z8k/pi-utils";
 
 const DELIVERY_RETRY_BASE_MS = 500;
 const DELIVERY_RETRY_MAX_MS = 30_000;
@@ -33,6 +33,8 @@ export interface AsyncJob {
 	status: "running" | "completed" | "failed" | "cancelled";
 	startTime: number;
 	label: string;
+	/** Optional task subagent kind (for example "flash" or "deep") for display. */
+	agentName?: string;
 	abortController: AbortController;
 	promise: Promise<void>;
 	resultText?: string;
@@ -84,6 +86,8 @@ export interface AsyncJobRegisterOptions {
 	queued?: boolean;
 	/** Whether successful completion should be delivered into the owning session. Failures still deliver. */
 	deliverOnSuccess?: boolean;
+	/** Optional task subagent kind (for example "flash" or "deep") for display. */
+	agentName?: string;
 }
 
 /**
@@ -191,6 +195,7 @@ export class AsyncJobManager {
 			status: "running",
 			startTime,
 			label,
+			agentName: options?.agentName,
 			abortController,
 			promise: Promise.resolve(),
 			ownerId: options?.ownerId,

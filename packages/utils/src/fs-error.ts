@@ -5,7 +5,7 @@
  *
  * @example
  * ```ts
- * import { isEnoent, isFsError } from "@amaze/pi-utils";
+ * import { isEnoent, isFsError } from "@steve-z8k/pi-utils";
  *
  * try {
  *     return await Bun.file(path).text();

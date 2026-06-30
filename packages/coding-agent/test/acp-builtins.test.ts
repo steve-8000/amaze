@@ -2,11 +2,16 @@ import { describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { ResetCreditAccountStatus, ResetCreditRedeemOutcome, ResetCreditTarget, UsageReport } from "@amaze/pi-ai";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import type { AgentSession } from "@amaze/pi-coding-agent/session/agent-session";
-import type { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import { executeAcpBuiltinSlashCommand } from "@amaze/pi-coding-agent/slash-commands/acp-builtins";
+import type {
+	ResetCreditAccountStatus,
+	ResetCreditRedeemOutcome,
+	ResetCreditTarget,
+	UsageReport,
+} from "@steve-z8k/pi-ai";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import type { AgentSession } from "@steve-z8k/pi-coding-agent/session/agent-session";
+import type { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import { executeAcpBuiltinSlashCommand } from "@steve-z8k/pi-coding-agent/slash-commands/acp-builtins";
 
 interface FakeAcpBuiltinSession {
 	fastMode: boolean;
@@ -31,7 +36,6 @@ interface FakeAcpBuiltinSession {
 	newSession(opts?: { drop?: boolean; parentSession?: string }): Promise<boolean>;
 	fork(): Promise<boolean>;
 	handoff(instr?: string): Promise<{ document: string; savedPath?: string } | undefined>;
-	exportToHtml(outputPath?: string): Promise<string>;
 	getTodoPhases(): Array<{ name: string; tasks: Array<{ content: string; status: string }> }>;
 	setTodoPhases(phases: Array<{ name: string; tasks: Array<{ content: string; status: string }> }>): void;
 	refreshBaseSystemPrompt(): Promise<void>;
@@ -83,9 +87,6 @@ function createRuntime() {
 		},
 		async handoff(_instr?: string) {
 			return undefined;
-		},
-		async exportToHtml(outputPath?: string) {
-			return outputPath ?? "/tmp/exported-session.html";
 		},
 		getTodoPhases() {
 			return this._todoPhases;
@@ -356,12 +357,12 @@ describe("ACP builtin slash commands", () => {
 	// /model
 	it("model: returns current model when set", async () => {
 		const { output, runtime } = createRuntime();
-		runtime.session.model = { provider: "anthropic", id: "claude-opus-4-5" } as never;
+		runtime.session.model = { provider: "anthropic", id: "claude-opus-4-8" } as never;
 
 		const result = await executeAcpBuiltinSlashCommand("/model", runtime);
 
 		expect(result).toEqual({ consumed: true });
-		expect(output[0]).toContain("anthropic/claude-opus-4-5");
+		expect(output[0]).toContain("anthropic/claude-opus-4-8");
 	});
 
 	it("model: returns no-selection message when undefined", async () => {
@@ -514,31 +515,6 @@ describe("session lifecycle commands", () => {
 });
 
 describe("wave 3 commands", () => {
-	// /export
-	it("/export: calls exportToHtml with the given arg and outputs the path", async () => {
-		const { output, runtime } = createRuntime();
-		const result = await executeAcpBuiltinSlashCommand("/export /tmp/out.html", runtime);
-		expect(result).toEqual({ consumed: true });
-		expect(output[0]).toBe("Session exported to: /tmp/out.html");
-	});
-
-	it("/export: uses default path when no arg given", async () => {
-		const { output, runtime } = createRuntime();
-		const result = await executeAcpBuiltinSlashCommand("/export", runtime);
-		expect(result).toEqual({ consumed: true });
-		expect(output[0]).toContain("Session exported to:");
-	});
-
-	it("/export: returns usage on exportToHtml failure", async () => {
-		const { output, session, runtime } = createRuntime();
-		session.exportToHtml = async () => {
-			throw new Error("disk full");
-		};
-		const result = await executeAcpBuiltinSlashCommand("/export", runtime);
-		expect(result).toEqual({ consumed: true });
-		expect(output[0]).toContain("Failed to export session: disk full");
-	});
-
 	// /todo
 	it("/todo no-args: outputs empty state message when no todos", async () => {
 		const { output, runtime } = createRuntime();
@@ -898,7 +874,7 @@ describe("wave 5 — adapters and polish", () => {
 	it("/mcp add foo --url https://example.com --token X --scope project: outputs success or propagates write error", async () => {
 		// Uses project scope so it writes to /tmp/project/.amaze/mcp.json which test infra controls.
 		// We verify the command either reports success or a meaningful error (not a parse error).
-		const mcpModule = await import("@amaze/pi-coding-agent/mcp/config-writer");
+		const mcpModule = await import("@steve-z8k/pi-coding-agent/mcp/config-writer");
 		const spy = spyOn(mcpModule, "addMCPServer").mockResolvedValue(undefined);
 		try {
 			const { output, runtime } = createRuntime();
@@ -936,7 +912,7 @@ describe("wave 5 — adapters and polish", () => {
 
 	// /ssh add — spy on addSSHHost
 	it("/ssh add foo --host x --user y --scope user: calls addSSHHost", async () => {
-		const sshModule = await import("@amaze/pi-coding-agent/ssh/config-writer");
+		const sshModule = await import("@steve-z8k/pi-coding-agent/ssh/config-writer");
 		const spy = spyOn(sshModule, "addSSHHost").mockResolvedValue(undefined);
 		try {
 			const { output, runtime } = createRuntime();
@@ -1041,7 +1017,7 @@ describe("wave 5 — adapters and polish", () => {
 
 	// /marketplace discover bulleted list
 	it("/marketplace discover: output is bulleted with '  - ' token", async () => {
-		const { MarketplaceManager } = await import("@amaze/pi-coding-agent/extensibility/plugins/marketplace");
+		const { MarketplaceManager } = await import("@steve-z8k/pi-coding-agent/extensibility/plugins/marketplace");
 		const discoverSpy = spyOn(MarketplaceManager.prototype, "listAvailablePlugins").mockResolvedValue([
 			{ name: "hello", version: "1.0.0", description: "A greeting plugin" } as never,
 			{ name: "world", version: "2.0.0", description: undefined } as never,

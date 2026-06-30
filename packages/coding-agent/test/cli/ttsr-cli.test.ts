@@ -8,9 +8,9 @@ import {
 	type TtsrCommandArgs,
 	type TtsrScanArgs,
 	type TtsrTestArgs,
-} from "@amaze/pi-coding-agent/cli/ttsr-cli";
-import { resetSettingsForTest } from "@amaze/pi-coding-agent/config/settings";
-import { getProjectAgentDir, getProjectDir, setProjectDir } from "@amaze/pi-utils";
+} from "@steve-z8k/pi-coding-agent/cli/ttsr-cli";
+import { resetSettingsForTest } from "@steve-z8k/pi-coding-agent/config/settings";
+import { getProjectAgentDir, getProjectDir, setProjectDir } from "@steve-z8k/pi-utils";
 
 let testTmpDir: string;
 

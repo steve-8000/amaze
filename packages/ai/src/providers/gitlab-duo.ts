@@ -1,4 +1,4 @@
-import { buildModel } from "@amaze/pi-catalog/build";
+import { buildModel } from "@steve-z8k/pi-catalog/build";
 import { ANTHROPIC_THINKING, mapAnthropicToolChoice } from "../stream";
 import type { Api, Context, FetchImpl, Model, ModelSpec, SimpleStreamOptions } from "../types";
 import { AssistantMessageEventStream } from "../utils/event-stream";

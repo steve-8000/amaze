@@ -1,6 +1,6 @@
-import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@amaze/pi-agent-core";
-import type { ToolExample } from "@amaze/pi-ai";
-import { prompt, untilAborted } from "@amaze/pi-utils";
+import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@steve-z8k/pi-agent-core";
+import type { ToolExample } from "@steve-z8k/pi-ai";
+import { prompt, untilAborted } from "@steve-z8k/pi-utils";
 import { type } from "arktype";
 import browserDescription from "../prompts/tools/browser.md" with { type: "text" };
 import type { ToolSession } from "../sdk";

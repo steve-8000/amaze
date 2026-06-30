@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { SessionFocusController } from "@amaze/pi-coding-agent/modes/controllers/session-focus-controller";
-import type { InteractiveModeContext } from "@amaze/pi-coding-agent/modes/types";
-import { AgentLifecycleManager } from "@amaze/pi-coding-agent/registry/agent-lifecycle";
-import { AgentRegistry, MAIN_AGENT_ID } from "@amaze/pi-coding-agent/registry/agent-registry";
-import type { AgentSession, AgentSessionEvent } from "@amaze/pi-coding-agent/session/agent-session";
+import { SessionFocusController } from "@steve-z8k/pi-coding-agent/modes/controllers/session-focus-controller";
+import type { InteractiveModeContext } from "@steve-z8k/pi-coding-agent/modes/types";
+import { AgentLifecycleManager } from "@steve-z8k/pi-coding-agent/registry/agent-lifecycle";
+import { AgentRegistry, MAIN_AGENT_ID } from "@steve-z8k/pi-coding-agent/registry/agent-registry";
+import type { AgentSession, AgentSessionEvent } from "@steve-z8k/pi-coding-agent/session/agent-session";
 
 interface SessionStub {
 	session: AgentSession;
@@ -90,7 +90,6 @@ function makeHarness(): Harness {
 		updateEditorBorderColor() {},
 		ui: { requestRender() {} },
 		showStatus() {},
-		collabGuest: undefined,
 	} as unknown as InteractiveModeContext;
 
 	const registry = new AgentRegistry();

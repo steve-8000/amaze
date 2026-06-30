@@ -11,7 +11,7 @@ import {
 	sanitizeContent,
 	shannonEntropy,
 	storeBlob,
-} from "@amaze/pi-rocky-memory/core/content-sanitizer";
+} from "@steve-z8k/pi-rocky-memory/core/content-sanitizer";
 
 const ORIGINAL_BLOB_DIR = process.env.ROCKY_MEMORY_BLOB_DIR;
 

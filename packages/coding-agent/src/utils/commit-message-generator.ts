@@ -2,10 +2,10 @@
  * Generate commit messages from diffs using a smol, fast model.
  * Follows the same pattern as title-generator.ts.
  */
-import type { ThinkingLevel } from "@amaze/pi-agent-core";
-import type { Api, Model } from "@amaze/pi-ai";
-import { completeSimple } from "@amaze/pi-ai";
-import { logger, prompt } from "@amaze/pi-utils";
+import type { ThinkingLevel } from "@steve-z8k/pi-agent-core";
+import type { Api, Model } from "@steve-z8k/pi-ai";
+import { completeSimple } from "@steve-z8k/pi-ai";
+import { logger, prompt } from "@steve-z8k/pi-utils";
 
 import type { ModelRegistry } from "../config/model-registry";
 import { getModelMatchPreferences, resolveModelRoleValue } from "../config/model-resolver";
@@ -52,14 +52,14 @@ function getSmolModelCandidates(
 	};
 
 	const matchPreferences = getModelMatchPreferences(settings);
-	const configuredSmol = resolveModelRoleValue(settings.getModelRole("smol"), availableModels, {
+	const configuredSmol = resolveModelRoleValue(settings.getModelRole("flash"), availableModels, {
 		settings,
 		matchPreferences,
 		modelRegistry: registry,
 	});
 	addCandidate(configuredSmol.model, configuredSmol.thinkingLevel);
 
-	for (const pattern of MODEL_PRIO.smol) {
+	for (const pattern of MODEL_PRIO.flash) {
 		const needle = pattern.toLowerCase();
 		addCandidate(availableModels.find(m => m.id.toLowerCase() === needle));
 		addCandidate(availableModels.find(m => m.id.toLowerCase().includes(needle)));
@@ -84,7 +84,7 @@ export async function generateCommitMessage(
 ): Promise<string | null> {
 	const candidates = getSmolModelCandidates(registry, settings);
 	if (candidates.length === 0) {
-		logger.debug("commit-msg-generator: no smol model found");
+		logger.debug("commit-msg-generator: no fast commit lane found");
 		return null;
 	}
 

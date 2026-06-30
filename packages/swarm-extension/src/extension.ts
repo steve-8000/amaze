@@ -11,8 +11,8 @@
 
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { ExtensionAPI, ExtensionCommandContext } from "@amaze/pi-coding-agent";
-import { formatDuration } from "@amaze/pi-utils";
+import type { ExtensionAPI, ExtensionCommandContext } from "@steve-z8k/pi-coding-agent";
+import { formatDuration } from "@steve-z8k/pi-utils";
 import { buildDependencyGraph, buildExecutionWaves, detectCycles } from "./swarm/dag";
 import { PipelineController } from "./swarm/pipeline";
 import { renderSwarmProgress } from "./swarm/render";

@@ -1,11 +1,11 @@
 /**
  * AES-256-GCM sealing for collab frames (browser-safe vendored mirror of
- * `@amaze/pi-coding-agent/src/collab/crypto.ts` — WebCrypto only).
+ * `@steve-z8k/pi-coding-agent/src/collab/crypto.ts` — WebCrypto only).
  *
  * The room key lives only in the link fragment; the relay sees opaque bytes.
  * Sealed layout: `[12B IV][ciphertext+tag]`.
  */
-import type { WireFrame } from "@amaze/pi-wire";
+import type { WireFrame } from "@steve-z8k/pi-wire";
 
 const AES_ALGORITHM = "AES-GCM";
 const IV_LENGTH = 12;

@@ -1,4 +1,4 @@
-import { tryParseJson } from "@amaze/pi-utils";
+import { tryParseJson } from "@steve-z8k/pi-utils";
 import type { SpecialHandler } from "./types";
 import { buildResult, decodeHtmlEntities, formatIsoDate, loadPage } from "./types";
 

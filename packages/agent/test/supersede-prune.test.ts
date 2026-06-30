@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import type { AgentMessage } from "@amaze/pi-agent-core";
-import type { SessionEntry, SessionMessageEntry } from "@amaze/pi-agent-core/compaction";
+import type { AgentMessage } from "@steve-z8k/pi-agent-core";
+import type { SessionEntry, SessionMessageEntry } from "@steve-z8k/pi-agent-core/compaction";
 import {
 	DEFAULT_PRUNE_CONFIG,
 	pruneSupersededToolResults,
@@ -9,9 +9,9 @@ import {
 	SUPERSEDED_NOTICE,
 	type SupersedePruneConfig,
 	USELESS_NOTICE,
-} from "@amaze/pi-agent-core/compaction";
-import type { ProtectedToolContext } from "@amaze/pi-agent-core/compaction/tool-protection";
-import type { AssistantMessage, TextContent, ToolResultMessage } from "@amaze/pi-ai";
+} from "@steve-z8k/pi-agent-core/compaction";
+import type { ProtectedToolContext } from "@steve-z8k/pi-agent-core/compaction/tool-protection";
+import type { AssistantMessage, TextContent, ToolResultMessage } from "@steve-z8k/pi-ai";
 
 let idCounter = 0;
 function nextId(): string {

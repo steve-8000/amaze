@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
 /**
- * Syncs ALL @amaze/* package dependency versions to match their current versions.
+ * Syncs ALL @steve-z8k/* package dependency versions to match their current versions.
  * This ensures lockstep versioning across the monorepo.
  */
 

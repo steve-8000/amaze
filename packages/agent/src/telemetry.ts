@@ -24,6 +24,16 @@
  */
 
 import {
+	type Attributes,
+	type AttributeValue,
+	context,
+	type Span,
+	SpanKind,
+	SpanStatusCode,
+	type Tracer,
+	trace,
+} from "@opentelemetry/api";
+import {
 	type Api,
 	type AssistantMessage,
 	type Context,
@@ -37,23 +47,13 @@ import {
 	shouldSendServiceTier,
 	type ToolChoice,
 	type Usage,
-} from "@amaze/pi-ai";
-import {
-	type Attributes,
-	type AttributeValue,
-	context,
-	type Span,
-	SpanKind,
-	SpanStatusCode,
-	type Tracer,
-	trace,
-} from "@opentelemetry/api";
+} from "@steve-z8k/pi-ai";
 import { AgentRunCollector, type AgentRunCoverage, type AgentRunSummary, type ToolStatus } from "./run-collector";
 import type { AgentTool } from "./types";
 import { EventLoopKeepalive } from "./utils/yield";
 
 /** Default tracer name. Override via {@link AgentTelemetryConfig.tracerName}. */
-export const DEFAULT_TRACER_NAME = "@amaze/pi-agent-core";
+export const DEFAULT_TRACER_NAME = "@steve-z8k/pi-agent-core";
 
 /** Env var matching the OTEL semconv content-capture toggle. */
 const CONTENT_CAPTURE_ENV = "OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT";
@@ -1613,7 +1613,7 @@ export interface InstrumentedChatSpanOptions {
 	readonly attributes?: Attributes;
 	/**
 	 * Override for the underlying {@link completeSimple} call. Defaults to
-	 * `completeSimple` from `@amaze/pi-ai`. Use to retain a test injection
+	 * `completeSimple` from `@steve-z8k/pi-ai`. Use to retain a test injection
 	 * seam while still going through the chat-span lifecycle.
 	 */
 	readonly completeImpl?: <TApi extends Api>(

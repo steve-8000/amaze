@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { Text } from "@amaze/pi-tui";
-import { formatBytes } from "@amaze/pi-utils";
+import { Text } from "@steve-z8k/pi-tui";
+import { formatBytes } from "@steve-z8k/pi-utils";
 import { type } from "arktype";
 import { executeBash } from "../../exec/bash-executor";
 import type { ToolDefinition } from "../../extensibility/extensions";

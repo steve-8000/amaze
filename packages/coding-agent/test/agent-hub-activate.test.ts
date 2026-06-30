@@ -5,16 +5,16 @@
  */
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { resetSettingsForTest, Settings } from "@amaze/pi-coding-agent/config/settings";
-import { IrcBus } from "@amaze/pi-coding-agent/irc/bus";
-import { AgentHubOverlayComponent } from "@amaze/pi-coding-agent/modes/components/agent-hub";
-import { SelectorController } from "@amaze/pi-coding-agent/modes/controllers/selector-controller";
-import { SessionObserverRegistry } from "@amaze/pi-coding-agent/modes/session-observer-registry";
-import { initTheme } from "@amaze/pi-coding-agent/modes/theme/theme";
-import type { InteractiveModeContext } from "@amaze/pi-coding-agent/modes/types";
-import { AgentRegistry } from "@amaze/pi-coding-agent/registry/agent-registry";
-import type { AgentSession } from "@amaze/pi-coding-agent/session/agent-session";
-import { TempDir } from "@amaze/pi-utils";
+import { resetSettingsForTest, Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { IrcBus } from "@steve-z8k/pi-coding-agent/irc/bus";
+import { AgentHubOverlayComponent } from "@steve-z8k/pi-coding-agent/modes/components/agent-hub";
+import { SelectorController } from "@steve-z8k/pi-coding-agent/modes/controllers/selector-controller";
+import { SessionObserverRegistry } from "@steve-z8k/pi-coding-agent/modes/session-observer-registry";
+import { initTheme } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
+import type { InteractiveModeContext } from "@steve-z8k/pi-coding-agent/modes/types";
+import { AgentRegistry } from "@steve-z8k/pi-coding-agent/registry/agent-registry";
+import type { AgentSession } from "@steve-z8k/pi-coding-agent/session/agent-session";
+import { TempDir } from "@steve-z8k/pi-utils";
 
 const AGENT_ID = "Worker";
 const TEST_CWD = path.resolve("agent-hub-cwd");
@@ -151,7 +151,6 @@ describe("Agent hub Enter activation", () => {
 			},
 			editor,
 			editorContainer,
-			collabGuest: { agentRegistry: agents, hubRemote: undefined },
 			focusAgentSession: async (id: string) => {
 				focusedIds.push(id);
 				focusResolved.resolve();
@@ -187,7 +186,7 @@ describe("Agent hub double-← gating", () => {
 		resetSettingsForTest();
 	});
 
-	function setup(agents: AgentRegistry) {
+	function setup(_agents: AgentRegistry) {
 		let shown: AgentHubOverlayComponent | undefined;
 		const editor = {};
 		const ctx = {
@@ -203,7 +202,6 @@ describe("Agent hub double-← gating", () => {
 					if (child !== editor) shown = child as AgentHubOverlayComponent;
 				},
 			},
-			collabGuest: { agentRegistry: agents, hubRemote: undefined },
 			focusAgentSession: async () => {},
 			session: { getToolByName: () => undefined, extensionRunner: undefined },
 			sessionManager: { getCwd: () => TEST_CWD, getSessionFile: () => null },

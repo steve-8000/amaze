@@ -1,7 +1,7 @@
 /**
  * `amaze auth-broker` — manage the Amaze credential vault.
  */
-import { Args, Command, Flags, renderCommandHelp } from "@amaze/pi-utils/cli";
+import { Args, Command, Flags, renderCommandHelp } from "@steve-z8k/pi-utils/cli";
 import {
 	AUTH_BROKER_ACTIONS,
 	type AuthBrokerAction,

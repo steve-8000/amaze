@@ -1,8 +1,8 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { LogoutAccountSelectorComponent } from "@amaze/pi-coding-agent/modes/components/logout-account-selector";
-import { initTheme } from "@amaze/pi-coding-agent/modes/theme/theme";
-import type { StoredAuthCredential } from "@amaze/pi-coding-agent/session/auth-storage";
-import { toLogoutAccounts } from "@amaze/pi-coding-agent/slash-commands/helpers/logout";
+import { LogoutAccountSelectorComponent } from "@steve-z8k/pi-coding-agent/modes/components/logout-account-selector";
+import { initTheme } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
+import type { StoredAuthCredential } from "@steve-z8k/pi-coding-agent/session/auth-storage";
+import { toLogoutAccounts } from "@steve-z8k/pi-coding-agent/slash-commands/helpers/logout";
 
 beforeAll(async () => {
 	await initTheme();

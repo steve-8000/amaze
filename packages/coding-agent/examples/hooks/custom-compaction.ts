@@ -12,9 +12,9 @@
  * Usage:
  *   amaze --hook examples/hooks/custom-compaction.ts
  */
-import { complete, getModel } from "@amaze/pi-ai";
-import type { HookAPI } from "@amaze/pi-coding-agent";
-import { convertToLlm, serializeConversation } from "@amaze/pi-coding-agent";
+import { complete, getModel } from "@steve-z8k/pi-ai";
+import type { HookAPI } from "@steve-z8k/pi-coding-agent";
+import { convertToLlm, serializeConversation } from "@steve-z8k/pi-coding-agent";
 
 export default function (pi: HookAPI) {
 	pi.on("session_before_compact", async (event, ctx) => {

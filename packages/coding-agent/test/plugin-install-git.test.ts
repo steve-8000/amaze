@@ -1,7 +1,7 @@
 /**
  * Install-from-git tests for `PluginManager.install`.
  *
- * Strategy: spy on the six `@amaze/pi-utils` plugin-path getters so the
+ * Strategy: spy on the six `@steve-z8k/pi-utils` plugin-path getters so the
  * manager points at a temp directory tree, then spy on `Bun.spawn` so we can
  * simulate `bun install <git-spec>`'s side effects (writing the dep into
  * `plugins/package.json` under its real name, and dropping a matching
@@ -18,8 +18,8 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { PluginManager } from "@amaze/pi-coding-agent/extensibility/plugins/manager";
-import * as piUtils from "@amaze/pi-utils";
+import { PluginManager } from "@steve-z8k/pi-coding-agent/extensibility/plugins/manager";
+import * as piUtils from "@steve-z8k/pi-utils";
 import type { Subprocess } from "bun";
 
 function emptyStream(): ReadableStream<Uint8Array> {

@@ -2,20 +2,20 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AssistantMessage, completeSimple, Model } from "@amaze/pi-ai";
-import { buildModel } from "@amaze/pi-catalog/build";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
+import type { AssistantMessage, completeSimple, Model } from "@steve-z8k/pi-ai";
+import { buildModel } from "@steve-z8k/pi-catalog/build";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
 import {
 	type DescribeAttachedImagesDeps,
 	describeAttachedImagesForTextModel,
-} from "@amaze/pi-coding-agent/utils/image-vision-fallback";
+} from "@steve-z8k/pi-coding-agent/utils/image-vision-fallback";
 
 // 1x1 transparent PNG.
 const TINY_PNG_BASE64 =
 	"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==";
 
 const visionModel: Model<"openai-responses"> = buildModel({
-	id: "gpt-4o",
+	id: "gpt-5.4",
 	name: "GPT-4o",
 	api: "openai-responses",
 	provider: "openai",

@@ -1,10 +1,10 @@
-import { ThinkingLevel } from "@amaze/pi-agent-core";
-import { PASTE_CODE_LOGIN_PROVIDERS } from "@amaze/pi-ai";
-import { getOAuthProviders } from "@amaze/pi-ai/oauth";
-import type { OAuthProvider } from "@amaze/pi-ai/oauth/types";
-import type { Component, OverlayHandle } from "@amaze/pi-tui";
-import { Input, Loader, Spacer, setTuiTight, Text } from "@amaze/pi-tui";
-import { getAgentDbPath, getProjectDir, normalizePathForComparison } from "@amaze/pi-utils";
+import { ThinkingLevel } from "@steve-z8k/pi-agent-core";
+import { PASTE_CODE_LOGIN_PROVIDERS } from "@steve-z8k/pi-ai";
+import { getOAuthProviders } from "@steve-z8k/pi-ai/oauth";
+import type { OAuthProvider } from "@steve-z8k/pi-ai/oauth/types";
+import type { Component, OverlayHandle } from "@steve-z8k/pi-tui";
+import { Input, Loader, Spacer, setTuiTight, Text } from "@steve-z8k/pi-tui";
+import { getAgentDbPath, getProjectDir, normalizePathForComparison } from "@steve-z8k/pi-utils";
 import { formatModelSelectorValue } from "../../config/model-resolver";
 import { getRoleInfo } from "../../config/model-roles";
 import { settings } from "../../config/settings";
@@ -39,11 +39,9 @@ import {
 } from "../../slash-commands/helpers/reset-usage";
 import { AUTO_THINKING, type ConfiguredThinkingLevel } from "../../thinking";
 import {
-	isImageProviderPreference,
 	isSearchProviderId,
 	isSearchProviderPreference,
 	setExcludedSearchProviders,
-	setPreferredImageProvider,
 	setPreferredSearchProvider,
 } from "../../tools";
 import { shortenPath } from "../../tools/render-utils";
@@ -235,7 +233,7 @@ export class SelectorController {
 	async showAgentsDashboard(): Promise<void> {
 		const activeModel = this.ctx.session.model;
 		const activeModelPattern = activeModel ? `${activeModel.provider}/${activeModel.id}` : undefined;
-		const defaultModelPattern = this.ctx.settings.getModelRole("default");
+		const defaultModelPattern = this.ctx.settings.getModelRole("flash");
 		const dashboard = await AgentDashboard.create(getProjectDir(), this.ctx.settings, this.ctx.ui.terminal.rows, {
 			modelRegistry: this.ctx.session.modelRegistry,
 			activeModelPattern,
@@ -452,11 +450,6 @@ export class SelectorController {
 					setExcludedSearchProviders(value.filter(isSearchProviderId));
 				}
 				break;
-			case "providers.image":
-				if (isImageProviderPreference(value)) {
-					setPreferredImageProvider(value);
-				}
-				break;
 
 			// MCP update injection - live subscribe/unsubscribe
 			case "mcp.notifications":
@@ -498,8 +491,8 @@ export class SelectorController {
 							);
 							done();
 							this.ctx.ui.requestRender();
-						} else if (role === "default") {
-							// Default: update agent state and persist
+						} else if (role === "flash") {
+							// Primary lane: update agent state and persist
 							await this.ctx.session.setModel(model, role, {
 								selector,
 								thinkingLevel: concreteThinking,
@@ -512,10 +505,10 @@ export class SelectorController {
 							}
 							this.ctx.statusLine.invalidate();
 							this.ctx.updateEditorBorderColor();
-							this.ctx.showStatus(`Default model: ${selector ?? model.id}`);
+							this.ctx.showStatus(`Flash model: ${selector ?? model.id}`);
 							// Don't call done() - selector stays open for role assignment
 						} else {
-							// Other roles (smol, slow): just update settings, not current model
+							// Other lanes: just update settings, not current model
 							this.ctx.settings.setModelRole(
 								role,
 								formatModelSelectorValue(selector ?? `${model.provider}/${model.id}`, concreteThinking),
@@ -1220,14 +1213,6 @@ export class SelectorController {
 		}
 	}
 
-	async showDebugSelector(): Promise<void> {
-		const { DebugSelectorComponent } = await import("../../debug");
-		this.showSelector(done => {
-			const selector = new DebugSelectorComponent(this.ctx, done);
-			return { component: selector, focus: selector };
-		});
-	}
-
 	showAgentHub(observers: SessionObserverRegistry, options?: { requireContent?: boolean }): void {
 		const hubKeys = [
 			...this.ctx.keybindings.getKeys("app.agents.hub"),
@@ -1258,8 +1243,6 @@ export class SelectorController {
 			expandKeys: this.ctx.keybindings.getKeys("app.tools.expand"),
 			onDone: done,
 			requestRender: () => this.ctx.ui.requestRender(),
-			registry: this.ctx.collabGuest?.agentRegistry,
-			remote: this.ctx.collabGuest?.hubRemote,
 			ui: this.ctx.ui,
 			getTool: name => this.ctx.session.getToolByName(name),
 			getMessageRenderer: type => this.ctx.session.extensionRunner?.getMessageRenderer(type),

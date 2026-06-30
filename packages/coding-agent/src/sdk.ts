@@ -6,7 +6,7 @@ import {
 	type AgentTool,
 	AppendOnlyContextManager,
 	type ThinkingLevel,
-} from "@amaze/pi-agent-core";
+} from "@steve-z8k/pi-agent-core";
 import {
 	type Context,
 	type CredentialDisabledEvent,
@@ -14,16 +14,16 @@ import {
 	type Model,
 	type SimpleStreamOptions,
 	streamSimple,
-} from "@amaze/pi-ai";
-import type { Dialect } from "@amaze/pi-ai/dialect";
+} from "@steve-z8k/pi-ai";
+import type { Dialect } from "@steve-z8k/pi-ai/dialect";
 import {
 	getOpenAICodexTransportDetails,
 	prewarmOpenAICodexResponses,
-} from "@amaze/pi-ai/providers/openai-codex-responses";
-import { FALLBACK_DIALECT, preferredDialect } from "@amaze/pi-catalog/identity";
-import type { Component } from "@amaze/pi-tui";
-import { $env, $flag, getAgentDir, getProjectDir, logger, postmortem, prompt, Snowflake } from "@amaze/pi-utils";
-import { INTENT_FIELD } from "@amaze/pi-wire";
+} from "@steve-z8k/pi-ai/providers/openai-codex-responses";
+import { FALLBACK_DIALECT, preferredDialect } from "@steve-z8k/pi-catalog/identity";
+import type { Component } from "@steve-z8k/pi-tui";
+import { $env, $flag, getAgentDir, getProjectDir, logger, postmortem, prompt, Snowflake } from "@steve-z8k/pi-utils";
+import { INTENT_FIELD } from "@steve-z8k/pi-wire";
 import { ADVISOR_READONLY_TOOL_NAMES, discoverWatchdogFiles } from "./advisor";
 import { type AsyncJob, AsyncJobManager } from "./async";
 import { AutoLearnController, buildAutoLearnInstructions } from "./autolearn/controller";
@@ -143,12 +143,10 @@ import {
 	computeEssentialBuiltinNames,
 	createTools,
 	EditTool,
-	EvalTool,
 	FindTool,
 	filterInitialToolsForDiscoveryAll,
 	getSearchTools,
 	HIDDEN_TOOLS,
-	isImageProviderPreference,
 	isSearchProviderId,
 	isSearchProviderPreference,
 	loadSshTool,
@@ -158,7 +156,6 @@ import {
 	SearchTool,
 	SearchToolBm25Tool,
 	setExcludedSearchProviders,
-	setPreferredImageProvider,
 	setPreferredSearchProvider,
 	type Tool,
 	type ToolSession,
@@ -166,10 +163,8 @@ import {
 	WriteTool,
 } from "./tools";
 import { ToolContextStore } from "./tools/context";
-import { getImageGenTools } from "./tools/image-gen";
 import { wrapToolWithMetaNotice } from "./tools/output-meta";
 import { queueResolveHandler } from "./tools/resolve";
-import { ttsTool } from "./tools/tts";
 import { EventBus } from "./utils/event-bus";
 import { buildNamedToolChoice } from "./utils/tool-choice";
 import { buildWorkspaceTree, type WorkspaceTree } from "./workspace-tree";
@@ -186,6 +181,7 @@ type AsyncResultJobDetails = {
 	type?: "bash" | "task";
 	status?: "running" | "completed" | "failed" | "cancelled";
 	label?: string;
+	agentName?: string;
 	durationMs?: number;
 };
 
@@ -206,6 +202,9 @@ function buildAsyncResultBatchMessage(entries: AsyncResultEntry[]): CustomMessag
 		type: entry.job?.type,
 		status: entry.job?.status,
 		label: entry.job?.label,
+		agentName:
+			entry.job?.agentName ??
+			(entry.job?.type === "task" ? AgentRegistry.global().get(entry.jobId)?.agentName : undefined),
 		durationMs: entry.durationMs,
 	}));
 	const details: AsyncResultDetails = {
@@ -214,6 +213,7 @@ function buildAsyncResultBatchMessage(entries: AsyncResultEntry[]): CustomMessag
 			type: job.type,
 			status: job.status,
 			label: job.label,
+			agentName: job.agentName,
 			durationMs: job.durationMs,
 		})),
 	};
@@ -563,7 +563,6 @@ export {
 	BUILTIN_TOOLS,
 	createTools,
 	EditTool,
-	EvalTool,
 	FindTool,
 	HIDDEN_TOOLS,
 	loadSshTool,
@@ -1013,7 +1012,7 @@ function buildMCPPromptCommands(manager: MCPManager): LoadedCustomCommand[] {
  * const { session } = await createAgentSession();
  *
  * // With explicit model
- * import { getModel } from '@amaze/pi-ai';
+ * import { getModel } from '@steve-z8k/pi-ai';
  * const { session } = await createAgentSession({
  *   model: getModel('anthropic', 'claude-opus-4-5'),
  *   thinkingLevel: 'high',
@@ -1131,11 +1130,6 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 		setPreferredSearchProvider(webSearchProvider);
 	}
 
-	const imageProvider = settings.get("providers.image");
-	if (isImageProviderPreference(imageProvider)) {
-		setPreferredImageProvider(imageProvider);
-	}
-
 	const sessionManager =
 		options.sessionManager ??
 		logger.time("sessionManager", () =>
@@ -1180,7 +1174,7 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 		resolveAllowedModels(modelRegistry, settings, modelMatchPreferences),
 	);
 	const defaultRoleSpec = logger.time("resolveDefaultModelRole", () =>
-		resolveModelRoleValue(settings.getModelRole("default"), allowedModels, {
+		resolveModelRoleValue(settings.getModelRole("flash"), allowedModels, {
 			settings,
 			matchPreferences: modelMatchPreferences,
 			modelRegistry,
@@ -1708,16 +1702,6 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 		// to mirror the AsyncJobManager ownership rule.
 		if (mcpManager && !options.parentTaskPrefix) MCPManager.setInstance(mcpManager);
 
-		// Add image tools when the active model or configured image providers can generate images.
-		const imageGenTools = await logger.time("getImageGenTools", () => getImageGenTools(modelRegistry, model));
-		if (imageGenTools.length > 0) {
-			customTools.push(...(imageGenTools as unknown as CustomTool[]));
-		}
-
-		if (settings.get("speechgen.enabled")) {
-			customTools.push(ttsTool as unknown as CustomTool);
-		}
-
 		// Add web search tools
 		if (options.toolNames?.includes("web_search")) {
 			customTools.push(...getSearchTools());
@@ -2113,7 +2097,7 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 			// is off all get no guidance.
 			const autoLearnInstructions = buildAutoLearnInstructions({
 				manageSkill: builtInToolNames.includes("manage_skill"),
-				learn: builtInToolNames.includes("learn"),
+				learn: builtInToolNames.includes("capture_lesson"),
 			});
 			let appendPrompt: string | undefined = autoLearnInstructions ?? undefined;
 			if (serverInstructions && serverInstructions.size > 0) {
@@ -2201,7 +2185,7 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 		// same-named custom/extension tool is never force-activated when auto-learn is
 		// off) to keep guidance, controller, and the active set consistent.
 		if (explicitlyRequestedToolNames) {
-			for (const name of ["manage_skill", "learn"]) {
+			for (const name of ["manage_skill", "capture_lesson"]) {
 				if (builtInToolNames.includes(name) && !explicitlyRequestedToolNames.includes(name)) {
 					explicitlyRequestedToolNames.push(name);
 				}
@@ -2697,7 +2681,7 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 			}
 		}
 
-		// Auto-learn may surface `manage_skill` and `learn`. Keep the controller
+		// Auto-learn may surface `manage_skill` and `capture_lesson`. Keep the controller
 		// gated to the same session-start decision that also gated tool creation:
 		// `createTools` builds those registries ONCE at session start, and no
 		// settings change rebuilds them, so installing the controller while disabled

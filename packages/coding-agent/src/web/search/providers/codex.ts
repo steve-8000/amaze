@@ -7,10 +7,10 @@
  * SQLite store, never POSTs the broker sentinel to an OpenAI token endpoint.
  */
 import * as os from "node:os";
-import { type AuthStorage, type FetchImpl, type OAuthAccess, withOAuthAccess } from "@amaze/pi-ai";
-import { decodeJwt } from "@amaze/pi-ai/oauth/openai-codex";
-import { getBundledModels } from "@amaze/pi-catalog/models";
-import { $env, readSseJson } from "@amaze/pi-utils";
+import { type AuthStorage, type FetchImpl, type OAuthAccess, withOAuthAccess } from "@steve-z8k/pi-ai";
+import { decodeJwt } from "@steve-z8k/pi-ai/oauth/openai-codex";
+import { getBundledModels } from "@steve-z8k/pi-catalog/models";
+import { $env, readSseJson } from "@steve-z8k/pi-utils";
 import packageJson from "../../../../package.json" with { type: "json" };
 import type { SearchResponse, SearchSource } from "../../../web/search/types";
 import { SearchProviderError } from "../../../web/search/types";
@@ -20,8 +20,9 @@ import { classifyProviderHttpError, withHardTimeout } from "./utils";
 
 const CODEX_BASE_URL = "https://chatgpt.com/backend-api";
 const CODEX_RESPONSES_PATH = "/codex/responses";
-const FALLBACK_MODEL = "gpt-5.5";
+const FALLBACK_MODEL = "gpt-5.3-codex-spark";
 const DEFAULT_MODEL_PREFERENCES = [
+	"gpt-5.3-codex-spark",
 	"gpt-5.5",
 	"gpt-5.4",
 	"gpt-5-codex",
@@ -360,11 +361,12 @@ async function callCodexSearch(
 	};
 
 	const fetchImpl = options.fetch ?? fetch;
+	const requestSignal = withHardTimeout(options.signal);
 	const response = await fetchImpl(url, {
 		method: "POST",
 		headers,
 		body: JSON.stringify(body),
-		signal: withHardTimeout(options.signal),
+		signal: requestSignal,
 	});
 
 	if (!response.ok) {
@@ -386,7 +388,7 @@ async function callCodexSearch(
 	let requestId = "";
 	let usage: { inputTokens: number; outputTokens: number; totalTokens: number } | undefined;
 
-	for await (const rawEvent of readSseJson<Record<string, unknown>>(response.body, options.signal)) {
+	for await (const rawEvent of readSseJson<Record<string, unknown>>(response.body, requestSignal)) {
 		const eventType = typeof rawEvent.type === "string" ? rawEvent.type : "";
 		if (!eventType) continue;
 
@@ -489,10 +491,10 @@ async function callCodexSearch(
  * Default-model behavior:
  * - If `PI_CODEX_WEB_SEARCH_MODEL` is set, use it exactly once and surface any
  *   upstream error verbatim.
- * - Otherwise prefer ChatGPT-account-safe bundled defaults (GPT-5.4, GPT-5
- *   Codex, GPT-5, …) and retry the next candidate only when Codex returns the
- *   known 400 "model is not supported" family. This avoids selecting
- *   `gpt-5-codex-mini` first on ChatGPT accounts, which OpenAI rejects.
+ * - Otherwise prefer the Spark-sized Codex web-search model first
+ *   (`gpt-5.3-codex-spark`), then fall back through larger ChatGPT-account-safe
+ *   bundled defaults only when Codex returns the known 400
+ *   "model is not supported" family.
  */
 export async function searchCodex(params: SearchParams): Promise<SearchResponse> {
 	const seed = await findCodexAuth(params.authStorage, params.sessionId, params.signal);

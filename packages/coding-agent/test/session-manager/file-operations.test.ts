@@ -2,11 +2,11 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { FileEntry, SessionHeader } from "@amaze/pi-coding-agent/session/session-entries";
-import { findMostRecentSession, resolveResumableSession } from "@amaze/pi-coding-agent/session/session-listing";
-import { loadEntriesFromFile } from "@amaze/pi-coding-agent/session/session-loader";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import { getConfigRootDir, getSessionsDir, Snowflake, setAgentDir } from "@amaze/pi-utils";
+import type { FileEntry, SessionHeader } from "@steve-z8k/pi-coding-agent/session/session-entries";
+import { findMostRecentSession, resolveResumableSession } from "@steve-z8k/pi-coding-agent/session/session-listing";
+import { loadEntriesFromFile } from "@steve-z8k/pi-coding-agent/session/session-loader";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import { getConfigRootDir, getSessionsDir, Snowflake, setAgentDir } from "@steve-z8k/pi-utils";
 
 describe("loadEntriesFromFile", () => {
 	let tempDir: string;

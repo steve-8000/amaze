@@ -1,25 +1,25 @@
 import { describe, expect, test } from "bun:test";
-import { getKnownRoleIds, getRoleInfo } from "@amaze/pi-coding-agent/config/model-roles";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
+import { getKnownRoleIds, getRoleInfo } from "@steve-z8k/pi-coding-agent/config/model-roles";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
 
 describe("getRoleInfo", () => {
 	test("returns built-in role info", () => {
 		const settings = Settings.isolated({});
 
-		expect(getRoleInfo("default", settings)).toEqual({
-			name: "Default",
-			color: "success",
-			tag: "DEFAULT",
-		});
-		expect(getRoleInfo("smol", settings)).toEqual({
-			name: "Fast",
+		expect(getRoleInfo("flash", settings)).toEqual({
+			name: "Flash",
 			color: "warning",
-			tag: "SMOL",
+			tag: "FLASH",
 		});
-		expect(getRoleInfo("slow", settings)).toEqual({
-			name: "Thinking",
+		expect(getRoleInfo("deep", settings)).toEqual({
+			name: "Deep",
+			color: "error",
+			tag: "DEEP",
+		});
+		expect(getRoleInfo("ultra", settings)).toEqual({
+			name: "Ultra",
 			color: "accent",
-			tag: "SLOW",
+			tag: "ULTRA",
 		});
 	});
 
@@ -53,14 +53,15 @@ describe("getRoleInfo", () => {
 	test("configured metadata overrides built-in role info while keeping built-in defaults", () => {
 		const settings = Settings.isolated({
 			modelTags: {
-				smol: { name: "My Smol", color: "success" },
+				flash: { name: "My Flash", color: "success" },
 			},
 		});
 
-		expect(getRoleInfo("smol", settings)).toEqual({
-			tag: "SMOL",
-			name: "My Smol",
+		expect(getRoleInfo("flash", settings)).toEqual({
+			tag: "FLASH",
+			name: "My Flash",
 			color: "success",
+			hidden: undefined,
 		});
 	});
 
@@ -68,8 +69,8 @@ describe("getRoleInfo", () => {
 		const settings = Settings.isolated({
 			cycleOrder: ["custom-visible", "custom-hidden"],
 			modelRoles: {
-				"custom-visible": "openai/gpt-4o",
-				"custom-hidden": "openai/gpt-4o-mini",
+				"custom-visible": "openai/gpt-5.4",
+				"custom-hidden": "openai/gpt-5.4-mini",
 			},
 			modelTags: {
 				"custom-hidden": { name: "Hidden Custom", hidden: true },

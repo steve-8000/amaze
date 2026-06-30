@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { encodeResponse, encodeStream, parseRequest } from "@amaze/pi-ai/providers/anthropic-messages-server";
-import type { AssistantMessage, AssistantMessageEvent, ToolResultMessage } from "@amaze/pi-ai/types";
-import { AssistantMessageEventStream } from "@amaze/pi-ai/utils/event-stream";
+import { encodeResponse, encodeStream, parseRequest } from "@steve-z8k/pi-ai/providers/anthropic-messages-server";
+import type { AssistantMessage, AssistantMessageEvent, ToolResultMessage } from "@steve-z8k/pi-ai/types";
+import { AssistantMessageEventStream } from "@steve-z8k/pi-ai/utils/event-stream";
 
 function emptyUsage(): AssistantMessage["usage"] {
 	return {

@@ -1,5 +1,5 @@
-import type { ThinkingLevel } from "@amaze/pi-agent-core";
-import type { Api, ApiKey, Model } from "@amaze/pi-ai";
+import type { ThinkingLevel } from "@steve-z8k/pi-agent-core";
+import type { Api, ApiKey, Model } from "@steve-z8k/pi-ai";
 import type { ApiKeyResolverRegistry } from "../config/api-key-resolver";
 import {
 	getModelMatchPreferences,
@@ -37,7 +37,7 @@ export async function resolvePrimaryModel(
 	const matchPreferences = getModelMatchPreferences(settings);
 	const resolved = override
 		? resolveModelRoleValue(override, available, { settings, matchPreferences, modelRegistry })
-		: resolveRoleSelection(["commit", "smol", ...MODEL_ROLE_IDS], settings, available, modelRegistry);
+		: resolveRoleSelection(["flash", "spark", ...MODEL_ROLE_IDS], settings, available, modelRegistry);
 	const model = resolved?.model;
 	if (!model) {
 		throw new Error("No model available for commit generation");
@@ -53,27 +53,27 @@ export async function resolvePrimaryModel(
 	};
 }
 
-export async function resolveSmolModel(
+export async function resolveFlashModel(
 	settings: Settings,
 	modelRegistry: CommitModelRegistry,
 	fallbackModel: Model<Api>,
 	fallbackApiKey: ApiKey,
 ): Promise<ResolvedCommitModel> {
 	const available = modelRegistry.getAvailable();
-	const resolvedSmol = resolveRoleSelection(["smol"], settings, available, modelRegistry);
-	if (resolvedSmol?.model) {
-		const apiKey = await modelRegistry.getApiKey(resolvedSmol.model);
+	const resolvedFlash = resolveRoleSelection(["flash"], settings, available, modelRegistry);
+	if (resolvedFlash?.model) {
+		const apiKey = await modelRegistry.getApiKey(resolvedFlash.model);
 		if (apiKey) {
 			return {
-				model: resolvedSmol.model,
-				apiKey: modelRegistry.resolver(resolvedSmol.model),
-				thinkingLevel: resolvedSmol.thinkingLevel,
+				model: resolvedFlash.model,
+				apiKey: modelRegistry.resolver(resolvedFlash.model),
+				thinkingLevel: resolvedFlash.thinkingLevel,
 			};
 		}
 	}
 
 	const matchPreferences = getModelMatchPreferences(settings);
-	for (const pattern of MODEL_PRIO.smol) {
+	for (const pattern of MODEL_PRIO.flash) {
 		const candidate = parseModelPattern(pattern, available, matchPreferences, { modelRegistry }).model;
 		if (!candidate) continue;
 		const apiKey = await modelRegistry.getApiKey(candidate);

@@ -1,4 +1,4 @@
-import { once } from "@amaze/pi-utils";
+import { once } from "@steve-z8k/pi-utils";
 import { fetchCodexModels } from "../discovery/codex";
 import type { ModelManagerOptions } from "../model-manager";
 

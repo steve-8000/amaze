@@ -5,7 +5,7 @@ import {
 	type OpenAIGatewayRoutingParams,
 	type ResolveOpenAIOutputTokenInput,
 	resolveOpenAIOutputTokenParam,
-} from "@amaze/pi-ai/providers/openai-shared";
+} from "@steve-z8k/pi-ai/providers/openai-shared";
 
 const OPENAI_MAX_OUTPUT_TOKENS = 64_000;
 

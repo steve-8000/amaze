@@ -1,4 +1,4 @@
-import type { Api, Model, ToolChoice } from "@amaze/pi-ai";
+import type { Api, Model, ToolChoice } from "@steve-z8k/pi-ai";
 
 /**
  * Build a provider-aware tool choice that targets one specific tool when supported.

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { OAuthCallbackFlow } from "@amaze/pi-ai/registry/oauth/callback-server";
-import type { OAuthCredentials } from "@amaze/pi-ai/registry/oauth/types";
+import { OAuthCallbackFlow } from "@steve-z8k/pi-ai/registry/oauth/callback-server";
+import type { OAuthCredentials } from "@steve-z8k/pi-ai/registry/oauth/types";
 
 class TestCallbackFlow extends OAuthCallbackFlow {
 	async generateAuthUrl(_state: string, redirectUri: string): Promise<{ url: string; instructions?: string }> {

@@ -3,11 +3,11 @@ import * as fs from "node:fs";
 import * as fsp from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { SessionHeader } from "@amaze/pi-coding-agent/session/session-entries";
-import { loadEntriesFromFile } from "@amaze/pi-coding-agent/session/session-loader";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import { stripOuterDoubleQuotes } from "@amaze/pi-coding-agent/tools/path-utils";
-import { getConfigRootDir, setAgentDir } from "@amaze/pi-utils";
+import type { SessionHeader } from "@steve-z8k/pi-coding-agent/session/session-entries";
+import { loadEntriesFromFile } from "@steve-z8k/pi-coding-agent/session/session-loader";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import { stripOuterDoubleQuotes } from "@steve-z8k/pi-coding-agent/tools/path-utils";
+import { getConfigRootDir, setAgentDir } from "@steve-z8k/pi-utils";
 
 // -- helpers ----------------------------------------------------------------
 

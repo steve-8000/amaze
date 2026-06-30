@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import { CURSOR_MARKER } from "@amaze/pi-tui";
-import { CombinedAutocompleteProvider } from "@amaze/pi-tui/autocomplete";
-import { Editor } from "@amaze/pi-tui/components/editor";
-import { KeybindingsManager, setKeybindings, TUI_KEYBINDINGS } from "@amaze/pi-tui/keybindings";
-import { setKittyProtocolActive } from "@amaze/pi-tui/keys";
-import { visibleWidth } from "@amaze/pi-tui/utils";
+import { CURSOR_MARKER } from "@steve-z8k/pi-tui";
+import { CombinedAutocompleteProvider } from "@steve-z8k/pi-tui/autocomplete";
+import { Editor } from "@steve-z8k/pi-tui/components/editor";
+import { KeybindingsManager, setKeybindings, TUI_KEYBINDINGS } from "@steve-z8k/pi-tui/keybindings";
+import { setKittyProtocolActive } from "@steve-z8k/pi-tui/keys";
+import { visibleWidth } from "@steve-z8k/pi-tui/utils";
 import { defaultEditorTheme } from "./test-themes";
 
 describe("Editor component", () => {

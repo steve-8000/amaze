@@ -4,11 +4,13 @@
  * inner <output>/<preview> body, while non-envelope result text (bash jobs)
  * passes through unchanged.
  */
-import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { resetSettingsForTest, Settings } from "@amaze/pi-coding-agent/config/settings";
-import { initTheme, theme } from "@amaze/pi-coding-agent/modes/theme/theme";
-import { jobToolRenderer } from "@amaze/pi-coding-agent/tools/job";
-import { prompt } from "@amaze/pi-utils";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
+import { AsyncJobManager } from "@steve-z8k/pi-coding-agent/async/job-manager";
+import { resetSettingsForTest, Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { initTheme, theme } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
+import { AgentRegistry } from "@steve-z8k/pi-coding-agent/registry/agent-registry";
+import { JobTool, jobToolRenderer } from "@steve-z8k/pi-coding-agent/tools/job";
+import { prompt } from "@steve-z8k/pi-utils";
 import taskSummaryTemplate from "../src/prompts/tools/task-summary.md" with { type: "text" };
 
 function renderLines(resultText: string): string {
@@ -21,6 +23,7 @@ function renderLines(resultText: string): string {
 					type: "task" as const,
 					status: "completed" as const,
 					label: "SpawnProbe",
+					agentName: "flash",
 					durationMs: 8_700,
 					resultText,
 				},
@@ -40,6 +43,10 @@ describe("job renderer task-result preview", () => {
 		resetSettingsForTest();
 		await Settings.init({ inMemory: true });
 		await initTheme();
+	});
+
+	afterEach(() => {
+		AgentRegistry.resetGlobalForTests();
 	});
 
 	afterAll(() => {
@@ -102,13 +109,42 @@ describe("job renderer task-result preview", () => {
 		expect(output).toContain("42 pass, 0 fail (18.4s)");
 	});
 
-	it("drops the id column when the label repeats it", () => {
-		// Task jobs label themselves with their agent id; rendering both columns
-		// stutters ("SpawnProbe ⟨task⟩ SpawnProbe").
+	it("renders the task subagent name in the type badge without repeating the id", () => {
 		const output = Bun.stripANSI(renderLines("done"));
 		const header = output.split("\n").find(line => line.includes("SpawnProbe"));
 		expect(header).toBeDefined();
+		expect(header).toContain("task:flash");
 		expect(header!.match(/SpawnProbe/g)).toHaveLength(1);
+	});
+
+	it("infers the task subagent badge from the agent registry for legacy running jobs", async () => {
+		AgentRegistry.global().register({
+			id: "LegacyRunning",
+			agentName: "flash",
+			displayName: "tool cleanup",
+			kind: "sub",
+			session: null,
+			status: "running",
+		});
+		const manager = new AsyncJobManager({ onJobComplete: () => {} });
+		const release = Promise.withResolvers<string>();
+		const jobId = manager.register("task", "LegacyRunning", async () => release.promise, { id: "LegacyRunning" });
+		try {
+			const tool = new JobTool({ asyncJobManager: manager, getAgentId: () => null } as never);
+			const result = await tool.execute("tc-legacy-running", { list: true });
+			expect(result.details?.jobs.find(job => job.id === jobId)?.agentName).toBe("flash");
+			const component = jobToolRenderer.renderResult(
+				result,
+				{ expanded: true, isPartial: true } as Parameters<typeof jobToolRenderer.renderResult>[1],
+				theme,
+				{ list: true },
+			);
+			const output = Bun.stripANSI((component.render(120) as readonly string[]).join("\n"));
+			expect(output).toContain("task:flash");
+		} finally {
+			release.resolve("done");
+			await manager.waitForAll();
+		}
 	});
 
 	describe("collapse and filter when turned into a result", () => {

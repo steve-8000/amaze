@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, spyOn } from "bun:test";
-import { RockyMemory } from "@amaze/pi-rocky-memory/core/memory";
-import type { RockyMemoryLlmCompletion } from "@amaze/pi-rocky-memory/core/runtime-options";
+import { RockyMemory } from "@steve-z8k/pi-rocky-memory/core/memory";
+import type { RockyMemoryLlmCompletion } from "@steve-z8k/pi-rocky-memory/core/runtime-options";
 
 const instances: RockyMemory[] = [];
 

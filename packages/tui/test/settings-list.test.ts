@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { SettingsList, type SettingsListTheme } from "@amaze/pi-tui/components/settings-list";
-import { KeybindingsManager, setKeybindings, TUI_KEYBINDINGS } from "@amaze/pi-tui/keybindings";
+import { SettingsList, type SettingsListTheme } from "@steve-z8k/pi-tui/components/settings-list";
+import { KeybindingsManager, setKeybindings, TUI_KEYBINDINGS } from "@steve-z8k/pi-tui/keybindings";
 
 const testTheme: SettingsListTheme = {
 	label: (text: string) => text,

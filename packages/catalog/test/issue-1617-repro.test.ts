@@ -19,8 +19,8 @@ import {
 	type ModelsDevModel,
 	opencodeGoModelManagerOptions,
 	opencodeZenModelManagerOptions,
-} from "@amaze/pi-catalog/provider-models/openai-compat";
-import type { FetchImpl } from "@amaze/pi-catalog/types";
+} from "@steve-z8k/pi-catalog/provider-models/openai-compat";
+import type { FetchImpl } from "@steve-z8k/pi-catalog/types";
 
 const OPENCODE_ZEN_BASE = "https://opencode.ai/zen/v1";
 const OPENCODE_GO_BASE = "https://opencode.ai/zen/go/v1";

@@ -4,7 +4,7 @@ import {
 	shouldEnableHyperlinksByDefault,
 	shouldEnableSynchronizedOutputByDefault,
 	synchronizedOutputUserOverride,
-} from "@amaze/pi-tui/terminal-capabilities";
+} from "@steve-z8k/pi-tui/terminal-capabilities";
 
 describe("synchronizedOutputUserOverride", () => {
 	it("returns null when the user expresses no preference", () => {

@@ -1,4 +1,4 @@
-import type { AssistantMessage } from "@amaze/pi-ai";
+import type { AssistantMessage } from "@steve-z8k/pi-ai";
 
 /**
  * Shared factory for building a minimal mock `AssistantMessage`

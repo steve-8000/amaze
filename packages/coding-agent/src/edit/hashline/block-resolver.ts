@@ -1,12 +1,12 @@
 /**
  * Tree-sitter-backed {@link BlockResolver} for the hashline block replace
  * operator. Bridges the pure hashline seam to the native `blockRangeAt`
- * primitive in `@amaze/pi-natives`, which infers the language from the file
+ * primitive in `@steve-z8k/pi-natives`, which infers the language from the file
  * path and returns the 1-indexed line span of the syntactic block beginning on
  * the requested line (or `null` when none can be resolved).
  */
-import type { BlockResolver } from "@amaze/hashline";
-import { blockRangeAt } from "@amaze/pi-natives";
+import type { BlockResolver } from "@steve-z8k/hashline";
+import { blockRangeAt } from "@steve-z8k/pi-natives";
 
 /**
  * `blockRangeAt` runs a full synchronous tree-sitter parse of `text` per

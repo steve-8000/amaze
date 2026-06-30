@@ -1,18 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent, type AgentMessage, type AgentTool } from "@amaze/pi-agent-core";
-import * as compactionModule from "@amaze/pi-agent-core/compaction";
-import type { TextContent } from "@amaze/pi-ai";
-import { AssistantMessageEventStream } from "@amaze/pi-ai/utils/event-stream";
-import { getBundledModel } from "@amaze/pi-catalog/models";
-import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import { AgentSession } from "@amaze/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
-import { convertToLlm } from "@amaze/pi-coding-agent/session/messages";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import { TodoTool, type ToolSession, USER_TODO_EDIT_CUSTOM_TYPE } from "@amaze/pi-coding-agent/tools";
-import { TempDir } from "@amaze/pi-utils";
+import { Agent, type AgentMessage, type AgentTool } from "@steve-z8k/pi-agent-core";
+import * as compactionModule from "@steve-z8k/pi-agent-core/compaction";
+import type { TextContent } from "@steve-z8k/pi-ai";
+import { AssistantMessageEventStream } from "@steve-z8k/pi-ai/utils/event-stream";
+import { getBundledModel } from "@steve-z8k/pi-catalog/models";
+import { ModelRegistry } from "@steve-z8k/pi-coding-agent/config/model-registry";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { ORCHESTRATE_NOTICE } from "@steve-z8k/pi-coding-agent/modes/orchestrate";
+import { AgentSession } from "@steve-z8k/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@steve-z8k/pi-coding-agent/session/auth-storage";
+import { convertToLlm } from "@steve-z8k/pi-coding-agent/session/messages";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import { TodoTool, type ToolSession, USER_TODO_EDIT_CUSTOM_TYPE } from "@steve-z8k/pi-coding-agent/tools";
+import { TempDir } from "@steve-z8k/pi-utils";
 import { type } from "arktype";
 
 // Re-injecting eager preludes after compaction: the first-message preludes are the
@@ -53,6 +54,18 @@ function getToolChoiceName(choice: unknown): string | undefined {
 	return undefined;
 }
 
+const ANTHROPIC_TEST_MODEL_IDS = ["claude-sonnet-4-6", "claude-opus-4-7", "claude-opus-4-8"] as const;
+
+function getAnthropicTestModel() {
+	for (const modelId of ANTHROPIC_TEST_MODEL_IDS) {
+		const model = getBundledModel("anthropic", modelId);
+		if (model) return model;
+	}
+	throw new Error(
+		`Expected one of ${ANTHROPIC_TEST_MODEL_IDS.map(modelId => `anthropic/${modelId}`).join(", ")} to exist`,
+	);
+}
+
 function getMessageText(message: AgentMessage): string {
 	if (!("content" in message)) return "";
 	if (typeof message.content === "string") return message.content;
@@ -69,7 +82,7 @@ function createAssistantResponse(text: string) {
 		content: [{ type: "text" as const, text }],
 		api: "anthropic-messages" as const,
 		provider: "anthropic" as const,
-		model: "claude-sonnet-4-5",
+		model: "claude-sonnet-4-6",
 		usage: {
 			input: 0,
 			output: 0,
@@ -97,14 +110,14 @@ function stubCompaction(firstKeptEntryId?: string, onCompact?: () => void): void
 	});
 }
 
-/** Emit a high-usage assistant turn to drive threshold (context-full) auto-compaction. */
+/** Emit a high-usage assistant turn that exceeds the test-local compaction threshold. */
 function emitHighUsageTurn(session: AgentSession, text = "Done."): void {
 	const assistantMsg = {
 		role: "assistant" as const,
 		content: [{ type: "text" as const, text }],
 		api: "anthropic-messages" as const,
 		provider: "anthropic" as const,
-		model: "claude-sonnet-4-5",
+		model: "claude-sonnet-4-6",
 		stopReason: "stop" as const,
 		usage: {
 			input: 190_000,
@@ -145,8 +158,7 @@ describe("AgentSession eager prelude re-injection after compaction", () => {
 			predicate: (call: ObservedPromptCall) => boolean;
 			resolve: (call: ObservedPromptCall) => void;
 		}> = [];
-		const model = getBundledModel("anthropic", "claude-sonnet-4-5");
-		if (!model) throw new Error("Expected claude-sonnet-4-5 model to exist");
+		const model = getAnthropicTestModel();
 
 		const authStorage = await AuthStorage.create(path.join(tempDir.path(), `testauth-${cleanups.length}.db`));
 		authStorage.setRuntimeApiKey("anthropic", "test-key");
@@ -155,6 +167,9 @@ describe("AgentSession eager prelude re-injection after compaction", () => {
 			"compaction.enabled": true,
 			"compaction.autoContinue": true,
 			"compaction.strategy": "context-full",
+			"compaction.thresholdTokens": 50,
+			"compaction.keepRecentTokens": 1,
+			"contextPromotion.enabled": false,
 			"task.eager": "always",
 			"todo.enabled": false,
 			"todo.eager": "default",
@@ -272,10 +287,15 @@ describe("AgentSession eager prelude re-injection after compaction", () => {
 
 		const continuation = await runToContinuation(session, waitForCall);
 
-		const reminder = continuation.messageTexts.find(text => text.includes("delegation is enabled"));
+		const reminder = continuation.messageTexts.find(
+			text => text.includes(ORCHESTRATE_NOTICE) && text.includes("delegation is enabled"),
+		);
 		expect(reminder).toBeDefined();
+		if (!reminder) throw new Error("Expected eager task reminder after compaction");
+		expect(reminder).toContain(ORCHESTRATE_NOTICE);
+		expect(reminder).toContain("delegation is enabled");
+		expect(reminder.indexOf(ORCHESTRATE_NOTICE)).toBeLessThan(reminder.indexOf("delegation is enabled"));
 		expect(reminder).toContain("`task`");
-		// Reminder-only: the post-compaction nudge never forces a tool on the resumed turn.
 		expect(continuation.toolChoice).toBeUndefined();
 	});
 
@@ -285,7 +305,11 @@ describe("AgentSession eager prelude re-injection after compaction", () => {
 
 		const continuation = await runToContinuation(session, waitForCall);
 
-		expect(continuation.messageTexts.some(text => text.includes("delegation is enabled"))).toBe(false);
+		expect(
+			continuation.messageTexts.some(
+				text => text.includes("delegation is enabled") || text.includes(ORCHESTRATE_NOTICE),
+			),
+		).toBe(false);
 	});
 
 	it("caps compaction auto-continuations across direct user turns", async () => {
@@ -331,13 +355,59 @@ describe("AgentSession eager prelude re-injection after compaction", () => {
 		);
 	});
 
+	it("does not auto-continue after threshold compaction for a Korean completed answer", async () => {
+		const { session, observedCalls } = await createHarness({ "task.eager": "default" });
+		let compactions = 0;
+		stubCompaction(undefined, () => {
+			compactions++;
+		});
+
+		await session.prompt("작업을 정리해줘");
+		emitHighUsageTurn(
+			session,
+			"완료된 상태입니다. 요청 범위의 정리 후 bun --cwd=packages/coding-agent run check 검증까지 통과한 상태로 보고되었습니다.",
+		);
+		await waitForCondition(() => compactions === 1);
+		await waitForCondition(() => !session.isStreaming);
+		await Bun.sleep(20);
+
+		expect(compactions).toBe(1);
+		expect(observedCalls.filter(call => call.messageTexts.at(-1)?.includes(CONTINUE_MARKER) === true)).toHaveLength(
+			0,
+		);
+	});
+
+	it("still auto-continues for Korean progress text without passed verification", async () => {
+		const { session, observedCalls } = await createHarness({ "task.eager": "default" });
+		let compactions = 0;
+		stubCompaction(undefined, () => {
+			compactions++;
+		});
+
+		await session.prompt("작업을 계속해줘");
+		emitHighUsageTurn(session, "수정은 반영했습니다. 다음으로 검증을 실행하겠습니다.");
+		await waitForCondition(() => compactions === 1);
+		await waitForCondition(() =>
+			observedCalls.some(call => call.messageTexts.at(-1)?.includes(CONTINUE_MARKER) === true),
+		);
+
+		expect(compactions).toBe(1);
+		expect(observedCalls.filter(call => call.messageTexts.at(-1)?.includes(CONTINUE_MARKER) === true)).toHaveLength(
+			1,
+		);
+	});
+
 	it("does not re-inject the eager task reminder when task.eager is preferred", async () => {
 		const { session, waitForCall } = await createHarness({ "task.eager": "preferred" });
 		stubCompaction();
 
 		const continuation = await runToContinuation(session, waitForCall);
 
-		expect(continuation.messageTexts.some(text => text.includes("delegation is enabled"))).toBe(false);
+		expect(
+			continuation.messageTexts.some(
+				text => text.includes("delegation is enabled") || text.includes(ORCHESTRATE_NOTICE),
+			),
+		).toBe(false);
 	});
 
 	it("does not re-inject the eager task reminder for subagent sessions", async () => {
@@ -346,7 +416,11 @@ describe("AgentSession eager prelude re-injection after compaction", () => {
 
 		const continuation = await runToContinuation(session, waitForCall);
 
-		expect(continuation.messageTexts.some(text => text.includes("delegation is enabled"))).toBe(false);
+		expect(
+			continuation.messageTexts.some(
+				text => text.includes("delegation is enabled") || text.includes(ORCHESTRATE_NOTICE),
+			),
+		).toBe(false);
 	});
 
 	it("does not re-inject the eager task reminder in plan mode", async () => {
@@ -356,7 +430,11 @@ describe("AgentSession eager prelude re-injection after compaction", () => {
 
 		const continuation = await runToContinuation(session, waitForCall);
 
-		expect(continuation.messageTexts.some(text => text.includes("delegation is enabled"))).toBe(false);
+		expect(
+			continuation.messageTexts.some(
+				text => text.includes("delegation is enabled") || text.includes(ORCHESTRATE_NOTICE),
+			),
+		).toBe(false);
 	});
 
 	it("re-injects the eager todo reminder on the auto-continuation turn (todo.eager preferred)", async () => {

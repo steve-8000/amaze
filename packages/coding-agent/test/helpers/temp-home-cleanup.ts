@@ -1,4 +1,4 @@
-import { removeSyncWithRetries } from "@amaze/pi-utils";
+import { removeSyncWithRetries } from "@steve-z8k/pi-utils";
 
 export interface TempHomeState {
 	tempDir: string;

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { streamAnthropic } from "@amaze/pi-ai/providers/anthropic";
-import type { Context, Model, ModelSpec } from "@amaze/pi-ai/types";
-import { buildModel } from "@amaze/pi-catalog/build";
-import { Effort } from "@amaze/pi-catalog/effort";
+import { streamAnthropic } from "@steve-z8k/pi-ai/providers/anthropic";
+import type { Context, Model, ModelSpec } from "@steve-z8k/pi-ai/types";
+import { buildModel } from "@steve-z8k/pi-catalog/build";
+import { Effort } from "@steve-z8k/pi-catalog/effort";
 
 function makeAnthropicModel(id: string): Model<"anthropic-messages"> {
 	return buildModel({

@@ -1,4 +1,4 @@
-import { invalidateFsScanCache } from "@amaze/pi-natives";
+import { invalidateFsScanCache } from "@steve-z8k/pi-natives";
 
 /**
  * Invalidate shared filesystem scan caches after a content write/update.

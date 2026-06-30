@@ -1,10 +1,10 @@
 import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { Api, Context, Model, Tool, ToolResultMessage } from "@amaze/pi-ai";
-import { complete } from "@amaze/pi-ai";
-import type { OptionsForApi } from "@amaze/pi-ai/types";
-import { getBundledModel } from "@amaze/pi-catalog/models";
+import type { Api, Context, Model, Tool, ToolResultMessage } from "@steve-z8k/pi-ai";
+import { complete } from "@steve-z8k/pi-ai";
+import type { OptionsForApi } from "@steve-z8k/pi-ai/types";
+import { getBundledModel } from "@steve-z8k/pi-catalog/models";
 import { z } from "zod/v4";
 import { e2eApiKey, resolveApiKey } from "./oauth";
 

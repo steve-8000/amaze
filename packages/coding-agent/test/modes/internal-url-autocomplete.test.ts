@@ -1,16 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import type { Rule } from "@amaze/pi-coding-agent/capability/rule";
-import { resetActiveRulesForTests, setActiveRules } from "@amaze/pi-coding-agent/capability/rule";
-import type { Skill } from "@amaze/pi-coding-agent/extensibility/skills";
-import { resetActiveSkillsForTests, setActiveSkills } from "@amaze/pi-coding-agent/extensibility/skills";
-import { InternalUrlRouter } from "@amaze/pi-coding-agent/internal-urls/router";
+import type { Rule } from "@steve-z8k/pi-coding-agent/capability/rule";
+import { resetActiveRulesForTests, setActiveRules } from "@steve-z8k/pi-coding-agent/capability/rule";
+import type { Skill } from "@steve-z8k/pi-coding-agent/extensibility/skills";
+import { resetActiveSkillsForTests, setActiveSkills } from "@steve-z8k/pi-coding-agent/extensibility/skills";
+import { InternalUrlRouter } from "@steve-z8k/pi-coding-agent/internal-urls/router";
 import {
 	applyInternalUrlCompletion,
 	extractInternalUrlContext,
 	getInternalUrlSuggestions,
 	isInternalUrlPrefix,
-} from "@amaze/pi-coding-agent/modes/internal-url-autocomplete";
-import { PromptActionAutocompleteProvider } from "@amaze/pi-coding-agent/modes/prompt-action-autocomplete";
+} from "@steve-z8k/pi-coding-agent/modes/internal-url-autocomplete";
+import { PromptActionAutocompleteProvider } from "@steve-z8k/pi-coding-agent/modes/prompt-action-autocomplete";
 
 function skill(name: string, description = ""): Skill {
 	return { name, description, filePath: `/skills/${name}/SKILL.md`, baseDir: `/skills/${name}`, source: "test" };

@@ -4,7 +4,7 @@ import {
 	describeScreenshot,
 	type InflightOp,
 	imageFormatForPath,
-} from "@amaze/pi-coding-agent/tools/browser/tab-worker";
+} from "@steve-z8k/pi-coding-agent/tools/browser/tab-worker";
 
 describe("browser op tracking — timeout diagnostics", () => {
 	it("labels a screenshot op by its distinguishing argument", () => {

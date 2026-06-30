@@ -26,6 +26,14 @@ Manages a phased task list. Pass `ops`: flat array of operations. Next pending t
 - Keep `task`/`phase` strings stable once introduced.
 - Lost the exact task text? `view` echoes the list — NEVER guess from memory; a mismatched `task` string is an error.
 
+## Goal-aligned evidence loops
+- Split todo work the same way goal completion audits work: restate the objective as concrete deliverables, then make tasks for the smallest deliverable slices that can be proven independently.
+- Map each slice to authoritative evidence before marking it done: file contents, command output, test pass status, audit count, smoke result, or equivalent observed proof.
+- Match verification scope to the task claim. A narrow check completes only the narrow slice it proves; broader phases stay open until their own evidence exists.
+- For explicit/implicit rubrics, scorecards, or long-running targets, structure phases around scorecard areas and tasks around the smallest point-scoring deliverable slices.
+- Keep scoring/evidence details in task labels/phases and final reports; the tool schema accepts only phase names and task-label strings.
+- End each scoring loop by reporting changed scope, verification command/result, score movement, remaining blocker, and next highest-ROI slice.
+
 ## When to create a list
 - Task requires 3+ distinct steps
 - User explicitly requests one

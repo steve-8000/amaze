@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { truncateToVisualLines } from "@amaze/pi-coding-agent/modes/components/visual-truncate";
+import { truncateToVisualLines } from "@steve-z8k/pi-coding-agent/modes/components/visual-truncate";
 
 describe("truncateToVisualLines", () => {
 	it("returns empty output for empty text", () => {

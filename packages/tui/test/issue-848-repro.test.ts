@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { Ellipsis, truncateToWidth } from "@amaze/pi-tui/utils";
+import { Ellipsis, truncateToWidth } from "@steve-z8k/pi-tui/utils";
 
-// Regression test for https://github.com/can1357/amaze-agent/issues/848
+// Regression test for https://github.com/steve-8000/amaze/issues/848
 //
 // On Windows, rendering a saved write tool record crashed with:
 //   Error: Failed to convert napi value Null into rust type `u8`

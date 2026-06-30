@@ -1,8 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { streamBedrock } from "@amaze/pi-ai/providers/amazon-bedrock";
-import { crc32 } from "@amaze/pi-ai/providers/aws-eventstream";
-import type { Context, FetchImpl, Model, Tool } from "@amaze/pi-ai/types";
-import { buildModel } from "@amaze/pi-catalog/build";
+import { streamBedrock } from "@steve-z8k/pi-ai/providers/amazon-bedrock";
+import { crc32 } from "@steve-z8k/pi-ai/providers/aws-eventstream";
+import type { Context, FetchImpl, Model, Tool } from "@steve-z8k/pi-ai/types";
+import { buildModel } from "@steve-z8k/pi-catalog/build";
 import { z } from "zod/v4";
 
 const originalSkipAuth = process.env.AWS_BEDROCK_SKIP_AUTH;

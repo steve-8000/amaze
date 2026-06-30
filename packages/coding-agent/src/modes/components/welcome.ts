@@ -1,5 +1,5 @@
-import { type Component, padding, TERMINAL, truncateToWidth, visibleWidth } from "@amaze/pi-tui";
-import { APP_NAME } from "@amaze/pi-utils";
+import { type Component, padding, TERMINAL, truncateToWidth, visibleWidth } from "@steve-z8k/pi-tui";
+import { APP_NAME } from "@steve-z8k/pi-utils";
 import { theme } from "../../modes/theme/theme";
 
 /**

@@ -1,4 +1,4 @@
-import { parseFrontmatter } from "@amaze/pi-utils";
+import { parseFrontmatter } from "@steve-z8k/pi-utils";
 import type { RenderResult, SpecialHandler } from "./types";
 import { buildResult, loadPage } from "./types";
 import { asString } from "./utils";

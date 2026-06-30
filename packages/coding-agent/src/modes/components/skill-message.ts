@@ -1,6 +1,6 @@
-import type { TextContent } from "@amaze/pi-ai";
-import type { Component } from "@amaze/pi-tui";
-import { Box, Container, Markdown, Spacer, Text } from "@amaze/pi-tui";
+import type { TextContent } from "@steve-z8k/pi-ai";
+import type { Component } from "@steve-z8k/pi-tui";
+import { Box, Container, Markdown, Spacer, Text } from "@steve-z8k/pi-tui";
 import { getMarkdownTheme, theme } from "../../modes/theme/theme";
 import type { CustomMessage, SkillPromptDetails } from "../../session/messages";
 import { shortenPath } from "../../tools/render-utils";

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import type { MCPReconnect } from "@amaze/pi-coding-agent/mcp/tool-bridge";
-import { DeferredMCPTool, isRetriableConnectionError, MCPTool } from "@amaze/pi-coding-agent/mcp/tool-bridge";
-import type { MCPServerConnection, MCPToolCallResult, MCPTransport } from "@amaze/pi-coding-agent/mcp/types";
-import { ToolAbortError } from "@amaze/pi-coding-agent/tools/tool-errors";
+import type { MCPReconnect } from "@steve-z8k/pi-coding-agent/mcp/tool-bridge";
+import { DeferredMCPTool, isRetriableConnectionError, MCPTool } from "@steve-z8k/pi-coding-agent/mcp/tool-bridge";
+import type { MCPServerConnection, MCPToolCallResult, MCPTransport } from "@steve-z8k/pi-coding-agent/mcp/types";
+import { ToolAbortError } from "@steve-z8k/pi-coding-agent/tools/tool-errors";
 
 // ---------------------------------------------------------------------------
 // Helpers

@@ -1,14 +1,14 @@
-import type { Effort } from "@amaze/pi-catalog/effort";
-import { isVertexExpressOpenAIUrl, isVertexRawPredictUrl } from "@amaze/pi-catalog/hosts";
+import type { Effort } from "@steve-z8k/pi-catalog/effort";
+import { isVertexExpressOpenAIUrl, isVertexRawPredictUrl } from "@steve-z8k/pi-catalog/hosts";
 import {
 	mapEffortToAnthropicAdaptiveEffort,
 	mapEffortToGoogleThinkingLevel,
 	minimumSupportedEffort,
 	requireSupportedEffort,
 	resolveWireModelId,
-} from "@amaze/pi-catalog/model-thinking";
-import { CATALOG_PROVIDERS, type ProviderCatalogEntry } from "@amaze/pi-catalog/provider-models";
-import { $env, $pickenv, extractHttpStatusFromError } from "@amaze/pi-utils";
+} from "@steve-z8k/pi-catalog/model-thinking";
+import { CATALOG_PROVIDERS, type ProviderCatalogEntry } from "@steve-z8k/pi-catalog/provider-models";
+import { $env, $pickenv, extractHttpStatusFromError } from "@steve-z8k/pi-utils";
 import { getCustomApi } from "./api-registry";
 import { AUTH_RETRY_STEPS, isApiKeyResolver, resolveRetryKey } from "./auth-retry";
 import { ProviderHttpError } from "./errors";

@@ -2,12 +2,12 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import { type ExecuteHashlineSingleOptions, executeHashlineSingle } from "@amaze/pi-coding-agent/edit";
-import { canonicalSnapshotKey, getFileSnapshotStore } from "@amaze/pi-coding-agent/edit/file-snapshot-store";
-import type { ToolSession } from "@amaze/pi-coding-agent/tools";
-import { ReadTool } from "@amaze/pi-coding-agent/tools/read";
-import { SearchTool } from "@amaze/pi-coding-agent/tools/search";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { type ExecuteHashlineSingleOptions, executeHashlineSingle } from "@steve-z8k/pi-coding-agent/edit";
+import { canonicalSnapshotKey, getFileSnapshotStore } from "@steve-z8k/pi-coding-agent/edit/file-snapshot-store";
+import type { ToolSession } from "@steve-z8k/pi-coding-agent/tools";
+import { ReadTool } from "@steve-z8k/pi-coding-agent/tools/read";
+import { SearchTool } from "@steve-z8k/pi-coding-agent/tools/search";
 
 function createSession(cwd: string): ToolSession {
 	return {

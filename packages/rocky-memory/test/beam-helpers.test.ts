@@ -21,7 +21,7 @@ import {
 	strictFactMatches,
 	temporalBoost,
 	workingMemoryVecSearch,
-} from "@amaze/pi-rocky-memory/core/beam/helpers";
+} from "@steve-z8k/pi-rocky-memory/core/beam/helpers";
 
 describe("beam helper ids, weights, and metadata", () => {
 	it("generates unique timed ids and deterministic stable ids", () => {

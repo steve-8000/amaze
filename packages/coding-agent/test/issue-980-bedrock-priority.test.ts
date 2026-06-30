@@ -1,12 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import type { Model } from "@amaze/pi-ai";
-import { buildModel } from "@amaze/pi-catalog/build";
+import type { Model } from "@steve-z8k/pi-ai";
+import { buildModel } from "@steve-z8k/pi-catalog/build";
 import {
 	resolveCliModel,
 	resolveModelFromSettings,
 	resolveModelRoleValue,
-} from "@amaze/pi-coding-agent/config/model-resolver";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
+} from "@steve-z8k/pi-coding-agent/config/model-resolver";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
 
 function model(provider: string, id: string): Model<"anthropic-messages"> {
 	return buildModel({
@@ -27,7 +27,7 @@ describe("issue #980 provider-qualified model resolution", () => {
 	test("prefers the explicit anthropic provider when the exact pair exists", () => {
 		const availableModels = [model("amazon-bedrock", "claude-3-7-sonnet"), model("anthropic", "claude-3-7-sonnet")];
 		const settings = Settings.isolated({
-			modelRoles: { default: "anthropic/claude-3-7-sonnet" },
+			modelRoles: { flash: "anthropic/claude-3-7-sonnet" },
 		});
 
 		const resolved = resolveModelFromSettings({ settings, availableModels });
@@ -36,12 +36,12 @@ describe("issue #980 provider-qualified model resolution", () => {
 	});
 
 	test("does not silently fall back to bedrock when a provider-qualified role misses", () => {
-		const availableModels = [model("amazon-bedrock", "claude-3-7-sonnet"), model("anthropic", "claude-sonnet-4-5")];
+		const availableModels = [model("amazon-bedrock", "claude-3-7-sonnet"), model("anthropic", "claude-sonnet-4-6")];
 		const settings = Settings.isolated({
-			modelRoles: { default: "anthropic/claude-3-7-sonnet" },
+			modelRoles: { flash: "anthropic/claude-3-7-sonnet" },
 		});
 
-		const roleValue = settings.getModelRole("default");
+		const roleValue = settings.getModelRole("flash");
 		const roleResolved = resolveModelRoleValue(roleValue, availableModels, { settings });
 		expect(roleResolved.model).toBeUndefined();
 

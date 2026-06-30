@@ -4,10 +4,10 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 
-import { AuthStorage, SqliteAuthCredentialStore } from "@amaze/pi-ai/auth-storage";
-import * as deepseekModule from "@amaze/pi-ai/registry/deepseek";
-import * as kagiModule from "@amaze/pi-ai/registry/kagi";
-import * as ollamaCloudModule from "@amaze/pi-ai/registry/ollama-cloud";
+import { AuthStorage, SqliteAuthCredentialStore } from "@steve-z8k/pi-ai/auth-storage";
+import * as deepseekModule from "@steve-z8k/pi-ai/registry/deepseek";
+import * as kagiModule from "@steve-z8k/pi-ai/registry/kagi";
+import * as ollamaCloudModule from "@steve-z8k/pi-ai/registry/ollama-cloud";
 
 function countCredentialRows(dbPath: string, provider: string): number {
 	const db = new Database(dbPath, { readonly: true });

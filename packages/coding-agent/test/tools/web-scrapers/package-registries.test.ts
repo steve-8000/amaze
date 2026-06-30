@@ -1,10 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { handleCratesIo } from "@amaze/pi-coding-agent/web/scrapers/crates-io";
-import { handleGoPkg } from "@amaze/pi-coding-agent/web/scrapers/go-pkg";
-import { handleHex } from "@amaze/pi-coding-agent/web/scrapers/hex";
-import { handleNpm } from "@amaze/pi-coding-agent/web/scrapers/npm";
-import { handlePubDev } from "@amaze/pi-coding-agent/web/scrapers/pub-dev";
-import { handlePyPI } from "@amaze/pi-coding-agent/web/scrapers/pypi";
+import { handleCratesIo } from "@steve-z8k/pi-coding-agent/web/scrapers/crates-io";
+import { handleGoPkg } from "@steve-z8k/pi-coding-agent/web/scrapers/go-pkg";
+import { handleHex } from "@steve-z8k/pi-coding-agent/web/scrapers/hex";
+import { handleNpm } from "@steve-z8k/pi-coding-agent/web/scrapers/npm";
+import { handlePubDev } from "@steve-z8k/pi-coding-agent/web/scrapers/pub-dev";
+import { handlePyPI } from "@steve-z8k/pi-coding-agent/web/scrapers/pypi";
 
 const SKIP = !Bun.env.WEB_FETCH_INTEGRATION;
 

@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import * as ai from "@amaze/pi-ai";
-import { Effort } from "@amaze/pi-ai";
-import { getBundledModel } from "@amaze/pi-catalog/models";
-import { generateCommitMessage } from "@amaze/pi-coding-agent/utils/commit-message-generator";
-import { generateSessionTitle } from "@amaze/pi-coding-agent/utils/title-generator";
+import * as ai from "@steve-z8k/pi-ai";
+import { Effort } from "@steve-z8k/pi-ai";
+import { getBundledModel } from "@steve-z8k/pi-catalog/models";
+import { generateCommitMessage } from "@steve-z8k/pi-coding-agent/utils/commit-message-generator";
+import { generateSessionTitle } from "@steve-z8k/pi-coding-agent/utils/title-generator";
 
 function getModelOrThrow(id: string) {
 	const model = getBundledModel("anthropic", id);
@@ -35,11 +35,11 @@ afterEach(() => {
 });
 
 describe("role thinking helper propagation", () => {
-	it("passes smol-role thinking to commit message generation", async () => {
-		const model = getModelOrThrow("claude-sonnet-4-5");
+	it("passes flash-lane thinking to commit message generation", async () => {
+		const model = getModelOrThrow("claude-sonnet-4-6");
 		const settings = createSettings({
-			default: `${model.provider}/${model.id}:high`,
-			smol: "pi/default:minimal",
+			flash: "pi/deep:minimal",
+			deep: `${model.provider}/${model.id}:high`,
 		});
 		const registry = {
 			getAvailable: () => [model],
@@ -59,11 +59,11 @@ describe("role thinking helper propagation", () => {
 		});
 	});
 
-	it("disables reasoning for title generation even when smol role has thinking", async () => {
-		const model = getModelOrThrow("claude-sonnet-4-5");
+	it("disables reasoning for title generation even when flash lane has thinking", async () => {
+		const model = getModelOrThrow("claude-sonnet-4-6");
 		const settings = createSettings({
-			default: `${model.provider}/${model.id}:high`,
-			smol: "pi/default:low",
+			flash: "pi/deep:low",
+			deep: `${model.provider}/${model.id}:high`,
 		});
 		const registry = {
 			getAvailable: () => [model],

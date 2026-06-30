@@ -6,9 +6,9 @@
 // #isTransientTransportErrorMessage) so the turn is auto-retried instead of
 // stopping with a pinned error banner.
 import { describe, expect, it } from "bun:test";
-import { streamOpenAICompletions } from "@amaze/pi-ai/providers/openai-completions";
-import type { Context, FetchImpl, Model } from "@amaze/pi-ai/types";
-import { getBundledModel } from "@amaze/pi-catalog/models";
+import { streamOpenAICompletions } from "@steve-z8k/pi-ai/providers/openai-completions";
+import type { Context, FetchImpl, Model } from "@steve-z8k/pi-ai/types";
+import { getBundledModel } from "@steve-z8k/pi-catalog/models";
 
 // Mirrors the transient-transport alternative the session retry gate matches on.
 const RETRYABLE_PATTERN = /provider.?returned.?error/i;

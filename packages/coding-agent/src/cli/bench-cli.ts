@@ -1,4 +1,4 @@
-import type { ResolvedThinkingLevel } from "@amaze/pi-agent-core";
+import type { ResolvedThinkingLevel } from "@steve-z8k/pi-agent-core";
 import type {
 	Api,
 	ApiKeyResolver,
@@ -9,11 +9,11 @@ import type {
 	Effort,
 	Model,
 	SimpleStreamOptions,
-} from "@amaze/pi-ai";
-import { streamSimple } from "@amaze/pi-ai";
-import { buildModelProviderPriorityRank, type CanonicalModelVariant } from "@amaze/pi-catalog/identity";
-import { replaceTabs, truncateToWidth } from "@amaze/pi-tui";
-import { APP_NAME, formatDuration, getProjectDir } from "@amaze/pi-utils";
+} from "@steve-z8k/pi-ai";
+import { streamSimple } from "@steve-z8k/pi-ai";
+import { buildModelProviderPriorityRank, type CanonicalModelVariant } from "@steve-z8k/pi-catalog/identity";
+import { replaceTabs, truncateToWidth } from "@steve-z8k/pi-tui";
+import { APP_NAME, formatDuration, getProjectDir } from "@steve-z8k/pi-utils";
 import chalk from "chalk";
 import type { ApiKeyResolverModel } from "../config/api-key-resolver";
 import { type CanonicalModelQueryOptions, ModelRegistry } from "../config/model-registry";

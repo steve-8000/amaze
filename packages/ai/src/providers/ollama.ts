@@ -1,4 +1,4 @@
-import { extractHttpStatusFromError, fetchWithRetry } from "@amaze/pi-utils";
+import { extractHttpStatusFromError, fetchWithRetry } from "@steve-z8k/pi-utils";
 import { ProviderHttpError } from "../errors";
 import { getEnvApiKey } from "../stream";
 import type {

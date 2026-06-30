@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import { resetSettingsForTest, Settings, settings } from "@amaze/pi-coding-agent/config/settings";
-import { MCPAuthorizationLinkPrompt } from "@amaze/pi-coding-agent/modes/controllers/mcp-command-controller";
-import { initTheme } from "@amaze/pi-coding-agent/modes/theme/theme";
+import { resetSettingsForTest, Settings, settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { MCPAuthorizationLinkPrompt } from "@steve-z8k/pi-coding-agent/modes/controllers/mcp-command-controller";
+import { initTheme } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
 
 const OSC = "\x1b]";
 const BEL = "\x07";

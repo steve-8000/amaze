@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import type { AssistantMessage, Context, ToolCall, ToolResultMessage, Usage } from "@amaze/pi-ai";
+import type { AssistantMessage, Context, ToolCall, ToolResultMessage, Usage } from "@steve-z8k/pi-ai";
 import {
 	createInbandScanner,
 	type Dialect,
@@ -9,7 +9,7 @@ import {
 	type InbandScanEvent,
 	parseInbandToolMessage,
 	renderInbandToolPrompt,
-} from "@amaze/pi-ai/dialect";
+} from "@steve-z8k/pi-ai/dialect";
 
 const TOOLS = [
 	{

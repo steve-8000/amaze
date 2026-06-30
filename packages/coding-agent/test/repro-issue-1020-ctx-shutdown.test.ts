@@ -4,9 +4,9 @@ import type {
 	ExtensionCommandContextActions,
 	ExtensionContextActions,
 	ExtensionUIContext,
-} from "@amaze/pi-coding-agent/extensibility/extensions";
-import { ExtensionUiController } from "@amaze/pi-coding-agent/modes/controllers/extension-ui-controller";
-import type { InteractiveModeContext } from "@amaze/pi-coding-agent/modes/types";
+} from "@steve-z8k/pi-coding-agent/extensibility/extensions";
+import { ExtensionUiController } from "@steve-z8k/pi-coding-agent/modes/controllers/extension-ui-controller";
+import type { InteractiveModeContext } from "@steve-z8k/pi-coding-agent/modes/types";
 
 /**
  * Issue #1020: `ctx.shutdown()` is a no-op in interactive mode.

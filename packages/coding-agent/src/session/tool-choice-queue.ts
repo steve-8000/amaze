@@ -1,4 +1,4 @@
-import type { ToolChoice } from "@amaze/pi-ai";
+import type { ToolChoice } from "@steve-z8k/pi-ai";
 
 // ── Callback types ──────────────────────────────────────────────────────────
 

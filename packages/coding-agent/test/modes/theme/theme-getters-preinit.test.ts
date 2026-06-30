@@ -5,7 +5,7 @@ import {
 	getSettingsListTheme,
 	getSymbolTheme,
 	theme,
-} from "@amaze/pi-coding-agent/modes/theme/theme";
+} from "@steve-z8k/pi-coding-agent/modes/theme/theme";
 
 /**
  * Contract for issue #2998: the exported theme-getter functions must not crash

@@ -1,6 +1,6 @@
-# @amaze/pi-catalog
+# @steve-z8k/pi-catalog
 
-Model catalog for [amaze-agent](https://github.com/can1357/amaze-agent): bundled model database, provider discovery, model identity, classification, and equivalence.
+Model catalog for [amaze-agent](https://github.com/steve-8000/amaze): bundled model database, provider discovery, model identity, classification, and equivalence.
 
 ## What's inside
 
@@ -17,7 +17,7 @@ Model catalog for [amaze-agent](https://github.com/can1357/amaze-agent): bundled
 | `wire` | Wire-level helpers: Codex, Gemini headers, GitHub Copilot |
 | `effort` | Reasoning-effort level definitions |
 
-Import from subpaths (`@amaze/pi-catalog/<module>`) or the root barrel.
+Import from subpaths (`@steve-z8k/pi-catalog/<module>`) or the root barrel.
 
 ## models.json is generated
 
@@ -32,12 +32,12 @@ To change an entry, fix the source: resolver overrides in `provider-models/opena
 ## Install
 
 ```sh
-bun add @amaze/pi-catalog
+bun add @steve-z8k/pi-catalog
 ```
 
 Ships TypeScript source directly (no build step); requires Bun ≥ 1.3.14.
 
 ## References
 
-- [Monorepo README](https://github.com/can1357/amaze-agent#readme)
+- [Monorepo README](https://github.com/steve-8000/amaze#readme)
 - [CHANGELOG](./CHANGELOG.md)

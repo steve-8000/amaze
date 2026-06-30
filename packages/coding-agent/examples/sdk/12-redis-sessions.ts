@@ -14,7 +14,7 @@
  * (S3, R2, GCS) if you need those off-host too.
  */
 
-import { createAgentSession, RedisSessionStorage, SessionManager } from "@amaze/pi-coding-agent";
+import { createAgentSession, RedisSessionStorage, SessionManager } from "@steve-z8k/pi-coding-agent";
 import { RedisClient } from "bun";
 
 // `bun:redis` picks up `REDIS_URL` / `VALKEY_URL` from the environment, or

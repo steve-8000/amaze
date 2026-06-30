@@ -1,9 +1,9 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { AgentMessage } from "@amaze/pi-agent-core";
-import type { AssistantMessage } from "@amaze/pi-ai";
-import { type Component, truncateToWidth, visibleWidth } from "@amaze/pi-tui";
-import { getProjectDir } from "@amaze/pi-utils";
+import type { AgentMessage } from "@steve-z8k/pi-agent-core";
+import type { AssistantMessage } from "@steve-z8k/pi-ai";
+import { type Component, truncateToWidth, visibleWidth } from "@steve-z8k/pi-tui";
+import { getProjectDir } from "@steve-z8k/pi-utils";
 import { $ } from "bun";
 import { settings } from "../../../config/settings";
 import type { AgentSession } from "../../../session/agent-session";
@@ -17,7 +17,6 @@ import { renderSegment, type SegmentContext } from "./segments";
 import { getSeparator } from "./separators";
 import { calculateTokensPerSecond } from "./token-rate";
 import type {
-	CollabStatus,
 	EffectiveStatusLineSettings,
 	StatusLineSegmentId,
 	StatusLineSegmentOptions,
@@ -191,7 +190,6 @@ export class StatusLineComponent implements Component {
 	#planModeStatus: { enabled: boolean; paused: boolean } | null = null;
 	#loopModeStatus: { enabled: boolean } | null = null;
 	#goalModeStatus: { enabled: boolean; paused: boolean } | null = null;
-	#collabStatus: CollabStatus | null = null;
 	#focusedAgentId: string | undefined;
 
 	// Git status caching (1s TTL)
@@ -275,11 +273,6 @@ export class StatusLineComponent implements Component {
 		this.#subagentCount = count;
 	}
 
-	/** Active subagent count as currently displayed (collab state mirroring). */
-	get subagentCount(): number {
-		return this.#subagentCount;
-	}
-
 	setSessionStartTime(time: number): void {
 		this.#sessionStartTime = time;
 	}
@@ -294,10 +287,6 @@ export class StatusLineComponent implements Component {
 
 	setGoalModeStatus(status: { enabled: boolean; paused: boolean } | undefined): void {
 		this.#goalModeStatus = status ?? null;
-	}
-
-	setCollabStatus(status: CollabStatus | null): void {
-		this.#collabStatus = status;
 	}
 
 	setHookStatus(key: string, text: string | undefined): void {
@@ -650,7 +639,7 @@ export class StatusLineComponent implements Component {
 	 * last assistant's real prompt-token count — so the bar matches the provider
 	 * and the `/context` panel — and reports `null` while that count is unknown
 	 * (right after compaction, before the next response). Exposed (non-private)
-	 * for unit tests and the collab host's state broadcast.
+	 * for unit tests.
 	 */
 	getCachedContextBreakdown(): { usedTokens: number; contextWindow: number } {
 		const messages = this.session.messages ?? EMPTY_MESSAGES;
@@ -733,14 +722,6 @@ export class StatusLineComponent implements Component {
 			contextPercent = contextWindow > 0 ? (breakdown.usedTokens / contextWindow) * 100 : 0;
 		}
 
-		// Collab guest: context comes from the host's state frames — the local
-		// replica does no accounting of its own.
-		const collabState = this.#collabStatus?.stateOverride;
-		if (collabState?.contextUsage) {
-			contextWindow = collabState.contextUsage.contextWindow || contextWindow;
-			contextPercent = collabState.contextUsage.percent ?? contextPercent;
-		}
-
 		const gitBranch = includeGit || includePr ? this.#getCurrentBranch() : null;
 		const gitStatus = includeGit ? this.#getGitStatus() : null;
 		const gitPr = includePr ? this.#lookupPr() : null;
@@ -753,7 +734,6 @@ export class StatusLineComponent implements Component {
 			planMode: this.#planModeStatus,
 			loopMode: this.#loopModeStatus,
 			goalMode: this.#goalModeStatus,
-			collab: this.#collabStatus,
 			usageStats,
 			contextPercent,
 			contextWindow,
@@ -928,7 +908,6 @@ export class StatusLineComponent implements Component {
 				pi: 0,
 				hostname: 1,
 				session: 1,
-				collab: 2,
 				pr: 3,
 				subagents: 4,
 				token_in: 5,

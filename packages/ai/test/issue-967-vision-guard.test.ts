@@ -1,13 +1,24 @@
 import { describe, expect, it } from "bun:test";
-import { convertAnthropicMessages } from "@amaze/pi-ai/providers/anthropic";
-import { convertMessages as convertGoogleMessages } from "@amaze/pi-ai/providers/google-shared";
-import { convertCodexResponsesMessages } from "@amaze/pi-ai/providers/openai-codex-responses";
-import { convertMessages as convertOpenAICompletionsMessages } from "@amaze/pi-ai/providers/openai-completions";
-import { appendResponsesToolResultMessages, convertResponsesInputContent } from "@amaze/pi-ai/providers/openai-shared";
-import { NON_VISION_IMAGE_PLACEHOLDER } from "@amaze/pi-ai/providers/vision-guard";
-import type { Api, AssistantMessage, Context, Model, ModelSpec, ToolResultMessage, Usage } from "@amaze/pi-ai/types";
-import { buildModel } from "@amaze/pi-catalog/build";
-import type { ResolvedOpenAICompat } from "@amaze/pi-catalog/types";
+import { convertAnthropicMessages } from "@steve-z8k/pi-ai/providers/anthropic";
+import { convertMessages as convertGoogleMessages } from "@steve-z8k/pi-ai/providers/google-shared";
+import { convertCodexResponsesMessages } from "@steve-z8k/pi-ai/providers/openai-codex-responses";
+import { convertMessages as convertOpenAICompletionsMessages } from "@steve-z8k/pi-ai/providers/openai-completions";
+import {
+	appendResponsesToolResultMessages,
+	convertResponsesInputContent,
+} from "@steve-z8k/pi-ai/providers/openai-shared";
+import { NON_VISION_IMAGE_PLACEHOLDER } from "@steve-z8k/pi-ai/providers/vision-guard";
+import type {
+	Api,
+	AssistantMessage,
+	Context,
+	Model,
+	ModelSpec,
+	ToolResultMessage,
+	Usage,
+} from "@steve-z8k/pi-ai/types";
+import { buildModel } from "@steve-z8k/pi-catalog/build";
+import type { ResolvedOpenAICompat } from "@steve-z8k/pi-catalog/types";
 
 const emptyUsage: Usage = {
 	input: 0,

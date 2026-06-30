@@ -1,7 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { isEnoent, logger } from "@amaze/pi-utils";
-import { getAgentDir } from "@amaze/pi-utils/dirs";
+import { isEnoent, logger } from "@steve-z8k/pi-utils";
+import { getAgentDir } from "@steve-z8k/pi-utils/dirs";
 
 const SMITHERY_AUTH_FILENAME = "smithery.json";
 const SMITHERY_URL = process.env.SMITHERY_URL || "https://smithery.ai";

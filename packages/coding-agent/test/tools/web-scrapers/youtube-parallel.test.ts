@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { resetSettingsForTest, Settings } from "@amaze/pi-coding-agent/config/settings";
-import * as toolsManager from "@amaze/pi-coding-agent/utils/tools-manager";
-import * as parallelModule from "@amaze/pi-coding-agent/web/parallel";
-import { handleYouTube } from "@amaze/pi-coding-agent/web/scrapers/youtube";
+import { resetSettingsForTest, Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import * as toolsManager from "@steve-z8k/pi-coding-agent/utils/tools-manager";
+import * as parallelModule from "@steve-z8k/pi-coding-agent/web/parallel";
+import { handleYouTube } from "@steve-z8k/pi-coding-agent/web/scrapers/youtube";
 
 describe("handleYouTube with Parallel extract", () => {
 	beforeEach(async () => {

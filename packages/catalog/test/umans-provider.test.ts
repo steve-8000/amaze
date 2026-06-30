@@ -2,13 +2,13 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { resolveProviderModels } from "@amaze/pi-catalog/model-manager";
+import { resolveProviderModels } from "@steve-z8k/pi-catalog/model-manager";
 import {
 	MODELS_DEV_PROVIDER_DESCRIPTORS,
 	mapModelsDevToModels,
 	umansModelManagerOptions,
-} from "@amaze/pi-catalog/provider-models/openai-compat";
-import type { FetchImpl, ModelSpec } from "@amaze/pi-catalog/types";
+} from "@steve-z8k/pi-catalog/provider-models/openai-compat";
+import type { FetchImpl, ModelSpec } from "@steve-z8k/pi-catalog/types";
 import modelsJson from "../src/models.json";
 
 interface BundledModel {

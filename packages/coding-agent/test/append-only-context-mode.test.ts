@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { shouldEnableAppendOnlyContext } from "@amaze/pi-coding-agent/config/append-only-context-mode";
+import { shouldEnableAppendOnlyContext } from "@steve-z8k/pi-coding-agent/config/append-only-context-mode";
 
 const XIAOMI_TOKEN_PLAN_ANTHROPIC = {
 	provider: "xiaomi-token-plan-sgp",

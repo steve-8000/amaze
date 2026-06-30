@@ -1,4 +1,4 @@
-import type { AgentTool, AgentToolResult } from "@amaze/pi-agent-core/types";
+import type { AgentTool, AgentToolResult } from "@steve-z8k/pi-agent-core/types";
 import { type } from "arktype";
 
 export interface CalculateResult extends AgentToolResult<undefined> {

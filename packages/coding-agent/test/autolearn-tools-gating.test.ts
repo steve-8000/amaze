@@ -2,11 +2,15 @@ import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type SettingPath, Settings } from "@amaze/pi-coding-agent/config/settings";
-import { resetActiveSkillsForTests, type Skill, setActiveSkills } from "@amaze/pi-coding-agent/extensibility/skills";
-import { createTools, type ToolSession } from "@amaze/pi-coding-agent/tools";
-import { ManageSkillTool } from "@amaze/pi-coding-agent/tools/manage-skill";
-import { getAgentDir, setAgentDir } from "@amaze/pi-utils/dirs";
+import { type SettingPath, Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import {
+	resetActiveSkillsForTests,
+	type Skill,
+	setActiveSkills,
+} from "@steve-z8k/pi-coding-agent/extensibility/skills";
+import { createTools, type ToolSession } from "@steve-z8k/pi-coding-agent/tools";
+import { ManageSkillTool } from "@steve-z8k/pi-coding-agent/tools/manage-skill";
+import { getAgentDir, setAgentDir } from "@steve-z8k/pi-utils/dirs";
 import { type } from "arktype";
 
 function makeSession(
@@ -63,26 +67,41 @@ describe("autolearn tool gating", () => {
 describe("manage_skill execute", () => {
 	let tempHome: string;
 	let originalAgentDir: string;
+	let previousCircleSkillsDir: string | undefined;
 
 	beforeEach(async () => {
 		originalAgentDir = getAgentDir();
 		tempHome = await fs.mkdtemp(path.join(os.tmpdir(), "amaze-manage-skill-"));
 		spyOn(os, "homedir").mockReturnValue(tempHome);
 		setAgentDir(path.join(tempHome, ".amaze", "agent"));
+		previousCircleSkillsDir = process.env.CIRCLE_SKILLS_DIR;
+		process.env.CIRCLE_SKILLS_DIR = path.join(tempHome, ".circle", "skills");
 	});
 
 	afterEach(async () => {
 		spyOn(os, "homedir").mockRestore();
 		setAgentDir(originalAgentDir);
+		if (previousCircleSkillsDir === undefined) delete process.env.CIRCLE_SKILLS_DIR;
+		else process.env.CIRCLE_SKILLS_DIR = previousCircleSkillsDir;
 		resetActiveSkillsForTests();
 		await fs.rm(tempHome, { recursive: true, force: true });
 	});
 
-	const tool = () => ManageSkillTool.createIf(makeSession({ "autolearn.enabled": true }))!;
+	const tool = () =>
+		ManageSkillTool.createIf(
+			makeSession(
+				{ "autolearn.enabled": true },
+				{
+					settings: {
+						get: (key: string) => (key === "autolearn.enabled" ? true : undefined),
+					} as ToolSession["settings"],
+				},
+			),
+		)!;
 
-	it("create and delete write through the local Rocky skill store", async () => {
+	it("create and delete write through the local Circle skill store", async () => {
 		await tool().execute("1", { action: "create", name: "demo", description: "When to demo.", body: "# Demo" });
-		const skillPath = path.join(tempHome, ".rocky", "skills", "demo.md");
+		const skillPath = path.join(tempHome, ".circle", "skills", "demo.md");
 		const content = await Bun.file(skillPath).text();
 		expect(content).toContain("summary: When to demo.");
 		expect(content).toContain("# Demo");
@@ -91,7 +110,7 @@ describe("manage_skill execute", () => {
 		expect(await Bun.file(skillPath).exists()).toBe(false);
 	});
 
-	it("preserves create/update existence contracts over Rocky upsert", async () => {
+	it("preserves create/update existence contracts over Circle upsert", async () => {
 		await tool().execute("1", { action: "create", name: "demo", description: "When to demo.", body: "# Demo" });
 		await expect(
 			tool().execute("2", { action: "create", name: "demo", description: "When to demo.", body: "# Demo 2" }),
@@ -111,7 +130,7 @@ describe("manage_skill execute", () => {
 			description: "When to demo.",
 			body: "# Updated",
 		});
-		expect(await Bun.file(path.join(tempHome, ".rocky", "skills", "demo.md")).text()).toContain("# Updated");
+		expect(await Bun.file(path.join(tempHome, ".circle", "skills", "demo.md")).text()).toContain("# Updated");
 	});
 
 	it("rejects create without a body and delete of a missing skill", async () => {
@@ -157,7 +176,7 @@ describe("manage_skill execute", () => {
 		const text = result.content.map(part => (part.type === "text" ? part.text : "")).join("");
 		expect(text).toMatch(/authored skill/i);
 		expect(text).not.toContain("Created");
-		// Nothing was sent to Rocky, so a shadowed managed skill can never surface.
+		// Nothing was sent to Circle MCP, so a shadowed managed skill can never surface.
 		expect(result.details).toEqual({ action: "create", name: "demo", shadowed: true });
 	});
 });

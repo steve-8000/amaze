@@ -8,11 +8,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import type { ToolSession } from "@amaze/pi-coding-agent/tools";
-import { ReadTool } from "@amaze/pi-coding-agent/tools/read";
-import * as markit from "@amaze/pi-coding-agent/utils/markit";
-import { Snowflake } from "@amaze/pi-utils";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import type { ToolSession } from "@steve-z8k/pi-coding-agent/tools";
+import { ReadTool } from "@steve-z8k/pi-coding-agent/tools/read";
+import * as markit from "@steve-z8k/pi-coding-agent/utils/markit";
+import { Snowflake } from "@steve-z8k/pi-utils";
 
 function makeSession(testDir: string): ToolSession {
 	const sessionFile = path.join(testDir, "session.jsonl");

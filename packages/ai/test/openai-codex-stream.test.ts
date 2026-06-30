@@ -4,10 +4,10 @@ import {
 	getOpenAICodexWebSocketDebugStats,
 	prewarmOpenAICodexResponses,
 	streamOpenAICodexResponses,
-} from "@amaze/pi-ai/providers/openai-codex-responses";
-import type { Context, FetchImpl, Model, ModelSpec, ProviderSessionState } from "@amaze/pi-ai/types";
-import { buildModel } from "@amaze/pi-catalog/build";
-import { getAgentDir, setAgentDir, TempDir } from "@amaze/pi-utils";
+} from "@steve-z8k/pi-ai/providers/openai-codex-responses";
+import type { Context, FetchImpl, Model, ModelSpec, ProviderSessionState } from "@steve-z8k/pi-ai/types";
+import { buildModel } from "@steve-z8k/pi-catalog/build";
+import { getAgentDir, setAgentDir, TempDir } from "@steve-z8k/pi-utils";
 
 const originalAgentDir = getAgentDir();
 const originalWebSocket = global.WebSocket;

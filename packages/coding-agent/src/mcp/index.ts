@@ -5,6 +5,7 @@
  * MCP servers via stdio or HTTP transports.
  */
 
+export * from "./clab-codebase-service";
 // Client
 export * from "./client";
 // Config
@@ -18,7 +19,6 @@ export * from "./loader";
 export * from "./manager";
 // OAuth Discovery
 export * from "./oauth-discovery";
-export * from "./rocky-codebase-service";
 // Tool bridge
 export * from "./tool-bridge";
 // Tool cache

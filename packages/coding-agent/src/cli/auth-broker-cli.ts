@@ -30,10 +30,10 @@ import {
 	type OAuthProviderInfo,
 	PROVIDER_REGISTRY,
 	SqliteAuthCredentialStore,
-} from "@amaze/pi-ai";
-import { AuthBrokerClient, DEFAULT_AUTH_BROKER_BIND, startAuthBroker } from "@amaze/pi-ai/auth-broker";
-import { $which, APP_NAME, getAgentDbPath, getConfigRootDir, isEnoent, logger, VERSION } from "@amaze/pi-utils";
-import { setTransports as setLoggerTransports } from "@amaze/pi-utils/logger";
+} from "@steve-z8k/pi-ai";
+import { AuthBrokerClient, DEFAULT_AUTH_BROKER_BIND, startAuthBroker } from "@steve-z8k/pi-ai/auth-broker";
+import { $which, APP_NAME, getAgentDbPath, getConfigRootDir, isEnoent, logger, VERSION } from "@steve-z8k/pi-utils";
+import { setTransports as setLoggerTransports } from "@steve-z8k/pi-utils/logger";
 import { $ } from "bun";
 import chalk from "chalk";
 import { resolveAuthBrokerConfig } from "../session/auth-broker-config";

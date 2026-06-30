@@ -11,7 +11,7 @@
 
 import { $ } from "bun";
 
-const REPO = process.env.OMP_REPO ?? "can1357/amaze-agent";
+const REPO = process.env.OMP_REPO ?? "steve-8000/amaze";
 const HOMEPAGE = "https://amaze";
 const DESC = "Coding agent with the IDE wired in";
 

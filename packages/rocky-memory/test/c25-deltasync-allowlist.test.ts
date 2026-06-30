@@ -2,8 +2,8 @@ import { afterEach, describe, expect, it } from "bun:test";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { RockyMemory } from "@amaze/pi-rocky-memory/core/memory";
-import { ALLOWED_DELTA_TABLES, DeltaSync, SyncCheckpoint } from "@amaze/pi-rocky-memory/core/streaming";
+import { RockyMemory } from "@steve-z8k/pi-rocky-memory/core/memory";
+import { ALLOWED_DELTA_TABLES, DeltaSync, SyncCheckpoint } from "@steve-z8k/pi-rocky-memory/core/streaming";
 
 const roots: string[] = [];
 

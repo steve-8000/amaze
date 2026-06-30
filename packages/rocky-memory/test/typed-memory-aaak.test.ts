@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { CATEGORY_MAP, encode, PHRASE_MAP, STRUCTURAL_REPLACEMENTS } from "@amaze/pi-rocky-memory/core/aaak";
+import { CATEGORY_MAP, encode, PHRASE_MAP, STRUCTURAL_REPLACEMENTS } from "@steve-z8k/pi-rocky-memory/core/aaak";
 import {
 	classifyBatch,
 	classifyMemory,
@@ -7,7 +7,7 @@ import {
 	getTypePriority,
 	MemoryType,
 	shouldConsolidate,
-} from "@amaze/pi-rocky-memory/core/typed-memory";
+} from "@steve-z8k/pi-rocky-memory/core/typed-memory";
 
 describe("typed memory classification", () => {
 	it("classifies the Python integration test cases", () => {

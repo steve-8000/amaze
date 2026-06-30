@@ -5,9 +5,9 @@ import {
 	getCopilotPremiumMultiplier,
 	hasCopilotVisionInput,
 	inferCopilotInitiator,
-} from "@amaze/pi-ai/providers/github-copilot-headers";
-import type { Message } from "@amaze/pi-ai/types";
-import { getBundledModel } from "@amaze/pi-catalog/models";
+} from "@steve-z8k/pi-ai/providers/github-copilot-headers";
+import type { Message } from "@steve-z8k/pi-ai/types";
+import { getBundledModel } from "@steve-z8k/pi-catalog/models";
 
 describe("inferCopilotInitiator", () => {
 	it("returns 'user' when there are no messages", () => {

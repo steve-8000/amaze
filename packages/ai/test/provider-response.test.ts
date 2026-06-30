@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { streamSimple } from "@amaze/pi-ai/stream";
-import type { Context, FetchImpl, Model, ProviderResponseMetadata } from "@amaze/pi-ai/types";
-import { normalizeProviderResponse, notifyProviderResponse } from "@amaze/pi-ai/utils/provider-response";
-import { getBundledModel } from "@amaze/pi-catalog/models";
+import { streamSimple } from "@steve-z8k/pi-ai/stream";
+import type { Context, FetchImpl, Model, ProviderResponseMetadata } from "@steve-z8k/pi-ai/types";
+import { normalizeProviderResponse, notifyProviderResponse } from "@steve-z8k/pi-ai/utils/provider-response";
+import { getBundledModel } from "@steve-z8k/pi-catalog/models";
 
 describe("provider response metadata", () => {
 	it("normalizes response status, headers, and request id", () => {

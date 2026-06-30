@@ -6,8 +6,8 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { setKittyProtocolActive } from "@amaze/pi-tui/keys";
-import { StdinBuffer } from "@amaze/pi-tui/stdin-buffer";
+import { setKittyProtocolActive } from "@steve-z8k/pi-tui/keys";
+import { StdinBuffer } from "@steve-z8k/pi-tui/stdin-buffer";
 
 describe("StdinBuffer", () => {
 	let buffer: StdinBuffer;

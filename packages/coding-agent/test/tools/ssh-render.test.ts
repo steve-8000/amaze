@@ -1,8 +1,8 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { getThemeByName, initTheme } from "@amaze/pi-coding-agent/modes/theme/theme";
-import { previewWindowRows } from "@amaze/pi-coding-agent/tools/render-utils";
-import { sshToolRenderer } from "@amaze/pi-coding-agent/tools/ssh";
-import { sanitizeText } from "@amaze/pi-utils";
+import { getThemeByName, initTheme } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
+import { previewWindowRows } from "@steve-z8k/pi-coding-agent/tools/render-utils";
+import { sshToolRenderer } from "@steve-z8k/pi-coding-agent/tools/ssh";
+import { sanitizeText } from "@steve-z8k/pi-utils";
 
 beforeAll(async () => {
 	await initTheme();

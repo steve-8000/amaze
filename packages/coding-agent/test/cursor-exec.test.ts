@@ -2,9 +2,9 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import { CursorExecHandlers } from "@amaze/pi-coding-agent/cursor";
-import { SearchTool, type ToolSession } from "@amaze/pi-coding-agent/tools";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { CursorExecHandlers } from "@steve-z8k/pi-coding-agent/cursor";
+import { SearchTool, type ToolSession } from "@steve-z8k/pi-coding-agent/tools";
 
 function createTestSession(cwd: string, overrides: Partial<ToolSession> = {}): ToolSession {
 	return {

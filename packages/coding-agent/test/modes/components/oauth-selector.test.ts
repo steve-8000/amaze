@@ -1,9 +1,9 @@
 import { afterEach, beforeAll, describe, expect, it } from "bun:test";
-import { getOAuthProviders } from "@amaze/pi-ai/oauth";
-import { resetSettingsForTest, Settings } from "@amaze/pi-coding-agent/config/settings";
-import { OAuthSelectorComponent } from "@amaze/pi-coding-agent/modes/components/oauth-selector";
-import { initTheme } from "@amaze/pi-coding-agent/modes/theme/theme";
-import type { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
+import { getOAuthProviders } from "@steve-z8k/pi-ai/oauth";
+import { resetSettingsForTest, Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { OAuthSelectorComponent } from "@steve-z8k/pi-coding-agent/modes/components/oauth-selector";
+import { initTheme } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
+import type { AuthStorage } from "@steve-z8k/pi-coding-agent/session/auth-storage";
 
 beforeAll(async () => {
 	await initTheme();

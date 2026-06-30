@@ -1,9 +1,9 @@
-import { MismatchError as HashlineMismatchError } from "@amaze/hashline";
-import hashlineGrammar from "@amaze/hashline/grammar.lark" with { type: "text" };
-import hashlineDescription from "@amaze/hashline/prompt.md" with { type: "text" };
-import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@amaze/pi-agent-core";
-import type { ToolExample } from "@amaze/pi-ai";
-import { prompt } from "@amaze/pi-utils";
+import { MismatchError as HashlineMismatchError } from "@steve-z8k/hashline";
+import hashlineGrammar from "@steve-z8k/hashline/grammar.lark" with { type: "text" };
+import hashlineDescription from "@steve-z8k/hashline/prompt.md" with { type: "text" };
+import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@steve-z8k/pi-agent-core";
+import type { ToolExample } from "@steve-z8k/pi-ai";
+import { prompt } from "@steve-z8k/pi-utils";
 import applyPatchDescription from "../prompts/tools/apply-patch.md" with { type: "text" };
 import patchDescription from "../prompts/tools/patch.md" with { type: "text" };
 import replaceDescription from "../prompts/tools/replace.md" with { type: "text" };
@@ -30,7 +30,7 @@ import {
 	writethroughNoop,
 } from "./writethrough";
 
-export * from "@amaze/hashline";
+export * from "@steve-z8k/hashline";
 export { DEFAULT_EDIT_MODE, type EditMode, normalizeEditMode } from "../utils/edit-mode";
 export * from "./apply-patch";
 export * from "./diff";

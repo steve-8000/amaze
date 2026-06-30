@@ -8,8 +8,8 @@ import {
 	renderConflictRegion,
 	scanConflictLines,
 	spliceConflict,
-} from "@amaze/pi-coding-agent/tools/conflict-detect";
-import { ToolError } from "@amaze/pi-coding-agent/tools/tool-errors";
+} from "@steve-z8k/pi-coding-agent/tools/conflict-detect";
+import { ToolError } from "@steve-z8k/pi-coding-agent/tools/tool-errors";
 
 describe("scanConflictLines", () => {
 	it("detects a 2-way conflict with correct line numbers and labels", () => {

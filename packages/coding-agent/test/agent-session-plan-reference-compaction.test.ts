@@ -16,12 +16,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { Agent, type AgentMessage } from "@amaze/pi-agent-core";
-import * as compactionModule from "@amaze/pi-agent-core/compaction";
-import type { TextContent } from "@amaze/pi-ai";
-import { AssistantMessageEventStream } from "@amaze/pi-ai/utils/event-stream";
-import { getBundledModel } from "@amaze/pi-catalog/models";
-import { TempDir } from "@amaze/pi-utils";
+import { Agent, type AgentMessage } from "@steve-z8k/pi-agent-core";
+import * as compactionModule from "@steve-z8k/pi-agent-core/compaction";
+import type { TextContent } from "@steve-z8k/pi-ai";
+import { AssistantMessageEventStream } from "@steve-z8k/pi-ai/utils/event-stream";
+import { getBundledModel } from "@steve-z8k/pi-catalog/models";
+import { TempDir } from "@steve-z8k/pi-utils";
 import { ModelRegistry } from "../src/config/model-registry";
 import { Settings } from "../src/config/settings";
 import { resolveLocalUrlToPath } from "../src/internal-urls";
@@ -62,7 +62,7 @@ function createAssistantResponse(text: string) {
 		content: [{ type: "text" as const, text }],
 		api: "anthropic-messages" as const,
 		provider: "anthropic" as const,
-		model: "claude-sonnet-4-5",
+		model: "claude-sonnet-4-6",
 		usage: {
 			input: 0,
 			output: 0,
@@ -94,7 +94,7 @@ function emitHighUsageTurn(session: AgentSession): void {
 		content: [{ type: "text" as const, text: "Done." }],
 		api: "anthropic-messages" as const,
 		provider: "anthropic" as const,
-		model: "claude-sonnet-4-5",
+		model: "claude-sonnet-4-6",
 		stopReason: "stop" as const,
 		usage: {
 			input: 190_000,
@@ -133,8 +133,8 @@ describe("AgentSession approved-plan reference re-injection after compaction (is
 			resolve: (call: ObservedPromptCall) => void;
 		}> = [];
 
-		const model = getBundledModel("anthropic", "claude-sonnet-4-5");
-		if (!model) throw new Error("Expected claude-sonnet-4-5 model to exist");
+		const model = getBundledModel("anthropic", "claude-sonnet-4-6");
+		if (!model) throw new Error("Expected claude-sonnet-4-6 model to exist");
 
 		const authStorage = await AuthStorage.create(path.join(tempDir.path(), `testauth-${cleanups.length}.db`));
 		authStorage.setRuntimeApiKey("anthropic", "test-key");

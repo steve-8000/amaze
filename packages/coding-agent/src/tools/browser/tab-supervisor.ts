@@ -1,4 +1,4 @@
-import { getPuppeteerDir, logger, Snowflake, workerHostEntry } from "@amaze/pi-utils";
+import { getPuppeteerDir, logger, Snowflake, workerHostEntry } from "@steve-z8k/pi-utils";
 import type { Page, Target } from "puppeteer-core";
 import { callSessionTool } from "../../eval/js/tool-bridge";
 import type { ToolSession } from "../../sdk";

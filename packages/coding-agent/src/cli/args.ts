@@ -1,8 +1,8 @@
 /**
  * CLI argument parsing and help display
  */
-import { type Effort, THINKING_EFFORTS } from "@amaze/pi-catalog/effort";
-import { APP_NAME, CONFIG_DIR_NAME, logger } from "@amaze/pi-utils";
+import { type Effort, THINKING_EFFORTS } from "@steve-z8k/pi-catalog/effort";
+import { APP_NAME, CONFIG_DIR_NAME, logger } from "@steve-z8k/pi-utils";
 import chalk from "chalk";
 import { parseEffort } from "../thinking";
 import { BUILTIN_TOOL_NAMES } from "../tools/builtin-names";
@@ -25,16 +25,12 @@ export interface Args {
 	provider?: string;
 	model?: string;
 	config?: string[];
-	smol?: string;
-	slow?: string;
-	plan?: string;
 	maxTime?: number;
 	apiKey?: string;
 	systemPrompt?: string;
 	appendSystemPrompt?: string;
 	thinking?: Effort;
 	hideThinking?: boolean;
-	advisor?: boolean;
 	continue?: boolean;
 	resume?: string | true;
 	help?: boolean;
@@ -44,8 +40,6 @@ export interface Args {
 	sessionDir?: string;
 	providerSessionId?: string;
 	fork?: string;
-	/** Collab link to join at startup (set by the `join` subcommand; no CLI flag). */
-	join?: string;
 	models?: string[];
 	tools?: string[];
 	noTools?: boolean;
@@ -56,7 +50,6 @@ export interface Args {
 	pluginDirs?: string[];
 	print?: boolean;
 	printThoughts?: boolean;
-	export?: string;
 	noSkills?: boolean;
 	skills?: string[];
 	noRules?: boolean;
@@ -83,7 +76,7 @@ export interface Args {
 /**
  * Runtime dependencies the data-driven setters need. Constructed once at
  * module load and passed to every {@link STRING_SETTERS} call so the
- * setter table itself can stay free of `@amaze/pi-utils` runtime imports
+ * setter table itself can stay free of `@steve-z8k/pi-utils` runtime imports
  * (which would otherwise trip the profile bootstrap's env-init ordering).
  */
 const PARSE_DEPS: ParseDeps = {
@@ -134,9 +127,9 @@ export function parseArgs(inputArgs: string[], extensionFlags?: Map<string, { ty
 		}
 
 		// Extension-registered flags take precedence over built-ins: a flag an
-		// extension owns (e.g. plan-mode's boolean `--plan`) is parsed with the
+		// extension owns (e.g. extension-defined `--plan`) is parsed with the
 		// extension's semantics rather than falling into a built-in branch. For a
-		// value-taking built-in (`--plan`, `--model`, …) that branch would consume
+		// value-taking built-in (`--model`, …) that branch would consume
 		// the following token — eating the user's message and setting the wrong
 		// built-in field — so registered flags shadow same-named built-ins here.
 		const extFlag = arg.startsWith("--") ? extensionFlags?.get(arg.slice(2)) : undefined;
@@ -156,7 +149,7 @@ export function parseArgs(inputArgs: string[], extensionFlags?: Map<string, { ty
 			// Built-in string flags consume the next token even when it is flag-looking
 			// (`--system-prompt --profile foo` ⇒ the prompt is the literal "--profile").
 			// The one token they must never absorb is the profile bootstrap's internal
-			// boundary sentinel: an extension-shadowable built-in like `--plan` (parsed
+			// boundary sentinel: an extension-shadowable flag like `--plan` (parsed
 			// here only when its boolean extension is NOT loaded) would otherwise swallow
 			// the marker as its value and drop the user's trailing message.
 			if (i + 1 < args.length && args[i + 1] !== PROFILE_BOOTSTRAP_BOUNDARY_ARG) {
@@ -194,8 +187,6 @@ export function parseArgs(inputArgs: string[], extensionFlags?: Map<string, { ty
 			result.noPty = true;
 		} else if (arg === "--hide-thinking") {
 			result.hideThinking = true;
-		} else if (arg === "--advisor") {
-			result.advisor = true;
 		} else if (arg === "--print" || arg === "-p") {
 			result.print = true;
 		} else if (arg === "--print-thoughts") {
@@ -318,10 +309,7 @@ export function getExtraHelpText(): string {
   PI_PACKAGE_DIR              - Override package directory (for Nix/Guix store paths)
   AMAZE_SETTING_<PATH>        - Generic settings bridge for .env-backed config (e.g. AMAZE_SETTING_TASK_MAX_CONCURRENCY=2)
   OMP_SETTING_<PATH>          - Legacy alias for AMAZE_SETTING_<PATH>
-  PI_SMOL_MODEL               - Override smol/fast model (see --smol)
-  PI_SLOW_MODEL               - Override slow/reasoning model (see --slow)
-  PI_PLAN_MODEL               - Override planning model (see --plan)
-  PI_NO_PTY                   - Disable PTY-based interactive bash execution
+        PI_NO_PTY                   - Disable PTY-based interactive bash execution
   For complete environment variable reference, see:
   ${chalk.dim("docs/environment-variables.md")}
 ${chalk.bold("Available Tools (default-enabled unless noted):")}

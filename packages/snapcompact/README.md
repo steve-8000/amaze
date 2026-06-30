@@ -1,10 +1,10 @@
-# @amaze/snapcompact
+# @steve-z8k/snapcompact
 
 Bitmap-frame context compression for vision-capable LLMs.
 
-Instead of asking an LLM to summarize discarded conversation history, snapcompact serializes it and renders the text into dense PNG frames of pixel-font glyphs that vision models read back directly. The whole pass is local and deterministic — no LLM call, no API key, no latency beyond rendering. Rasterization and PNG encoding happen in native code (`@amaze/pi-natives`).
+Instead of asking an LLM to summarize discarded conversation history, snapcompact serializes it and renders the text into dense PNG frames of pixel-font glyphs that vision models read back directly. The whole pass is local and deterministic — no LLM call, no API key, no latency beyond rendering. Rasterization and PNG encoding happen in native code (`@steve-z8k/pi-natives`).
 
-Built for [amaze-agent](https://github.com/can1357/amaze-agent)'s compaction pipeline, but the rendering API works on arbitrary text.
+Built for [amaze-agent](https://github.com/steve-8000/amaze)'s compaction pipeline, but the rendering API works on arbitrary text.
 
 ## How it works
 
@@ -27,7 +27,7 @@ Frame shapes are provider-aware, chosen by SQuAD recall evals (see `research/`) 
 ## Install
 
 ```sh
-bun add @amaze/snapcompact
+bun add @steve-z8k/snapcompact
 ```
 
 Ships TypeScript source directly (no build step); requires Bun ≥ 1.3.14.
@@ -37,7 +37,7 @@ Ships TypeScript source directly (no build step); requires Bun ≥ 1.3.14.
 Render arbitrary text into LLM image blocks:
 
 ```ts
-import { renderMany, frames, resolveShape } from "@amaze/snapcompact";
+import { renderMany, frames, resolveShape } from "@steve-z8k/snapcompact";
 
 const images = renderMany(longText, { model }); // ImageContent[], first page first
 const count = frames(longText, { model });      // frame count without rendering
@@ -47,7 +47,7 @@ const shape = resolveShape(model);              // eval-optimal Shape for the re
 Run a full compaction pass over prepared messages:
 
 ```ts
-import { compact } from "@amaze/snapcompact";
+import { compact } from "@steve-z8k/snapcompact";
 
 const result = await compact(preparation, { model });
 // result.summary        — short "resume prior conversation" lead-in, reading guide, and FILES section
@@ -65,6 +65,6 @@ const result = await compact(preparation, { model });
 
 ## References
 
-- [Monorepo README](https://github.com/can1357/amaze-agent#readme)
+- [Monorepo README](https://github.com/steve-8000/amaze#readme)
 - [Compaction architecture](../../docs/compaction.md)
 - [CHANGELOG](./CHANGELOG.md)

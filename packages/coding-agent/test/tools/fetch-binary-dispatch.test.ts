@@ -3,14 +3,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { ImageContent, TextContent } from "@amaze/pi-ai";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import type { ToolSession } from "@amaze/pi-coding-agent/tools";
-import { ReadTool } from "@amaze/pi-coding-agent/tools/read";
-import { zip } from "@amaze/pi-coding-agent/utils/zip";
-import * as scrapers from "@amaze/pi-coding-agent/web/scrapers/types";
-import * as scraperUtils from "@amaze/pi-coding-agent/web/scrapers/utils";
-import { Snowflake } from "@amaze/pi-utils";
+import type { ImageContent, TextContent } from "@steve-z8k/pi-ai";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import type { ToolSession } from "@steve-z8k/pi-coding-agent/tools";
+import { ReadTool } from "@steve-z8k/pi-coding-agent/tools/read";
+import { zip } from "@steve-z8k/pi-coding-agent/utils/zip";
+import * as scrapers from "@steve-z8k/pi-coding-agent/web/scrapers/types";
+import * as scraperUtils from "@steve-z8k/pi-coding-agent/web/scrapers/utils";
+import { Snowflake } from "@steve-z8k/pi-utils";
 
 function makeSession(testDir: string): ToolSession {
 	const sessionFile = path.join(testDir, "session.jsonl");

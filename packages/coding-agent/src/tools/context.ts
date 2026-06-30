@@ -1,8 +1,8 @@
-import type { AgentToolContext, ToolCallContext } from "@amaze/pi-agent-core";
+import type { AgentToolContext, ToolCallContext } from "@steve-z8k/pi-agent-core";
 import type { CustomToolContext } from "../extensibility/custom-tools/types";
 import type { ExtensionUIContext } from "../extensibility/extensions/types";
 
-declare module "@amaze/pi-agent-core" {
+declare module "@steve-z8k/pi-agent-core" {
 	interface AgentToolContext extends CustomToolContext {
 		ui?: ExtensionUIContext;
 		hasUI?: boolean;

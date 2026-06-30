@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { streamOpenAICompletions } from "@amaze/pi-ai/providers/openai-completions";
-import type { Context, FetchImpl, Model } from "@amaze/pi-ai/types";
-import { getBundledModel } from "@amaze/pi-catalog/models";
+import { streamOpenAICompletions } from "@steve-z8k/pi-ai/providers/openai-completions";
+import type { Context, FetchImpl, Model } from "@steve-z8k/pi-ai/types";
+import { getBundledModel } from "@steve-z8k/pi-catalog/models";
 
 function createSseResponse(events: unknown[]): Response {
 	const payload = `${events
@@ -31,7 +31,7 @@ function baseContext(): Context {
 	};
 }
 
-// Repro for https://github.com/can1357/amaze-agent/issues/911
+// Repro for https://github.com/steve-8000/amaze/issues/911
 //
 // Mistral Medium 3.5 (mistral-medium-2604) streams `delta.content` as an array of typed
 // content parts (e.g. `[{ type: "text", text: "Hello" }]`) instead of a plain string.

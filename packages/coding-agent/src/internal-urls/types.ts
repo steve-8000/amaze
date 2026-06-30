@@ -87,7 +87,7 @@ export interface ResolveContext {
 	 * Required for correctness in multi-session hosts (cmux/ACP, embedded SDK
 	 * consumers) where multiple sessions are registered as `main` and the
 	 * "first one wins" lookup picks the wrong artifacts directory — see
-	 * [#1608](https://github.com/can1357/amaze-agent/issues/1608).
+	 * [#1608](https://github.com/steve-8000/amaze/issues/1608).
 	 */
 	localProtocolOptions?: LocalProtocolOptions;
 }

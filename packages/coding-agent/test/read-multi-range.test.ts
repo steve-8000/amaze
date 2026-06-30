@@ -2,12 +2,12 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentToolResult } from "@amaze/pi-agent-core";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import type { ClientBridge } from "@amaze/pi-coding-agent/session/client-bridge";
-import type { ToolSession } from "@amaze/pi-coding-agent/tools";
-import type { ReadToolDetails } from "@amaze/pi-coding-agent/tools/read";
-import { ReadTool } from "@amaze/pi-coding-agent/tools/read";
+import type { AgentToolResult } from "@steve-z8k/pi-agent-core";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import type { ClientBridge } from "@steve-z8k/pi-coding-agent/session/client-bridge";
+import type { ToolSession } from "@steve-z8k/pi-coding-agent/tools";
+import type { ReadToolDetails } from "@steve-z8k/pi-coding-agent/tools/read";
+import { ReadTool } from "@steve-z8k/pi-coding-agent/tools/read";
 
 function textOutput(result: AgentToolResult<ReadToolDetails>): string {
 	return result.content

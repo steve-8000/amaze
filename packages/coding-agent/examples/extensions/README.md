@@ -71,7 +71,7 @@ cp permission-gate.ts ~/.amaze/agent/extensions/
 See [docs/extensions.md](../../docs/extensions.md) for full documentation.
 
 ```typescript
-import type { ExtensionAPI } from "@amaze/pi-coding-agent";
+import type { ExtensionAPI } from "@steve-z8k/pi-coding-agent";
 
 export default function (pi: ExtensionAPI) {
 	const z = pi.zod;

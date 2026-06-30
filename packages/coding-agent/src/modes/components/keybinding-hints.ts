@@ -1,7 +1,7 @@
 /**
  * Utilities for formatting keybinding hints in the UI.
  */
-import { getKeybindings, type Keybinding, type KeyId } from "@amaze/pi-tui";
+import { getKeybindings, type Keybinding, type KeyId } from "@steve-z8k/pi-tui";
 import type { AppKeybinding, KeybindingsManager } from "../../config/keybindings";
 import { theme } from "../../modes/theme/theme";
 

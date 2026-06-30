@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { INTENT_FIELD } from "@amaze/pi-wire";
+import { INTENT_FIELD } from "@steve-z8k/pi-wire";
 import { formatArgsInline } from "../json-tree";
 
 describe("formatArgsInline", () => {

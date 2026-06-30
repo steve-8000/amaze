@@ -1,10 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { streamAzureOpenAIResponses } from "@amaze/pi-ai/providers/azure-openai-responses";
-import { streamOpenAICodexResponses } from "@amaze/pi-ai/providers/openai-codex-responses";
-import { streamOpenAICompletions } from "@amaze/pi-ai/providers/openai-completions";
-import { streamOpenAIResponses } from "@amaze/pi-ai/providers/openai-responses";
-import type { Context, Model, Tool, ToolChoice } from "@amaze/pi-ai/types";
-import { buildModel } from "@amaze/pi-catalog/build";
+import { streamAzureOpenAIResponses } from "@steve-z8k/pi-ai/providers/azure-openai-responses";
+import { streamOpenAICodexResponses } from "@steve-z8k/pi-ai/providers/openai-codex-responses";
+import { streamOpenAICompletions } from "@steve-z8k/pi-ai/providers/openai-completions";
+import { streamOpenAIResponses } from "@steve-z8k/pi-ai/providers/openai-responses";
+import type { Context, Model, Tool, ToolChoice } from "@steve-z8k/pi-ai/types";
+import { buildModel } from "@steve-z8k/pi-catalog/build";
 import { z } from "zod/v4";
 
 const completionsModel: Model<"openai-completions"> = buildModel({

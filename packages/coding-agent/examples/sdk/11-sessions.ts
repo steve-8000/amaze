@@ -3,7 +3,7 @@
  *
  * Control session persistence: in-memory, new file, continue, or open specific.
  */
-import { createAgentSession, SessionManager } from "@amaze/pi-coding-agent";
+import { createAgentSession, SessionManager } from "@steve-z8k/pi-coding-agent";
 
 // In-memory (no persistence)
 const { session: inMemory } = await createAgentSession({

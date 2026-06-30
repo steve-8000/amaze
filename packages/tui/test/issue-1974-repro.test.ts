@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { type Component, CURSOR_MARKER, type NativeScrollbackLiveRegion, TUI } from "@amaze/pi-tui";
+import { type Component, CURSOR_MARKER, type NativeScrollbackLiveRegion, TUI } from "@steve-z8k/pi-tui";
 import { VirtualTerminal } from "./virtual-terminal";
 
-// Regression test for https://github.com/can1357/amaze-agent/issues/1974
+// Regression test for https://github.com/steve-8000/amaze/issues/1974
 //
 // Inside tmux (and other multiplexers), a long streamed reply that grows past
 // the viewport lost its scrolled-off head from pane history and, after a

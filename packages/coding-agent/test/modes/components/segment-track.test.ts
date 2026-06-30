@@ -3,8 +3,8 @@ import {
 	renderSegmentTrack,
 	resolveSegmentPalette,
 	type TrackSegment,
-} from "@amaze/pi-coding-agent/modes/components/segment-track";
-import { initTheme, type ThemeColor, theme } from "@amaze/pi-coding-agent/modes/theme/theme";
+} from "@steve-z8k/pi-coding-agent/modes/components/segment-track";
+import { initTheme, type ThemeColor, theme } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
 
 beforeAll(async () => {
 	await initTheme();

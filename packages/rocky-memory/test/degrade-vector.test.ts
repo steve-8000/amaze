@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import "./setup";
-import { BeamMemory } from "@amaze/pi-rocky-memory/core/beam";
-import { maximallyInformativeBinarization } from "@amaze/pi-rocky-memory/core/binary-vectors";
+import { BeamMemory } from "@steve-z8k/pi-rocky-memory/core/beam";
+import { maximallyInformativeBinarization } from "@steve-z8k/pi-rocky-memory/core/binary-vectors";
 
 function oldIso(days: number): string {
 	return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();

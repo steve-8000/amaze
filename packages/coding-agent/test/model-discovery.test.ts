@@ -2,13 +2,13 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Effort, type FetchImpl, type Model } from "@amaze/pi-ai";
-import { buildModel } from "@amaze/pi-catalog/build";
-import { writeModelCache } from "@amaze/pi-catalog/model-cache";
-import { kNoAuth, ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
-import { resetSettingsForTest } from "@amaze/pi-coding-agent/config/settings";
-import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
-import { Snowflake } from "@amaze/pi-utils";
+import { Effort, type FetchImpl, type Model } from "@steve-z8k/pi-ai";
+import { buildModel } from "@steve-z8k/pi-catalog/build";
+import { writeModelCache } from "@steve-z8k/pi-catalog/model-cache";
+import { kNoAuth, ModelRegistry } from "@steve-z8k/pi-coding-agent/config/model-registry";
+import { resetSettingsForTest } from "@steve-z8k/pi-coding-agent/config/settings";
+import { AuthStorage } from "@steve-z8k/pi-coding-agent/session/auth-storage";
+import { Snowflake } from "@steve-z8k/pi-utils";
 
 describe("ModelRegistry runtime discovery", () => {
 	let tempDir: string;

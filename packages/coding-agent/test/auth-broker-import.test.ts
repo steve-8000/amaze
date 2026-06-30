@@ -2,10 +2,10 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { AuthStorage, SqliteAuthCredentialStore } from "@amaze/pi-ai";
-import { type AuthBrokerServerHandle, startAuthBroker } from "@amaze/pi-ai/auth-broker";
-import { runAuthBrokerCommand } from "@amaze/pi-coding-agent/cli/auth-broker-cli";
-import { getAgentDbPath, setAgentDir } from "@amaze/pi-utils";
+import { AuthStorage, SqliteAuthCredentialStore } from "@steve-z8k/pi-ai";
+import { type AuthBrokerServerHandle, startAuthBroker } from "@steve-z8k/pi-ai/auth-broker";
+import { runAuthBrokerCommand } from "@steve-z8k/pi-coding-agent/cli/auth-broker-cli";
+import { getAgentDbPath, setAgentDir } from "@steve-z8k/pi-utils";
 
 const ORIGINAL_STDOUT_WRITE = process.stdout.write.bind(process.stdout);
 

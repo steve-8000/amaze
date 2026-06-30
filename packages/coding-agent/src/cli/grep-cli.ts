@@ -4,8 +4,8 @@
  * Handles `amaze grep` subcommand for testing grep tool on Windows.
  */
 import * as path from "node:path";
-import { GrepOutputMode, grep } from "@amaze/pi-natives";
-import { APP_NAME } from "@amaze/pi-utils";
+import { GrepOutputMode, grep } from "@steve-z8k/pi-natives";
+import { APP_NAME } from "@steve-z8k/pi-utils";
 import chalk from "chalk";
 
 export interface GrepCommandArgs {

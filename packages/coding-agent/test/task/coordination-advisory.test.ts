@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { buildCoordinationAdvisory, composeSpawnAdvisory } from "@amaze/pi-coding-agent/task";
-import type { TaskItem } from "@amaze/pi-coding-agent/task/types";
-import { prompt } from "@amaze/pi-utils";
+import { buildCoordinationAdvisory, composeSpawnAdvisory } from "@steve-z8k/pi-coding-agent/task";
+import type { TaskItem } from "@steve-z8k/pi-coding-agent/task/types";
+import { prompt } from "@steve-z8k/pi-utils";
 import subagentSystemPromptTemplate from "../../src/prompts/system/subagent-system-prompt.md" with { type: "text" };
 
 // Contract: a multi-sibling spawn with spawn capacity and IRC available draws

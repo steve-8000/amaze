@@ -1228,7 +1228,7 @@ export function zhipuCodingPlanModelManagerOptions(
  * deployment, but Kimi K2 (instruct / thinking / turbo) on Fireworks is
  * documented to ship long reasoning traces that should be bounded — capping
  * at 32,768 prevents handing callers a budget the router cannot honor.
- * See https://github.com/can1357/amaze-agent/issues/1849.
+ * See https://github.com/steve-8000/amaze/issues/1849.
  */
 export const FIREWORKS_KIMI_MAX_TOKENS = 32_768;
 

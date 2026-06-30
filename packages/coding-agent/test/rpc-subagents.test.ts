@@ -2,15 +2,15 @@ import { afterEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { RpcClient } from "@amaze/pi-coding-agent/modes/rpc/rpc-client";
+import { RpcClient } from "@steve-z8k/pi-coding-agent/modes/rpc/rpc-client";
 import {
 	handleRpcSessionChange,
 	type RpcSessionChangeCommand,
 	type RpcSessionChangeResult,
 	type RpcSessionChangeSession,
-} from "@amaze/pi-coding-agent/modes/rpc/rpc-mode";
-import { RpcSubagentRegistry, readRpcSubagentTranscript } from "@amaze/pi-coding-agent/modes/rpc/rpc-subagents";
-import type { RpcSubagentFrame } from "@amaze/pi-coding-agent/modes/rpc/rpc-types";
+} from "@steve-z8k/pi-coding-agent/modes/rpc/rpc-mode";
+import { RpcSubagentRegistry, readRpcSubagentTranscript } from "@steve-z8k/pi-coding-agent/modes/rpc/rpc-subagents";
+import type { RpcSubagentFrame } from "@steve-z8k/pi-coding-agent/modes/rpc/rpc-types";
 import {
 	type AgentProgress,
 	type SubagentEventPayload,
@@ -19,8 +19,8 @@ import {
 	TASK_SUBAGENT_EVENT_CHANNEL,
 	TASK_SUBAGENT_LIFECYCLE_CHANNEL,
 	TASK_SUBAGENT_PROGRESS_CHANNEL,
-} from "@amaze/pi-coding-agent/task";
-import { EventBus } from "@amaze/pi-coding-agent/utils/event-bus";
+} from "@steve-z8k/pi-coding-agent/task";
+import { EventBus } from "@steve-z8k/pi-coding-agent/utils/event-bus";
 
 const tempPaths: string[] = [];
 

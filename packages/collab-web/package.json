@@ -1,6 +1,6 @@
 {
 	"type": "module",
-	"name": "@amaze/collab-web",
+	"name": "@steve-z8k/collab-web",
 	"version": "15.11.7",
 	"private": true,
 	"description": "Browser guest client and local relay tools for amaze collab live sessions",
@@ -9,11 +9,11 @@
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/can1357/amaze-agent.git",
+		"url": "git+https://github.com/steve-8000/amaze.git",
 		"directory": "packages/collab-web"
 	},
 	"bugs": {
-		"url": "https://github.com/can1357/amaze-agent/issues"
+		"url": "https://github.com/steve-8000/amaze/issues"
 	},
 	"keywords": [
 		"collab",
@@ -37,7 +37,7 @@
 		"fmt": "biome format --write ."
 	},
 	"dependencies": {
-		"@amaze/pi-wire": "catalog:",
+		"@steve-z8k/pi-wire": "catalog:",
 		"lucide-react": "catalog:",
 		"marked": "catalog:",
 		"react": "catalog:",

@@ -5,7 +5,7 @@ import {
 	getHostLlmBackend,
 	resetHostLlmBackendForTests,
 	setHostLlmBackend,
-} from "@amaze/pi-rocky-memory/core/llm-backends";
+} from "@steve-z8k/pi-rocky-memory/core/llm-backends";
 
 afterEach(() => resetHostLlmBackendForTests());
 

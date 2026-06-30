@@ -10,7 +10,7 @@
  * for the session's lifetime — `newSession` resets the session in place
  * without re-running startup — so the controller needs no disposal.
  */
-import { logger, Snowflake } from "@amaze/pi-utils";
+import { logger, Snowflake } from "@steve-z8k/pi-utils";
 import type { Settings } from "../config/settings";
 import autolearnGuidance from "../prompts/system/autolearn-guidance.md" with { type: "text" };
 import autolearnGuidanceLearn from "../prompts/system/autolearn-guidance-learn.md" with { type: "text" };
@@ -24,9 +24,9 @@ const AUTOLEARN_AUTO_CONTINUE_CAP = 3;
 /**
  * Build the standing auto-learn guidance for the system prompt from the tools
  * actually present in the active set, or null when neither `manage_skill` nor
- * `learn` is available.
+ * `capture_lesson` is available.
  *
- * Driven by tool presence rather than live settings: the `learn`/`manage_skill`
+ * Driven by tool presence rather than live settings: the `capture_lesson`/`manage_skill`
  * registry is built ONCE at session start (and only for top-level sessions), so
  * keying the guidance on `autolearn.enabled` would let a mid-session enable — or
  * a subagent that filtered the tools out — inject guidance pointing at tools the

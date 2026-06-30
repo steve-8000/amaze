@@ -2,9 +2,9 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { KeybindingsManager } from "@amaze/pi-coding-agent/config/keybindings";
-import { matchesAppFollowUp } from "@amaze/pi-coding-agent/modes/utils/keybinding-matchers";
-import { setKeybindings } from "@amaze/pi-tui";
+import { KeybindingsManager } from "@steve-z8k/pi-coding-agent/config/keybindings";
+import { matchesAppFollowUp } from "@steve-z8k/pi-coding-agent/modes/utils/keybinding-matchers";
+import { setKeybindings } from "@steve-z8k/pi-tui";
 import { YAML } from "bun";
 
 function ctrl(key: string): string {

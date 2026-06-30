@@ -1,13 +1,14 @@
-import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@amaze/pi-agent-core";
-import type { Component } from "@amaze/pi-tui";
-import { Text } from "@amaze/pi-tui";
-import { prompt } from "@amaze/pi-utils";
+import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@steve-z8k/pi-agent-core";
+import type { Component } from "@steve-z8k/pi-tui";
+import { Text } from "@steve-z8k/pi-tui";
+import { prompt } from "@steve-z8k/pi-utils";
 import { type } from "arktype";
 import type { AsyncJob, AsyncJobManager } from "../async";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
 import { shimmerEnabled, shimmerText } from "../modes/theme/shimmer";
 import type { Theme } from "../modes/theme/theme";
 import jobDescription from "../prompts/tools/job.md" with { type: "text" };
+import { AgentRegistry } from "../registry/agent-registry";
 import { Ellipsis, Hasher, type RenderCache, renderStatusLine, renderTreeList, truncateToWidth } from "../tui";
 import type { ToolSession } from "./index";
 import {
@@ -48,9 +49,14 @@ interface JobSnapshot {
 	type: "bash" | "task";
 	status: "running" | "completed" | "failed" | "cancelled";
 	label: string;
+	agentName?: string;
 	durationMs: number;
 	resultText?: string;
 	errorText?: string;
+}
+
+function formatJobType(job: Pick<JobSnapshot, "type" | "agentName">): string {
+	return job.type === "task" && job.agentName ? `${job.type}:${job.agentName}` : job.type;
 }
 
 type CancelStatus = "cancelled" | "not_found" | "already_completed";
@@ -272,6 +278,7 @@ export class JobTool implements AgentTool<typeof jobSchema, JobToolDetails> {
 			type: "bash" | "task";
 			status: string;
 			label: string;
+			agentName?: string;
 			startTime: number;
 			resultText?: string;
 			errorText?: string;
@@ -281,11 +288,14 @@ export class JobTool implements AgentTool<typeof jobSchema, JobToolDetails> {
 		return jobs.map(j => {
 			const current = this.session.asyncJobManager?.getJob(j.id);
 			const latest = current ?? j;
+			const agentName =
+				latest.agentName ?? (latest.type === "task" ? AgentRegistry.global().get(latest.id)?.agentName : undefined);
 			return {
 				id: latest.id,
 				type: latest.type,
 				status: latest.status as JobSnapshot["status"],
 				label: latest.label,
+				...(agentName ? { agentName } : {}),
 				durationMs: Math.max(0, now - latest.startTime),
 				...(latest.resultText ? { resultText: latest.resultText } : {}),
 				...(latest.errorText ? { errorText: latest.errorText } : {}),
@@ -300,6 +310,7 @@ export class JobTool implements AgentTool<typeof jobSchema, JobToolDetails> {
 			type: "bash" | "task";
 			status: string;
 			label: string;
+			agentName?: string;
 			startTime: number;
 			resultText?: string;
 			errorText?: string;
@@ -331,7 +342,7 @@ export class JobTool implements AgentTool<typeof jobSchema, JobToolDetails> {
 		if (completed.length > 0) {
 			lines.push(`## Completed (${completed.length})\n`);
 			for (const j of completed) {
-				lines.push(`### ${j.id} [${j.type}] — ${j.status}`);
+				lines.push(`### ${j.id} [${formatJobType(j)}] — ${j.status}`);
 				lines.push(`Label: ${j.label}`);
 				if (j.resultText) {
 					lines.push("```", j.resultText, "```");
@@ -346,7 +357,7 @@ export class JobTool implements AgentTool<typeof jobSchema, JobToolDetails> {
 		if (running.length > 0) {
 			lines.push(`## Still Running (${running.length})\n`);
 			for (const j of running) {
-				lines.push(`- \`${j.id}\` [${j.type}] — ${j.label}`);
+				lines.push(`- \`${j.id}\` [${formatJobType(j)}] — ${j.label}`);
 			}
 		}
 
@@ -551,7 +562,7 @@ export const jobToolRenderer = {
 								uiTheme,
 								job.status === "running" ? options.spinnerFrame : undefined,
 							);
-							const typeBadge = formatBadge(job.type, statusToColor(job.status), uiTheme);
+							const typeBadge = formatBadge(formatJobType(job), statusToColor(job.status), uiTheme);
 							// Task jobs label themselves with their agent id, which is also
 							// the job id — drop the id column instead of stuttering it twice.
 							const idPart = job.label.trim() === job.id ? "" : ` ${uiTheme.fg("muted", job.id)}`;

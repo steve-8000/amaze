@@ -9,11 +9,11 @@
  * `/oauth/token`. When the overrides are absent, the bundled defaults remain
  * in effect.
  *
- * @see https://github.com/can1357/amaze-agent/issues/2424
+ * @see https://github.com/steve-8000/amaze/issues/2424
  */
 import { afterEach, beforeEach, describe, expect, it, spyOn, vi } from "bun:test";
-import { loginGitLabDuo, refreshGitLabDuoToken } from "@amaze/pi-ai/registry/oauth/gitlab-duo";
-import type { FetchImpl } from "@amaze/pi-ai/types";
+import { loginGitLabDuo, refreshGitLabDuoToken } from "@steve-z8k/pi-ai/registry/oauth/gitlab-duo";
+import type { FetchImpl } from "@steve-z8k/pi-ai/types";
 
 const BUNDLED_CLIENT_ID = "da4edff2e6ebd2bc3208611e2768bc1c1dd7be791dc5ff26ca34ca9ee44f7d4b";
 

@@ -1,12 +1,12 @@
 import { afterAll, describe, expect, it } from "bun:test";
-import type { AgentTool, AgentToolResult } from "@amaze/pi-agent-core";
+import type { AgentTool, AgentToolResult } from "@steve-z8k/pi-agent-core";
 import {
 	disposePyToolBridge,
 	ensurePyToolBridge,
 	registerPyToolBridge,
-} from "@amaze/pi-coding-agent/eval/py/tool-bridge";
-import type { ToolSession } from "@amaze/pi-coding-agent/tools";
-import { INTENT_FIELD } from "@amaze/pi-wire";
+} from "@steve-z8k/pi-coding-agent/eval/py/tool-bridge";
+import type { ToolSession } from "@steve-z8k/pi-coding-agent/tools";
+import { INTENT_FIELD } from "@steve-z8k/pi-wire";
 
 interface FakeCall {
 	id: string;

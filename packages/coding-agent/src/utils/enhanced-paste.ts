@@ -1,4 +1,4 @@
-import type { ImageContent } from "@amaze/pi-ai";
+import type { ImageContent } from "@steve-z8k/pi-ai";
 
 const OSC5522_PREFIX = "\x1b]5522;";
 const OSC_TERMINATOR_ST = "\x1b\\";

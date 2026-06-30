@@ -3,7 +3,7 @@
  *
  * Demonstrates using ExtensionAPI's logger, injected `pi.zod`, and pi module access.
  */
-import type { ExtensionAPI } from "@amaze/pi-coding-agent";
+import type { ExtensionAPI } from "@steve-z8k/pi-coding-agent";
 
 export default function (pi: ExtensionAPI) {
 	const { z } = pi.zod;

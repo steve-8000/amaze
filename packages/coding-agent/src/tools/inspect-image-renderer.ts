@@ -1,5 +1,5 @@
-import type { Component } from "@amaze/pi-tui";
-import { Text } from "@amaze/pi-tui";
+import type { Component } from "@steve-z8k/pi-tui";
+import { Text } from "@steve-z8k/pi-tui";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
 import type { Theme } from "../modes/theme/theme";
 import { framedBlock, renderStatusLine } from "../tui";

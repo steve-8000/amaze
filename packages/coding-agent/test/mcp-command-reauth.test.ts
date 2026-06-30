@@ -3,13 +3,13 @@ import { afterEach, beforeAll, beforeEach, describe, expect, test, vi } from "bu
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { AuthStorage, SqliteAuthCredentialStore } from "@amaze/pi-ai";
-import * as mcpClient from "@amaze/pi-coding-agent/mcp/client";
-import * as oauthFlow from "@amaze/pi-coding-agent/mcp/oauth-flow";
-import type { MCPServerConfig } from "@amaze/pi-coding-agent/mcp/types";
-import { MCPCommandController } from "@amaze/pi-coding-agent/modes/controllers/mcp-command-controller";
-import { initTheme } from "@amaze/pi-coding-agent/modes/theme/theme";
-import { getConfigRootDir, getMCPConfigPath, getProjectDir, setAgentDir, setProjectDir } from "@amaze/pi-utils";
+import { AuthStorage, SqliteAuthCredentialStore } from "@steve-z8k/pi-ai";
+import * as mcpClient from "@steve-z8k/pi-coding-agent/mcp/client";
+import * as oauthFlow from "@steve-z8k/pi-coding-agent/mcp/oauth-flow";
+import type { MCPServerConfig } from "@steve-z8k/pi-coding-agent/mcp/types";
+import { MCPCommandController } from "@steve-z8k/pi-coding-agent/modes/controllers/mcp-command-controller";
+import { initTheme } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
+import { getConfigRootDir, getMCPConfigPath, getProjectDir, setAgentDir, setProjectDir } from "@steve-z8k/pi-utils";
 
 const RAW_SERVER_URL = `https://\${MCP_HOST}/mcp`;
 const EXPANDED_SERVER_URL = "https://mcp.example.com/mcp";

@@ -10,7 +10,7 @@
  * surface the standard session-chain banner.
  */
 import { describe, expect, it } from "bun:test";
-import { InMemorySnapshotStore, parsePatch, RECOVERY_SESSION_REPLAY_WARNING, Recovery } from "@amaze/hashline";
+import { InMemorySnapshotStore, parsePatch, RECOVERY_SESSION_REPLAY_WARNING, Recovery } from "@steve-z8k/hashline";
 
 const PATH = "/tmp/__hashline-recovery-session-chain__.ts";
 

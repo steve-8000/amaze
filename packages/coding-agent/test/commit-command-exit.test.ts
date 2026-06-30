@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import CommitCommand from "@amaze/pi-coding-agent/commands/commit";
-import * as commitModule from "@amaze/pi-coding-agent/commit";
-import * as themeModule from "@amaze/pi-coding-agent/modes/theme/theme";
-import { postmortem } from "@amaze/pi-utils";
+import CommitCommand from "@steve-z8k/pi-coding-agent/commands/commit";
+import * as commitModule from "@steve-z8k/pi-coding-agent/commit";
+import * as themeModule from "@steve-z8k/pi-coding-agent/modes/theme/theme";
+import { postmortem } from "@steve-z8k/pi-utils";
 
 describe("amaze commit command lifecycle (issue #1041)", () => {
 	afterEach(() => {

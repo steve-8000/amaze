@@ -1,13 +1,13 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent, type AgentTool } from "@amaze/pi-agent-core";
-import { type Api, Effort, type Model } from "@amaze/pi-ai";
-import { resetSettingsForTest, Settings } from "@amaze/pi-coding-agent/config/settings";
-import { initTheme } from "@amaze/pi-coding-agent/modes/theme/theme";
-import { AgentSession } from "@amaze/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import { TempDir } from "@amaze/pi-utils";
+import { Agent, type AgentTool } from "@steve-z8k/pi-agent-core";
+import { type Api, Effort, type Model } from "@steve-z8k/pi-ai";
+import { resetSettingsForTest, Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { initTheme } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
+import { AgentSession } from "@steve-z8k/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@steve-z8k/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import { TempDir } from "@steve-z8k/pi-utils";
 import { type } from "arktype";
 import { ModelRegistry } from "../src/config/model-registry";
 import { InteractiveMode } from "../src/modes/interactive-mode";
@@ -76,7 +76,7 @@ describe("InteractiveMode plan.defaultOnStartup", () => {
 	 *  entries still have built-in provenance after extension shadowing. */
 	function createHarness(settings: Settings, options: HarnessOptions = {}): InteractiveMode {
 		const registry = new ModelRegistry(authStorage, path.join(tempDir.path(), `models-${Bun.nanoseconds()}.yml`));
-		const initialModel = modelOrThrow(registry, "claude-sonnet-4-5");
+		const initialModel = modelOrThrow(registry, "claude-sonnet-4-6");
 		const readTool = makeTool("read");
 		const resolveTool = makeTool("resolve");
 		// AgentSession requires a Map-typed tool registry; the harness needs both
@@ -183,7 +183,7 @@ describe("InteractiveMode plan.defaultOnStartup", () => {
 		// the startup default must still apply (regression: gating on entry count
 		// instead of message entries skipped plan mode for every real new session).
 		const created = createHarness(Settings.isolated({ "plan.defaultOnStartup": true, "compaction.enabled": false }));
-		created.sessionManager.appendModelChange("anthropic/claude-sonnet-4-5");
+		created.sessionManager.appendModelChange("anthropic/claude-sonnet-4-6");
 		created.sessionManager.appendThinkingLevelChange("medium");
 
 		await created.init({ suppressWelcomeIntro: true });
@@ -197,7 +197,7 @@ describe("InteractiveMode plan.defaultOnStartup", () => {
 		// conversation or a mode change, so the startup default must still apply
 		// (regression: an allowlist of SDK metadata types skipped plan mode here).
 		const created = createHarness(Settings.isolated({ "plan.defaultOnStartup": true, "compaction.enabled": false }));
-		created.sessionManager.appendModelChange("anthropic/claude-sonnet-4-5");
+		created.sessionManager.appendModelChange("anthropic/claude-sonnet-4-6");
 		created.sessionManager.appendCustomEntry("my-extension-state", { foo: "bar" });
 
 		await created.init({ suppressWelcomeIntro: true });
@@ -211,7 +211,7 @@ describe("InteractiveMode plan.defaultOnStartup", () => {
 		// compaction summary as a message), so it is not fresh even without a literal
 		// `message` entry; the startup default must not override its restored mode.
 		const created = createHarness(Settings.isolated({ "plan.defaultOnStartup": true, "compaction.enabled": false }));
-		created.sessionManager.appendModelChange("anthropic/claude-sonnet-4-5");
+		created.sessionManager.appendModelChange("anthropic/claude-sonnet-4-6");
 		created.sessionManager.appendCompaction("prior conversation summary", undefined, "first-kept", 1000);
 
 		await created.init({ suppressWelcomeIntro: true });

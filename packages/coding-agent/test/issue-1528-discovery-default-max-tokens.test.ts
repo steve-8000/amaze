@@ -2,10 +2,10 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { FetchImpl } from "@amaze/pi-ai/types";
-import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
-import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
-import { Snowflake } from "@amaze/pi-utils";
+import type { FetchImpl } from "@steve-z8k/pi-ai/types";
+import { ModelRegistry } from "@steve-z8k/pi-coding-agent/config/model-registry";
+import { AuthStorage } from "@steve-z8k/pi-coding-agent/session/auth-storage";
+import { Snowflake } from "@steve-z8k/pi-utils";
 
 /**
  * Issue #1528: auto-discovered OpenAI-compatible models defaulted to
@@ -55,7 +55,7 @@ describe("issue #1528 discovery maxTokens default", () => {
 			if (url !== "https://api.example.com/v1/models") {
 				throw new Error(`Unexpected URL: ${url}`);
 			}
-			return new Response(JSON.stringify({ data: [{ id: "deepseek-v4-pro" }] }), {
+			return new Response(JSON.stringify({ data: [{ id: "gpt-5.4" }] }), {
 				status: 200,
 				headers: { "Content-Type": "application/json" },
 			});
@@ -64,7 +64,7 @@ describe("issue #1528 discovery maxTokens default", () => {
 		const registry = new ModelRegistry(authStorage, modelsPath, { fetch: fetchMock });
 		await registry.refreshProvider("deepseek-compat");
 
-		const model = registry.find("deepseek-compat", "deepseek-v4-pro");
+		const model = registry.find("deepseek-compat", "gpt-5.4");
 		expect(model?.maxTokens).toBe(32_768);
 	});
 

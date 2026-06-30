@@ -16,9 +16,9 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import path from "node:path";
-import type { AgentTool, AgentToolResult, AgentToolUpdateCallback } from "@amaze/pi-agent-core";
-import type { Usage } from "@amaze/pi-ai";
-import { $env, logger, prompt, Snowflake } from "@amaze/pi-utils";
+import type { AgentTool, AgentToolResult, AgentToolUpdateCallback } from "@steve-z8k/pi-agent-core";
+import type { Usage } from "@steve-z8k/pi-ai";
+import { $env, logger, prompt, Snowflake } from "@steve-z8k/pi-utils";
 import type { ToolSession } from "..";
 import { resolveAgentModelPatterns } from "../config/model-resolver";
 import { MCPManager } from "../mcp/manager";
@@ -252,9 +252,10 @@ function validateShapeParams(batchEnabled: boolean, params: TaskParams): string 
 }
 
 /**
- * Validate the spawn parameter contract against the wire shapes. `agent` is
- * always required. With `task.batch` the model-facing shape is
- * `{ agent, context, tasks[] }` — `tasks` non-empty with per-item assignments
+ * Validate the spawn parameter contract against the wire shapes. A flat spawn
+ * requires top-level `agent`; a batch spawn may use one top-level default agent
+ * or put `agent` on each item. With `task.batch` the model-facing shape is
+ * `{ agent?, context, tasks[] }` — `tasks` non-empty with per-item assignments
  * and unique ids, `context` non-empty, no top-level `assignment` alongside.
  * The flat `{ agent, ...item }` form stays accepted at runtime under either
  * setting (internal callers, stale transcripts). Returns a problem
@@ -262,12 +263,13 @@ function validateShapeParams(batchEnabled: boolean, params: TaskParams): string 
  */
 function validateSpawnParams(params: TaskParams, batchEnabled: boolean): string | undefined {
 	const agent = typeof params.agent === "string" ? params.agent.trim() : "";
-	if (!agent) {
-		return "Missing `agent`. Provide an agent type to spawn.";
-	}
 	const hasAssignment = typeof params.assignment === "string" && params.assignment.trim() !== "";
 	const tasks = params.tasks;
+	if (!agent && !(batchEnabled && tasks !== undefined)) {
+		return "Missing `agent`. Provide an agent type to spawn.";
+	}
 	if (batchEnabled && tasks !== undefined) {
+		const hasDefaultAgent = agent.length > 0;
 		if (!Array.isArray(tasks) || tasks.length === 0) {
 			return "Missing `tasks`. Provide at least one task item ({ id?, description?, assignment }).";
 		}
@@ -278,6 +280,9 @@ function validateSpawnParams(params: TaskParams, batchEnabled: boolean): string 
 			const item = tasks[i];
 			if (!item || typeof item.assignment !== "string" || item.assignment.trim() === "") {
 				return `Task ${i + 1}${item?.id ? ` (\`${item.id}\`)` : ""} is missing \`assignment\`. Every task needs complete, self-contained instructions.`;
+			}
+			if (!hasDefaultAgent && (typeof item.agent !== "string" || item.agent.trim() === "")) {
+				return `Task ${i + 1}${item.id ? ` (\`${item.id}\`)` : ""} is missing \`agent\`. Provide a top-level default \`agent\` or set \`agent\` on every task item.`;
 			}
 		}
 		const seen = new Map<string, string>();
@@ -304,6 +309,11 @@ function validateSpawnParams(params: TaskParams, batchEnabled: boolean): string 
 	return undefined;
 }
 
+function formatUnknownAgent(agentName: string, agents: AgentDefinition[]): string {
+	const available = agents.map(agent => agent.name).join(", ") || "none";
+	return `Unknown agent "${agentName}". Available: ${available}`;
+}
+
 /**
  * Normalize a validated call into its spawn list: the `tasks[]` batch when
  * provided, otherwise the single top-level spawn.
@@ -312,7 +322,15 @@ function resolveSpawnItems(params: TaskParams): TaskItem[] {
 	if (Array.isArray(params.tasks) && params.tasks.length > 0) {
 		return params.tasks;
 	}
-	return [{ id: params.id, description: params.description, role: params.role, assignment: params.assignment }];
+	return [
+		{
+			agent: params.agent,
+			id: params.id,
+			description: params.description,
+			role: params.role,
+			assignment: params.assignment,
+		},
+	];
 }
 
 /**
@@ -323,7 +341,7 @@ function resolveSpawnItems(params: TaskParams): TaskItem[] {
  * item's `isolated` (batch form) wins over the top-level flag (flat form).
  */
 function spawnParamsFor(params: TaskParams, item: TaskItem): TaskParams {
-	const spawn: TaskParams = { agent: params.agent };
+	const spawn: TaskParams = { agent: item.agent ?? params.agent };
 	if (item.id !== undefined) spawn.id = item.id;
 	if (item.description !== undefined) spawn.description = item.description;
 	if (item.role !== undefined) spawn.role = item.role;
@@ -558,7 +576,15 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 		}
 
 		const spawnItems = resolveSpawnItems(params);
-		const selectedAgent = this.#discoveredAgents.find(agent => agent.name === params.agent);
+		const agentForItem = (item: TaskItem): string => (item.agent ?? params.agent ?? "").trim();
+		const selectedByItem = spawnItems.map(item =>
+			this.#discoveredAgents.find(agent => agent.name === agentForItem(item)),
+		);
+		const missingAgent = selectedByItem.findIndex(agent => !agent);
+		if (missingAgent !== -1) {
+			return createTaskModeError(formatUnknownAgent(agentForItem(spawnItems[missingAgent]), this.#discoveredAgents));
+		}
+		const selectedAgents = selectedByItem as AgentDefinition[];
 		const asyncEnabled = this.session.settings.get("async.enabled");
 		const manager = asyncEnabled ? this.session.asyncJobManager : undefined;
 		const depthCapacity = canSpawnAtDepth(
@@ -569,11 +595,12 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 		// Coordination only makes sense when the siblings keep running after this
 		// call returns (async). In the sync fallback they have already completed,
 		// so a "coordinate while they run" hint would misfire.
-		const willRunAsync = !!manager && selectedAgent?.blocking !== true;
+		const hasBlockingAgent = selectedAgents.some(agent => agent.blocking === true);
+		const willRunAsync = !!manager && !hasBlockingAgent;
 		const advisory = this.session.suppressSpawnAdvisory
 			? undefined
 			: composeSpawnAdvisory({
-					agentName: params.agent,
+					agentName: params.agent ?? (spawnItems.length === 1 ? agentForItem(spawnItems[0]) : "mixed"),
 					items: spawnItems,
 					depthCapacity,
 					ircEnabled,
@@ -595,7 +622,7 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 			if (!appended) content.push({ type: "text", text: advisory });
 			return { ...result, content };
 		};
-		if (!asyncEnabled || !manager || selectedAgent?.blocking === true) {
+		if (!asyncEnabled || !manager || hasBlockingAgent) {
 			// Sync fallback: async execution disabled, orphaned host that never
 			// wired a job manager, or an agent definition that declares
 			// `blocking: true`. The session-scoped semaphore still bounds fan-out
@@ -609,11 +636,11 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 		// Resolve agent ids up front so the immediate result can name them.
 		const outputManager =
 			this.session.agentOutputManager ?? new AgentOutputManager(this.session.getArtifactsDir ?? (() => null));
-		const agentLabel = params.agent ?? "task";
-		const agentSource = selectedAgent?.source ?? "bundled";
 		const spawns: Array<{ agentId: string; item: TaskItem; progress: AgentProgress }> = [];
 		for (let index = 0; index < spawnItems.length; index++) {
 			const item = spawnItems[index];
+			const itemAgent = selectedAgents[index];
+			const agentLabel = itemAgent.name;
 			const agentId = await outputManager.allocate(item.id?.trim() || generateSubagentName(agentLabel));
 			const assignment = (item.assignment ?? "").trim();
 			spawns.push({
@@ -623,7 +650,7 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 					index,
 					id: agentId,
 					agent: agentLabel,
-					agentSource,
+					agentSource: itemAgent.source,
 					status: "pending",
 					task: renderSubagentUserPrompt(assignment),
 					assignment,
@@ -742,7 +769,7 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 			content: [
 				{
 					type: "text",
-					text: `Spawned ${started.length} background agents using ${agentLabel}.${scheduleFailureSummary} Use \`irc\` only while they run; after they finish, read \`history://<id>\`. Failures will surface automatically.\n${startedListing}\n${coordinationHint}`,
+					text: `Spawned ${started.length} background agents using ${params.agent ?? "mixed agents"}.${scheduleFailureSummary} Use \`irc\` only while they run; after they finish, read \`history://<id>\`. Failures will surface automatically.\n${startedListing}\n${coordinationHint}`,
 				},
 			],
 			details: buildAsyncDetails("running", primaryJobId),
@@ -864,6 +891,7 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 			},
 			{
 				id: agentId,
+				agentName: progress.agent,
 				queued: true,
 				deliverOnSuccess: false,
 				ownerId: this.session.getAgentId?.() ?? undefined,
@@ -1048,9 +1076,8 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 		// Validate agent exists
 		const agent = getAgent(agents, agentName);
 		if (!agent) {
-			const available = agents.map(a => a.name).join(", ") || "none";
 			return {
-				content: [{ type: "text", text: `Unknown agent "${agentName}". Available: ${available}` }],
+				content: [{ type: "text", text: formatUnknownAgent(agentName, agents) }],
 				details: { projectAgentsDir, results: [], totalDurationMs: 0 },
 			};
 		}

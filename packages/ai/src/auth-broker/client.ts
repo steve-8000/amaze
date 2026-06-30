@@ -5,7 +5,7 @@
  * `amaze auth-broker status` (liveness checks). All endpoints except
  * `/v1/healthz` require a bearer token.
  */
-import { readSseEvents } from "@amaze/pi-utils";
+import { readSseEvents } from "@steve-z8k/pi-utils";
 import { type } from "arktype";
 import type { AuthCredential } from "../auth-storage";
 import type {

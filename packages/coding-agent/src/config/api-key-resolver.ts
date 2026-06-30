@@ -1,4 +1,4 @@
-import type { Api, ApiKeyResolver, AuthStorage, Model } from "@amaze/pi-ai";
+import type { Api, ApiKeyResolver, AuthStorage, Model } from "@steve-z8k/pi-ai";
 
 /** Model slice accepted by the model-form `resolver(model, sessionId)` overload. */
 export type ApiKeyResolverModel = Pick<Model<Api>, "provider" | "baseUrl" | "id">;

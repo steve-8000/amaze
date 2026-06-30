@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as fsp from "node:fs/promises";
 import * as path from "node:path";
-import { isEnoent, logger } from "@amaze/pi-utils";
+import { isEnoent, logger } from "@steve-z8k/pi-utils";
 
 const BLOB_PREFIX = "blob:sha256:";
 

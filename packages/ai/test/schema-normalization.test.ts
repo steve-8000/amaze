@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { buildRequest } from "@amaze/pi-ai/providers/google-gemini-cli";
-import { convertTools } from "@amaze/pi-ai/providers/google-shared";
-import type { Context, Model, TJsonSchema, Tool } from "@amaze/pi-ai/types";
+import { buildRequest } from "@steve-z8k/pi-ai/providers/google-gemini-cli";
+import { convertTools } from "@steve-z8k/pi-ai/providers/google-shared";
+import type { Context, Model, TJsonSchema, Tool } from "@steve-z8k/pi-ai/types";
 import {
 	enforceStrictSchema,
 	mergeCompatibleEnumSchemas,
@@ -15,8 +15,8 @@ import {
 	stripResidualCombiners,
 	tryEnforceStrictSchema,
 	upgradeJsonSchemaTo202012,
-} from "@amaze/pi-ai/utils/schema";
-import { buildModel } from "@amaze/pi-catalog/build";
+} from "@steve-z8k/pi-ai/utils/schema";
+import { buildModel } from "@steve-z8k/pi-catalog/build";
 
 function createGoogleCliModel(id: string): Model<"google-gemini-cli"> {
 	return buildModel({

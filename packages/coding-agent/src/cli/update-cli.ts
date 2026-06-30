@@ -8,15 +8,15 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { pipeline } from "node:stream/promises";
-import { $which, APP_NAME, isEnoent, VERSION } from "@amaze/pi-utils";
+import { $which, APP_NAME, isEnoent, VERSION } from "@steve-z8k/pi-utils";
 import { $ } from "bun";
 import chalk from "chalk";
 import { theme } from "../modes/theme/theme";
 
-const REPO = "can1357/amaze-agent";
-const PACKAGE = "@amaze/pi-coding-agent";
-const HOMEBREW_FORMULA = "can1357/tap/amaze";
-const MISE_TOOL = "github:can1357/amaze-agent";
+const REPO = "steve-8000/amaze";
+const PACKAGE = "@steve-z8k/pi-coding-agent";
+const HOMEBREW_FORMULA = "steve-8000/tap/amaze";
+const MISE_TOOL = "github:steve-8000/amaze";
 /**
  * Official npm registry origin.
  *
@@ -36,11 +36,11 @@ const NPM_REGISTRY = "https://registry.npmjs.org/";
  * disk; see {@link buildBunInstallArgs} for why this must be installed
  * explicitly rather than inherited as a transitive dependency.
  */
-const NATIVES_PACKAGE = "@amaze/pi-natives";
+const NATIVES_PACKAGE = "@steve-z8k/pi-natives";
 
 /**
  * Platform tags the release pipeline publishes as
- * `@amaze/pi-natives-<tag>` leaves. Mirrors `SUPPORTED_PLATFORMS` in
+ * `@steve-z8k/pi-natives-<tag>` leaves. Mirrors `SUPPORTED_PLATFORMS` in
  * `packages/natives/native/loader-state.js` and `LEAF_TARGETS` in
  * `packages/natives/scripts/gen-npm-packages.ts`; kept here as the local
  * source of truth so the update path stays free of cross-package imports.
@@ -472,11 +472,11 @@ export async function replaceBinaryForUpdate(options: BinaryReplacementOptions):
  * lookup the version check just performed. See #1686.
  *
  * Also pins {@link NATIVES_PACKAGE} and the platform-specific
- * `@amaze/pi-natives-<tag>` leaf to `expectedVersion`. `bun install -g`
+ * `@steve-z8k/pi-natives-<tag>` leaf to `expectedVersion`. `bun install -g`
  * does not reliably refresh transitive `optionalDependencies` when the
  * top-level package is the only one bumped, so the native addon and its
  * version sentinel can drift out of sync with the freshly installed
- * `@amaze/pi-coding-agent` and the loader aborts at
+ * `@steve-z8k/pi-coding-agent` and the loader aborts at
  * `validateLoadedBindings` on the next launch
  * (`The .node file on disk is from a different release than this loader`).
  * Listing the natives explicitly forces bun to replace them in lock-step.

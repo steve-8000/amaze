@@ -2,13 +2,13 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Patch, Patcher } from "@amaze/hashline";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import { writethroughNoop } from "@amaze/pi-coding-agent/edit";
-import { canonicalSnapshotKey, getFileSnapshotStore } from "@amaze/pi-coding-agent/edit/file-snapshot-store";
-import { HashlineFilesystem } from "@amaze/pi-coding-agent/edit/hashline/filesystem";
-import type { ToolSession } from "@amaze/pi-coding-agent/tools";
-import { WriteTool } from "@amaze/pi-coding-agent/tools/write";
+import { Patch, Patcher } from "@steve-z8k/hashline";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { writethroughNoop } from "@steve-z8k/pi-coding-agent/edit";
+import { canonicalSnapshotKey, getFileSnapshotStore } from "@steve-z8k/pi-coding-agent/edit/file-snapshot-store";
+import { HashlineFilesystem } from "@steve-z8k/pi-coding-agent/edit/hashline/filesystem";
+import type { ToolSession } from "@steve-z8k/pi-coding-agent/tools";
+import { WriteTool } from "@steve-z8k/pi-coding-agent/tools/write";
 
 function createSession(cwd: string): ToolSession {
 	return {

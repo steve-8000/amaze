@@ -1,10 +1,10 @@
-import type { AgentTool, AgentToolResult } from "@amaze/pi-agent-core";
+import type { AgentTool, AgentToolResult } from "@steve-z8k/pi-agent-core";
 import { type } from "arktype";
 import { sanitizeSkillName } from "../autolearn/managed-skills";
 import { isNameClaimedByAuthoredSkill } from "../extensibility/skills";
 import manageSkillDescription from "../prompts/tools/manage-skill.md" with { type: "text" };
 import type { ToolSession } from ".";
-import { deleteRockyManagedSkill, writeRockyManagedSkill } from "./rocky-skill-backend";
+import { deleteManagedSkill, writeManagedSkill } from "./skill-backend";
 
 const manageSkillSchema = type({
 	action: "'create' | 'update' | 'delete'",
@@ -27,8 +27,8 @@ const manageSkillSchema = type({
 export type ManageSkillParams = typeof manageSkillSchema.infer;
 
 /**
- * Direct create/update/delete of Rocky-backed managed skills. Gated behind
- * `autolearn.enabled`; Rocky owns the canonical skill store.
+ * Direct create/update/delete of Circle-managed skills. Gated behind
+ * `autolearn.enabled`; Circle owns the canonical skill store.
  */
 export class ManageSkillTool implements AgentTool<typeof manageSkillSchema> {
 	readonly name = "manage_skill";
@@ -38,7 +38,7 @@ export class ManageSkillTool implements AgentTool<typeof manageSkillSchema> {
 	readonly parameters = manageSkillSchema;
 	readonly strict = true;
 	readonly loadMode = "essential" as const;
-	readonly summary = "Create, update, or delete a Rocky-backed managed skill";
+	readonly summary = "Create, update, or delete a Circle-managed skill";
 
 	constructor(readonly session: ToolSession) {}
 
@@ -49,9 +49,9 @@ export class ManageSkillTool implements AgentTool<typeof manageSkillSchema> {
 
 	async execute(_id: string, params: ManageSkillParams): Promise<AgentToolResult> {
 		if (params.action === "delete") {
-			await deleteRockyManagedSkill(this.session, params.name);
+			await deleteManagedSkill(this.session, params.name);
 			return {
-				content: [{ type: "text", text: `Deleted managed skill "${params.name}" from Rocky.` }],
+				content: [{ type: "text", text: `Deleted managed skill "${params.name}" from Circle.` }],
 				details: { action: "delete", name: params.name },
 			};
 		}
@@ -63,7 +63,7 @@ export class ManageSkillTool implements AgentTool<typeof manageSkillSchema> {
 			throw new Error(`"${params.action}" requires both "description" and "body".`);
 		}
 		// Refuse same-name creates while an authored skill is active. Even though
-		// Rocky is now the backing store, creating a managed skill under an authored
+		// Circle is now the backing store, creating a managed skill under an authored
 		// name makes future skill lookup ambiguous and can hide the managed copy
 		// from Amaze's first-wins skill discovery.
 		if (params.action === "create" && isNameClaimedByAuthoredSkill(sanitizeSkillName(params.name))) {
@@ -78,7 +78,7 @@ export class ManageSkillTool implements AgentTool<typeof manageSkillSchema> {
 				details: { action: "create", name: params.name, shadowed: true },
 			};
 		}
-		const result = await writeRockyManagedSkill(this.session, {
+		const result = await writeManagedSkill(this.session, {
 			action: params.action,
 			name: params.name,
 			description: params.description,
@@ -87,7 +87,7 @@ export class ManageSkillTool implements AgentTool<typeof manageSkillSchema> {
 		const verb = params.action === "create" ? "Created" : "Updated";
 		const version = result.version ? ` v${result.version}` : "";
 		return {
-			content: [{ type: "text", text: `${verb} managed skill "${params.name}" in Rocky${version}.` }],
+			content: [{ type: "text", text: `${verb} managed skill "${params.name}" in Circle${version}.` }],
 			details: { action: params.action, name: params.name },
 		};
 	}

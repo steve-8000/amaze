@@ -3,14 +3,14 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { buildModel } from "@amaze/pi-catalog/build";
-import { isOfficialAnthropicApiUrl } from "@amaze/pi-catalog/compat/anthropic";
-import { buildOpenAICompat, buildOpenAIResponsesCompat } from "@amaze/pi-catalog/compat/openai";
-import { writeModelCache } from "@amaze/pi-catalog/model-cache";
-import { resolveProviderModels } from "@amaze/pi-catalog/model-manager";
-import { getBundledModel } from "@amaze/pi-catalog/models";
-import { openrouterModelManagerOptions } from "@amaze/pi-catalog/provider-models/openai-compat";
-import type { ModelSpec } from "@amaze/pi-catalog/types";
+import { buildModel } from "@steve-z8k/pi-catalog/build";
+import { isOfficialAnthropicApiUrl } from "@steve-z8k/pi-catalog/compat/anthropic";
+import { buildOpenAICompat, buildOpenAIResponsesCompat } from "@steve-z8k/pi-catalog/compat/openai";
+import { writeModelCache } from "@steve-z8k/pi-catalog/model-cache";
+import { resolveProviderModels } from "@steve-z8k/pi-catalog/model-manager";
+import { getBundledModel } from "@steve-z8k/pi-catalog/models";
+import { openrouterModelManagerOptions } from "@steve-z8k/pi-catalog/provider-models/openai-compat";
+import type { ModelSpec } from "@steve-z8k/pi-catalog/types";
 
 function completionsSpec(overrides: Partial<ModelSpec<"openai-completions">> = {}): ModelSpec<"openai-completions"> {
 	return {

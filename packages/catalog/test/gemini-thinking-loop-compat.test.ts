@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { buildOpenAICompat, buildOpenAIResponsesCompat } from "@amaze/pi-catalog/compat/openai";
-import type { ModelSpec, OpenAICompat } from "@amaze/pi-catalog/types";
+import { buildOpenAICompat, buildOpenAIResponsesCompat } from "@steve-z8k/pi-catalog/compat/openai";
+import type { ModelSpec, OpenAICompat } from "@steve-z8k/pi-catalog/types";
 
 /**
  * The pi-ai thinking-loop guard is gemini-only and, for `openai-completions`

@@ -1,6 +1,6 @@
 # roboomp
 
-Self-hosted GitHub triage bot. Drives [`amaze --mode rpc`](https://github.com/can1357/amaze-agent)
+Self-hosted GitHub triage bot. Drives [`amaze --mode rpc`](https://github.com/steve-8000/amaze)
 as a subprocess against a per-issue git worktree, then writes back to GitHub
 through a sidecar that holds the PAT.
 

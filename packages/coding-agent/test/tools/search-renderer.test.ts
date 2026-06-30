@@ -1,10 +1,10 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
 import * as path from "node:path";
 import * as url from "node:url";
-import { resetSettingsForTest, Settings, settings } from "@amaze/pi-coding-agent/config/settings";
-import { getThemeByName } from "@amaze/pi-coding-agent/modes/theme/theme";
-import { searchToolRenderer } from "@amaze/pi-coding-agent/tools/search";
-import { sanitizeText } from "@amaze/pi-utils";
+import { resetSettingsForTest, Settings, settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { getThemeByName } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
+import { searchToolRenderer } from "@steve-z8k/pi-coding-agent/tools/search";
+import { sanitizeText } from "@steve-z8k/pi-utils";
 
 function extractLinkUris(text: string): string[] {
 	return [...text.matchAll(/\x1b\]8;[^;]*;([^\x1b]+)\x1b\\/g)].map(match => match[1]!);

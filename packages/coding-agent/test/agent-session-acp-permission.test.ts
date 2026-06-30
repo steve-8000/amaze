@@ -6,22 +6,22 @@
  * behavior they have in the TUI.
  */
 import { afterEach, beforeEach, expect, it, spyOn } from "bun:test";
-import { Agent, type AgentTool } from "@amaze/pi-agent-core";
-import { createMockModel, type MockModelOptions } from "@amaze/pi-ai/providers/mock";
-import { AssistantMessageEventStream } from "@amaze/pi-ai/utils/event-stream";
-import { getBundledModel } from "@amaze/pi-catalog/models";
-import { type SettingPath, Settings } from "@amaze/pi-coding-agent/config/settings";
-import { EditTool } from "@amaze/pi-coding-agent/edit";
-import { AgentSession } from "@amaze/pi-coding-agent/session/agent-session";
+import { Agent, type AgentTool } from "@steve-z8k/pi-agent-core";
+import { createMockModel, type MockModelOptions } from "@steve-z8k/pi-ai/providers/mock";
+import { AssistantMessageEventStream } from "@steve-z8k/pi-ai/utils/event-stream";
+import { getBundledModel } from "@steve-z8k/pi-catalog/models";
+import { type SettingPath, Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { EditTool } from "@steve-z8k/pi-coding-agent/edit";
+import { AgentSession } from "@steve-z8k/pi-coding-agent/session/agent-session";
 import type {
 	ClientBridge,
 	ClientBridgePermissionOutcome,
 	ClientBridgePermissionToolCall,
-} from "@amaze/pi-coding-agent/session/client-bridge";
-import { convertToLlm } from "@amaze/pi-coding-agent/session/messages";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import type { ToolSession } from "@amaze/pi-coding-agent/tools";
-import { TempDir } from "@amaze/pi-utils";
+} from "@steve-z8k/pi-coding-agent/session/client-bridge";
+import { convertToLlm } from "@steve-z8k/pi-coding-agent/session/messages";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import type { ToolSession } from "@steve-z8k/pi-coding-agent/tools";
+import { TempDir } from "@steve-z8k/pi-utils";
 import { type } from "arktype";
 
 // ---------------------------------------------------------------------------
@@ -76,8 +76,8 @@ async function createSession(
 	bridge?: ClientBridge,
 	settingsOverrides: Partial<Record<SettingPath, unknown>> = {},
 ): Promise<AgentSession> {
-	const model = getBundledModel("anthropic", "claude-sonnet-4-5");
-	if (!model) throw new Error("Expected claude-sonnet-4-5 model to exist");
+	const model = getBundledModel("anthropic", "claude-sonnet-4-6");
+	if (!model) throw new Error("Expected claude-sonnet-4-6 model to exist");
 
 	const settings = Settings.isolated({ "compaction.enabled": false, ...settingsOverrides });
 	const sessionManager = SessionManager.inMemory(tempDir.path());

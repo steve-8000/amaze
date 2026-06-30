@@ -2,11 +2,11 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getBundledModel } from "@amaze/pi-catalog/models";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import { createAgentSession } from "@amaze/pi-coding-agent/sdk";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import { Snowflake } from "@amaze/pi-utils";
+import { getBundledModel } from "@steve-z8k/pi-catalog/models";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { createAgentSession } from "@steve-z8k/pi-coding-agent/sdk";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import { Snowflake } from "@steve-z8k/pi-utils";
 
 function textContent(result: { content?: Array<{ type: string; text?: string }> }): string {
 	return (
@@ -46,7 +46,7 @@ describe("createAgentSession cwd after /move", () => {
 				"bash.autoBackground.enabled": false,
 				"bashInterceptor.enabled": false,
 			}),
-			model: getBundledModel("openai", "gpt-4o-mini"),
+			model: getBundledModel("openai", "gpt-5.4-mini"),
 			disableExtensionDiscovery: true,
 			skills: [],
 			contextFiles: [],

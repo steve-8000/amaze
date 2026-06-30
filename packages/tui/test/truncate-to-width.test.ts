@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { Ellipsis, truncateToWidth, visibleWidth } from "@amaze/pi-tui/utils";
+import { Ellipsis, truncateToWidth, visibleWidth } from "@steve-z8k/pi-tui/utils";
 
 describe("truncateToWidth", () => {
 	it("keeps output within width for very large unicode input", () => {

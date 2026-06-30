@@ -13,15 +13,15 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Patch, Patcher } from "@amaze/hashline";
-import type { AgentToolResult } from "@amaze/pi-agent-core";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import { writethroughNoop } from "@amaze/pi-coding-agent/edit";
-import { canonicalSnapshotKey, getFileSnapshotStore } from "@amaze/pi-coding-agent/edit/file-snapshot-store";
-import { HashlineFilesystem } from "@amaze/pi-coding-agent/edit/hashline/filesystem";
-import type { ToolSession } from "@amaze/pi-coding-agent/tools";
-import type { ReadToolDetails } from "@amaze/pi-coding-agent/tools/read";
-import { ReadTool } from "@amaze/pi-coding-agent/tools/read";
+import { Patch, Patcher } from "@steve-z8k/hashline";
+import type { AgentToolResult } from "@steve-z8k/pi-agent-core";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { writethroughNoop } from "@steve-z8k/pi-coding-agent/edit";
+import { canonicalSnapshotKey, getFileSnapshotStore } from "@steve-z8k/pi-coding-agent/edit/file-snapshot-store";
+import { HashlineFilesystem } from "@steve-z8k/pi-coding-agent/edit/hashline/filesystem";
+import type { ToolSession } from "@steve-z8k/pi-coding-agent/tools";
+import type { ReadToolDetails } from "@steve-z8k/pi-coding-agent/tools/read";
+import { ReadTool } from "@steve-z8k/pi-coding-agent/tools/read";
 
 const HASHLINE_HEADER_LINE = /^\[([^#\r\n]+)#([0-9A-F]{4})\]$/m;
 const COLUMN_CAP = 64;

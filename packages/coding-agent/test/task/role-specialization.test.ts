@@ -1,15 +1,15 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import { TaskTool, taskSchema } from "@amaze/pi-coding-agent/task";
-import * as discoveryModule from "@amaze/pi-coding-agent/task/discovery";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { TaskTool, taskSchema } from "@steve-z8k/pi-coding-agent/task";
+import * as discoveryModule from "@steve-z8k/pi-coding-agent/task/discovery";
 import {
 	getTaskSchema,
 	oneLineLabel,
 	ROLE_INPUT_MAX,
 	resolveSubagentDisplayName,
-} from "@amaze/pi-coding-agent/task/types";
-import type { ToolSession } from "@amaze/pi-coding-agent/tools";
-import { prompt } from "@amaze/pi-utils";
+} from "@steve-z8k/pi-coding-agent/task/types";
+import type { ToolSession } from "@steve-z8k/pi-coding-agent/tools";
+import { prompt } from "@steve-z8k/pi-utils";
 import { type } from "arktype";
 import subagentSystemPromptTemplate from "../../src/prompts/system/subagent-system-prompt.md" with { type: "text" };
 

@@ -14,12 +14,12 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import type { ChildProcess } from "node:child_process";
 import { execSync, spawn } from "node:child_process";
-import { complete } from "@amaze/pi-ai/stream";
-import type { AssistantMessage, Context, Model, Usage } from "@amaze/pi-ai/types";
-import { isContextOverflow as originalIsContextOverflow } from "@amaze/pi-ai/utils/overflow";
-import { buildModel } from "@amaze/pi-catalog/build";
-import { getBundledModel } from "@amaze/pi-catalog/models";
-import { $which } from "@amaze/pi-utils";
+import { complete } from "@steve-z8k/pi-ai/stream";
+import type { AssistantMessage, Context, Model, Usage } from "@steve-z8k/pi-ai/types";
+import { isContextOverflow as originalIsContextOverflow } from "@steve-z8k/pi-ai/utils/overflow";
+import { buildModel } from "@steve-z8k/pi-catalog/build";
+import { getBundledModel } from "@steve-z8k/pi-catalog/models";
+import { $which } from "@steve-z8k/pi-utils";
 
 function isContextOverflow(message: AssistantMessage, contextWindow: number | null): boolean {
 	return originalIsContextOverflow(message, contextWindow ?? 0);

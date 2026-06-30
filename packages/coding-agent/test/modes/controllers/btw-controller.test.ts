@@ -1,11 +1,11 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import type { AssistantMessage, Usage } from "@amaze/pi-ai";
-import { BtwPanelComponent } from "@amaze/pi-coding-agent/modes/components/btw-panel";
-import { BtwController } from "@amaze/pi-coding-agent/modes/controllers/btw-controller";
-import { initTheme } from "@amaze/pi-coding-agent/modes/theme/theme";
-import type { InteractiveModeContext } from "@amaze/pi-coding-agent/modes/types";
-import * as clipboard from "@amaze/pi-coding-agent/utils/clipboard";
-import { Container, replaceTabs, type TUI } from "@amaze/pi-tui";
+import type { AssistantMessage, Usage } from "@steve-z8k/pi-ai";
+import { BtwPanelComponent } from "@steve-z8k/pi-coding-agent/modes/components/btw-panel";
+import { BtwController } from "@steve-z8k/pi-coding-agent/modes/controllers/btw-controller";
+import { initTheme } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
+import type { InteractiveModeContext } from "@steve-z8k/pi-coding-agent/modes/types";
+import * as clipboard from "@steve-z8k/pi-coding-agent/utils/clipboard";
+import { Container, replaceTabs, type TUI } from "@steve-z8k/pi-tui";
 
 const usage: Usage = {
 	input: 0,
@@ -22,7 +22,7 @@ function createAssistantMessage(text: string): AssistantMessage {
 		content: [{ type: "text", text }],
 		api: "anthropic-messages",
 		provider: "anthropic",
-		model: "claude-sonnet-4-5",
+		model: "claude-sonnet-4-6",
 		usage,
 		stopReason: "stop",
 		timestamp: Date.now(),
@@ -44,7 +44,7 @@ function makeFakeSession(
 	runEphemeralTurn: (args: RunEphemeralTurnArgs) => Promise<RunEphemeralTurnResult>,
 ): InteractiveModeContext["session"] {
 	return {
-		model: { provider: "anthropic", id: "claude-sonnet-4-5" },
+		model: { provider: "anthropic", id: "claude-sonnet-4-6" },
 		runEphemeralTurn,
 	} as unknown as InteractiveModeContext["session"];
 }

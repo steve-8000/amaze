@@ -6,10 +6,10 @@
  * `## Assistant` (with `<thinking>` blocks and `### Tool Call: <name>` + YAML
  * args), `### Tool Result: <name>`, and the execution/summary sections.
  */
-import type { AgentMessage, ThinkingLevel } from "@amaze/pi-agent-core";
-import type { AssistantMessage, Model, ToolExample, TSchema } from "@amaze/pi-ai";
-import { renderDelimitedThinking, renderToolInventory } from "@amaze/pi-ai/dialect";
-import { INTENT_FIELD } from "@amaze/pi-wire";
+import type { AgentMessage, ThinkingLevel } from "@steve-z8k/pi-agent-core";
+import type { AssistantMessage, Model, ToolExample, TSchema } from "@steve-z8k/pi-ai";
+import { renderDelimitedThinking, renderToolInventory } from "@steve-z8k/pi-ai/dialect";
+import { INTENT_FIELD } from "@steve-z8k/pi-wire";
 import { YAML } from "bun";
 import { canonicalizeMessage } from "../utils/thinking-display";
 import {

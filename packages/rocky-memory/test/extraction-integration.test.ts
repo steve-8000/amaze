@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import type { FetchImpl } from "@amaze/pi-ai";
-import { extractFacts } from "@amaze/pi-rocky-memory/core/extraction";
-import { type ChatMessage, ExtractionClient } from "@amaze/pi-rocky-memory/core/extraction/client";
-import { getExtractionStats, resetExtractionStats } from "@amaze/pi-rocky-memory/core/extraction/diagnostics";
-import { resetHostLlmBackendForTests } from "@amaze/pi-rocky-memory/core/llm-backends";
+import type { FetchImpl } from "@steve-z8k/pi-ai";
+import { extractFacts } from "@steve-z8k/pi-rocky-memory/core/extraction";
+import { type ChatMessage, ExtractionClient } from "@steve-z8k/pi-rocky-memory/core/extraction/client";
+import { getExtractionStats, resetExtractionStats } from "@steve-z8k/pi-rocky-memory/core/extraction/diagnostics";
+import { resetHostLlmBackendForTests } from "@steve-z8k/pi-rocky-memory/core/llm-backends";
 
 const OLD_ENV = { ...process.env };
 

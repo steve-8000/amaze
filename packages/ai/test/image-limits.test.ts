@@ -72,10 +72,10 @@ import { execSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { complete } from "@amaze/pi-ai/stream";
-import type { Api, Context, ImageContent, Model, OptionsForApi, UserMessage } from "@amaze/pi-ai/types";
-import { getBundledModel } from "@amaze/pi-catalog/models";
-import { $which } from "@amaze/pi-utils";
+import { complete } from "@steve-z8k/pi-ai/stream";
+import type { Api, Context, ImageContent, Model, OptionsForApi, UserMessage } from "@steve-z8k/pi-ai/types";
+import { getBundledModel } from "@steve-z8k/pi-catalog/models";
+import { $which } from "@steve-z8k/pi-utils";
 import { e2eApiKey } from "./oauth";
 
 const TEMP_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "amaze-temp-images-"));

@@ -1,4 +1,4 @@
-import type { ToolResultMessage } from "@amaze/pi-ai";
+import type { ToolResultMessage } from "@steve-z8k/pi-ai";
 import type { AgentToolCall } from "../types";
 import type { SessionEntry } from "./entries";
 

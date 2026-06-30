@@ -1,12 +1,12 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import type { AssistantMessage } from "@amaze/pi-ai";
-import { resetSettingsForTest, Settings } from "@amaze/pi-coding-agent/config/settings";
-import type { AssistantThinkingRenderer } from "@amaze/pi-coding-agent/extensibility/extensions";
-import { AssistantMessageComponent } from "@amaze/pi-coding-agent/modes/components/assistant-message";
-import { clearMermaidCache } from "@amaze/pi-coding-agent/modes/theme/mermaid-cache";
-import { initTheme } from "@amaze/pi-coding-agent/modes/theme/theme";
-import { ImageProtocol, setTerminalImageProtocol, TERMINAL, Text } from "@amaze/pi-tui";
+import type { AssistantMessage } from "@steve-z8k/pi-ai";
+import { resetSettingsForTest, Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import type { AssistantThinkingRenderer } from "@steve-z8k/pi-coding-agent/extensibility/extensions";
+import { AssistantMessageComponent } from "@steve-z8k/pi-coding-agent/modes/components/assistant-message";
+import { clearMermaidCache } from "@steve-z8k/pi-coding-agent/modes/theme/mermaid-cache";
+import { initTheme } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
+import { ImageProtocol, setTerminalImageProtocol, TERMINAL, Text } from "@steve-z8k/pi-tui";
 
 const originalImageProtocol = TERMINAL.imageProtocol;
 
@@ -16,7 +16,7 @@ function createAssistantMessage(markdown: string): AssistantMessage {
 		content: [{ type: "text", text: markdown }],
 		api: "anthropic-messages",
 		provider: "anthropic",
-		model: "claude-sonnet-4-5",
+		model: "claude-sonnet-4-6",
 		usage: {
 			input: 0,
 			output: 0,

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { streamSimple } from "@amaze/pi-ai/stream";
-import type { Context, FetchImpl, Model } from "@amaze/pi-ai/types";
-import { getBundledModel } from "@amaze/pi-catalog/models";
+import { streamSimple } from "@steve-z8k/pi-ai/stream";
+import type { Context, FetchImpl, Model } from "@steve-z8k/pi-ai/types";
+import { getBundledModel } from "@steve-z8k/pi-catalog/models";
 
 const baseModel = getBundledModel("openai", "gpt-4o-mini") as Model<"openai-responses">;
 

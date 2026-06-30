@@ -1,7 +1,7 @@
 // Ported from NousResearch/hermes-agent (MIT) — tools/xai_http.py.
 
-import { getBundledModels } from "@amaze/pi-catalog/models";
-import { $env } from "@amaze/pi-utils";
+import { getBundledModels } from "@steve-z8k/pi-catalog/models";
+import { $env } from "@steve-z8k/pi-utils";
 import type { ModelRegistry } from "../config/model-registry";
 
 const DEFAULT_BASE_URL = "https://api.x.ai/v1";

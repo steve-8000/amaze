@@ -5,7 +5,7 @@ import {
 	planFileUrlForSlug,
 	resolveApprovedPlan,
 	resolvePlanTitle,
-} from "@amaze/pi-coding-agent/plan-mode/approved-plan";
+} from "@steve-z8k/pi-coding-agent/plan-mode/approved-plan";
 
 describe("planFileUrlForSlug", () => {
 	it("maps a slug to its local plan URL", () => {

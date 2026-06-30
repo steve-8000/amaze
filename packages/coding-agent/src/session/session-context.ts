@@ -1,6 +1,7 @@
-import type { AgentMessage } from "@amaze/pi-agent-core";
-import type { ProviderPayload, ServiceTier } from "@amaze/pi-ai";
-import * as snapcompact from "@amaze/snapcompact";
+import type { AgentMessage } from "@steve-z8k/pi-agent-core";
+import type { ProviderPayload, ServiceTier } from "@steve-z8k/pi-ai";
+import * as snapcompact from "@steve-z8k/snapcompact";
+import { PRIMARY_MODEL_ROLE } from "../config/model-roles";
 import { createBranchSummaryMessage, createCompactionSummaryMessage, createCustomMessage } from "./messages";
 import { type CompactionEntry, EPHEMERAL_MODEL_CHANGE_ROLE, type SessionEntry } from "./session-entries";
 
@@ -10,7 +11,7 @@ export interface SessionContext {
 	/** Configured thinking selector (`"auto"` or a concrete level) from the latest change. */
 	configuredThinkingLevel?: string;
 	serviceTier?: ServiceTier;
-	/** Model roles: { default: "provider/modelId", small: "provider/modelId", ... } */
+	/** Model roles: { flash: "provider/modelId", deep: "provider/modelId", ... } */
 	models: Record<string, string>;
 	/** Names of TTSR rules that have been injected this session */
 	injectedTtsrRules: string[];
@@ -36,19 +37,19 @@ export function getRestorableSessionModels(
 	models: Readonly<Record<string, string>>,
 	lastModelChangeRole: string | undefined,
 ): string[] {
-	const defaultModel = models.default;
+	const primaryModel = models[PRIMARY_MODEL_ROLE];
 	if (
 		!lastModelChangeRole ||
-		lastModelChangeRole === "default" ||
+		lastModelChangeRole === PRIMARY_MODEL_ROLE ||
 		lastModelChangeRole === EPHEMERAL_MODEL_CHANGE_ROLE
 	) {
-		return defaultModel ? [defaultModel] : [];
+		return primaryModel ? [primaryModel] : [];
 	}
 
 	const roleModel = models[lastModelChangeRole];
-	if (!roleModel) return defaultModel ? [defaultModel] : [];
-	if (!defaultModel || roleModel === defaultModel) return [roleModel];
-	return [roleModel, defaultModel];
+	if (!roleModel) return primaryModel ? [primaryModel] : [];
+	if (!primaryModel || roleModel === primaryModel) return [roleModel];
+	return [roleModel, primaryModel];
 }
 
 export function getLatestCompactionEntry(entries: SessionEntry[]): CompactionEntry | null {
@@ -145,14 +146,14 @@ export function buildSessionContext(
 	let hasPersistedMCPToolSelection = false;
 	let mode = "none";
 	let modeData: Record<string, unknown> | undefined;
-	// Track whether an explicit `model_change` with role="default" has been
+	// Track whether an explicit `model_change` with role="flash" has been
 	// seen on this path. Once a user (or the agent itself) records an
-	// explicit default, later assistant-message inference must NOT overwrite
+	// explicit primary lane, later assistant-message inference must NOT overwrite
 	// it: temporary fallbacks (retry fallback, context promotion) and
 	// server-side model downgrades both produce assistant messages tagged
 	// with the wrong model id, which previously clobbered the user's pick on
 	// resume (issue #849).
-	let hasExplicitDefaultModel = false;
+	let hasExplicitPrimaryModel = false;
 
 	for (const entry of path) {
 		if (entry.type === "thinking_level_change") {
@@ -161,22 +162,22 @@ export function buildSessionContext(
 		} else if (entry.type === "model_change") {
 			// New format: { model: "provider/id", role?: string }
 			if (entry.model) {
-				const role = entry.role ?? "default";
+				const role = entry.role ?? PRIMARY_MODEL_ROLE;
 				models[role] = entry.model;
-				if (role === "default") {
-					hasExplicitDefaultModel = true;
+				if (role === PRIMARY_MODEL_ROLE) {
+					hasExplicitPrimaryModel = true;
 				}
 			}
 		} else if (entry.type === "service_tier_change") {
 			serviceTier = entry.serviceTier ?? undefined;
 		} else if (entry.type === "message" && entry.message.role === "assistant") {
-			// Legacy fallback: infer default model from assistant messages only
-			// when no explicit `model_change` (role=default) entry has been
-			// recorded yet. Newer sessions always record an explicit default
-			// model_change at the start of the conversation, so this branch is
-			// only used to keep pre-model_change sessions working.
-			if (!hasExplicitDefaultModel) {
-				models.default = `${entry.message.provider}/${entry.message.model}`;
+			// Legacy fallback: infer the primary lane model from assistant messages only
+			// when no explicit `model_change` (role=flash) entry has been recorded yet.
+			// Newer sessions always record an explicit primary-lane model_change at the
+			// start of the conversation, so this branch is only used to keep
+			// pre-model_change sessions working.
+			if (!hasExplicitPrimaryModel) {
+				models[PRIMARY_MODEL_ROLE] = `${entry.message.provider}/${entry.message.model}`;
 			}
 		} else if (entry.type === "compaction") {
 			compaction = entry;

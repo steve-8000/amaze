@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import * as path from "node:path";
 
 /**
- * Regression for https://github.com/can1357/amaze-agent/issues/1150
+ * Regression for https://github.com/steve-8000/amaze/issues/1150
  *
  * In v15.1.3 `amaze stats` crashed in the published Linux/macOS/Windows
  * binaries with `BuildMessage: ModuleNotFound resolving

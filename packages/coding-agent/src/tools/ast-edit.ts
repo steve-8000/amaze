@@ -1,11 +1,11 @@
 import * as path from "node:path";
-import { formatHashlineHeader } from "@amaze/hashline";
-import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@amaze/pi-agent-core";
-import type { ToolExample } from "@amaze/pi-ai";
-import { type AstReplaceChange, type AstReplaceFileChange, astEdit } from "@amaze/pi-natives";
-import type { Component } from "@amaze/pi-tui";
-import { replaceTabs, Text } from "@amaze/pi-tui";
-import { $envpos, prompt, untilAborted } from "@amaze/pi-utils";
+import { formatHashlineHeader } from "@steve-z8k/hashline";
+import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@steve-z8k/pi-agent-core";
+import type { ToolExample } from "@steve-z8k/pi-ai";
+import { type AstReplaceChange, type AstReplaceFileChange, astEdit } from "@steve-z8k/pi-natives";
+import type { Component } from "@steve-z8k/pi-tui";
+import { replaceTabs, Text } from "@steve-z8k/pi-tui";
+import { $envpos, prompt, untilAborted } from "@steve-z8k/pi-utils";
 import { type } from "arktype";
 import { canonicalSnapshotKey, getFileSnapshotStore } from "../edit/file-snapshot-store";
 import { normalizeToLF } from "../edit/normalize";

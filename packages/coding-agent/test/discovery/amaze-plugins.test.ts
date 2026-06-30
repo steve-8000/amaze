@@ -16,23 +16,23 @@ import { afterEach, beforeEach, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getCapability } from "@amaze/pi-coding-agent/capability";
-import { clearCache } from "@amaze/pi-coding-agent/capability/fs";
-import { hookCapability } from "@amaze/pi-coding-agent/capability/hook";
-import { mcpCapability } from "@amaze/pi-coding-agent/capability/mcp";
-import { promptCapability } from "@amaze/pi-coding-agent/capability/prompt";
-import { ruleCapability } from "@amaze/pi-coding-agent/capability/rule";
-import { skillCapability } from "@amaze/pi-coding-agent/capability/skill";
-import { slashCommandCapability } from "@amaze/pi-coding-agent/capability/slash-command";
-import { toolCapability } from "@amaze/pi-coding-agent/capability/tool";
-import type { LoadContext, Provider } from "@amaze/pi-coding-agent/capability/types";
+import { getCapability } from "@steve-z8k/pi-coding-agent/capability";
+import { clearCache } from "@steve-z8k/pi-coding-agent/capability/fs";
+import { hookCapability } from "@steve-z8k/pi-coding-agent/capability/hook";
+import { mcpCapability } from "@steve-z8k/pi-coding-agent/capability/mcp";
+import { promptCapability } from "@steve-z8k/pi-coding-agent/capability/prompt";
+import { ruleCapability } from "@steve-z8k/pi-coding-agent/capability/rule";
+import { skillCapability } from "@steve-z8k/pi-coding-agent/capability/skill";
+import { slashCommandCapability } from "@steve-z8k/pi-coding-agent/capability/slash-command";
+import { toolCapability } from "@steve-z8k/pi-coding-agent/capability/tool";
+import type { LoadContext, Provider } from "@steve-z8k/pi-coding-agent/capability/types";
 // Register all discovery providers as a side effect.
-import "@amaze/pi-coding-agent/discovery";
+import "@steve-z8k/pi-coding-agent/discovery";
 import {
 	clearAmazeExtensionCliRoots,
 	injectAmazeExtensionCliRoots,
-} from "@amaze/pi-coding-agent/discovery/amaze-extension-roots";
-import { getConfigRootDir, setAgentDir } from "@amaze/pi-utils";
+} from "@steve-z8k/pi-coding-agent/discovery/amaze-extension-roots";
+import { getConfigRootDir, setAgentDir } from "@steve-z8k/pi-utils";
 
 const PROVIDER_ID = "amaze-plugins";
 

@@ -34,7 +34,7 @@ cp permission-gate.ts ~/.amaze/agent/hooks/
 See [docs/hooks.md](../../docs/hooks.md) for full documentation.
 
 ```typescript
-import type { HookAPI } from "@amaze/pi-coding-agent/hooks";
+import type { HookAPI } from "@steve-z8k/pi-coding-agent/hooks";
 
 export default function (pi: HookAPI) {
 	// Subscribe to events

@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, wri
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { gunzipSync, gzipSync } from "node:zlib";
-import { createBackup, emergencyRestore, restoreBackup, verifyIntegrity } from "@amaze/pi-rocky-memory/dr/recovery";
+import { createBackup, emergencyRestore, restoreBackup, verifyIntegrity } from "@steve-z8k/pi-rocky-memory/dr/recovery";
 
 const tempDirs: string[] = [];
 const SQLITE_HEADER = Buffer.from("SQLite format 3\0", "binary");

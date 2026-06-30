@@ -1,7 +1,7 @@
 /**
  * `amaze auth-gateway` — run a forward proxy that injects auth from the broker.
  */
-import { Args, Command, Flags, renderCommandHelp } from "@amaze/pi-utils/cli";
+import { Args, Command, Flags, renderCommandHelp } from "@steve-z8k/pi-utils/cli";
 import {
 	AUTH_GATEWAY_ACTIONS,
 	type AuthGatewayAction,

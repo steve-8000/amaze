@@ -6,9 +6,9 @@
  * backoff failures surface unless the caller aborted.
  */
 import { describe, expect, it } from "bun:test";
-import type { AssistantMessage, AssistantMessageEvent, Context, Usage } from "@amaze/pi-ai/types";
-import { MAX_EMPTY_COMPLETION_RETRIES, withEmptyCompletionRetry } from "@amaze/pi-ai/utils/empty-completion-retry";
-import { AssistantMessageEventStream } from "@amaze/pi-ai/utils/event-stream";
+import type { AssistantMessage, AssistantMessageEvent, Context, Usage } from "@steve-z8k/pi-ai/types";
+import { MAX_EMPTY_COMPLETION_RETRIES, withEmptyCompletionRetry } from "@steve-z8k/pi-ai/utils/empty-completion-retry";
+import { AssistantMessageEventStream } from "@steve-z8k/pi-ai/utils/event-stream";
 
 const CTX = {} as Context;
 

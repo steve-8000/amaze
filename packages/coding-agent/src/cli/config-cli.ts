@@ -5,7 +5,7 @@
  * Uses the settings schema as the source of truth for available settings.
  */
 
-import { APP_NAME, getAgentDir } from "@amaze/pi-utils";
+import { APP_NAME, getAgentDir } from "@steve-z8k/pi-utils";
 import chalk from "chalk";
 import {
 	getDefault,

@@ -4,7 +4,7 @@
  * Automatically detects OAuth requirements from MCP server responses
  * and extracts authentication endpoints.
  */
-import type { FetchImpl } from "@amaze/pi-ai/types";
+import type { FetchImpl } from "@steve-z8k/pi-ai/types";
 
 export interface OAuthEndpoints {
 	authorizationUrl: string;

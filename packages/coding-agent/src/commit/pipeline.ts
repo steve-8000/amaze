@@ -1,7 +1,7 @@
 import * as path from "node:path";
-import type { ThinkingLevel } from "@amaze/pi-agent-core";
-import type { Api, ApiKey, Model } from "@amaze/pi-ai";
-import { getProjectDir, logger, prompt } from "@amaze/pi-utils";
+import type { ThinkingLevel } from "@steve-z8k/pi-agent-core";
+import type { Api, ApiKey, Model } from "@steve-z8k/pi-ai";
+import { getProjectDir, logger, prompt } from "@steve-z8k/pi-utils";
 import { ModelRegistry } from "../config/model-registry";
 import { Settings } from "../config/settings";
 import { discoverAuthStorage } from "../sdk";
@@ -18,7 +18,7 @@ import {
 import { runChangelogFlow } from "./changelog";
 import { runMapReduceAnalysis, shouldUseMapReduce } from "./map-reduce";
 import { formatCommitMessage } from "./message";
-import { resolvePrimaryModel, resolveSmolModel } from "./model-selection";
+import { resolveFlashModel, resolvePrimaryModel } from "./model-selection";
 import summaryRetryPrompt from "./prompts/summary-retry.md" with { type: "text" };
 import typesDescriptionPrompt from "./prompts/types-description.md" with { type: "text" };
 import type { CommitCommandArgs, ConventionalAnalysis } from "./types";
@@ -55,7 +55,7 @@ async function runLegacyCommitCommand(args: CommitCommandArgs): Promise<void> {
 		model: smolModel,
 		apiKey: smolApiKey,
 		thinkingLevel: smolThinkingLevel,
-	} = await resolveSmolModel(settings, modelRegistry, primaryModel, primaryApiKey);
+	} = await resolveFlashModel(settings, modelRegistry, primaryModel, primaryApiKey);
 
 	let stagedFiles = await git.diff.changedFiles(cwd, { cached: true });
 	if (stagedFiles.length === 0) {

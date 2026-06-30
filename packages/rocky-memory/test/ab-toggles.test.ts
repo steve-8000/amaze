@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { PolyphonicRecallEngine } from "@amaze/pi-rocky-memory/core/polyphonic-recall";
+import { PolyphonicRecallEngine } from "@steve-z8k/pi-rocky-memory/core/polyphonic-recall";
 
 const roots: string[] = [];
 const toggleNames = [

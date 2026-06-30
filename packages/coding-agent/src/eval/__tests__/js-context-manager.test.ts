@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { TempDir } from "@amaze/pi-utils";
+import { TempDir } from "@steve-z8k/pi-utils";
 import { Settings } from "../../config/settings";
 import type { ToolSession } from "../../tools";
 import { disposeAllVmContexts, setWorkerCloseTimeoutMsForTests } from "../js/context-manager";

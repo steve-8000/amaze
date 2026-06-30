@@ -17,9 +17,9 @@ import {
 	type AgentTelemetryConfig,
 	instrumentedCompleteSimple,
 	resolveTelemetry,
-} from "@amaze/pi-agent-core";
-import type { Api, completeSimple, ImageContent, Model, TextContent } from "@amaze/pi-ai";
-import { logger, prompt, toError } from "@amaze/pi-utils";
+} from "@steve-z8k/pi-agent-core";
+import type { Api, completeSimple, ImageContent, Model, TextContent } from "@steve-z8k/pi-ai";
+import { logger, prompt, toError } from "@steve-z8k/pi-utils";
 import { extractTextContent } from "../commit/utils";
 import type { ModelRegistry } from "../config/model-registry";
 import { expandRoleAlias, getModelMatchPreferences, resolveModelFromString } from "../config/model-resolver";
@@ -98,7 +98,7 @@ function formatImageBlock(localUrl: string, description: string): string {
 
 /**
  * Resolve a vision-capable model, mirroring the inspect_image priority
- * (`pi/vision` → `pi/default` → active → first image-capable available), but
+ * (`pi/vision` → `pi/flash` → active → first image-capable available), but
  * never returning a text-only model.
  */
 function resolveVisionModel(deps: DescribeAttachedImagesDeps): Model<Api> | undefined {
@@ -113,7 +113,7 @@ function resolveVisionModel(deps: DescribeAttachedImagesDeps): Model<Api> | unde
 	};
 	return (
 		resolvePattern("pi/vision") ??
-		resolvePattern("pi/default") ??
+		resolvePattern("pi/flash") ??
 		resolvePattern(deps.activeModelString) ??
 		available.find(model => model.input.includes("image"))
 	);

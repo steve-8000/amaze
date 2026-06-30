@@ -1,4 +1,4 @@
-import type { RenderScheduler } from "@amaze/pi-tui/tui";
+import type { RenderScheduler } from "@steve-z8k/pi-tui/tui";
 import type { VirtualTerminal } from "./virtual-terminal";
 
 export class StressRenderScheduler implements RenderScheduler {

@@ -1,5 +1,5 @@
-// @ts-nocheck — example file; install @amaze/pi-coding-agent before running
-import type { ExtensionAPI } from "@amaze/pi-coding-agent";
+// @ts-nocheck — example file; install @steve-z8k/pi-coding-agent before running
+import type { ExtensionAPI } from "@steve-z8k/pi-coding-agent";
 
 export default function myPlugin(pi: ExtensionAPI) {
   pi.on("session_start", async (_event, ctx) => {

@@ -2,14 +2,17 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { buildModel } from "@amaze/pi-catalog/build";
-import { ANTIGRAVITY_PRIMARY_ENDPOINT, fetchAntigravityDiscoveryModels } from "@amaze/pi-catalog/discovery/antigravity";
-import { Effort } from "@amaze/pi-catalog/effort";
-import { stripThinkingVariantToken } from "@amaze/pi-catalog/identity/family";
-import { resolveProviderModels } from "@amaze/pi-catalog/model-manager";
-import { resolveWireModelId } from "@amaze/pi-catalog/model-thinking";
-import { googleGeminiCliModelManagerOptions } from "@amaze/pi-catalog/provider-models/google";
-import type { ModelSpec } from "@amaze/pi-catalog/types";
+import { buildModel } from "@steve-z8k/pi-catalog/build";
+import {
+	ANTIGRAVITY_PRIMARY_ENDPOINT,
+	fetchAntigravityDiscoveryModels,
+} from "@steve-z8k/pi-catalog/discovery/antigravity";
+import { Effort } from "@steve-z8k/pi-catalog/effort";
+import { stripThinkingVariantToken } from "@steve-z8k/pi-catalog/identity/family";
+import { resolveProviderModels } from "@steve-z8k/pi-catalog/model-manager";
+import { resolveWireModelId } from "@steve-z8k/pi-catalog/model-thinking";
+import { googleGeminiCliModelManagerOptions } from "@steve-z8k/pi-catalog/provider-models/google";
+import type { ModelSpec } from "@steve-z8k/pi-catalog/types";
 import {
 	ANTIGRAVITY_VARIANT_COLLAPSE_TABLE,
 	collapseEffortVariants,
@@ -20,7 +23,7 @@ import {
 	isVariantCollapsedSpec,
 	resolveBareVariantAlias,
 	resolveVariantAlias,
-} from "@amaze/pi-catalog/variant-collapse";
+} from "@steve-z8k/pi-catalog/variant-collapse";
 
 function memberSpec(
 	id: string,

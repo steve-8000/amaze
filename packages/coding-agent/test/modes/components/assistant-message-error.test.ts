@@ -1,12 +1,12 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, spyOn } from "bun:test";
-import type { AssistantMessage } from "@amaze/pi-ai";
-import { resetSettingsForTest, Settings } from "@amaze/pi-coding-agent/config/settings";
+import type { AssistantMessage } from "@steve-z8k/pi-ai";
+import { resetSettingsForTest, Settings } from "@steve-z8k/pi-coding-agent/config/settings";
 import {
 	AssistantMessageComponent,
 	resetThinkingSpeedTracker,
-} from "@amaze/pi-coding-agent/modes/components/assistant-message";
-import { initTheme } from "@amaze/pi-coding-agent/modes/theme/theme";
-import { setTerminalImageProtocol, TERMINAL } from "@amaze/pi-tui";
+} from "@steve-z8k/pi-coding-agent/modes/components/assistant-message";
+import { initTheme } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
+import { setTerminalImageProtocol, TERMINAL } from "@steve-z8k/pi-tui";
 
 const originalImageProtocol = TERMINAL.imageProtocol;
 
@@ -18,7 +18,7 @@ function erroredMessage(errorMessage: string): AssistantMessage {
 		content: [],
 		api: "anthropic-messages",
 		provider: "anthropic",
-		model: "claude-sonnet-4-5",
+		model: "claude-sonnet-4-6",
 		usage: {
 			input: 0,
 			output: 0,
@@ -115,7 +115,7 @@ describe("AssistantMessageComponent hidden thinking rendering", () => {
 			],
 			api: "anthropic-messages",
 			provider: "anthropic",
-			model: "claude-sonnet-4-5",
+			model: "claude-sonnet-4-6",
 			usage: {
 				input: 0,
 				output: 0,
@@ -152,7 +152,7 @@ describe("AssistantMessageComponent streaming thinking pulse", () => {
 			content,
 			api: "anthropic-messages",
 			provider: "anthropic",
-			model: "claude-sonnet-4-5",
+			model: "claude-sonnet-4-6",
 			usage: {
 				input: 0,
 				output,

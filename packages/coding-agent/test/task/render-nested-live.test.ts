@@ -1,9 +1,9 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import { resetSettingsForTest, Settings } from "@amaze/pi-coding-agent/config/settings";
-import { getThemeByName, setThemeInstance } from "@amaze/pi-coding-agent/modes/theme/theme";
-import type { AgentProgress, SingleResult, TaskToolDetails } from "@amaze/pi-coding-agent/task";
-import { taskToolRenderer } from "@amaze/pi-coding-agent/task/render";
-import { formatDuration, formatNumber } from "@amaze/pi-utils";
+import { resetSettingsForTest, Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { getThemeByName, setThemeInstance } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
+import type { AgentProgress, SingleResult, TaskToolDetails } from "@steve-z8k/pi-coding-agent/task";
+import { taskToolRenderer } from "@steve-z8k/pi-coding-agent/task/render";
+import { formatDuration, formatNumber } from "@steve-z8k/pi-utils";
 
 describe("task renderer: nested live rendering", () => {
 	beforeAll(async () => {

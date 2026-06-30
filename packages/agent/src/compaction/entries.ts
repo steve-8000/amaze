@@ -1,4 +1,4 @@
-import type { ImageContent, MessageAttribution, ServiceTier, TextContent } from "@amaze/pi-ai";
+import type { ImageContent, MessageAttribution, ServiceTier, TextContent } from "@steve-z8k/pi-ai";
 import type { AgentMessage } from "../types";
 
 export interface SessionEntryBase {

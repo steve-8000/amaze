@@ -3,8 +3,8 @@
  *
  * Agents are embedded at build time via Bun's import with { type: "text" }.
  */
-import { Effort } from "@amaze/pi-ai";
-import { parseFrontmatter, prompt } from "@amaze/pi-utils";
+import { Effort } from "@steve-z8k/pi-ai";
+import { parseFrontmatter, prompt } from "@steve-z8k/pi-utils";
 import { parseAgentFields } from "../discovery/helpers";
 import contractAgentMd from "../prompts/agents/contract.md" with { type: "text" };
 // Embed agent markdown files at build time
@@ -36,66 +36,91 @@ function buildAgentContent(def: EmbeddedAgentDef): string {
 
 const EMBEDDED_AGENT_DEFS: EmbeddedAgentDef[] = [
 	{
-		fileName: "thinker.md",
+		fileName: "ultra.md",
 		frontmatter: {
-			name: "thinker",
-			description: "Hard judgment, architecture, root-cause analysis, and unclear decisions",
-			tools: ["read", "search", "find", "bash", "web_search", "ast_grep"],
-			model: "pi/thinker",
+			name: "ultra",
+			description: "Highest-capability user-invoked agent for hard architecture, root cause, and implementation",
+			tools: [
+				"read",
+				"search",
+				"find",
+				"mcp__circle_graph",
+				"mcp__circle_search",
+				"mcp__circle_snippet",
+				"mcp__circle_trace",
+				"mcp__circle_architecture",
+				"skill_search",
+				"skill_get",
+				"bash",
+				"web_search",
+				"ast_grep",
+			],
+			model: "pi/ultra",
 			thinkingLevel: Effort.XHigh,
 		},
 		template: contractAgentMd,
 	},
 	{
-		fileName: "coder.md",
+		fileName: "deep.md",
 		frontmatter: {
-			name: "coder",
-			description: "Complex implementation across files, tests, state, types, or behavior",
-			model: "pi/coder",
+			name: "deep",
+			description: "Auditor for validation, merge synthesis, final fixes, and quality gates",
+			tools: [
+				"read",
+				"search",
+				"find",
+				"mcp__circle_graph",
+				"mcp__circle_search",
+				"mcp__circle_snippet",
+				"mcp__circle_trace",
+				"mcp__circle_architecture",
+				"skill_search",
+				"skill_get",
+				"bash",
+				"edit",
+				"write",
+				"ast_grep",
+				"ast_edit",
+				"report_finding",
+			],
+			model: "pi/deep",
 			thinkingLevel: Effort.High,
 		},
 		template: contractAgentMd,
 	},
 	{
-		fileName: "finder.md",
+		fileName: "flash.md",
 		frontmatter: {
-			name: "finder",
-			description: "Read-only investigation, locating code, collecting facts, and summarizing context",
-			tools: ["read", "search", "find", "web_search", "ast_grep"],
-			model: "pi/finder",
+			name: "flash",
+			description: "Fast sandbox coding worker for independent implementation attempts",
+			model: "pi/flash",
 			thinkingLevel: Effort.Medium,
 		},
 		template: contractAgentMd,
 	},
 	{
-		fileName: "fixer.md",
+		fileName: "spark.md",
 		frontmatter: {
-			name: "fixer",
-			description: "Small, clear, low-risk code edits with narrow scope",
-			model: "pi/fixer",
-			thinkingLevel: Effort.Low,
-		},
-		template: contractAgentMd,
-	},
-	{
-		fileName: "checker.md",
-		frontmatter: {
-			name: "checker",
-			description: "Review, challenge, risk checks, and adversarial second opinions",
-			tools: ["read", "search", "find", "bash", "web_search", "ast_grep", "report_finding"],
-			model: "pi/checker",
-			thinkingLevel: Effort.High,
-		},
-		template: contractAgentMd,
-	},
-	{
-		fileName: "helper.md",
-		frontmatter: {
-			name: "helper",
-			description: "Cheap summarization, extraction, list building, and text cleanup",
-			tools: ["read", "search", "find"],
-			model: "pi/helper",
-			thinkingLevel: Effort.Low,
+			name: "spark",
+			description: "Specialist for GitHub commit workflows and web information search",
+			tools: [
+				"read",
+				"search",
+				"find",
+				"mcp__circle_graph",
+				"mcp__circle_search",
+				"mcp__circle_snippet",
+				"mcp__circle_trace",
+				"mcp__circle_architecture",
+				"skill_search",
+				"skill_get",
+				"bash",
+				"web_search",
+				"github",
+				"ast_grep",
+			],
+			model: "pi/spark",
+			thinkingLevel: Effort.Medium,
 		},
 		template: contractAgentMd,
 	},

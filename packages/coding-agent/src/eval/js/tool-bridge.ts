@@ -1,5 +1,5 @@
-import type { AgentTool, AgentToolResult } from "@amaze/pi-agent-core";
-import { INTENT_FIELD } from "@amaze/pi-wire";
+import type { AgentTool, AgentToolResult } from "@steve-z8k/pi-agent-core";
+import { INTENT_FIELD } from "@steve-z8k/pi-wire";
 import type { ToolSession } from "../../tools";
 import { ToolError } from "../../tools/tool-errors";
 import { EVAL_AGENT_BRIDGE_NAME, runEvalAgent } from "../agent-bridge";

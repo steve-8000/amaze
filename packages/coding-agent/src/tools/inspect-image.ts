@@ -1,7 +1,7 @@
-import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@amaze/pi-agent-core";
-import { instrumentedCompleteSimple, resolveTelemetry } from "@amaze/pi-agent-core";
-import { type Api, completeSimple, type ImageContent, type Model, type ToolExample } from "@amaze/pi-ai";
-import { prompt } from "@amaze/pi-utils";
+import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@steve-z8k/pi-agent-core";
+import { instrumentedCompleteSimple, resolveTelemetry } from "@steve-z8k/pi-agent-core";
+import { type Api, completeSimple, type ImageContent, type Model, type ToolExample } from "@steve-z8k/pi-ai";
+import { prompt } from "@steve-z8k/pi-utils";
 import { type } from "arktype";
 import { extractTextContent } from "../commit/utils";
 
@@ -158,7 +158,7 @@ export class InspectImageTool implements AgentTool<typeof inspectImageSchema, In
 		const activeModelPattern = this.session.getActiveModelString?.() ?? this.session.getModelString?.();
 		const model =
 			resolvePattern("pi/vision") ??
-			resolvePattern("pi/default") ??
+			resolvePattern("pi/flash") ??
 			resolvePattern(activeModelPattern) ??
 			availableModels[0];
 		if (!model) {

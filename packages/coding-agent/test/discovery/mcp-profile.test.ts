@@ -16,10 +16,10 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { clearCache as clearFsCache } from "@amaze/pi-coding-agent/capability/fs";
-import { type MCPServer, mcpCapability } from "@amaze/pi-coding-agent/capability/mcp";
-import { loadCapability } from "@amaze/pi-coding-agent/discovery";
-import { getConfigRootDir, setAgentDir } from "@amaze/pi-utils";
+import { clearCache as clearFsCache } from "@steve-z8k/pi-coding-agent/capability/fs";
+import { type MCPServer, mcpCapability } from "@steve-z8k/pi-coding-agent/capability/mcp";
+import { loadCapability } from "@steve-z8k/pi-coding-agent/discovery";
+import { getConfigRootDir, setAgentDir } from "@steve-z8k/pi-utils";
 
 const originalAgentDirEnv = process.env.PI_CODING_AGENT_DIR;
 const fallbackAgentDir = path.join(getConfigRootDir(), "agent");

@@ -9,8 +9,8 @@
 import { Database } from "bun:sqlite";
 import { describe, expect, it } from "bun:test";
 import "./setup";
-import { initBeam } from "@amaze/pi-rocky-memory/core/beam";
-import { RockyMemory } from "@amaze/pi-rocky-memory/core/memory";
+import { initBeam } from "@steve-z8k/pi-rocky-memory/core/beam";
+import { RockyMemory } from "@steve-z8k/pi-rocky-memory/core/memory";
 
 const OLD_MODEL = "BAAI/bge-small-en-v1.5";
 const NEW_MODEL = "intfloat/multilingual-e5-large";

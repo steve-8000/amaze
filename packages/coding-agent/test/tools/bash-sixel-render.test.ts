@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { RenderResultOptions } from "@amaze/pi-agent-core";
-import { getThemeByName, setThemeInstance } from "@amaze/pi-coding-agent/modes/theme/theme";
-import { bashToolRenderer } from "@amaze/pi-coding-agent/tools/bash";
-import { previewWindowRows } from "@amaze/pi-coding-agent/tools/render-utils";
-import { ImageProtocol, TERMINAL } from "@amaze/pi-tui";
-import { sanitizeText } from "@amaze/pi-utils";
+import type { RenderResultOptions } from "@steve-z8k/pi-agent-core";
+import { getThemeByName, setThemeInstance } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
+import { bashToolRenderer } from "@steve-z8k/pi-coding-agent/tools/bash";
+import { previewWindowRows } from "@steve-z8k/pi-coding-agent/tools/render-utils";
+import { ImageProtocol, TERMINAL } from "@steve-z8k/pi-tui";
+import { sanitizeText } from "@steve-z8k/pi-utils";
 
 type MutableTerminalInfo = {
 	imageProtocol: ImageProtocol | null;

@@ -10,11 +10,11 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { resetSettingsForTest, Settings } from "@amaze/pi-coding-agent/config/settings";
-import { AgentTranscriptViewer } from "@amaze/pi-coding-agent/modes/components/agent-transcript-viewer";
-import { initTheme } from "@amaze/pi-coding-agent/modes/theme/theme";
-import { AgentRegistry } from "@amaze/pi-coding-agent/registry/agent-registry";
-import { CURRENT_SESSION_VERSION } from "@amaze/pi-coding-agent/session/session-entries";
+import { resetSettingsForTest, Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { AgentTranscriptViewer } from "@steve-z8k/pi-coding-agent/modes/components/agent-transcript-viewer";
+import { initTheme } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
+import { AgentRegistry } from "@steve-z8k/pi-coding-agent/registry/agent-registry";
+import { CURRENT_SESSION_VERSION } from "@steve-z8k/pi-coding-agent/session/session-entries";
 
 const TS = new Date().toISOString();
 
@@ -55,6 +55,7 @@ function buildJsonl(options: { includeAsyncResult?: boolean } = {}): string {
 					details: {
 						jobs: [
 							{ jobId: "task-job", type: "task", status: "completed" },
+							{ jobId: "task-failed", type: "task", status: "failed", agentName: "flash" },
 							{ jobId: "bash-job", type: "bash", status: "completed" },
 						],
 					},
@@ -187,6 +188,7 @@ describe("AgentTranscriptViewer", () => {
 					.map(l => Bun.stripANSI(l))
 					.join("\n");
 				expect(body).toContain("Background job completed [bash] bash-job");
+				expect(body).toContain("Background job completed [task:flash] task-failed");
 				expect(body).not.toContain("task-job");
 			},
 			buildJsonl({ includeAsyncResult: true }),

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import * as Beam from "@amaze/pi-rocky-memory/core/beam";
-import * as Db from "@amaze/pi-rocky-memory/db";
+import * as Beam from "@steve-z8k/pi-rocky-memory/core/beam";
+import * as Db from "@steve-z8k/pi-rocky-memory/db";
 
 describe("Foundation smoke test", () => {
 	it("initializes beam schema twice and inserts working memory row", () => {

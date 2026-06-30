@@ -1,9 +1,9 @@
 /**
  * Builds transcript components from persisted session message entries — the
- * file/remote-backed counterpart to {@link UiHelpers.addMessageToChat} (which is
- * bound to the live InteractiveModeContext). Used by the fullscreen transcript
- * viewer ({@link AgentTranscriptViewer}) to render a parked subagent / advisor /
- * collab-guest transcript that has no live session.
+ * file-backed counterpart to {@link UiHelpers.addMessageToChat} (which is bound
+ * to the live InteractiveModeContext). Used by the fullscreen transcript viewer
+ * ({@link AgentTranscriptViewer}) to render a parked subagent or advisor
+ * transcript that has no live session.
  *
  * Unlike the old incremental hub sync, {@link ChatTranscriptBuilder.rebuild}
  * always discards prior components and rebuilds the whole transcript from the
@@ -11,12 +11,11 @@
  * entry count, but it cannot duplicate or misorder rows the way incremental
  * component reuse could.
  */
-import type { AgentMessage, AgentTool } from "@amaze/pi-agent-core";
-import type { Usage } from "@amaze/pi-ai";
-import { Text, type TUI } from "@amaze/pi-tui";
-import { formatBytes, formatDuration } from "@amaze/pi-utils";
+import type { AgentMessage, AgentTool } from "@steve-z8k/pi-agent-core";
+import type { Usage } from "@steve-z8k/pi-ai";
+import { Text, type TUI } from "@steve-z8k/pi-tui";
+import { formatBytes, formatDuration } from "@steve-z8k/pi-utils";
 import type { AdvisorMessageDetails } from "../../advisor";
-import { COLLAB_PROMPT_MESSAGE_TYPE, type CollabPromptDetails } from "../../collab/protocol";
 import { settings } from "../../config/settings";
 import type { MessageRenderer } from "../../extensibility/extensions/types";
 import {
@@ -36,7 +35,6 @@ import { AssistantMessageComponent } from "./assistant-message";
 import { createBackgroundTanDispatchBlock } from "./background-tan-message";
 import { BashExecutionComponent } from "./bash-execution";
 import { detectCacheInvalidation } from "./cache-invalidation-marker";
-import { CollabPromptMessageComponent } from "./collab-prompt-message";
 import {
 	BranchSummaryMessageComponent,
 	CompactionSummaryMessageComponent,
@@ -377,12 +375,14 @@ export class ChatTranscriptBuilder {
 					type?: "bash" | "task";
 					status?: "running" | "completed" | "failed" | "cancelled";
 					label?: string;
+					agentName?: string;
 					durationMs?: number;
 					jobs?: Array<{
 						jobId?: string;
 						type?: "bash" | "task";
 						status?: "running" | "completed" | "failed" | "cancelled";
 						label?: string;
+						agentName?: string;
 						durationMs?: number;
 					}>;
 				}>
@@ -396,6 +396,7 @@ export class ChatTranscriptBuilder {
 								type: details?.type,
 								status: details?.status,
 								label: details?.label,
+								agentName: details?.agentName,
 								durationMs: details?.durationMs,
 							},
 						];
@@ -404,7 +405,12 @@ export class ChatTranscriptBuilder {
 			const block = new TranscriptBlock();
 			for (const job of visibleJobs) {
 				const jobId = job.jobId ?? "unknown";
-				const typeLabel = job.type ? `[${job.type}]` : "[job]";
+				const typeLabel =
+					job.type === "task" && job.agentName
+						? `[${job.type}:${job.agentName}]`
+						: job.type
+							? `[${job.type}]`
+							: "[job]";
 				const duration = typeof job.durationMs === "number" ? formatDuration(job.durationMs) : undefined;
 				const line = [
 					theme.fg("success", `${theme.status.done} Background job completed`),
@@ -417,10 +423,6 @@ export class ChatTranscriptBuilder {
 				block.addChild(new Text(line, 1, 0));
 			}
 			this.container.addChild(block);
-			return;
-		}
-		if (message.customType === COLLAB_PROMPT_MESSAGE_TYPE) {
-			this.container.addChild(new CollabPromptMessageComponent(message as CustomMessage<CollabPromptDetails>));
 			return;
 		}
 		if (message.customType === SKILL_PROMPT_MESSAGE_TYPE) {

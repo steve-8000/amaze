@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { handleWikipedia } from "@amaze/pi-coding-agent/web/scrapers/wikipedia";
+import { handleWikipedia } from "@steve-z8k/pi-coding-agent/web/scrapers/wikipedia";
 
 const SKIP = !Bun.env.WEB_FETCH_INTEGRATION;
 

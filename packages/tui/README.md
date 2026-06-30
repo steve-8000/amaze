@@ -1,4 +1,4 @@
-# @amaze/pi-tui
+# @steve-z8k/pi-tui
 
 Minimal terminal UI framework with differential rendering and synchronized output for flicker-free interactive CLI applications.
 
@@ -16,7 +16,7 @@ Minimal terminal UI framework with differential rendering and synchronized outpu
 ## Quick Start
 
 ```typescript
-import { TUI, Text, Editor, ProcessTerminal } from "@amaze/pi-tui";
+import { TUI, Text, Editor, ProcessTerminal } from "@steve-z8k/pi-tui";
 
 // Create terminal
 const terminal = new ProcessTerminal();
@@ -443,8 +443,8 @@ Supported formats: PNG, JPEG, GIF, WebP. Dimensions are parsed from the image he
 Supports both slash commands and file paths.
 
 ```typescript
-import { CombinedAutocompleteProvider } from "@amaze/pi-tui";
-import { getProjectDir } from "@amaze/pi-utils";
+import { CombinedAutocompleteProvider } from "@steve-z8k/pi-tui";
+import { getProjectDir } from "@steve-z8k/pi-utils";
 
 const provider = new CombinedAutocompleteProvider(
 	[
@@ -499,7 +499,7 @@ import {
 	isHome,
 	isEnd,
 	// ... and more
-} from "@amaze/pi-tui";
+} from "@steve-z8k/pi-tui";
 
 if (isCtrlC(data)) {
 	process.exit(0);
@@ -544,7 +544,7 @@ interface Terminal {
 ## Utilities
 
 ```typescript
-import { Ellipsis, visibleWidth, truncateToWidth, wrapTextWithAnsi } from "@amaze/pi-tui";
+import { Ellipsis, visibleWidth, truncateToWidth, wrapTextWithAnsi } from "@steve-z8k/pi-tui";
 
 // Get visible width of string (ignoring ANSI codes, uses Bun.stringWidth)
 const width = visibleWidth("\x1b[31mHello\x1b[0m"); // 5
@@ -569,8 +569,8 @@ When creating custom components, **each line returned by `render()` must not exc
 Use the key detection utilities to handle keyboard input:
 
 ```typescript
-import { isEnter, isEscape, isArrowUp, isArrowDown, isCtrlC, isTab, isBackspace } from "@amaze/pi-tui";
-import type { Component } from "@amaze/pi-tui";
+import { isEnter, isEscape, isArrowUp, isArrowDown, isCtrlC, isTab, isBackspace } from "@steve-z8k/pi-tui";
+import type { Component } from "@steve-z8k/pi-tui";
 
 class MyInteractiveComponent implements Component {
 	private selectedIndex = 0;
@@ -605,8 +605,8 @@ class MyInteractiveComponent implements Component {
 Use the provided utilities to ensure lines fit:
 
 ```typescript
-import { visibleWidth, truncateToWidth } from "@amaze/pi-tui";
-import type { Component } from "@amaze/pi-tui";
+import { visibleWidth, truncateToWidth } from "@steve-z8k/pi-tui";
+import type { Component } from "@steve-z8k/pi-tui";
 
 class MyComponent implements Component {
 	private text: string;

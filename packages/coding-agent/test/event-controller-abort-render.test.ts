@@ -17,12 +17,12 @@
  *         `errorMessage` is NOT set (TTSR existing behavior unchanged).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import type { AssistantMessage } from "@amaze/pi-ai";
-import { resetSettingsForTest, Settings } from "@amaze/pi-coding-agent/config/settings";
-import { EventController } from "@amaze/pi-coding-agent/modes/controllers/event-controller";
-import type { InteractiveModeContext } from "@amaze/pi-coding-agent/modes/types";
-import type { AgentSessionEvent } from "@amaze/pi-coding-agent/session/agent-session";
-import { SILENT_ABORT_MARKER, USER_INTERRUPT_LABEL } from "@amaze/pi-coding-agent/session/messages";
+import type { AssistantMessage } from "@steve-z8k/pi-ai";
+import { resetSettingsForTest, Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { EventController } from "@steve-z8k/pi-coding-agent/modes/controllers/event-controller";
+import type { InteractiveModeContext } from "@steve-z8k/pi-coding-agent/modes/types";
+import type { AgentSessionEvent } from "@steve-z8k/pi-coding-agent/session/agent-session";
+import { SILENT_ABORT_MARKER, USER_INTERRUPT_LABEL } from "@steve-z8k/pi-coding-agent/session/messages";
 
 function makeAssistantMessage(overrides: Partial<AssistantMessage> = {}): AssistantMessage {
 	return {
@@ -30,7 +30,7 @@ function makeAssistantMessage(overrides: Partial<AssistantMessage> = {}): Assist
 		content: [{ type: "text", text: "draft" }],
 		api: "anthropic-messages",
 		provider: "anthropic",
-		model: "claude-sonnet-4-5",
+		model: "claude-sonnet-4-6",
 		stopReason: "aborted",
 		usage: {
 			input: 0,

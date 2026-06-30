@@ -15,9 +15,9 @@
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { AgentTool } from "@amaze/pi-agent-core";
-import { Container, Ellipsis, matchesKey, type OverlayHandle, type TUI } from "@amaze/pi-tui";
-import { formatAge, getProjectDir, logger } from "@amaze/pi-utils";
+import type { AgentTool } from "@steve-z8k/pi-agent-core";
+import { Container, Ellipsis, matchesKey, type OverlayHandle, type TUI } from "@steve-z8k/pi-tui";
+import { formatAge, getProjectDir, logger } from "@steve-z8k/pi-utils";
 import { ADVISOR_TRANSCRIPT_FILENAME } from "../../advisor";
 import type { KeyId } from "../../config/keybindings";
 import type { MessageRenderer } from "../../extensibility/extensions/types";
@@ -125,15 +125,6 @@ function registerPersistedSubagentsFromDir(registry: AgentRegistry, dir: string,
 	}
 }
 
-/** Guest-side proxy for hub actions executed on the collab host. */
-export interface AgentHubRemote {
-	chat(id: string, text: string): void;
-	kill(id: string): void;
-	revive(id: string): void;
-	/** Mirrors readFileIncremental: text from fromByte (complete JSONL lines), newSize = next fromByte base; null = unavailable. */
-	readTranscript(id: string, fromByte: number): Promise<{ text: string; newSize: number } | null>;
-}
-
 export interface AgentHubDeps {
 	/** Progress/status snapshot source (task lifecycle + progress channels). */
 	observers: SessionObserverRegistry;
@@ -160,12 +151,10 @@ export interface AgentHubDeps {
 	proseOnlyThinking?: () => boolean;
 	/** Keys toggling tool output expansion (app.tools.expand). */
 	expandKeys?: KeyId[];
-	/** Focus the main view on this agent's live session (ctx.focusAgentSession). When absent (collab guest, tests), Enter opens the in-hub chat view instead. */
+	/** Focus the main view on this agent's live session (ctx.focusAgentSession). When absent in tests, Enter opens the in-hub chat view instead. */
 	focusAgent?: (id: string) => Promise<void>;
 	/** Current main session file; used to seed parked historical subagents after restart. */
 	sessionFile?: string | null;
-	/** Collab guest: route actions/transcripts to the host instead of local sessions. */
-	remote?: AgentHubRemote;
 }
 
 export class AgentHubOverlayComponent extends Container {
@@ -178,8 +167,6 @@ export class AgentHubOverlayComponent extends Container {
 	#hubKeys: KeyId[];
 	#unsubscribers: Array<() => void> = [];
 	#ageTimer: NodeJS.Timeout | undefined;
-	#remote: AgentHubRemote | undefined;
-
 	// Table state
 	#rows: AgentRef[] = [];
 	#selectedRow = 0;
@@ -214,7 +201,6 @@ export class AgentHubOverlayComponent extends Container {
 		this.#onDone = deps.onDone;
 		this.#requestRender = deps.requestRender;
 		this.#hubKeys = deps.hubKeys;
-		this.#remote = deps.remote;
 		this.#ui =
 			deps.ui ??
 			({
@@ -234,7 +220,7 @@ export class AgentHubOverlayComponent extends Container {
 		this.#ageTimer = setInterval(() => this.#requestRender(), AGE_TICK_MS);
 		this.#ageTimer.unref?.();
 
-		if (!this.#remote) registerPersistedSubagents(this.#registry, deps.sessionFile);
+		registerPersistedSubagents(this.#registry, deps.sessionFile);
 		this.#refreshRows();
 	}
 
@@ -286,9 +272,8 @@ export class AgentHubOverlayComponent extends Container {
 		const viewer = new AgentTranscriptViewer({
 			agentId: id,
 			registry: this.#registry,
-			remote: this.#remote,
 			observers: this.#observers,
-			lifecycle: this.#remote ? undefined : this.#lifecycle,
+			lifecycle: this.#lifecycle,
 			ui: this.#ui,
 			getTool: this.#getTool,
 			getMessageRenderer: this.#getMessageRenderer,
@@ -485,16 +470,14 @@ export class AgentHubOverlayComponent extends Container {
 
 	/**
 	 * Enter on a row: focus the main view on the agent's live session and close
-	 * the hub. The transcript then renders through the regular session pipeline —
-	 * exact parity by construction. Collab guests (no local sessions) keep the
-	 * in-hub chat view.
+	 * the hub. Advisor refs remain read-only transcript views.
 	 */
 	#activateAgent(ref: AgentRef): void {
 		this.#notice = undefined;
 		const focusAgent = this.#focusAgent;
-		// Advisor refs are read-only transcripts with no live/ revivable session;
-		// open the in-hub chat view (file-backed) instead of trying to focus one.
-		if (ref.kind === "advisor" || this.#remote || !focusAgent) {
+		// Advisor refs are read-only transcripts with no live/revivable session;
+		// open the in-hub chat view instead of trying to focus one.
+		if (ref.kind === "advisor" || !focusAgent) {
 			this.openChat(ref.id);
 			return;
 		}
@@ -523,11 +506,6 @@ export class AgentHubOverlayComponent extends Container {
 			return;
 		}
 		this.#notice = undefined;
-		if (this.#remote) {
-			this.#remote.revive(ref.id);
-			this.#requestRender();
-			return;
-		}
 		// Fire-and-forget; failures surface as an inline notice
 		this.#lifecycle()
 			.ensureLive(ref.id)
@@ -547,12 +525,6 @@ export class AgentHubOverlayComponent extends Container {
 			return;
 		}
 		this.#notice = undefined;
-		if (this.#remote) {
-			this.#remote.kill(ref.id);
-			this.#refreshRows();
-			this.#requestRender();
-			return;
-		}
 		void (async () => {
 			try {
 				if (ref.status === "running" && ref.session) {

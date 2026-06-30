@@ -1,4 +1,4 @@
-import type { Effort } from "@amaze/pi-catalog/effort";
+import type { Effort } from "@steve-z8k/pi-catalog/effort";
 import type {
 	AssistantMessage,
 	AssistantMessageEventStream,

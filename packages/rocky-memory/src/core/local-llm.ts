@@ -7,7 +7,7 @@ import {
 	type Model,
 	ProviderHttpError,
 	withAuth,
-} from "@amaze/pi-ai";
+} from "@steve-z8k/pi-ai";
 import { type CompleteOptions, callHostLlm, getHostLlmBackend } from "./llm-backends";
 import {
 	getRockyMemoryRuntimeOptions,

@@ -1,17 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { Agent, type AgentMessage, type AgentTool } from "@amaze/pi-agent-core";
-import type { TextContent } from "@amaze/pi-ai";
-import { AssistantMessageEventStream } from "@amaze/pi-ai/utils/event-stream";
-import { getBundledModel } from "@amaze/pi-catalog/models";
-import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import { AgentSession } from "@amaze/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
-import { convertToLlm } from "@amaze/pi-coding-agent/session/messages";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import { TodoTool, type ToolSession } from "@amaze/pi-coding-agent/tools";
-import { TempDir } from "@amaze/pi-utils";
+import { Agent, type AgentMessage, type AgentTool } from "@steve-z8k/pi-agent-core";
+import type { TextContent } from "@steve-z8k/pi-ai";
+import { AssistantMessageEventStream } from "@steve-z8k/pi-ai/utils/event-stream";
+import { getBundledModel } from "@steve-z8k/pi-catalog/models";
+import { ModelRegistry } from "@steve-z8k/pi-coding-agent/config/model-registry";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { ORCHESTRATE_NOTICE } from "@steve-z8k/pi-coding-agent/modes/orchestrate";
+import { AgentSession } from "@steve-z8k/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@steve-z8k/pi-coding-agent/session/auth-storage";
+import { convertToLlm } from "@steve-z8k/pi-coding-agent/session/messages";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import { TodoTool, type ToolSession } from "@steve-z8k/pi-coding-agent/tools";
+import { TempDir } from "@steve-z8k/pi-utils";
 import { type } from "arktype";
 import { createAssistantMessage } from "./helpers/agent-session-setup";
 
@@ -43,6 +44,18 @@ function getToolChoiceName(choice: unknown): string | undefined {
 	if (toolChoice.type === "tool") return toolChoice.name;
 	if (toolChoice.type === "function") return toolChoice.name ?? toolChoice.function?.name;
 	return undefined;
+}
+
+const ANTHROPIC_TEST_MODEL_IDS = ["claude-sonnet-4-6", "claude-opus-4-7", "claude-opus-4-8"] as const;
+
+function getAnthropicTestModel() {
+	for (const modelId of ANTHROPIC_TEST_MODEL_IDS) {
+		const model = getBundledModel("anthropic", modelId);
+		if (model) return model;
+	}
+	throw new Error(
+		`Expected one of ${ANTHROPIC_TEST_MODEL_IDS.map(modelId => `anthropic/${modelId}`).join(", ")} to exist`,
+	);
 }
 
 function getMessageText(message: AgentMessage): string {
@@ -86,8 +99,7 @@ describe("AgentSession eager task prelude", () => {
 		agentKind?: "main" | "sub",
 	): Promise<Harness> {
 		const observedCalls: ObservedPromptCall[] = [];
-		const model = getBundledModel("anthropic", "claude-sonnet-4-5");
-		if (!model) throw new Error("Expected claude-sonnet-4-5 model to exist");
+		const model = getAnthropicTestModel();
 
 		const authStorage = await AuthStorage.create(path.join(tempDir.path(), `testauth-${harnesses.length}.db`));
 		authStorage.setRuntimeApiKey("anthropic", "test-key");
@@ -184,7 +196,7 @@ describe("AgentSession eager task prelude", () => {
 		return harness;
 	}
 
-	it("prepends a hidden eager task reminder without forcing task or repeating the prompt text", async () => {
+	it("prepends orchestration steering into the eager task reminder without forcing task or repeating the prompt text", async () => {
 		const { session, observedCalls } = await createHarness();
 
 		await session.prompt("refactor the parser across modules");
@@ -192,18 +204,32 @@ describe("AgentSession eager task prelude", () => {
 		expect(observedCalls).toHaveLength(1);
 		expect(observedCalls[0]?.toolChoice).toBeUndefined();
 		expect(observedCalls[0]?.messageRoles).toEqual(["developer", "user"]);
-		expect(observedCalls[0]?.messageTexts[0]).toContain("delegation is enabled");
-		expect(observedCalls[0]?.messageTexts[0]).toContain("Batch independent delegated tasks");
-		expect(observedCalls[0]?.messageTexts[0]).toContain("`task`");
-		expect(observedCalls[0]?.messageTexts[0]).toContain("codebase graph tools first");
-		expect(observedCalls[0]?.messageTexts[0]).toContain("Delegation is mandatory.");
-		expect(observedCalls[0]?.messageTexts[0]).toContain("Kubernetes or infrastructure related");
-		expect(observedCalls[0]?.messageTexts[0]).not.toContain("single-file edit");
-		expect(observedCalls[0]?.messageTexts[0]).not.toContain("direct answer");
+		const reminder = observedCalls[0]?.messageTexts[0] ?? "";
+		const taskPrelude = reminder.split(ORCHESTRATE_NOTICE)[1] ?? "";
+		expect(reminder).toContain(ORCHESTRATE_NOTICE);
+		expect(taskPrelude).toContain("delegation is enabled");
+		expect(taskPrelude).toContain("Use Circle MCP tools directly");
+		expect(taskPrelude).toContain("Delegation is mandatory.");
+		expect(taskPrelude).toContain("infrastructure work");
+		expect(reminder).not.toContain("single-file edit");
+		expect(reminder).not.toContain("direct answer");
+		expect(reminder.split(ORCHESTRATE_NOTICE)).toHaveLength(2);
+		expect(observedCalls[0]?.messageTexts.filter(text => text.includes(ORCHESTRATE_NOTICE))).toHaveLength(1);
 		expect(
 			observedCalls[0]?.messageTexts.filter(text => text.includes("refactor the parser across modules")),
 		).toHaveLength(1);
-		expect(observedCalls[0]?.messageTexts[0]).not.toContain("refactor the parser across modules");
+		expect(reminder).not.toContain("refactor the parser across modules");
+	});
+	it("does not duplicate orchestration steering when the user already triggers orchestrate", async () => {
+		const { session, observedCalls } = await createHarness();
+
+		await session.prompt("please orchestrate this rollout");
+
+		expect(observedCalls).toHaveLength(1);
+		expect(observedCalls[0]?.messageRoles).toEqual(["developer", "developer", "user"]);
+		expect(observedCalls[0]?.messageTexts[0]).toContain("delegation is enabled");
+		expect(observedCalls[0]?.messageTexts[0]).not.toContain(ORCHESTRATE_NOTICE);
+		expect(observedCalls[0]?.messageTexts[1]).toBe(ORCHESTRATE_NOTICE);
 	});
 
 	it("prepends eager task prelude for prompts ending with a question mark", async () => {
@@ -213,9 +239,10 @@ describe("AgentSession eager task prelude", () => {
 
 		expect(observedCalls).toHaveLength(1);
 		expect(observedCalls[0]?.messageRoles).toEqual(["developer", "user"]);
-		expect(observedCalls[0]?.messageTexts[0]).toContain("Kubernetes or infrastructure related");
-		expect(observedCalls[0]?.messageTexts[0]).toContain("codebase graph tools first");
-		expect(observedCalls[0]?.messageTexts[0]).toContain("Delegation is mandatory.");
+		const taskPrelude = (observedCalls[0]?.messageTexts[0] ?? "").split(ORCHESTRATE_NOTICE)[1] ?? "";
+		expect(taskPrelude).toContain("infrastructure work");
+		expect(taskPrelude).toContain("Use Circle MCP tools directly");
+		expect(taskPrelude).toContain("Delegation is mandatory.");
 		expect(observedCalls[0]?.messageTexts.at(-1)).toBe("should I refactor the parser?");
 	});
 
@@ -226,9 +253,10 @@ describe("AgentSession eager task prelude", () => {
 
 		expect(observedCalls).toHaveLength(1);
 		expect(observedCalls[0]?.messageRoles).toEqual(["developer", "user"]);
-		expect(observedCalls[0]?.messageTexts[0]).toContain("Kubernetes or infrastructure related");
-		expect(observedCalls[0]?.messageTexts[0]).toContain("codebase graph tools first");
-		expect(observedCalls[0]?.messageTexts[0]).toContain("Delegation is mandatory.");
+		const taskPrelude = (observedCalls[0]?.messageTexts[0] ?? "").split(ORCHESTRATE_NOTICE)[1] ?? "";
+		expect(taskPrelude).toContain("infrastructure work");
+		expect(taskPrelude).toContain("Use Circle MCP tools directly");
+		expect(taskPrelude).toContain("Delegation is mandatory.");
 		expect(observedCalls[0]?.messageTexts.at(-1)).toBe("refactor the parser now!");
 	});
 
@@ -259,8 +287,8 @@ describe("AgentSession eager task prelude", () => {
 		expect(observedCalls).toHaveLength(1);
 		expect(observedCalls[0]?.messageRoles).toEqual(["user"]);
 		expect(observedCalls[0]?.messageTexts).toEqual(["refactor the parser across modules"]);
+		expect(observedCalls[0]?.messageTexts[0]).not.toContain(ORCHESTRATE_NOTICE);
 	});
-
 	it("skips eager task prelude when task.eager is preferred (prompt section only, no reminder)", async () => {
 		const { session, observedCalls } = await createHarness({ "task.eager": "preferred" });
 
@@ -269,6 +297,7 @@ describe("AgentSession eager task prelude", () => {
 		expect(observedCalls).toHaveLength(1);
 		expect(observedCalls[0]?.messageRoles).toEqual(["user"]);
 		expect(observedCalls[0]?.messageTexts).toEqual(["refactor the parser across modules"]);
+		expect(observedCalls[0]?.messageTexts[0]).not.toContain(ORCHESTRATE_NOTICE);
 	});
 
 	it("skips eager task prelude for subagent sessions", async () => {
@@ -279,6 +308,7 @@ describe("AgentSession eager task prelude", () => {
 		expect(observedCalls).toHaveLength(1);
 		expect(observedCalls[0]?.messageRoles).toEqual(["user"]);
 		expect(observedCalls[0]?.messageTexts).toEqual(["refactor the parser across modules"]);
+		expect(observedCalls[0]?.messageTexts[0]).not.toContain(ORCHESTRATE_NOTICE);
 	});
 
 	it("prepends eager task prelude for a main session with a custom agent id", async () => {
@@ -329,7 +359,8 @@ describe("AgentSession eager task prelude", () => {
 
 		expect(observedCalls).toHaveLength(1);
 		const reminder = observedCalls[0]?.messageTexts[0] ?? "";
-		expect(reminder).toContain("`delegate`");
-		expect(reminder).not.toContain("`task`");
+		const taskPrelude = reminder.split(ORCHESTRATE_NOTICE)[1] ?? "";
+		expect(taskPrelude).toContain("`delegate`");
+		expect(taskPrelude).not.toContain("`task`");
 	});
 });

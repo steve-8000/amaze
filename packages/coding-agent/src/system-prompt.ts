@@ -3,10 +3,10 @@
  */
 
 import * as os from "node:os";
-import type { AgentTool } from "@amaze/pi-agent-core";
-import type { ToolExample, TSchema } from "@amaze/pi-ai";
-import { renderToolInventory } from "@amaze/pi-ai/dialect";
-import { $env, getGpuCachePath, getProjectDir, hasFsCode, isEnoent, logger, prompt } from "@amaze/pi-utils";
+import type { AgentTool } from "@steve-z8k/pi-agent-core";
+import type { ToolExample, TSchema } from "@steve-z8k/pi-ai";
+import { renderToolInventory } from "@steve-z8k/pi-ai/dialect";
+import { $env, getGpuCachePath, getProjectDir, hasFsCode, isEnoent, logger, prompt } from "@steve-z8k/pi-utils";
 import { $ } from "bun";
 import { contextFileCapability } from "./capability/context-file";
 import { systemPromptCapability } from "./capability/system-prompt";
@@ -26,6 +26,14 @@ import defaultPersonality from "./prompts/system/personalities/default.md" with 
 import friendlyPersonality from "./prompts/system/personalities/friendly.md" with { type: "text" };
 import pragmaticPersonality from "./prompts/system/personalities/pragmatic.md" with { type: "text" };
 import projectPromptTemplate from "./prompts/system/project-prompt.md" with { type: "text" };
+import {
+	type AlwaysApplyRule,
+	assembleSharedTail,
+	assembleSystemPromptBody,
+	buildSystemPromptRenderData,
+	type SystemPromptAddenda,
+	type SystemPromptRenderData,
+} from "./prompts/system/sections";
 import systemPromptTemplate from "./prompts/system/system-prompt.md" with { type: "text" };
 import { shortenPath } from "./tools/render-utils";
 import { AGENTS_MD_LIMIT, buildWorkspaceTree, type WorkspaceTree } from "./workspace-tree";
@@ -36,12 +44,6 @@ const PERSONALITY_SPECS: Record<Exclude<Personality, "none">, string> = {
 	friendly: friendlyPersonality,
 	pragmatic: pragmaticPersonality,
 };
-
-interface AlwaysApplyRule {
-	name: string;
-	content: string;
-	path: string;
-}
 
 function normalizePromptBlock(content: string): string {
 	return prompt.format(content, { renderPhase: "post-render" }).trim();
@@ -332,19 +334,7 @@ export async function loadSystemPromptFiles(options: LoadContextFilesOptions = {
 	return userLevel?.content ?? null;
 }
 
-export const DEFAULT_SYSTEM_PROMPT_TOOL_NAMES = [
-	"read",
-	"bash",
-	"eval",
-	"search_graph",
-	"trace_path",
-	"get_code_snippet",
-	"get_architecture",
-	"ast_grep",
-	"ast_edit",
-	"edit",
-	"write",
-] as const;
+export const DEFAULT_SYSTEM_PROMPT_TOOL_NAMES = ["read", "bash", "ast_grep", "ast_edit", "edit", "write"] as const;
 
 export interface SystemPromptToolMetadata {
 	label: string;
@@ -445,6 +435,12 @@ export interface BuildSystemPromptResult {
 	/** Ordered system prompt blocks. Providers should preserve entries as distinct messages/blocks. */
 	systemPrompt: string[];
 }
+
+/**
+ * Typed prompt-data contracts re-exported from the section layer.
+ * @see ./prompts/system/sections/types
+ */
+export type { SystemPromptAddenda, SystemPromptRenderData };
 
 /** Build the system prompt with tools, guidelines, and context */
 export async function buildSystemPrompt(options: BuildSystemPromptOptions = {}): Promise<BuildSystemPromptResult> {
@@ -667,10 +663,10 @@ export async function buildSystemPrompt(options: BuildSystemPromptOptions = {}):
 	const injectedAlwaysApplyRules = dedupeAlwaysApplyRules(alwaysApplyRules, promptSources);
 
 	const environment = await logger.time("getEnvironmentInfo", getEnvironmentInfo);
-	const data = {
+	const data = buildSystemPromptRenderData({
 		systemPromptCustomization: effectiveSystemPromptCustomization,
 		customPrompt: resolvedCustomPrompt,
-		appendPrompt: resolvedAppendPrompt ?? "",
+		appendPrompt: resolvedAppendPrompt,
 		tools: toolNames,
 		toolInfo,
 		toolInventory,
@@ -679,7 +675,7 @@ export async function buildSystemPrompt(options: BuildSystemPromptOptions = {}):
 		toolRefs,
 		environment,
 		contextFiles,
-		agentsMdSearch: { files: agentsMdFiles },
+		agentsMdFiles,
 		workspaceTree,
 		skills: filteredSkills,
 		rules: rules ?? [],
@@ -700,8 +696,13 @@ export async function buildSystemPrompt(options: BuildSystemPromptOptions = {}):
 		secretsEnabled,
 		hasObsidian: hasObsidian(),
 		includeWorkspaceTree,
-	};
-	const rendered = prompt.render(resolvedCustomPrompt ? customSystemPromptTemplate : systemPromptTemplate, data);
+	});
+	const sharedSystemPromptTail = assembleSharedTail(data);
+	const rendered = assembleSystemPromptBody(
+		resolvedCustomPrompt ? customSystemPromptTemplate : systemPromptTemplate,
+		data,
+		sharedSystemPromptTail,
+	);
 	const systemPrompt = [rendered];
 	// Custom prompt templates already render context files and append text; the
 	// project footer still carries environment, cwd, workspace, and dir-context.

@@ -1,9 +1,7 @@
-import type { AgentMessage } from "@amaze/pi-agent-core";
-import type { CompactionOutcome } from "@amaze/pi-agent-core/compaction";
-import type { AssistantMessage, ImageContent, Message, Usage, UsageReport } from "@amaze/pi-ai";
-import type { Component, Container, EditorTheme, Loader, Spacer, Text, TUI } from "@amaze/pi-tui";
-import type { CollabGuestLink } from "../collab/guest";
-import type { CollabHost } from "../collab/host";
+import type { AgentMessage } from "@steve-z8k/pi-agent-core";
+import type { CompactionOutcome } from "@steve-z8k/pi-agent-core/compaction";
+import type { AssistantMessage, ImageContent, Message, Usage, UsageReport } from "@steve-z8k/pi-ai";
+import type { Component, Container, EditorTheme, Loader, Spacer, Text, TUI } from "@steve-z8k/pi-tui";
 import type { KeybindingsManager } from "../config/keybindings";
 import type { Settings } from "../config/settings";
 import type {
@@ -128,8 +126,6 @@ export interface InteractiveModeContext {
 	historyStorage?: HistoryStorage;
 	mcpManager?: MCPManager;
 	titleSystemPrompt?: string;
-	collabHost?: CollabHost;
-	collabGuest?: CollabGuestLink;
 	eventController: EventController;
 	eventBus?: EventBus;
 
@@ -295,8 +291,6 @@ export interface InteractiveModeContext {
 	toggleTodoExpansion(): void;
 
 	// Command handling
-	handleExportCommand(text: string): Promise<void>;
-	handleShareCommand(): Promise<void>;
 	handleTodoCommand(args: string): Promise<void>;
 	handleSessionCommand(): Promise<void>;
 	handleAdvisorStatusCommand(): Promise<void>;
@@ -308,7 +302,6 @@ export interface InteractiveModeContext {
 	handleContextCommand(): void;
 	handleDumpCommand(): Promise<void>;
 	handleAdvisorDumpCommand(isRaw?: boolean): void;
-	handleDebugTranscriptCommand(): Promise<void>;
 	handleClearCommand(): Promise<void>;
 	handleFreshCommand(): Promise<void>;
 	handleDropCommand(): Promise<void>;
@@ -322,7 +315,6 @@ export interface InteractiveModeContext {
 	handleShakeCommand(mode: ShakeMode): Promise<void>;
 	handleMoveCommand(targetPath: string): Promise<void>;
 	handleRenameCommand(title: string): Promise<void>;
-	handleSTTToggle(): Promise<void>;
 	executeCompaction(
 		customInstructionsOrOptions?: string | CompactOptions,
 		isAuto?: boolean,
@@ -346,9 +338,7 @@ export interface InteractiveModeContext {
 	handleSessionDeleteCommand(): Promise<void>;
 	showOAuthSelector(mode: "login" | "logout", providerId?: string): Promise<void>;
 	showResetUsageSelector(): Promise<void>;
-	showProviderSetup(): Promise<void>;
 	showHookConfirm(title: string, message: string): Promise<boolean>;
-	showDebugSelector(): Promise<void>;
 	showAgentHub(options?: { requireContent?: boolean }): void;
 	resetObserverRegistry(): void;
 

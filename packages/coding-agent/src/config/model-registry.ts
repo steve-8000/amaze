@@ -1,28 +1,28 @@
 import { execSync } from "node:child_process";
 import * as path from "node:path";
-import { registerCustomApi, unregisterCustomApis } from "@amaze/pi-ai/api-registry";
-import type { Api, Context, Model, ModelSpec, SimpleStreamOptions, ThinkingConfig } from "@amaze/pi-ai/types";
-import type { AssistantMessageEventStream } from "@amaze/pi-ai/utils/event-stream";
-import { buildModel } from "@amaze/pi-catalog/build";
-import { isVertexExpressOpenAIUrl } from "@amaze/pi-catalog/hosts";
-import { readModelCache } from "@amaze/pi-catalog/model-cache";
+import { registerCustomApi, unregisterCustomApis } from "@steve-z8k/pi-ai/api-registry";
+import type { Api, Context, Model, ModelSpec, SimpleStreamOptions, ThinkingConfig } from "@steve-z8k/pi-ai/types";
+import type { AssistantMessageEventStream } from "@steve-z8k/pi-ai/utils/event-stream";
+import { buildModel } from "@steve-z8k/pi-catalog/build";
+import { isVertexExpressOpenAIUrl } from "@steve-z8k/pi-catalog/hosts";
+import { readModelCache } from "@steve-z8k/pi-catalog/model-cache";
 import {
 	createModelManager,
 	type ModelManagerOptions,
 	type ModelRefreshStrategy,
-} from "@amaze/pi-catalog/model-manager";
-import { getBundledModels, getBundledProviders } from "@amaze/pi-catalog/models";
+} from "@steve-z8k/pi-catalog/model-manager";
+import { getBundledModels, getBundledProviders } from "@steve-z8k/pi-catalog/models";
 import {
 	googleAntigravityModelManagerOptions,
 	googleGeminiCliModelManagerOptions,
 	openaiCodexModelManagerOptions,
 	PROVIDER_DESCRIPTORS,
-} from "@amaze/pi-catalog/provider-models";
+} from "@steve-z8k/pi-catalog/provider-models";
 import {
 	collapseBuiltModelVariants,
 	getVariantAliasSources,
 	resolveVariantAlias,
-} from "@amaze/pi-catalog/variant-collapse";
+} from "@steve-z8k/pi-catalog/variant-collapse";
 
 const SPECIAL_MODEL_MANAGER_PROVIDER_IDS: readonly string[] = [
 	"google-antigravity",
@@ -40,9 +40,9 @@ const STARTUP_MODEL_CACHE_PROVIDER_IDS: readonly string[] = [
 // packages/ai/src/registry/lm-studio.ts, and packages/ai/src/registry/vllm.ts.
 const LOCAL_PROVIDER_PLACEHOLDERS = new Set<string>(["llama-cpp-local", "lm-studio-local", "vllm-local"]);
 
-import type { ApiKeyResolver, FetchImpl } from "@amaze/pi-ai";
-import { registerOAuthProvider, unregisterOAuthProviders } from "@amaze/pi-ai/oauth";
-import type { OAuthCredentials, OAuthLoginCallbacks } from "@amaze/pi-ai/oauth/types";
+import type { ApiKeyResolver, FetchImpl } from "@steve-z8k/pi-ai";
+import { registerOAuthProvider, unregisterOAuthProviders } from "@steve-z8k/pi-ai/oauth";
+import type { OAuthCredentials, OAuthLoginCallbacks } from "@steve-z8k/pi-ai/oauth/types";
 import {
 	buildCanonicalModelIndex,
 	buildCanonicalModelOrder,
@@ -57,8 +57,8 @@ import {
 	type ModelEquivalenceConfig,
 	resolveCanonicalVariant,
 	resolveModelReference,
-} from "@amaze/pi-catalog/identity";
-import { isBunTestRuntime, isRecord, logger } from "@amaze/pi-utils";
+} from "@steve-z8k/pi-catalog/identity";
+import { isBunTestRuntime, isRecord, logger } from "@steve-z8k/pi-utils";
 import { parseModelString, resolveProviderModelReference } from "../config/model-resolver";
 import type { AuthStorage, OAuthCredential } from "../session/auth-storage";
 import { type ApiKeyResolverModel, type ApiKeyResolverOptions, createApiKeyResolver } from "./api-key-resolver";

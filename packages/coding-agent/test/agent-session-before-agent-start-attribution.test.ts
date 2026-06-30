@@ -1,18 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent, type AgentMessage } from "@amaze/pi-agent-core";
-import type { Message } from "@amaze/pi-ai";
-import { inferCopilotInitiator } from "@amaze/pi-ai/providers/github-copilot-headers";
-import { createMockModel } from "@amaze/pi-ai/providers/mock";
-import { getBundledModel } from "@amaze/pi-catalog/models";
-import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import type { ExtensionRunner } from "@amaze/pi-coding-agent/extensibility/extensions";
-import { AgentSession } from "@amaze/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
-import { convertToLlm } from "@amaze/pi-coding-agent/session/messages";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import { TempDir } from "@amaze/pi-utils";
+import { Agent, type AgentMessage } from "@steve-z8k/pi-agent-core";
+import type { Message } from "@steve-z8k/pi-ai";
+import { inferCopilotInitiator } from "@steve-z8k/pi-ai/providers/github-copilot-headers";
+import { createMockModel } from "@steve-z8k/pi-ai/providers/mock";
+import { getBundledModel } from "@steve-z8k/pi-catalog/models";
+import { ModelRegistry } from "@steve-z8k/pi-coding-agent/config/model-registry";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import type { ExtensionRunner } from "@steve-z8k/pi-coding-agent/extensibility/extensions";
+import { AgentSession } from "@steve-z8k/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@steve-z8k/pi-coding-agent/session/auth-storage";
+import { convertToLlm } from "@steve-z8k/pi-coding-agent/session/messages";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import { TempDir } from "@steve-z8k/pi-utils";
 
 describe("AgentSession before_agent_start attribution fallback", () => {
 	let tempDir: TempDir;
@@ -54,8 +54,8 @@ describe("AgentSession before_agent_start attribution fallback", () => {
 			emit: vi.fn().mockResolvedValue(undefined),
 		} as unknown as ExtensionRunner;
 
-		const model = getBundledModel("anthropic", "claude-sonnet-4-5");
-		if (!model) throw new Error("Expected claude-sonnet-4-5 model to exist");
+		const model = getBundledModel("anthropic", "claude-sonnet-4-6");
+		if (!model) throw new Error("Expected claude-sonnet-4-6 model to exist");
 
 		const agent = new Agent({
 			getApiKey: () => "test-key",

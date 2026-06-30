@@ -4,7 +4,7 @@
  * Handles `amaze q`/`amaze web-search` subcommands for testing web search providers.
  */
 
-import { APP_NAME } from "@amaze/pi-utils";
+import { APP_NAME } from "@steve-z8k/pi-utils";
 import chalk from "chalk";
 import { initTheme, theme } from "../modes/theme/theme";
 import { runSearchQuery, type SearchQueryParams } from "../web/search/index";

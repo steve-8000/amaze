@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { AgentLifecycleManager } from "@amaze/pi-coding-agent/registry/agent-lifecycle";
-import { AgentRegistry, MAIN_AGENT_ID } from "@amaze/pi-coding-agent/registry/agent-registry";
-import type { AgentSession } from "@amaze/pi-coding-agent/session/agent-session";
+import { AgentLifecycleManager } from "@steve-z8k/pi-coding-agent/registry/agent-lifecycle";
+import { AgentRegistry, MAIN_AGENT_ID } from "@steve-z8k/pi-coding-agent/registry/agent-registry";
+import type { AgentSession } from "@steve-z8k/pi-coding-agent/session/agent-session";
 
 interface SessionStub {
 	session: AgentSession;

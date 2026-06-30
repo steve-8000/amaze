@@ -17,8 +17,8 @@ import {
 	Patcher,
 	type PatchSectionResult,
 	type PreparedSection,
-} from "@amaze/hashline";
-import type { AgentToolResult } from "@amaze/pi-agent-core";
+} from "@steve-z8k/hashline";
+import type { AgentToolResult } from "@steve-z8k/pi-agent-core";
 import type { ToolSession } from "../../tools";
 import { outputMeta } from "../../tools/output-meta";
 import { ToolError } from "../../tools/tool-errors";

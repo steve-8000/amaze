@@ -1,4 +1,4 @@
-import { tryParseJson } from "@amaze/pi-utils";
+import { tryParseJson } from "@steve-z8k/pi-utils";
 import { buildResult, formatNumber, loadPage, type RenderResult, type SpecialHandler } from "./types";
 
 /**

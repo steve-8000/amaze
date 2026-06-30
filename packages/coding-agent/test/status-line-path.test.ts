@@ -2,10 +2,10 @@ import { afterEach, beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { SegmentContext } from "@amaze/pi-coding-agent/modes/components/status-line/segments";
-import { renderSegment } from "@amaze/pi-coding-agent/modes/components/status-line/segments";
-import { initTheme, theme } from "@amaze/pi-coding-agent/modes/theme/theme";
-import { getProjectDir, setProjectDir } from "@amaze/pi-utils";
+import type { SegmentContext } from "@steve-z8k/pi-coding-agent/modes/components/status-line/segments";
+import { renderSegment } from "@steve-z8k/pi-coding-agent/modes/components/status-line/segments";
+import { initTheme, theme } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
+import { getProjectDir, setProjectDir } from "@steve-z8k/pi-utils";
 
 const originalProjectDir = getProjectDir();
 beforeAll(async () => {
@@ -31,7 +31,6 @@ function createPathContext(): SegmentContext {
 		planMode: null,
 		loopMode: null,
 		goalMode: null,
-		collab: null,
 		usageStats: {
 			input: 0,
 			output: 0,

@@ -2,16 +2,16 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { RenderResultOptions } from "@amaze/pi-coding-agent/extensibility/custom-tools/types";
-import { getThemeByName, initTheme, type Theme } from "@amaze/pi-coding-agent/modes/theme/theme";
-import { findToolRenderer } from "@amaze/pi-coding-agent/tools/find";
+import type { RenderResultOptions } from "@steve-z8k/pi-coding-agent/extensibility/custom-tools/types";
+import { getThemeByName, initTheme, type Theme } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
+import { findToolRenderer } from "@steve-z8k/pi-coding-agent/tools/find";
 import {
 	expandDelimitedPathEntries,
 	parseFindPattern,
 	resolveToolSearchScope,
 	splitDelimitedPathEntry,
-} from "@amaze/pi-coding-agent/tools/path-utils";
-import type { Component } from "@amaze/pi-tui";
+} from "@steve-z8k/pi-coding-agent/tools/path-utils";
+import type { Component } from "@steve-z8k/pi-tui";
 
 let uiTheme: Theme;
 

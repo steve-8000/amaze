@@ -8,7 +8,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
-import { getProjectDir, readJsonl, Snowflake } from "@amaze/pi-utils";
+import { getProjectDir, readJsonl, Snowflake } from "@steve-z8k/pi-utils";
 import { type Subprocess, spawn } from "bun";
 import type {
 	JsonRpcError,

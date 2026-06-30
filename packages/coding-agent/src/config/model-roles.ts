@@ -5,22 +5,8 @@
 import { isValidThemeColor, type ThemeColor } from "../modes/theme/theme";
 import type { Settings } from "./settings";
 
-export type ModelRole =
-	| "default"
-	| "smol"
-	| "slow"
-	| "vision"
-	| "plan"
-	| "designer"
-	| "commit"
-	| "title"
-	| "advisor"
-	| "thinker"
-	| "coder"
-	| "finder"
-	| "fixer"
-	| "checker"
-	| "helper";
+export type ModelRole = "ultra" | "deep" | "flash" | "spark";
+export const PRIMARY_MODEL_ROLE: ModelRole = "flash";
 
 export interface ModelRoleInfo {
 	tag?: string;
@@ -31,40 +17,13 @@ export interface ModelRoleInfo {
 }
 
 export const MODEL_ROLES: Record<ModelRole, ModelRoleInfo> = {
-	default: { tag: "DEFAULT", name: "Default", color: "success" },
-	smol: { tag: "SMOL", name: "Fast", color: "warning" },
-	slow: { tag: "SLOW", name: "Thinking", color: "accent" },
-	vision: { tag: "VISION", name: "Vision", color: "error" },
-	plan: { tag: "PLAN", name: "Architect", color: "muted" },
-	designer: { tag: "DESIGNER", name: "Designer", color: "muted" },
-	commit: { tag: "COMMIT", name: "Commit", color: "dim" },
-	title: { tag: "TITLE", name: "Title", color: "dim", hidden: true },
-	advisor: { tag: "ADVISOR", name: "Advisor", color: "accent" },
-	thinker: { tag: "THINK", name: "Thinker", color: "accent" },
-	coder: { tag: "CODE", name: "Coder", color: "success" },
-	finder: { tag: "FIND", name: "Finder", color: "muted" },
-	fixer: { tag: "FIX", name: "Fixer", color: "warning" },
-	checker: { tag: "CHECK", name: "Checker", color: "error" },
-	helper: { tag: "HELP", name: "Helper", color: "dim" },
+	flash: { tag: "FLASH", name: "Flash", color: "warning" },
+	spark: { tag: "SPARK", name: "Spark", color: "muted" },
+	deep: { tag: "DEEP", name: "Deep", color: "error" },
+	ultra: { tag: "ULTRA", name: "Ultra", color: "accent" },
 };
 
-export const MODEL_ROLE_IDS: ModelRole[] = [
-	"default",
-	"smol",
-	"slow",
-	"vision",
-	"plan",
-	"designer",
-	"commit",
-	"title",
-	"advisor",
-	"thinker",
-	"coder",
-	"finder",
-	"fixer",
-	"checker",
-	"helper",
-];
+export const MODEL_ROLE_IDS: ModelRole[] = ["flash", "spark", "deep", "ultra"];
 
 export type RoleInfo = ModelRoleInfo;
 

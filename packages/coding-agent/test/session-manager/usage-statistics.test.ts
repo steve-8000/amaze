@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
 
 describe("SessionManager usage statistics", () => {
 	it("accumulates premium requests from assistant messages and task tool results", () => {
@@ -11,7 +11,7 @@ describe("SessionManager usage statistics", () => {
 			content: [{ type: "text", text: "hi" }],
 			api: "openai-completions",
 			provider: "github-copilot",
-			model: "gpt-4o",
+			model: "gpt-5.4",
 			usage: {
 				input: 10,
 				output: 5,
@@ -93,7 +93,7 @@ describe("SessionManager usage statistics", () => {
 			content: [{ type: "text", text: "haiku" }],
 			api: "anthropic-messages",
 			provider: "github-copilot",
-			model: "claude-haiku-4.5",
+			model: "claude-opus-4.7",
 			usage: {
 				input: 10,
 				output: 5,
@@ -138,7 +138,7 @@ describe("SessionManager usage statistics", () => {
 			content: [{ type: "text", text: "hi" }],
 			api: "openai-completions",
 			provider: "openai",
-			model: "gpt-4o",
+			model: "gpt-5.4",
 			usage: {
 				input: 10,
 				output: 5,

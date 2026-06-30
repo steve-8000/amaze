@@ -1,11 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import { streamAzureOpenAIResponses } from "@amaze/pi-ai/providers/azure-openai-responses";
-import { streamOpenAICompletions } from "@amaze/pi-ai/providers/openai-completions";
-import { streamOpenAIResponses } from "@amaze/pi-ai/providers/openai-responses";
-import { streamSimple } from "@amaze/pi-ai/stream";
-import type { Context, FetchImpl, Model, TextContent } from "@amaze/pi-ai/types";
-import { buildModel } from "@amaze/pi-catalog/build";
-import { getBundledModel } from "@amaze/pi-catalog/models";
+import { streamAzureOpenAIResponses } from "@steve-z8k/pi-ai/providers/azure-openai-responses";
+import { streamOpenAICompletions } from "@steve-z8k/pi-ai/providers/openai-completions";
+import { streamOpenAIResponses } from "@steve-z8k/pi-ai/providers/openai-responses";
+import { streamSimple } from "@steve-z8k/pi-ai/stream";
+import type { Context, FetchImpl, Model, TextContent } from "@steve-z8k/pi-ai/types";
+import { buildModel } from "@steve-z8k/pi-catalog/build";
+import { getBundledModel } from "@steve-z8k/pi-catalog/models";
 import { waitForDelayOrAbort } from "./helpers";
 
 const openAIResponsesModel = getBundledModel("openai", "gpt-5-mini") as Model<"openai-responses">;

@@ -1,7 +1,7 @@
 import { describe, expect, it, mock } from "bun:test";
-import { type AssistantMessage, type Context, z } from "@amaze/pi-ai";
-import { createMockModel } from "@amaze/pi-ai/providers/mock";
-import { AssistantMessageEventStream } from "@amaze/pi-ai/utils/event-stream";
+import { type AssistantMessage, type Context, z } from "@steve-z8k/pi-ai";
+import { createMockModel } from "@steve-z8k/pi-ai/providers/mock";
+import { AssistantMessageEventStream } from "@steve-z8k/pi-ai/utils/event-stream";
 import { Agent } from "../src/agent";
 import type { AgentTool } from "../src/types";
 

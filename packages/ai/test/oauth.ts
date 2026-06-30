@@ -8,9 +8,9 @@
  */
 import * as fs from "node:fs/promises";
 import path from "node:path";
-import { getOAuthApiKey } from "@amaze/pi-ai/oauth";
-import type { OAuthCredentials, OAuthProvider } from "@amaze/pi-ai/oauth/types";
-import { $flag, getAgentDir, isEnoent } from "@amaze/pi-utils";
+import { getOAuthApiKey } from "@steve-z8k/pi-ai/oauth";
+import type { OAuthCredentials, OAuthProvider } from "@steve-z8k/pi-ai/oauth/types";
+import { $flag, getAgentDir, isEnoent } from "@steve-z8k/pi-utils";
 
 /**
  * E2E tests require explicit opt-in via E2E=1 environment variable.

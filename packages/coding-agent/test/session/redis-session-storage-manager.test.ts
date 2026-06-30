@@ -9,12 +9,12 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import type { Usage } from "@amaze/pi-ai";
+import type { Usage } from "@steve-z8k/pi-ai";
 import {
 	RedisSessionStorage,
 	type RedisSessionStorageClient,
-} from "@amaze/pi-coding-agent/session/redis-session-storage";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
+} from "@steve-z8k/pi-coding-agent/session/redis-session-storage";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
 
 interface FakeRedis extends RedisSessionStorageClient {
 	strings: Map<string, string>;

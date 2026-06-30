@@ -76,7 +76,7 @@ Custom tools can register resolve-compatible pending actions through `CustomTool
 ### Minimal usage example
 
 ```ts
-import type { CustomToolFactory } from "@amaze/pi-coding-agent";
+import type { CustomToolFactory } from "@steve-z8k/pi-coding-agent";
 
 const factory: CustomToolFactory = (pi) => ({
   name: "batch_rename_preview",

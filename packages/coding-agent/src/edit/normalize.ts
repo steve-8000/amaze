@@ -2,11 +2,11 @@
  * Text normalization utilities for the edit tool.
  *
  * Whitespace, Unicode, and indentation helpers. Line-ending and BOM
- * primitives live in `@amaze/hashline` and are re-exported here so
+ * primitives live in `@steve-z8k/hashline` and are re-exported here so
  * existing consumers see one stable surface.
  */
 
-import { padding } from "@amaze/pi-tui";
+import { padding } from "@steve-z8k/pi-tui";
 
 export {
 	type BomResult,
@@ -15,7 +15,7 @@ export {
 	normalizeToLF,
 	restoreLineEndings,
 	stripBom,
-} from "@amaze/hashline";
+} from "@steve-z8k/hashline";
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Whitespace Utilities

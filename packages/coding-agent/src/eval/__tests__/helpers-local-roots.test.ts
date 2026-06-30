@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { TempDir } from "@amaze/pi-utils/temp";
+import { TempDir } from "@steve-z8k/pi-utils/temp";
 import { createHelpers, type HelperContext } from "../js/shared/helpers";
 
 /**

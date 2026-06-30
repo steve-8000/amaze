@@ -4,7 +4,7 @@
  * Handles `amaze ssh <command>` subcommands for SSH host configuration management.
  */
 
-import { getSSHConfigPath } from "@amaze/pi-utils";
+import { getSSHConfigPath } from "@steve-z8k/pi-utils";
 import chalk from "chalk";
 import { addSSHHost, readSSHConfigFile, removeSSHHost, type SSHHostConfig } from "../ssh/config-writer";
 

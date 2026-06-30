@@ -7,7 +7,7 @@ import {
 	PluginManager,
 	RockyMemoryPlugin,
 	resetManager,
-} from "@amaze/pi-rocky-memory/core/plugins";
+} from "@steve-z8k/pi-rocky-memory/core/plugins";
 
 class CountingPlugin extends RockyMemoryPlugin {
 	override name = "counting";

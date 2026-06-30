@@ -1,10 +1,10 @@
 /**
  * Extension runner - executes extensions and manages their lifecycle.
  */
-import type { AgentMessage } from "@amaze/pi-agent-core";
-import type { CredentialDisabledEvent, ImageContent, Model, ProviderResponseMetadata } from "@amaze/pi-ai";
-import type { KeyId } from "@amaze/pi-tui";
-import { logger } from "@amaze/pi-utils";
+import type { AgentMessage } from "@steve-z8k/pi-agent-core";
+import type { CredentialDisabledEvent, ImageContent, Model, ProviderResponseMetadata } from "@steve-z8k/pi-ai";
+import type { KeyId } from "@steve-z8k/pi-tui";
+import { logger } from "@steve-z8k/pi-utils";
 import type { ModelRegistry } from "../../config/model-registry";
 import type { Settings } from "../../config/settings";
 import { type Theme, theme } from "../../modes/theme/theme";

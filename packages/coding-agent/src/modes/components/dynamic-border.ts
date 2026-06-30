@@ -1,4 +1,4 @@
-import type { Component } from "@amaze/pi-tui";
+import type { Component } from "@steve-z8k/pi-tui";
 import { theme } from "../../modes/theme/theme";
 
 /**

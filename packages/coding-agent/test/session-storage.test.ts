@@ -10,7 +10,7 @@ describe("FileSessionStorage.deleteSessionWithArtifacts", () => {
 
 	beforeEach(async () => {
 		tempDir = await fsp.mkdtemp(path.join(os.tmpdir(), "amaze-session-storage-"));
-		const { FileSessionStorage } = await import("@amaze/pi-coding-agent/session/session-storage");
+		const { FileSessionStorage } = await import("@steve-z8k/pi-coding-agent/session/session-storage");
 		storage = new FileSessionStorage();
 	});
 

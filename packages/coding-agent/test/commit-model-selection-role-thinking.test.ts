@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { Effort } from "@amaze/pi-ai";
-import { getBundledModel } from "@amaze/pi-catalog/models";
-import { resolvePrimaryModel, resolveSmolModel } from "@amaze/pi-coding-agent/commit/model-selection";
+import { Effort } from "@steve-z8k/pi-ai";
+import { getBundledModel } from "@steve-z8k/pi-catalog/models";
+import { resolveFlashModel, resolvePrimaryModel } from "@steve-z8k/pi-coding-agent/commit/model-selection";
 
 function getModelOrThrow(id: string) {
 	const model = getBundledModel("anthropic", id);
@@ -28,13 +28,12 @@ function createSettings(modelRoles: Record<string, string>) {
 }
 
 describe("commit role thinking selection", () => {
-	it("returns explicit thinking for commit and smol roles, including alias overrides", async () => {
-		const defaultModel = getModelOrThrow("claude-sonnet-4-5");
-		const commitModel = getModelOrThrow("claude-opus-4-5");
+	it("returns explicit thinking for flash lane roles, including alias overrides", async () => {
+		const defaultModel = getModelOrThrow("claude-sonnet-4-6");
+		const commitModel = getModelOrThrow("claude-opus-4-8");
 		const settings = createSettings({
-			default: `${defaultModel.provider}/${defaultModel.id}:high`,
-			commit: `${commitModel.provider}/${commitModel.id}:low`,
-			smol: "pi/default:minimal",
+			flash: `${commitModel.provider}/${commitModel.id}:low`,
+			deep: `${defaultModel.provider}/${defaultModel.id}:high`,
 		});
 		const registry = {
 			getAvailable: () => [defaultModel, commitModel],
@@ -48,8 +47,8 @@ describe("commit role thinking selection", () => {
 		expect(primary.model.id).toBe(commitModel.id);
 		expect(primary.thinkingLevel).toBe(Effort.Low);
 
-		const smol = await resolveSmolModel(settings, registry, commitModel, "fallback-key");
-		expect(smol.model.id).toBe(defaultModel.id);
-		expect(smol.thinkingLevel).toBe(Effort.Minimal);
+		const smol = await resolveFlashModel(settings, registry, commitModel, "fallback-key");
+		expect(smol.model.id).toBe(commitModel.id);
+		expect(smol.thinkingLevel).toBe(Effort.Low);
 	});
 });

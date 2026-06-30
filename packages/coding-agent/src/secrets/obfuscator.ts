@@ -1,5 +1,5 @@
-import type { Context, Message, Tool } from "@amaze/pi-ai";
-import { toolWireSchema } from "@amaze/pi-ai/utils/schema";
+import type { Context, Message, Tool } from "@steve-z8k/pi-ai";
+import { toolWireSchema } from "@steve-z8k/pi-ai/utils/schema";
 import type { SessionContext } from "../session/session-context";
 import { compileSecretRegex } from "./regex";
 

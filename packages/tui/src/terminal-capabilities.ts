@@ -1,5 +1,5 @@
-import { encodeSixel } from "@amaze/pi-natives";
-import { $env, isBunTestRuntime, isTerminalHeadless } from "@amaze/pi-utils";
+import { encodeSixel } from "@steve-z8k/pi-natives";
+import { $env, isBunTestRuntime, isTerminalHeadless } from "@steve-z8k/pi-utils";
 import {
 	detectKittyUnicodePlaceholdersSupport,
 	getKittyGraphics,

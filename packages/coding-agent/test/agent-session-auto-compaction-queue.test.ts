@@ -1,16 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { Agent } from "@amaze/pi-agent-core";
-import { getBundledModel } from "@amaze/pi-catalog/models";
-import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import { loadExtensions } from "@amaze/pi-coding-agent/extensibility/extensions/loader";
-import { ExtensionRunner } from "@amaze/pi-coding-agent/extensibility/extensions/runner";
-import { AgentSession } from "@amaze/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import { getProjectAgentDir, TempDir, withTimeout } from "@amaze/pi-utils";
+import { Agent } from "@steve-z8k/pi-agent-core";
+import { getBundledModel } from "@steve-z8k/pi-catalog/models";
+import { ModelRegistry } from "@steve-z8k/pi-coding-agent/config/model-registry";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { loadExtensions } from "@steve-z8k/pi-coding-agent/extensibility/extensions/loader";
+import { ExtensionRunner } from "@steve-z8k/pi-coding-agent/extensibility/extensions/runner";
+import { AgentSession } from "@steve-z8k/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@steve-z8k/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import { getProjectAgentDir, TempDir, withTimeout } from "@steve-z8k/pi-utils";
 
 const runtimeSignalStoreKey = "__ompRuntimeSignals";
 
@@ -90,7 +90,7 @@ describe("AgentSession auto-compaction queue resume", () => {
 			modelRegistry,
 		);
 
-		const model = getBundledModel("anthropic", "claude-sonnet-4-5");
+		const model = getBundledModel("anthropic", "claude-sonnet-4-6");
 		if (!model) {
 			throw new Error("Expected built-in anthropic model to exist");
 		}
@@ -175,7 +175,7 @@ describe("AgentSession auto-compaction queue resume", () => {
 			content: [{ type: "text" as const, text: "Done." }],
 			api: "anthropic-messages" as const,
 			provider: "anthropic" as const,
-			model: "claude-sonnet-4-5",
+			model: "claude-sonnet-4-6",
 			stopReason: "stop" as const,
 			usage: {
 				input: 190000,
@@ -240,7 +240,7 @@ describe("AgentSession auto-compaction queue resume", () => {
 			content: [yieldCall],
 			api: "anthropic-messages" as const,
 			provider: "anthropic" as const,
-			model: "claude-sonnet-4-5",
+			model: "claude-sonnet-4-6",
 			stopReason: "toolUse" as const,
 			usage: {
 				input: 190000,
@@ -300,7 +300,7 @@ describe("AgentSession auto-compaction queue resume", () => {
 			content: [{ type: "text" as const, text: "Done." }],
 			api: "anthropic-messages" as const,
 			provider: "anthropic" as const,
-			model: "claude-sonnet-4-5",
+			model: "claude-sonnet-4-6",
 			stopReason: "stop" as const,
 			usage: {
 				input: 190000,
@@ -342,7 +342,7 @@ describe("AgentSession auto-compaction queue resume", () => {
 			content: [{ type: "text" as const, text: "Done." }],
 			api: "anthropic-messages" as const,
 			provider: "anthropic" as const,
-			model: "claude-sonnet-4-5",
+			model: "claude-sonnet-4-6",
 			stopReason: "stop" as const,
 			usage: {
 				input: 100,

@@ -1,5 +1,5 @@
-import { emergencyTerminalRestore } from "@amaze/pi-tui";
-import { postmortem } from "@amaze/pi-utils";
+import { emergencyTerminalRestore } from "@steve-z8k/pi-tui";
+import { postmortem } from "@steve-z8k/pi-utils";
 
 /**
  * Interactive mode and embeddable RPC client exports for the coding agent.

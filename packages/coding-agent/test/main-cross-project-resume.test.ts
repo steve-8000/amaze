@@ -12,14 +12,14 @@ import * as fs from "node:fs";
 import * as fsp from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { Args } from "@amaze/pi-coding-agent/cli/args";
-import type { Settings } from "@amaze/pi-coding-agent/config/settings";
-import { createSessionManager } from "@amaze/pi-coding-agent/main";
-import type { SessionHeader } from "@amaze/pi-coding-agent/session/session-entries";
-import type { SessionInfo } from "@amaze/pi-coding-agent/session/session-listing";
-import * as sessionListingModule from "@amaze/pi-coding-agent/session/session-listing";
-import { loadEntriesFromFile } from "@amaze/pi-coding-agent/session/session-loader";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
+import type { Args } from "@steve-z8k/pi-coding-agent/cli/args";
+import type { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { createSessionManager } from "@steve-z8k/pi-coding-agent/main";
+import type { SessionHeader } from "@steve-z8k/pi-coding-agent/session/session-entries";
+import type { SessionInfo } from "@steve-z8k/pi-coding-agent/session/session-listing";
+import * as sessionListingModule from "@steve-z8k/pi-coding-agent/session/session-listing";
+import { loadEntriesFromFile } from "@steve-z8k/pi-coding-agent/session/session-loader";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
 
 function buildArgs(resume: string, sessionDir?: string): Args {
 	return {

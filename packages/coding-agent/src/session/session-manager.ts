@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { ImageContent, Message, MessageAttribution, ServiceTier, TextContent, Usage } from "@amaze/pi-ai";
+import type { ImageContent, Message, MessageAttribution, ServiceTier, TextContent, Usage } from "@steve-z8k/pi-ai";
 import {
 	directoryExists,
 	getBlobsDir,
@@ -9,7 +9,8 @@ import {
 	isEnoent,
 	logger,
 	toError,
-} from "@amaze/pi-utils";
+} from "@steve-z8k/pi-utils";
+import { PRIMARY_MODEL_ROLE } from "../config/model-roles";
 import { ArtifactManager } from "./artifacts";
 import { type BlobPutOptions, type BlobPutResult, BlobStore } from "./blob-store";
 import {
@@ -356,10 +357,7 @@ export class SessionManager {
 	/** Lazy gate crossed (ensureOnDisk / loaded file): every entry must persist from now on. */
 	#forceFileCreation = false;
 
-	/**
-	 * Collab replication tap: invoked for every appended entry with the
-	 * in-memory (pre-blob-externalization) entry, so inline images survive.
-	 */
+	/** Test/observer tap invoked for every appended entry with the in-memory entry. */
 	onEntryAppended?: (entry: SessionEntry) => void;
 
 	#turnBudgetTotal: number | null = null;
@@ -641,7 +639,7 @@ export class SessionManager {
 			try {
 				callback(entry);
 			} catch (err) {
-				logger.warn("collab entry hook failed", { error: String(err) });
+				logger.warn("session entry hook failed", { error: String(err) });
 			}
 		}
 	}
@@ -1132,23 +1130,6 @@ export class SessionManager {
 	}
 
 	/**
-	 * Append a foreign (host-authored) entry verbatim, preserving its
-	 * `id`/`parentId`. Used by collab guests to mirror the host session.
-	 */
-	ingestReplicatedEntry(entry: SessionEntry): void {
-		this.#recordEntry(entry);
-	}
-
-	/**
-	 * Snapshot the session for collab replication: the live header plus a deep
-	 * copy of every entry (the host mutates entries in place on rewrite paths, so
-	 * guests must not share references).
-	 */
-	snapshotForReplication(): { header: SessionHeader; entries: SessionEntry[] } {
-		return { header: structuredClone(this.#header), entries: structuredClone(this.#entries) as SessionEntry[] };
-	}
-
-	/**
 	 * Append a message as a child of the current leaf, then advance the leaf.
 	 * CompactionSummaryMessage / BranchSummaryMessage are rejected here — they are
 	 * top-level entries via appendCompaction()/branchWithSummary().
@@ -1194,7 +1175,7 @@ export class SessionManager {
 	/**
 	 * Append a model change as a child of the current leaf, then advance the leaf.
 	 * @param model Model in "provider/modelId" format
-	 * @param role Optional role (default: "default")
+	 * @param role Optional role (default: "flash")
 	 */
 	appendModelChange(model: string, role?: string): string {
 		const entry: ModelChangeEntry = { type: "model_change", ...this.#freshEntryFields(), model, role };
@@ -1336,7 +1317,7 @@ export class SessionManager {
 		const branch = this.getBranch();
 		for (let index = branch.length - 1; index >= 0; index--) {
 			const entry = branch[index];
-			if (entry.type === "model_change") return entry.role ?? "default";
+			if (entry.type === "model_change") return entry.role ?? PRIMARY_MODEL_ROLE;
 		}
 		return undefined;
 	}

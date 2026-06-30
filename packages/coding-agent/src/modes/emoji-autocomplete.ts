@@ -1,4 +1,4 @@
-import type { AutocompleteItem } from "@amaze/pi-tui";
+import type { AutocompleteItem } from "@steve-z8k/pi-tui";
 import buckets from "./data/emojis.json" with { type: "json" };
 
 // Bucket layout: `{ "<first-char>": [["<name>", "<emoji>"], ...] }`, with each

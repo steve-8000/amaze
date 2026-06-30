@@ -12,8 +12,8 @@ import type {
 	ModelRegistry,
 	Settings,
 	SingleResult,
-} from "@amaze/pi-coding-agent";
-import { runSubprocess } from "@amaze/pi-coding-agent";
+} from "@steve-z8k/pi-coding-agent";
+import { runSubprocess } from "@steve-z8k/pi-coding-agent";
 import type { SwarmAgent } from "./schema";
 import type { StateTracker } from "./state";
 

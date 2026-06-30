@@ -13,16 +13,16 @@
  * test/task/task-schema.test.ts.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { AsyncJobManager, type AsyncJobManagerOptions } from "@amaze/pi-coding-agent/async/job-manager";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import { AgentLifecycleManager } from "@amaze/pi-coding-agent/registry/agent-lifecycle";
-import { AgentRegistry } from "@amaze/pi-coding-agent/registry/agent-registry";
-import { TaskTool } from "@amaze/pi-coding-agent/task";
-import * as discoveryModule from "@amaze/pi-coding-agent/task/discovery";
-import * as executorModule from "@amaze/pi-coding-agent/task/executor";
-import { AgentOutputManager } from "@amaze/pi-coding-agent/task/output-manager";
-import type { AgentDefinition, SingleResult, TaskParams } from "@amaze/pi-coding-agent/task/types";
-import type { ToolSession } from "@amaze/pi-coding-agent/tools";
+import { AsyncJobManager, type AsyncJobManagerOptions } from "@steve-z8k/pi-coding-agent/async/job-manager";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { AgentLifecycleManager } from "@steve-z8k/pi-coding-agent/registry/agent-lifecycle";
+import { AgentRegistry } from "@steve-z8k/pi-coding-agent/registry/agent-registry";
+import { TaskTool } from "@steve-z8k/pi-coding-agent/task";
+import * as discoveryModule from "@steve-z8k/pi-coding-agent/task/discovery";
+import * as executorModule from "@steve-z8k/pi-coding-agent/task/executor";
+import { AgentOutputManager } from "@steve-z8k/pi-coding-agent/task/output-manager";
+import type { AgentDefinition, SingleResult, TaskParams } from "@steve-z8k/pi-coding-agent/task/types";
+import type { ToolSession } from "@steve-z8k/pi-coding-agent/tools";
 
 const taskAgent: AgentDefinition = {
 	name: "task",
@@ -31,10 +31,10 @@ const taskAgent: AgentDefinition = {
 	source: "bundled",
 };
 
-const checkerAgent: AgentDefinition = {
-	name: "checker",
-	description: "Review, challenge, risk checks, and adversarial second opinions",
-	systemPrompt: "You are a checker agent.",
+const deepAgent: AgentDefinition = {
+	name: "deep",
+	description: "Planner and validator for large changes, design reviews, and quality gates",
+	systemPrompt: "You are a deep validator agent.",
 	source: "bundled",
 };
 
@@ -160,9 +160,32 @@ describe("task spawn routing", () => {
 		expect(runSpy).toHaveBeenCalledTimes(1);
 	});
 
+	it("rejects unknown agents before scheduling background jobs", async () => {
+		vi.spyOn(discoveryModule, "discoverAgents").mockResolvedValue({
+			agents: [taskAgent],
+			projectAgentsDir: null,
+		});
+		const runSpy = vi
+			.spyOn(executorModule, "runSubprocess")
+			.mockImplementation(async options => makeResult(options.id ?? "?"));
+		const manager = createManager();
+		const tool = await TaskTool.create(createSession({ manager }));
+
+		const result = await tool.execute("tc-unknown", {
+			agent: "missing",
+			id: "MissingSpawn",
+			assignment: "Do the thing.",
+		} as TaskParams);
+
+		expect(getFirstText(result)).toBe('Unknown agent "missing". Available: task');
+		expect(result.details?.async).toBeUndefined();
+		expect(manager.getJob("MissingSpawn")).toBeUndefined();
+		expect(runSpy).not.toHaveBeenCalled();
+	});
+
 	it("names unnamed background spawns after the selected subagent kind", async () => {
 		vi.spyOn(discoveryModule, "discoverAgents").mockResolvedValue({
-			agents: [checkerAgent],
+			agents: [deepAgent],
 			projectAgentsDir: null,
 		});
 		vi.spyOn(executorModule, "runSubprocess").mockImplementation(async options => makeResult(options.id ?? "?"));
@@ -170,24 +193,24 @@ describe("task spawn routing", () => {
 		const manager = createManager();
 		const tool = await TaskTool.create(createSession({ manager }));
 
-		const first = await tool.execute("tc-checker-1", {
-			agent: "checker",
+		const first = await tool.execute("tc-deep-1", {
+			agent: "deep",
 			assignment: "Review the sign-in flow.",
 		} as TaskParams);
-		const second = await tool.execute("tc-checker-2", {
-			agent: "checker",
+		const second = await tool.execute("tc-deep-2", {
+			agent: "deep",
 			assignment: "Review the auth broker flow.",
 		} as TaskParams);
 
-		expect(first.details?.progress?.map(progress => progress.id)).toEqual(["Checker"]);
-		expect(second.details?.progress?.map(progress => progress.id)).toEqual(["Checker-2"]);
-		expect(getFirstText(first)).toContain("Spawned agent `Checker`");
-		expect(getFirstText(second)).toContain("Spawned agent `Checker-2`");
-		expect(manager.getJob("Checker")).toBeDefined();
-		expect(manager.getJob("Checker-2")).toBeDefined();
+		expect(first.details?.progress?.map(progress => progress.id)).toEqual(["Deep"]);
+		expect(second.details?.progress?.map(progress => progress.id)).toEqual(["Deep-2"]);
+		expect(getFirstText(first)).toContain("Spawned agent `Deep`");
+		expect(getFirstText(second)).toContain("Spawned agent `Deep-2`");
+		expect(manager.getJob("Deep")).toBeDefined();
+		expect(manager.getJob("Deep-2")).toBeDefined();
 
-		await manager.getJob("Checker")!.promise;
-		await manager.getJob("Checker-2")!.promise;
+		await manager.getJob("Deep")!.promise;
+		await manager.getJob("Deep-2")!.promise;
 	});
 
 	it("passes a contract launch spec into the subagent executor", async () => {
@@ -207,7 +230,7 @@ describe("task spawn routing", () => {
 				manager,
 				settings: {
 					"task.agentModelOverrides": {
-						task: "codex_high",
+						task: "deep",
 					},
 				},
 			}),
@@ -229,8 +252,8 @@ describe("task spawn routing", () => {
 			displayName: "Risk auditor",
 			contextProfile: "contract",
 			modelProfile: {
-				key: "codex_high",
-				selector: ["codex_high"],
+				key: "deep",
+				selector: ["deep"],
 			},
 			irc: {
 				revivable: false,

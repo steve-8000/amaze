@@ -1,4 +1,4 @@
-import { popLoopPhase, pushLoopPhase } from "@amaze/pi-utils";
+import { popLoopPhase, pushLoopPhase } from "@steve-z8k/pi-utils";
 import { fuzzyFilter } from "../fuzzy";
 import { getKeybindings } from "../keybindings";
 import { extractPrintableText } from "../keys";

@@ -11,10 +11,10 @@
  */
 import { Database } from "bun:sqlite";
 import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
-import { AuthStorage, SqliteAuthCredentialStore } from "@amaze/pi-ai";
-import { MCPManager } from "@amaze/pi-coding-agent/mcp/manager";
-import * as oauthFlow from "@amaze/pi-coding-agent/mcp/oauth-flow";
-import type { MCPServerConfig } from "@amaze/pi-coding-agent/mcp/types";
+import { AuthStorage, SqliteAuthCredentialStore } from "@steve-z8k/pi-ai";
+import { MCPManager } from "@steve-z8k/pi-coding-agent/mcp/manager";
+import * as oauthFlow from "@steve-z8k/pi-coding-agent/mcp/oauth-flow";
+import type { MCPServerConfig } from "@steve-z8k/pi-coding-agent/mcp/types";
 
 const CREDENTIAL_ID = "mcp_oauth_test_1908";
 const TOKEN_URL = "https://example.com/oauth/token";

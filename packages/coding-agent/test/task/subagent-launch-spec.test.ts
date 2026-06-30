@@ -1,11 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import { ThinkingLevel } from "@amaze/pi-agent-core";
+import { ThinkingLevel } from "@steve-z8k/pi-agent-core";
 import {
 	buildSubagentLaunchSpec,
 	isSubagentModelProfileKey,
 	SUBAGENT_MODEL_PROFILE_KEYS,
-} from "@amaze/pi-coding-agent/task/subagent-launch-spec";
-import type { AgentDefinition } from "@amaze/pi-coding-agent/task/types";
+} from "@steve-z8k/pi-coding-agent/task/subagent-launch-spec";
+import type { AgentDefinition } from "@steve-z8k/pi-coding-agent/task/types";
 
 const agent: AgentDefinition = {
 	name: "task",
@@ -18,14 +18,7 @@ const agent: AgentDefinition = {
 
 describe("SubagentLaunchSpec", () => {
 	it("recognizes the user-facing model profile keys", () => {
-		expect(SUBAGENT_MODEL_PROFILE_KEYS).toEqual([
-			"claude_high",
-			"claude_low",
-			"codex_high",
-			"codex_low",
-			"xai",
-			"local_llm",
-		]);
+		expect(SUBAGENT_MODEL_PROFILE_KEYS).toEqual(["ultra", "deep", "flash", "spark"]);
 		for (const key of SUBAGENT_MODEL_PROFILE_KEYS) {
 			expect(isSubagentModelProfileKey(key)).toBe(true);
 		}
@@ -37,7 +30,7 @@ describe("SubagentLaunchSpec", () => {
 			id: "AuditOne",
 			agent,
 			displayName: "Risk audit",
-			modelSelector: "codex_high",
+			modelSelector: "deep",
 			thinkingLevel: ThinkingLevel.High,
 			taskDepth: 1,
 			task: "Assignment:\nCheck the risky path.",
@@ -52,8 +45,8 @@ describe("SubagentLaunchSpec", () => {
 			agentName: "task",
 			displayName: "Risk audit",
 			modelProfile: {
-				key: "codex_high",
-				selector: "codex_high",
+				key: "deep",
+				selector: "deep",
 				thinkingLevel: ThinkingLevel.High,
 			},
 			taskDepth: 1,

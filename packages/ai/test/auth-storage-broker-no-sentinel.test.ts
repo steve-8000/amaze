@@ -7,8 +7,8 @@ import {
 	AuthStorage,
 	REMOTE_REFRESH_SENTINEL,
 	SqliteAuthCredentialStore,
-} from "@amaze/pi-ai/auth-storage";
-import * as oauthUtils from "@amaze/pi-ai/registry/oauth";
+} from "@steve-z8k/pi-ai/auth-storage";
+import * as oauthUtils from "@steve-z8k/pi-ai/registry/oauth";
 
 describe("AuthStorage broker sentinel refresh", () => {
 	let tempDir = "";

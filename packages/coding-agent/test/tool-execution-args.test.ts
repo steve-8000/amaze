@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { ToolExecutionComponent } from "@amaze/pi-coding-agent/modes/components/tool-execution";
-import { initTheme } from "@amaze/pi-coding-agent/modes/theme/theme";
-import type { TUI } from "@amaze/pi-tui";
+import { ToolExecutionComponent } from "@steve-z8k/pi-coding-agent/modes/components/tool-execution";
+import { initTheme } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
+import type { TUI } from "@steve-z8k/pi-tui";
 
 describe("ToolExecutionComponent.updateArgs (F8 — no clone, ref-eq fast path)", () => {
 	let initialized = false;

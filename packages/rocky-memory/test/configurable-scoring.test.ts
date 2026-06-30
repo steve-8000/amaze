@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { normalizedRecallWeights } from "@amaze/pi-rocky-memory/config";
-import { BeamMemory } from "@amaze/pi-rocky-memory/core/beam";
+import { normalizedRecallWeights } from "@steve-z8k/pi-rocky-memory/config";
+import { BeamMemory } from "@steve-z8k/pi-rocky-memory/core/beam";
 
 const beams: BeamMemory[] = [];
 const ORIGINAL_ENV = {

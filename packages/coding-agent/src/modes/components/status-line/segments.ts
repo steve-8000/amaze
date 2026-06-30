@@ -1,8 +1,8 @@
 import * as os from "node:os";
 import * as path from "node:path";
-import { ThinkingLevel } from "@amaze/pi-agent-core";
-import { TERMINAL } from "@amaze/pi-tui";
-import { formatDuration, formatNumber, getProjectDir, pathIsWithin, relativePathWithinRoot } from "@amaze/pi-utils";
+import { ThinkingLevel } from "@steve-z8k/pi-agent-core";
+import { TERMINAL } from "@steve-z8k/pi-tui";
+import { formatDuration, formatNumber, getProjectDir, pathIsWithin, relativePathWithinRoot } from "@steve-z8k/pi-utils";
 import { type ThemeColor, theme } from "../../../modes/theme/theme";
 import { shortenPath } from "../../../tools/render-utils";
 import { getSessionAccentAnsi, getSessionAccentHex } from "../../../utils/session-color";
@@ -513,18 +513,6 @@ const sessionNameSegment: StatusLineSegment = {
 	},
 };
 
-const collabSegment: StatusLineSegment = {
-	id: "collab",
-	render(ctx) {
-		if (!ctx.collab) return { content: "", visible: false };
-		const label =
-			ctx.collab.role === "host"
-				? `⇄ collab:${ctx.collab.participantCount}`
-				: `⇄ collab guest:${ctx.collab.participantCount}`;
-		return { content: theme.fg("accent", label), visible: true };
-	},
-};
-
 function pickUsageColor(percent: number): "muted" | "warning" | "error" {
 	if (percent >= 80) return "error";
 	if (percent >= 50) return "warning";
@@ -605,7 +593,6 @@ export const SEGMENTS: Record<StatusLineSegmentId, StatusLineSegment> = {
 	cache_hit: cacheHitSegment,
 	session_name: sessionNameSegment,
 	usage: usageSegment,
-	collab: collabSegment,
 };
 
 export function renderSegment(id: StatusLineSegmentId, ctx: SegmentContext): RenderedSegment {

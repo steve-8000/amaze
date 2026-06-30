@@ -1,9 +1,9 @@
 import { Database } from "bun:sqlite";
 import * as fs from "node:fs/promises";
-import type { Usage } from "@amaze/pi-ai";
-import type { GeneratedProvider } from "@amaze/pi-catalog/models";
-import { getBundledModel } from "@amaze/pi-catalog/models";
-import { getConfigRootDir, getStatsDbPath } from "@amaze/pi-utils";
+import type { Usage } from "@steve-z8k/pi-ai";
+import type { GeneratedProvider } from "@steve-z8k/pi-catalog/models";
+import { getBundledModel } from "@steve-z8k/pi-catalog/models";
+import { getConfigRootDir, getStatsDbPath } from "@steve-z8k/pi-utils";
 import type {
 	AggregatedStats,
 	BehaviorModelStats,
@@ -55,7 +55,7 @@ export async function initDb(): Promise<Database> {
 
 	db = new Database(getStatsDbPath());
 	// Install the busy handler BEFORE any lock-taking statement. See
-	// https://github.com/can1357/amaze-agent/issues/2421.
+	// https://github.com/steve-8000/amaze/issues/2421.
 	db.run("PRAGMA busy_timeout = 5000");
 	db.run("PRAGMA journal_mode = WAL");
 

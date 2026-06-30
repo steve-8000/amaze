@@ -1,4 +1,4 @@
-import * as stats from "@amaze/amaze-stats";
+import * as stats from "@steve-z8k/amaze-stats";
 import * as openUtils from "../../utils/open";
 
 export const DEFAULT_STATS_DASHBOARD_PORT = 3847;

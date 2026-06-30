@@ -1,14 +1,14 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentEvent, AgentMessage } from "@amaze/pi-agent-core";
-import { RpcClient } from "@amaze/pi-coding-agent/modes/rpc/rpc-client";
+import type { AgentEvent, AgentMessage } from "@steve-z8k/pi-agent-core";
+import { RpcClient } from "@steve-z8k/pi-coding-agent/modes/rpc/rpc-client";
 import type {
 	BranchSummaryEntry,
 	CustomMessageEntry,
 	SessionMessageEntry,
-} from "@amaze/pi-coding-agent/session/session-entries";
-import { parseSessionEntries } from "@amaze/pi-coding-agent/session/session-loader";
+} from "@steve-z8k/pi-coding-agent/session/session-entries";
+import { parseSessionEntries } from "@steve-z8k/pi-coding-agent/session/session-loader";
 
 function extractText(message: AgentMessage): string {
 	if (message.role !== "assistant") return "";

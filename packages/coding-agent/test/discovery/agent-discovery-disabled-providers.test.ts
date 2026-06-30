@@ -6,10 +6,10 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { disableProvider, enableProvider } from "@amaze/pi-coding-agent/capability";
-import { clearCache as clearFsCache } from "@amaze/pi-coding-agent/capability/fs";
-import { clearClaudePluginRootsCache } from "@amaze/pi-coding-agent/discovery/helpers";
-import { discoverAgents } from "@amaze/pi-coding-agent/task/discovery";
+import { disableProvider, enableProvider } from "@steve-z8k/pi-coding-agent/capability";
+import { clearCache as clearFsCache } from "@steve-z8k/pi-coding-agent/capability/fs";
+import { clearClaudePluginRootsCache } from "@steve-z8k/pi-coding-agent/discovery/helpers";
+import { discoverAgents } from "@steve-z8k/pi-coding-agent/task/discovery";
 
 const PLUGIN_AGENT_MD = [
 	"---",

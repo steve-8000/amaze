@@ -16,7 +16,7 @@
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { AgentMessage } from "@amaze/pi-agent-core";
+import type { AgentMessage } from "@steve-z8k/pi-agent-core";
 import {
 	type Component,
 	Container,
@@ -33,8 +33,8 @@ import {
 	truncateToWidth,
 	visibleWidth,
 	wrapTextWithAnsi,
-} from "@amaze/pi-tui";
-import { isEnoent, prompt } from "@amaze/pi-utils";
+} from "@steve-z8k/pi-tui";
+import { isEnoent, prompt } from "@steve-z8k/pi-utils";
 import { YAML } from "bun";
 import { getConfigDirs } from "../../config";
 import type { ModelRegistry } from "../../config/model-registry";
@@ -695,7 +695,7 @@ export class AgentDashboard extends Container {
 		const modelPatterns = resolveConfiguredModelPatterns(
 			this.modelContext.activeModelPattern ??
 				this.modelContext.defaultModelPattern ??
-				settings?.getModelRole("default"),
+				settings?.getModelRole("flash"),
 			settings,
 		);
 		const { model } = resolveModelOverride(modelPatterns, modelRegistry, settings);

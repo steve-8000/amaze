@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { buildCompactDiffPreview } from "@amaze/hashline";
+import { buildCompactDiffPreview } from "@steve-z8k/hashline";
 
 describe("buildCompactDiffPreview", () => {
 	it("renders current lines and omits removed content while preserving counts", () => {

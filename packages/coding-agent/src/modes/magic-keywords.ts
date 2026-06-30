@@ -4,11 +4,12 @@ import { containsWorkflow, highlightWorkflow } from "./workflow";
 
 /**
  * Gradient-highlight every magic keyword ("ultrathink", "orchestrate",
- * "workflowz") that appears as standalone prose, skipping any occurrence inside a
- * code block, inline code span, or XML/HTML section. Each highlighter paints its
- * own keyword with its own gradient, so chaining is order-independent — the
- * earlier passes only inject zero-width SGR escapes (no backticks or angle
- * brackets), which never confuse the later passes' markdown masking.
+ * "workflowz", plus clear Korean orchestration phrasing) that appears as
+ * standalone prose, skipping any occurrence inside a code block, inline code
+ * span, or XML/HTML section. Each highlighter paints its own keyword with its
+ * own gradient, so chaining is order-independent — the earlier passes only inject
+ * zero-width SGR escapes (no backticks or angle brackets), which never confuse
+ * the later passes' markdown masking.
  *
  * `resetTo` is the SGR foreground sequence restored after each painted keyword;
  * pass the surrounding text color when decorating already-colored content (e.g.
@@ -31,11 +32,17 @@ export function highlightMagicKeywords(text: string, resetTo?: string, phase?: n
 /**
  * Cheap test for "does this text contain any magic keyword as standalone prose?".
  * Short-circuits on a substring probe before paying for the markdown-aware
- * prose check, so the common "no keyword in buffer" path is just three
+ * prose check, so the common "no keyword in buffer" path is just a few
  * `String#indexOf`s. Used by the live editor to gate the shimmer timer.
  */
 export function hasMagicKeyword(text: string): boolean {
-	if (!text.includes("ultrathink") && !text.includes("orchestrate") && !text.includes("workflowz")) {
+	if (
+		!text.includes("ultrathink") &&
+		!text.includes("orchestrate") &&
+		!text.includes("오케스트레이터") &&
+		!text.includes("오케스트레이션") &&
+		!text.includes("workflowz")
+	) {
 		return false;
 	}
 	return containsUltrathink(text) || containsOrchestrate(text) || containsWorkflow(text);

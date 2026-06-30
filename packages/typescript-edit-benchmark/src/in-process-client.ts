@@ -5,9 +5,9 @@
  * Eliminates ~2-3s CLI startup overhead per task by creating sessions
  * in-process and sharing auth/model infrastructure across tasks.
  */
-import type { AgentEvent, AgentMessage, ResolvedThinkingLevel, ThinkingLevel } from "@amaze/pi-agent-core";
-import type { Model, ToolExample } from "@amaze/pi-ai";
-import type { AgentSession, AgentSessionEvent, AuthStorage, SessionStats } from "@amaze/pi-coding-agent";
+import type { AgentEvent, AgentMessage, ResolvedThinkingLevel, ThinkingLevel } from "@steve-z8k/pi-agent-core";
+import type { Model, ToolExample } from "@steve-z8k/pi-ai";
+import type { AgentSession, AgentSessionEvent, AuthStorage, SessionStats } from "@steve-z8k/pi-coding-agent";
 import {
 	type CreateAgentSessionResult,
 	createAgentSession,
@@ -15,7 +15,7 @@ import {
 	ModelRegistry,
 	SessionManager,
 	Settings,
-} from "@amaze/pi-coding-agent";
+} from "@steve-z8k/pi-coding-agent";
 
 export type InProcessEventListener = (event: AgentEvent) => void;
 

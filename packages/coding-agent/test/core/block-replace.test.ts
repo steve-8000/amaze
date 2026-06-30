@@ -2,14 +2,14 @@ import { beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { formatHashlineHeader } from "@amaze/hashline";
-import { resetSettingsForTest, Settings } from "@amaze/pi-coding-agent/config/settings";
+import { formatHashlineHeader } from "@steve-z8k/hashline";
+import { resetSettingsForTest, Settings } from "@steve-z8k/pi-coding-agent/config/settings";
 import {
 	type ExecuteHashlineSingleOptions,
 	executeHashlineSingle,
 	getFileSnapshotStore,
-} from "@amaze/pi-coding-agent/edit";
-import type { ToolSession } from "@amaze/pi-coding-agent/tools";
+} from "@steve-z8k/pi-coding-agent/edit";
+import type { ToolSession } from "@steve-z8k/pi-coding-agent/tools";
 
 beforeAll(async () => {
 	resetSettingsForTest();

@@ -1,4 +1,4 @@
-import { isEnoent } from "@amaze/pi-utils";
+import { isEnoent } from "@steve-z8k/pi-utils";
 import { type LocalProtocolOptions, resolveLocalUrlToPath } from "../internal-urls";
 
 /** The session's active plan, resolved for handoff into a subagent's context. */

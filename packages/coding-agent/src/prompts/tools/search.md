@@ -1,5 +1,7 @@
 Searches files using regex.
 
+Use this for exact string/regex line evidence and edit anchors. Circle MCP search tools can suggest symbols, but they do not replace final line-grounded search/read evidence.
+
 <instruction>
 - Rust regex (RE2-style) — no lookaround/backreferences; use line anchors or post-filters instead of (?!…)/(?<!…).
 - `paths`: SHOULD scope to known paths (e.g. `["src","tests"]`).

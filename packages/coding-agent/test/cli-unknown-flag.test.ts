@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { parseArgs, reportUnrecognizedFlags } from "@amaze/pi-coding-agent/cli/args";
-import { applyExtensionFlags } from "@amaze/pi-coding-agent/cli/extension-flags";
+import { parseArgs, reportUnrecognizedFlags } from "@steve-z8k/pi-coding-agent/cli/args";
+import { applyExtensionFlags } from "@steve-z8k/pi-coding-agent/cli/extension-flags";
 
 // Regression coverage for issue #2459: `amaze --list-models` (a stale flag) was
 // silently consumed as a prompt instead of failing fast — the agent started a

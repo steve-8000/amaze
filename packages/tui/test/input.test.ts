@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { CURSOR_MARKER } from "@amaze/pi-tui";
-import { Input } from "@amaze/pi-tui/components/input";
-import { setKittyProtocolActive } from "@amaze/pi-tui/keys";
-import { visibleWidth } from "@amaze/pi-tui/utils";
-import { DEFAULT_TAB_WIDTH } from "@amaze/pi-utils";
+import { CURSOR_MARKER } from "@steve-z8k/pi-tui";
+import { Input } from "@steve-z8k/pi-tui/components/input";
+import { setKittyProtocolActive } from "@steve-z8k/pi-tui/keys";
+import { visibleWidth } from "@steve-z8k/pi-tui/utils";
+import { DEFAULT_TAB_WIDTH } from "@steve-z8k/pi-utils";
 
 function renderedWidth(input: Input, width: number): number {
 	const [line] = input.render(width);

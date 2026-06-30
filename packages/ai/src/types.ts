@@ -1,5 +1,5 @@
-export * from "@amaze/pi-catalog/effort";
-export * from "@amaze/pi-catalog/types";
+export * from "@steve-z8k/pi-catalog/effort";
+export * from "@steve-z8k/pi-catalog/types";
 
 import type {
 	DeleteArgs,
@@ -17,9 +17,9 @@ import type {
 	ShellResult,
 	WriteArgs,
 	WriteResult,
-} from "@amaze/pi-catalog/discovery/cursor-gen/agent_pb";
-import type { Effort } from "@amaze/pi-catalog/effort";
-import type { Api, FetchImpl, KnownApi, Model, Provider, ThinkingBudgets, Usage } from "@amaze/pi-catalog/types";
+} from "@steve-z8k/pi-catalog/discovery/cursor-gen/agent_pb";
+import type { Effort } from "@steve-z8k/pi-catalog/effort";
+import type { Api, FetchImpl, KnownApi, Model, Provider, ThinkingBudgets, Usage } from "@steve-z8k/pi-catalog/types";
 import type { Type } from "arktype";
 import type { ZodType, z } from "zod/v4";
 import type { ApiKey } from "./auth-retry";

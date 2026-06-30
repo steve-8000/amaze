@@ -5,11 +5,11 @@
  * by providing authorization URL, token URL, and client credentials.
  */
 
-import type { OAuthCallbackFlowOptions } from "@amaze/pi-ai/oauth/callback-server";
-import { OAuthCallbackFlow } from "@amaze/pi-ai/oauth/callback-server";
-import type { OAuthController, OAuthCredentials } from "@amaze/pi-ai/oauth/types";
-import type { FetchImpl } from "@amaze/pi-ai/types";
-import { getActiveProfile } from "@amaze/pi-utils/dirs";
+import type { OAuthCallbackFlowOptions } from "@steve-z8k/pi-ai/oauth/callback-server";
+import { OAuthCallbackFlow } from "@steve-z8k/pi-ai/oauth/callback-server";
+import type { OAuthController, OAuthCredentials } from "@steve-z8k/pi-ai/oauth/types";
+import type { FetchImpl } from "@steve-z8k/pi-ai/types";
+import { getActiveProfile } from "@steve-z8k/pi-utils/dirs";
 import type { OAuthCredential } from "../session/auth-storage";
 
 /** Credential-id prefix for Amaze-managed MCP OAuth credentials keyed by profile and server URL. */

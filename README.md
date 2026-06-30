@@ -163,7 +163,7 @@ The committed sample `.mcp.example.json` matches the local Rocky setup:
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/can1357/amaze-agent/main/packages/coding-agent/src/config/mcp-schema.json",
+  "$schema": "https://raw.githubusercontent.com/steve-8000/amaze/main/packages/coding-agent/src/config/mcp-schema.json",
   "mcpServers": {
     "rocky-skills": {
       "type": "http",

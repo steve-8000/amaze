@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { AgentOutputManager } from "@amaze/pi-coding-agent/task/output-manager";
-import { TempDir } from "@amaze/pi-utils";
+import { AgentOutputManager } from "@steve-z8k/pi-coding-agent/task/output-manager";
+import { TempDir } from "@steve-z8k/pi-utils";
 
 // Contract: subagent output ids are the requested name, used verbatim the first
 // time and suffixed (`-2`, `-3`, …) only when the same name recurs. A parent

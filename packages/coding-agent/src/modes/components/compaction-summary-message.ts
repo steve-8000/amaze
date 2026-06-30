@@ -1,4 +1,4 @@
-import { Box, type Component, Markdown } from "@amaze/pi-tui";
+import { Box, type Component, Markdown } from "@steve-z8k/pi-tui";
 import { getMarkdownTheme, theme } from "../../modes/theme/theme";
 import type { BranchSummaryMessage, CompactionSummaryMessage, CustomMessage } from "../../session/messages";
 

@@ -1,5 +1,5 @@
 /**
- * Regression for https://github.com/can1357/amaze-agent/issues/1832
+ * Regression for https://github.com/steve-8000/amaze/issues/1832
  *
  * Before the fix:
  *   - `remember()`/`rememberBatch()` never invoked `embed()`, so the
@@ -17,13 +17,13 @@ import { randomBytes } from "node:crypto";
 import { rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import "./setup";
-import { cmdRemember } from "@amaze/pi-rocky-memory/cli";
-import { BeamMemory } from "@amaze/pi-rocky-memory/core/beam";
-import { RockyMemory } from "@amaze/pi-rocky-memory/core/memory";
+import { cmdRemember } from "@steve-z8k/pi-rocky-memory/cli";
+import { BeamMemory } from "@steve-z8k/pi-rocky-memory/core/beam";
+import { RockyMemory } from "@steve-z8k/pi-rocky-memory/core/memory";
 import {
 	type ResolvedRockyMemoryRuntimeOptions,
 	withRockyMemoryRuntimeOptions,
-} from "@amaze/pi-rocky-memory/core/runtime-options";
+} from "@steve-z8k/pi-rocky-memory/core/runtime-options";
 
 interface EmbeddingRow {
 	readonly memory_id: string;

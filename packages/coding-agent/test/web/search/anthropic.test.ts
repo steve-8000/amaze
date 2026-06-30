@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import type { AuthStorage, FetchImpl } from "@amaze/pi-ai";
-import { AuthStorage as CodingAuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
-import { searchAnthropic } from "@amaze/pi-coding-agent/web/search/providers/anthropic";
-import { TempDir } from "@amaze/pi-utils";
+import type { AuthStorage, FetchImpl } from "@steve-z8k/pi-ai";
+import { AuthStorage as CodingAuthStorage } from "@steve-z8k/pi-coding-agent/session/auth-storage";
+import { searchAnthropic } from "@steve-z8k/pi-coding-agent/web/search/providers/anthropic";
+import { TempDir } from "@steve-z8k/pi-utils";
 
 function makeCaptureFetch(): { fetch: FetchImpl; body: () => Record<string, unknown> | undefined } {
 	let captured: Record<string, unknown> | undefined;
@@ -15,7 +15,7 @@ function makeCaptureFetch(): { fetch: FetchImpl; body: () => Record<string, unkn
 		return new Response(
 			JSON.stringify({
 				id: "msg_test",
-				model: "claude-haiku-4-5",
+				model: "claude-opus-4-7",
 				content: [],
 				usage: { input_tokens: 1, output_tokens: 2 },
 			}),

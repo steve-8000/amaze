@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { Effort } from "@amaze/pi-ai";
+import { Effort } from "@steve-z8k/pi-ai";
 import {
 	getDefault,
 	getEnumValues,
@@ -10,8 +10,8 @@ import {
 	resetSettingsForTest,
 	type SettingPath,
 	Settings,
-} from "@amaze/pi-coding-agent/config/settings";
-import { getProjectAgentDir, TempDir } from "@amaze/pi-utils";
+} from "@steve-z8k/pi-coding-agent/config/settings";
+import { getProjectAgentDir, TempDir } from "@steve-z8k/pi-utils";
 import { YAML } from "bun";
 import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "./helpers/settings-test-state";
 
@@ -60,12 +60,6 @@ describe("Settings", () => {
 			expect(settings.get("tui.maxInlineImages")).toBe(8);
 		});
 
-		it("keeps the normal startup splash disabled by default", async () => {
-			const settings = await Settings.init({ cwd: projectDir, agentDir });
-			expect(settings.get("startup.showSplash")).toBe(false);
-			expect(getDefault("startup.showSplash")).toBe(false);
-		});
-
 		it("keeps automatic compaction disabled by default", async () => {
 			const settings = await Settings.init({ cwd: projectDir, agentDir });
 			expect(settings.get("compaction.enabled")).toBe(false);
@@ -97,13 +91,11 @@ describe("Settings", () => {
 		it("resolves overrides, schema defaults, and falsey values", () => {
 			const isolated = Settings.isolated({
 				"display.showTokenUsage": false,
-				setupVersion: 0,
 				shellPath: "",
 				enabledModels: [],
 			});
 
 			expect(isolated.get("display.showTokenUsage")).toBe(false);
-			expect(isolated.get("setupVersion")).toBe(0);
 			expect(isolated.get("shellPath")).toBe("");
 			expect(isolated.get("enabledModels")).toEqual([]);
 			expect(isolated.get("tui.maxInlineImages")).toBe(getDefault("tui.maxInlineImages"));
@@ -231,7 +223,7 @@ describe("Settings", () => {
 			await writeSettings({
 				theme: { dark: "anthracite" },
 				modelRoles: { default: "claude-sonnet" },
-				enabledModels: ["claude-opus-4-5", "gpt-5.2-codex"],
+				enabledModels: ["claude-opus-4-8", "gpt-5.3-codex"],
 			});
 
 			// Settings saves a change - should merge, not overwrite
@@ -239,7 +231,7 @@ describe("Settings", () => {
 			await settings.flush();
 
 			const savedSettings = await readSettings();
-			expect(savedSettings.enabledModels).toEqual(["claude-opus-4-5", "gpt-5.2-codex"]);
+			expect(savedSettings.enabledModels).toEqual(["claude-opus-4-8", "gpt-5.3-codex"]);
 			expect(savedSettings.defaultThinkingLevel).toBe(Effort.High);
 			expect(savedSettings.theme).toEqual({ dark: "anthracite" });
 			expect((savedSettings.modelRoles as { default?: string } | undefined)?.default).toBe("claude-sonnet");
@@ -253,9 +245,9 @@ describe("Settings", () => {
 
 			await writeSettings({
 				enabledModels: [
-					"claude-sonnet-4-5",
-					{ path: path.join(projectDir, "work"), values: ["anthropic/claude-opus-4-5"] },
-					{ path: path.join(projectDir, "private"), values: ["openai/gpt-5.2-codex"] },
+					"claude-sonnet-4-6",
+					{ path: path.join(projectDir, "work"), values: ["anthropic/claude-opus-4-8"] },
+					{ path: path.join(projectDir, "private"), values: ["openai/gpt-5.3-codex"] },
 				],
 				disabledProviders: [
 					"ollama",
@@ -265,12 +257,12 @@ describe("Settings", () => {
 			});
 
 			const workSettings = await Settings.init({ cwd: workDir, agentDir });
-			expect(workSettings.get("enabledModels")).toEqual(["claude-sonnet-4-5", "anthropic/claude-opus-4-5"]);
+			expect(workSettings.get("enabledModels")).toEqual(["claude-sonnet-4-6", "anthropic/claude-opus-4-8"]);
 			expect(workSettings.get("disabledProviders")).toEqual(["ollama", "openai"]);
 
 			resetSettingsForTest();
 			const privateSettings = await Settings.init({ cwd: privateDir, agentDir });
-			expect(privateSettings.get("enabledModels")).toEqual(["claude-sonnet-4-5", "openai/gpt-5.2-codex"]);
+			expect(privateSettings.get("enabledModels")).toEqual(["claude-sonnet-4-6", "openai/gpt-5.3-codex"]);
 			expect(privateSettings.get("disabledProviders")).toEqual(["ollama", "anthropic"]);
 		});
 
@@ -319,54 +311,54 @@ describe("Settings", () => {
 	describe("model role overrides", () => {
 		it("does not persist temporary default model overrides when another role is saved", async () => {
 			await writeSettings({
-				modelRoles: { default: "anthropic/claude-sonnet-4-5" },
+				modelRoles: { default: "anthropic/claude-sonnet-4-6" },
 			});
 
 			const settings = await Settings.init({ cwd: projectDir, agentDir });
 
-			settings.overrideModelRoles({ default: "openai/gpt-5.2-codex" });
-			expect(settings.getModelRole("default")).toBe("openai/gpt-5.2-codex");
+			settings.overrideModelRoles({ default: "openai/gpt-5.3-codex" });
+			expect(settings.getModelRole("default")).toBe("openai/gpt-5.3-codex");
 
-			settings.setModelRole("smol", "anthropic/claude-haiku-4-5");
+			settings.setModelRole("smol", "anthropic/claude-opus-4-7");
 			await settings.flush();
 
 			const savedSettings = await readSettings();
 			expect(savedSettings.modelRoles).toEqual({
-				default: "anthropic/claude-sonnet-4-5",
-				smol: "anthropic/claude-haiku-4-5",
+				default: "anthropic/claude-sonnet-4-6",
+				smol: "anthropic/claude-opus-4-7",
 			});
-			expect(settings.getModelRole("default")).toBe("openai/gpt-5.2-codex");
-			expect(settings.getModelRole("smol")).toBe("anthropic/claude-haiku-4-5");
+			expect(settings.getModelRole("default")).toBe("openai/gpt-5.3-codex");
+			expect(settings.getModelRole("smol")).toBe("anthropic/claude-opus-4-7");
 		});
 
 		it("restores persisted model roles after clearing runtime overrides", async () => {
 			await writeSettings({
-				modelRoles: { default: "anthropic/claude-sonnet-4-5" },
+				modelRoles: { default: "anthropic/claude-sonnet-4-6" },
 			});
 
 			const settings = await Settings.init({ cwd: projectDir, agentDir });
 
-			settings.overrideModelRoles({ default: "openai/gpt-5.2-codex" });
-			expect(settings.getModelRole("default")).toBe("openai/gpt-5.2-codex");
+			settings.overrideModelRoles({ default: "openai/gpt-5.3-codex" });
+			expect(settings.getModelRole("default")).toBe("openai/gpt-5.3-codex");
 
 			settings.clearOverride("modelRoles");
 
-			expect(settings.getModelRole("default")).toBe("anthropic/claude-sonnet-4-5");
+			expect(settings.getModelRole("default")).toBe("anthropic/claude-sonnet-4-6");
 		});
 
 		it("keeps the live role value aligned when saving over a runtime override", () => {
 			const settings = Settings.isolated({
-				modelRoles: { default: "anthropic/claude-sonnet-4-5" },
+				modelRoles: { default: "anthropic/claude-sonnet-4-6" },
 			});
 
-			settings.overrideModelRoles({ default: "openai/gpt-5.2-codex" });
-			settings.setModelRole("default", "anthropic/claude-opus-4-5");
+			settings.overrideModelRoles({ default: "openai/gpt-5.3-codex" });
+			settings.setModelRole("default", "anthropic/claude-opus-4-8");
 
-			expect(settings.getModelRole("default")).toBe("anthropic/claude-opus-4-5");
+			expect(settings.getModelRole("default")).toBe("anthropic/claude-opus-4-8");
 
 			settings.clearOverride("modelRoles");
 
-			expect(settings.getModelRole("default")).toBe("anthropic/claude-opus-4-5");
+			expect(settings.getModelRole("default")).toBe("anthropic/claude-opus-4-8");
 		});
 	});
 
@@ -385,8 +377,8 @@ describe("Settings", () => {
 			const settings = await Settings.init({ cwd: projectDir, agentDir });
 
 			expect(settings.get("edit.mode")).toBe("hashline");
-			expect(settings.getEditVariantForModel("claude-opus-4-5")).toBe("hashline");
-			expect(settings.getEditVariantForModel("gpt-5.2")).toBe("apply_patch");
+			expect(settings.getEditVariantForModel("claude-opus-4-8")).toBe("hashline");
+			expect(settings.getEditVariantForModel("gpt-5.4")).toBe("apply_patch");
 		});
 
 		it("migrates boolean task.eager/todo.eager true to always", async () => {

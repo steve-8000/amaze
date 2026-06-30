@@ -1,7 +1,7 @@
 /**
  * List and clean up agent-managed git worktrees under `~/.amaze/wt`.
  */
-import { Args, Command, Flags } from "@amaze/pi-utils/cli";
+import { Args, Command, Flags } from "@steve-z8k/pi-utils/cli";
 import { clearWorktrees, listWorktrees } from "../cli/worktree-cli";
 
 export default class Worktree extends Command {

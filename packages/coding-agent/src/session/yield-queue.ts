@@ -1,5 +1,5 @@
-import type { AgentMessage } from "@amaze/pi-agent-core";
-import { logger } from "@amaze/pi-utils";
+import type { AgentMessage } from "@steve-z8k/pi-agent-core";
+import { logger } from "@steve-z8k/pi-utils";
 
 export interface YieldDispatcher<P> {
 	/** Drop entries already delivered through another path. Called per-entry at flush time. */

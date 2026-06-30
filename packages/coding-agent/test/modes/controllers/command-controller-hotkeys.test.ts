@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { buildHotkeysMarkdown } from "@amaze/pi-coding-agent/modes/utils/hotkeys-markdown";
+import { buildHotkeysMarkdown } from "@steve-z8k/pi-coding-agent/modes/utils/hotkeys-markdown";
 
 describe("buildHotkeysMarkdown", () => {
 	it("emits flush-left markdown and uses the configured temporary selector hint", () => {
@@ -23,7 +23,6 @@ describe("buildHotkeysMarkdown", () => {
 			"app.editor.external": "Ctrl+G",
 			"app.retry": "Alt+R",
 			"app.clipboard.pasteImage": "Ctrl+V",
-			"app.stt.toggle": "Alt+H",
 		};
 		const markdown = buildHotkeysMarkdown({
 			keybindings: {

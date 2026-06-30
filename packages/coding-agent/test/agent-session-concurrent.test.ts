@@ -7,22 +7,22 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { scheduler } from "node:timers/promises";
-import { Agent, AgentBusyError, type AgentMessage, type AgentTool } from "@amaze/pi-agent-core";
-import type { AssistantMessage, Message, ToolCall } from "@amaze/pi-ai";
-import { createMockModel } from "@amaze/pi-ai/providers/mock";
-import { AssistantMessageEventStream } from "@amaze/pi-ai/utils/event-stream";
-import { getBundledModel } from "@amaze/pi-catalog/models";
-import { AsyncJobManager } from "@amaze/pi-coding-agent/async";
-import type { Rule } from "@amaze/pi-coding-agent/capability/rule";
-import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import { TtsrManager } from "@amaze/pi-coding-agent/export/ttsr";
-import type { ExtensionRunner } from "@amaze/pi-coding-agent/extensibility/extensions";
-import { AgentSession } from "@amaze/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
-import { convertToLlm } from "@amaze/pi-coding-agent/session/messages";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import { Snowflake } from "@amaze/pi-utils";
+import { Agent, AgentBusyError, type AgentMessage, type AgentTool } from "@steve-z8k/pi-agent-core";
+import type { AssistantMessage, Message, ToolCall } from "@steve-z8k/pi-ai";
+import { createMockModel } from "@steve-z8k/pi-ai/providers/mock";
+import { AssistantMessageEventStream } from "@steve-z8k/pi-ai/utils/event-stream";
+import { getBundledModel } from "@steve-z8k/pi-catalog/models";
+import { AsyncJobManager } from "@steve-z8k/pi-coding-agent/async";
+import type { Rule } from "@steve-z8k/pi-coding-agent/capability/rule";
+import { ModelRegistry } from "@steve-z8k/pi-coding-agent/config/model-registry";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { TtsrManager } from "@steve-z8k/pi-coding-agent/export/ttsr";
+import type { ExtensionRunner } from "@steve-z8k/pi-coding-agent/extensibility/extensions";
+import { AgentSession } from "@steve-z8k/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@steve-z8k/pi-coding-agent/session/auth-storage";
+import { convertToLlm } from "@steve-z8k/pi-coding-agent/session/messages";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import { Snowflake } from "@steve-z8k/pi-utils";
 import { type } from "arktype";
 import { createAssistantMessage } from "./helpers/agent-session-setup";
 
@@ -69,7 +69,7 @@ describe("AgentSession concurrent prompt guard", () => {
 	});
 
 	async function createSession() {
-		const model = getBundledModel("anthropic", "claude-sonnet-4-5")!;
+		const model = getBundledModel("anthropic", "claude-sonnet-4-6")!;
 		let abortSignal: AbortSignal | undefined;
 
 		// Use a stream function that responds to abort
@@ -177,7 +177,7 @@ describe("AgentSession concurrent prompt guard", () => {
 	});
 
 	it("delivers hidden nextTurn stop reactions through the next LLM call without exposing them in the visible queue", async () => {
-		const model = getBundledModel("anthropic", "claude-sonnet-4-5")!;
+		const model = getBundledModel("anthropic", "claude-sonnet-4-6")!;
 		let firstStream: AssistantMessageEventStream | undefined;
 		const callMessages: Message[][] = [];
 
@@ -253,7 +253,7 @@ describe("AgentSession concurrent prompt guard", () => {
 	});
 
 	it("continues a main session from session_stop feedback before settling", async () => {
-		const model = getBundledModel("anthropic", "claude-sonnet-4-5")!;
+		const model = getBundledModel("anthropic", "claude-sonnet-4-6")!;
 		const mock = createMockModel({
 			handler: () => ({ content: ["Done"] }),
 		});
@@ -322,7 +322,7 @@ describe("AgentSession concurrent prompt guard", () => {
 	});
 
 	it("uses non-empty session_stop reason when additional context is empty", async () => {
-		const model = getBundledModel("anthropic", "claude-sonnet-4-5")!;
+		const model = getBundledModel("anthropic", "claude-sonnet-4-6")!;
 		const mock = createMockModel({
 			handler: () => ({ content: ["Done"] }),
 		});
@@ -374,7 +374,7 @@ describe("AgentSession concurrent prompt guard", () => {
 	});
 
 	it("does not continue session_stop feedback after aborting a slow hook", async () => {
-		const model = getBundledModel("anthropic", "claude-sonnet-4-5")!;
+		const model = getBundledModel("anthropic", "claude-sonnet-4-6")!;
 		const mock = createMockModel({
 			handler: () => ({ content: ["Done"] }),
 		});
@@ -429,7 +429,7 @@ describe("AgentSession concurrent prompt guard", () => {
 	});
 
 	it("ignores repeated session_stop continuation results after the first follow-up", async () => {
-		const model = getBundledModel("anthropic", "claude-sonnet-4-5")!;
+		const model = getBundledModel("anthropic", "claude-sonnet-4-6")!;
 		const mock = createMockModel({
 			handler: () => ({ content: ["Pass"] }),
 		});
@@ -467,7 +467,7 @@ describe("AgentSession concurrent prompt guard", () => {
 	});
 
 	it("caps session_stop continuations across direct user turns", async () => {
-		const model = getBundledModel("anthropic", "claude-sonnet-4-5")!;
+		const model = getBundledModel("anthropic", "claude-sonnet-4-6")!;
 		const mock = createMockModel({
 			handler: () => ({ content: ["Pass"] }),
 		});
@@ -526,7 +526,7 @@ describe("AgentSession concurrent prompt guard", () => {
 	});
 
 	it("emits session_stop only after empty-stop recovery reaches a final stop", async () => {
-		const model = getBundledModel("anthropic", "claude-sonnet-4-5")!;
+		const model = getBundledModel("anthropic", "claude-sonnet-4-6")!;
 		const mock = createMockModel({
 			responses: [{ content: [""] }, { content: ["Recovered"] }],
 		});
@@ -559,7 +559,7 @@ describe("AgentSession concurrent prompt guard", () => {
 	});
 
 	it("emits session_stop after empty-stop retry cap settles", async () => {
-		const model = getBundledModel("anthropic", "claude-sonnet-4-5")!;
+		const model = getBundledModel("anthropic", "claude-sonnet-4-6")!;
 		const mock = createMockModel({
 			responses: [{ content: [""] }, { content: [""] }, { content: [""] }, { content: [""] }],
 		});
@@ -592,7 +592,7 @@ describe("AgentSession concurrent prompt guard", () => {
 	});
 
 	it("continues session_stop feedback in ACP sessions with deferred client turns", async () => {
-		const model = getBundledModel("anthropic", "claude-sonnet-4-5")!;
+		const model = getBundledModel("anthropic", "claude-sonnet-4-6")!;
 		const mock = createMockModel({
 			handler: () => ({ content: ["Done"] }),
 		});
@@ -644,7 +644,7 @@ describe("AgentSession concurrent prompt guard", () => {
 	});
 
 	it("does not emit session_stop for subagent sessions", async () => {
-		const model = getBundledModel("anthropic", "claude-sonnet-4-5")!;
+		const model = getBundledModel("anthropic", "claude-sonnet-4-6")!;
 		const mock = createMockModel({
 			handler: () => ({ content: ["Subagent done"] }),
 		});
@@ -686,7 +686,7 @@ describe("AgentSession concurrent prompt guard", () => {
 
 	it("should allow prompt() after previous completes", async () => {
 		// Create session with a stream that completes immediately
-		const model = getBundledModel("anthropic", "claude-sonnet-4-5")!;
+		const model = getBundledModel("anthropic", "claude-sonnet-4-6")!;
 		const mock = createMockModel({ handler: () => ({ content: ["Done"] }) });
 		const agent = new Agent({
 			getApiKey: () => "test-key",
@@ -722,7 +722,7 @@ describe("AgentSession concurrent prompt guard", () => {
 		await expect(session.prompt("Second message")).resolves.toBe(true);
 	});
 	it("queues extension follow-up user messages on an idle session without starting a turn", async () => {
-		const model = getBundledModel("anthropic", "claude-sonnet-4-5")!;
+		const model = getBundledModel("anthropic", "claude-sonnet-4-6")!;
 		const mock = createMockModel({ handler: () => ({ content: ["Done"] }) });
 		const agent = new Agent({
 			getApiKey: () => "test-key",
@@ -765,7 +765,7 @@ describe("AgentSession concurrent prompt guard", () => {
 	// threw AgentBusyError. Surfaced as `RpcCommandError: prompt: Agent is
 	// already processing` from amaze-rpc clients (robomp triage reminder path).
 	it("subscriber may prompt() synchronously from agent_end without AgentBusyError", async () => {
-		const model = getBundledModel("anthropic", "claude-sonnet-4-5")!;
+		const model = getBundledModel("anthropic", "claude-sonnet-4-6")!;
 		const mock = createMockModel({ handler: () => ({ content: ["Done"] }) });
 		const agent = new Agent({
 			getApiKey: () => "test-key",
@@ -806,7 +806,7 @@ describe("AgentSession concurrent prompt guard", () => {
 	});
 
 	it("queues idle ACP client-triggered custom messages instead of starting an ownerless turn", async () => {
-		const model = getBundledModel("anthropic", "claude-sonnet-4-5")!;
+		const model = getBundledModel("anthropic", "claude-sonnet-4-6")!;
 		const mock = createMockModel({ handler: () => ({ content: ["Done"] }) });
 		const agent = new Agent({
 			getApiKey: () => "test-key",
@@ -872,7 +872,7 @@ describe("AgentSession concurrent prompt guard", () => {
 	});
 
 	it("runs drained ACP async completions as owned follow-up turns despite deferred client turns", async () => {
-		const model = getBundledModel("anthropic", "claude-sonnet-4-5")!;
+		const model = getBundledModel("anthropic", "claude-sonnet-4-6")!;
 		const mock = createMockModel({ handler: () => ({ content: ["Done"] }) });
 		const agent = new Agent({
 			getApiKey: () => "test-key",
@@ -963,7 +963,7 @@ describe("AgentSession concurrent prompt guard", () => {
 	});
 
 	it("scopes ACP async job snapshots and drains to the owning session id", async () => {
-		const model = getBundledModel("anthropic", "claude-sonnet-4-5")!;
+		const model = getBundledModel("anthropic", "claude-sonnet-4-6")!;
 		const authStorage = await AuthStorage.create(path.join(tempDir, "testauth-acp-scope.db"));
 		authStorages.push(authStorage);
 		const modelRegistry = new ModelRegistry(authStorage, path.join(tempDir, "models-acp-scope.yml"));
@@ -1129,7 +1129,7 @@ describe("AgentSession TTSR resume gate", () => {
 
 	it("prompt() blocks until TTSR interrupt continuation completes", async () => {
 		collapseSchedulerSettleDelays();
-		const model = getBundledModel("anthropic", "claude-sonnet-4-5")!;
+		const model = getBundledModel("anthropic", "claude-sonnet-4-6")!;
 		let streamCallCount = 0;
 		let continuationCompleted = false;
 
@@ -1190,7 +1190,7 @@ describe("AgentSession TTSR resume gate", () => {
 
 	it("caps TTSR interrupt continuations across direct user turns", async () => {
 		collapseSchedulerSettleDelays();
-		const model = getBundledModel("anthropic", "claude-sonnet-4-5")!;
+		const model = getBundledModel("anthropic", "claude-sonnet-4-6")!;
 		let streamCallCount = 0;
 		let directTriggerCount = 0;
 		const cappedRules = Array.from({ length: 4 }, (_, index): Rule => {
@@ -1291,7 +1291,7 @@ describe("AgentSession TTSR resume gate", () => {
 
 	it("labels aborted tool placeholders with the TTSR rule reason", async () => {
 		collapseSchedulerSettleDelays();
-		const model = getBundledModel("anthropic", "claude-sonnet-4-5")!;
+		const model = getBundledModel("anthropic", "claude-sonnet-4-6")!;
 		let streamCallCount = 0;
 
 		const ttsrManager = new TtsrManager({
@@ -1402,7 +1402,7 @@ describe("AgentSession TTSR resume gate", () => {
 
 	it("relativizes the rule file path in the TTSR interrupt injection (no absolute leak)", async () => {
 		collapseSchedulerSettleDelays();
-		const model = getBundledModel("anthropic", "claude-sonnet-4-5")!;
+		const model = getBundledModel("anthropic", "claude-sonnet-4-6")!;
 		let streamCallCount = 0;
 
 		const sessionManager = SessionManager.inMemory();
@@ -1466,7 +1466,7 @@ describe("AgentSession TTSR resume gate", () => {
 	});
 
 	it("prompt() blocks until TTSR deferred continuation completes", async () => {
-		const model = getBundledModel("anthropic", "claude-sonnet-4-5")!;
+		const model = getBundledModel("anthropic", "claude-sonnet-4-6")!;
 		let streamCallCount = 0;
 		let continuationCompleted = false;
 
@@ -1541,7 +1541,7 @@ describe("AgentSession TTSR resume gate", () => {
 	});
 
 	it("prompt() returns immediately when session is aborted during TTSR wait", async () => {
-		const model = getBundledModel("anthropic", "claude-sonnet-4-5")!;
+		const model = getBundledModel("anthropic", "claude-sonnet-4-6")!;
 
 		const ttsrManager = new TtsrManager({
 			enabled: true,
@@ -1615,7 +1615,7 @@ describe("AgentSession TTSR resume gate", () => {
 
 	it("prompt() waits for TTSR continuation with tool calls to finish", async () => {
 		collapseSchedulerSettleDelays();
-		const model = getBundledModel("anthropic", "claude-sonnet-4-5")!;
+		const model = getBundledModel("anthropic", "claude-sonnet-4-6")!;
 		let streamCallCount = 0;
 		let toolExecutionFinished = false;
 		let allTurnsCompleted = false;
@@ -1726,7 +1726,7 @@ describe("AgentSession TTSR resume gate", () => {
 		expect(session.isStreaming).toBe(false);
 	});
 	it("interruptMode never folds tool-match reminder into the toolResult instead of driving an extra turn", async () => {
-		const model = getBundledModel("anthropic", "claude-sonnet-4-5")!;
+		const model = getBundledModel("anthropic", "claude-sonnet-4-6")!;
 		let streamCallCount = 0;
 		let toolExecuted = false;
 
@@ -1848,7 +1848,7 @@ describe("AgentSession TTSR resume gate", () => {
 	});
 
 	it("interruptMode never deduplicates the reminder across sibling tool calls in one batch", async () => {
-		const model = getBundledModel("anthropic", "claude-sonnet-4-5")!;
+		const model = getBundledModel("anthropic", "claude-sonnet-4-6")!;
 		let streamCallCount = 0;
 		let executedCount = 0;
 

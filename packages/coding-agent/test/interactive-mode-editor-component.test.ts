@@ -1,15 +1,15 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@amaze/pi-agent-core";
-import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings } from "@amaze/pi-coding-agent/config/settings";
-import { CustomEditor } from "@amaze/pi-coding-agent/modes/components/custom-editor";
-import { InteractiveMode } from "@amaze/pi-coding-agent/modes/interactive-mode";
-import { initTheme } from "@amaze/pi-coding-agent/modes/theme/theme";
-import { AgentSession } from "@amaze/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import { TempDir } from "@amaze/pi-utils";
+import { Agent } from "@steve-z8k/pi-agent-core";
+import { ModelRegistry } from "@steve-z8k/pi-coding-agent/config/model-registry";
+import { resetSettingsForTest, Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { CustomEditor } from "@steve-z8k/pi-coding-agent/modes/components/custom-editor";
+import { InteractiveMode } from "@steve-z8k/pi-coding-agent/modes/interactive-mode";
+import { initTheme } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
+import { AgentSession } from "@steve-z8k/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@steve-z8k/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import { TempDir } from "@steve-z8k/pi-utils";
 
 class TestModalEditor extends CustomEditor {}
 
@@ -29,9 +29,9 @@ describe("InteractiveMode.setEditorComponent", () => {
 		await Settings.init({ inMemory: true, cwd: tempDir.path() });
 		authStorage = await AuthStorage.create(path.join(tempDir.path(), "testauth.db"));
 		const modelRegistry = new ModelRegistry(authStorage);
-		const model = modelRegistry.find("anthropic", "claude-sonnet-4-5");
+		const model = modelRegistry.find("anthropic", "claude-sonnet-4-6");
 		if (!model) {
-			throw new Error("Expected claude-sonnet-4-5 to exist in registry");
+			throw new Error("Expected claude-sonnet-4-6 to exist in registry");
 		}
 
 		session = new AgentSession({

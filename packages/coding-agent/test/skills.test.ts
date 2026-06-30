@@ -2,10 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type Skill as CapabilitySkill, skillCapability } from "@amaze/pi-coding-agent/capability/skill";
-import { getCapability } from "@amaze/pi-coding-agent/discovery";
-import { loadSkills, loadSkillsFromDir, type Skill } from "@amaze/pi-coding-agent/extensibility/skills";
-import { getAgentDir, setAgentDir } from "@amaze/pi-utils/dirs";
+import { type Skill as CapabilitySkill, skillCapability } from "@steve-z8k/pi-coding-agent/capability/skill";
+import { getCapability } from "@steve-z8k/pi-coding-agent/discovery";
+import { loadSkills, loadSkillsFromDir, type Skill } from "@steve-z8k/pi-coding-agent/extensibility/skills";
+import { getAgentDir, setAgentDir } from "@steve-z8k/pi-utils/dirs";
 
 const fixturesDir = path.resolve(import.meta.dirname, "fixtures/skills");
 const collisionFixturesDir = path.resolve(import.meta.dirname, "fixtures/skills-collision");
@@ -409,63 +409,97 @@ description: Skill loaded from a tilde-expanded custom directory.
 		}
 	});
 
-	it("should load flat Rocky skills from ROCKY_SKILLS_DIR", async () => {
-		const rockyDir = await fs.mkdtemp(path.join(os.tmpdir(), "rocky-skills-test-"));
-		const previousRockySkillsDir = process.env.ROCKY_SKILLS_DIR;
-		process.env.ROCKY_SKILLS_DIR = rockyDir;
+	it("does not preload flat Circle skills from CIRCLE_SKILLS_DIR", async () => {
+		const circleDir = await fs.mkdtemp(path.join(os.tmpdir(), "circle-skills-test-"));
+		const previousCircleSkillsDir = process.env.CIRCLE_SKILLS_DIR;
+		process.env.CIRCLE_SKILLS_DIR = circleDir;
 		try {
 			await fs.writeFile(
-				path.join(rockyDir, "rocky-example.md"),
+				path.join(circleDir, "circle-example.md"),
 				`---
-name: rocky-example
-summary: Skill stored in Rocky's flat markdown registry.
+name: circle-example
+summary: Skill stored in Circle's flat markdown registry.
 tags:
   - test
 version: 1
 ---
 
-# Rocky Example
+# Circle Example
 `,
 			);
 			const { skills } = await loadSkills({
 				...DISABLE_ALL_BUILTIN_SKILLS,
 				enablePiUser: true,
 			});
-			const skill = skills.find(item => item.name === "rocky-example");
-			expect(skill?.description).toBe("Skill stored in Rocky's flat markdown registry.");
-			expect(skill?.filePath).toBe(path.join(rockyDir, "rocky-example.md"));
-			expect(skill?.baseDir).toBe(rockyDir);
+			expect(skills.some(item => item.name === "circle-example")).toBe(false);
+			const bootstrap = skills.find(item => item.name === "manage-skill");
+			expect(bootstrap?.source).toBe("amaze:bootstrap");
 		} finally {
-			if (previousRockySkillsDir === undefined) {
-				delete process.env.ROCKY_SKILLS_DIR;
+			if (previousCircleSkillsDir === undefined) {
+				delete process.env.CIRCLE_SKILLS_DIR;
 			} else {
-				process.env.ROCKY_SKILLS_DIR = previousRockySkillsDir;
+				process.env.CIRCLE_SKILLS_DIR = previousCircleSkillsDir;
 			}
-			await fs.rm(rockyDir, { recursive: true, force: true });
+			await fs.rm(circleDir, { recursive: true, force: true });
 		}
 	});
 
-	it("should keep a local Rocky skill-search bootstrap when the Rocky registry is empty", async () => {
-		const rockyDir = await fs.mkdtemp(path.join(os.tmpdir(), "rocky-skills-empty-test-"));
-		const previousRockySkillsDir = process.env.ROCKY_SKILLS_DIR;
-		process.env.ROCKY_SKILLS_DIR = rockyDir;
+	it("should keep a local Circle skill-search bootstrap when the Circle registry is empty", async () => {
+		const circleDir = await fs.mkdtemp(path.join(os.tmpdir(), "circle-skills-empty-test-"));
+		const previousCircleSkillsDir = process.env.CIRCLE_SKILLS_DIR;
+		process.env.CIRCLE_SKILLS_DIR = circleDir;
 		try {
 			const { skills } = await loadSkills({
 				...DISABLE_ALL_BUILTIN_SKILLS,
 				enablePiUser: true,
 			});
-			const skill = skills.find(item => item.name === "rocky-skill-search");
-			expect(skill?.description).toBe("Use Rocky skill_search/skill_get for skill discovery and management.");
+			const skill = skills.find(item => item.name === "manage-skill");
+			expect(skill?.description).toBe("Use Circle skill_search/skill_get for skill discovery and management.");
 			expect(skill?.source).toBe("amaze:bootstrap");
-			expect(await Bun.file(skill!.filePath).text()).toContain("Rocky is the canonical skill registry");
+			expect(await Bun.file(skill!.filePath).text()).toContain("Circle's canonical skill store");
 		} finally {
-			if (previousRockySkillsDir === undefined) {
-				delete process.env.ROCKY_SKILLS_DIR;
+			if (previousCircleSkillsDir === undefined) {
+				delete process.env.CIRCLE_SKILLS_DIR;
 			} else {
-				process.env.ROCKY_SKILLS_DIR = previousRockySkillsDir;
+				process.env.CIRCLE_SKILLS_DIR = previousCircleSkillsDir;
 			}
-			await fs.rm(rockyDir, { recursive: true, force: true });
+			await fs.rm(circleDir, { recursive: true, force: true });
 		}
+	});
+
+	it("searchOnly renders nothing but the manage-skill bootstrap and still skips Circle registry files", async () => {
+		const circleDir = await fs.mkdtemp(path.join(os.tmpdir(), "circle-skills-searchonly-"));
+		const previousCircleSkillsDir = process.env.CIRCLE_SKILLS_DIR;
+		process.env.CIRCLE_SKILLS_DIR = circleDir;
+		try {
+			await fs.writeFile(
+				path.join(circleDir, "circle-example.md"),
+				`---\nname: circle-example\nsummary: Should NOT be preloaded in search-only mode.\n---\n\n# Circle Example\n`,
+			);
+			const { skills } = await loadSkills({
+				// Authored/custom catalog sources are left enabled; searchOnly must override them.
+				enablePiUser: true,
+				customDirectories: [fixturesDir],
+				searchOnly: true,
+			});
+			expect(skills.map(s => s.name)).toEqual(["manage-skill"]);
+			expect(skills.some(s => s.name === "circle-example")).toBe(false);
+		} finally {
+			if (previousCircleSkillsDir === undefined) {
+				delete process.env.CIRCLE_SKILLS_DIR;
+			} else {
+				process.env.CIRCLE_SKILLS_DIR = previousCircleSkillsDir;
+			}
+			await fs.rm(circleDir, { recursive: true, force: true });
+		}
+	});
+
+	it("searchOnly honors ignoredSkills for the bootstrap", async () => {
+		const { skills } = await loadSkills({
+			searchOnly: true,
+			ignoredSkills: ["manage-skill"],
+		});
+		expect(skills).toHaveLength(0);
 	});
 
 	it("should return empty when all sources disabled and no custom dirs", async () => {

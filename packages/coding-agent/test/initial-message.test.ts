@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import type { ImageContent } from "@amaze/pi-ai";
-import type { Args } from "@amaze/pi-coding-agent/cli/args";
-import { buildInitialMessage } from "@amaze/pi-coding-agent/cli/initial-message";
+import type { ImageContent } from "@steve-z8k/pi-ai";
+import type { Args } from "@steve-z8k/pi-coding-agent/cli/args";
+import { buildInitialMessage } from "@steve-z8k/pi-coding-agent/cli/initial-message";
 
 function createArgs(messages: string[]): Args {
 	return {

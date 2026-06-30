@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { TranscriptContainer } from "@amaze/pi-coding-agent/modes/components/transcript-container";
-import type { Component } from "@amaze/pi-tui";
+import { TranscriptContainer } from "@steve-z8k/pi-coding-agent/modes/components/transcript-container";
+import type { Component } from "@steve-z8k/pi-tui";
 
 class MutableLiveBlock implements Component {
 	#lines: string[];

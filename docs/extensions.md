@@ -17,7 +17,7 @@ For discovery paths and filesystem loading rules, see [`extension-loading.md`](.
 An extension is a TS/JS module exporting a default factory:
 
 ```ts
-import type { ExtensionAPI } from "@amaze/pi-coding-agent";
+import type { ExtensionAPI } from "@steve-z8k/pi-coding-agent";
 
 export default function myExtension(pi: ExtensionAPI) {
   // register handlers/tools/commands/renderers
@@ -65,7 +65,7 @@ Important constraint from `loader.ts`:
 ## Quick start
 
 ```ts
-import type { ExtensionAPI } from "@amaze/pi-coding-agent";
+import type { ExtensionAPI } from "@steve-z8k/pi-coding-agent";
 
 export default function (pi: ExtensionAPI) {
   const { z } = pi.zod;
@@ -382,7 +382,7 @@ Used by interactive rendering when custom messages are displayed.
 ## Assistant thinking renderer
 
 ```ts
-import { Container, Text } from "@amaze/pi-tui";
+import { Container, Text } from "@steve-z8k/pi-tui";
 
 pi.registerAssistantThinkingRenderer((context, theme) => {
   const container = new Container();

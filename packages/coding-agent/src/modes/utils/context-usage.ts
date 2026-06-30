@@ -1,9 +1,9 @@
-import { countTokens } from "@amaze/pi-agent-core";
-import type { CompactionSettings } from "@amaze/pi-agent-core/compaction";
-import { effectiveReserveTokens, estimateTokens, resolveThresholdTokens } from "@amaze/pi-agent-core/compaction";
-import type { Tool as AiTool, Model } from "@amaze/pi-ai";
-import { toolWireSchema } from "@amaze/pi-ai/utils/schema";
-import { formatNumber } from "@amaze/pi-utils";
+import { countTokens } from "@steve-z8k/pi-agent-core";
+import type { CompactionSettings } from "@steve-z8k/pi-agent-core/compaction";
+import { effectiveReserveTokens, estimateTokens, resolveThresholdTokens } from "@steve-z8k/pi-agent-core/compaction";
+import type { Tool as AiTool, Model } from "@steve-z8k/pi-ai";
+import { toolWireSchema } from "@steve-z8k/pi-ai/utils/schema";
+import { formatNumber } from "@steve-z8k/pi-utils";
 import type { Skill } from "../../extensibility/skills";
 import type { AgentSession } from "../../session/agent-session";
 import { estimateInlineSavings, type SnapcompactSavingsEstimate } from "../../session/snapcompact-inline";

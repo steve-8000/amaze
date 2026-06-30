@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import * as jj from "@amaze/pi-coding-agent/utils/jj";
+import * as jj from "@steve-z8k/pi-coding-agent/utils/jj";
 
 describe("jj workspace detection", () => {
 	let tmpDir: string | undefined;

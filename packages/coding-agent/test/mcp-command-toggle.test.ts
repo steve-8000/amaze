@@ -2,11 +2,11 @@ import { afterEach, beforeAll, beforeEach, describe, expect, test, vi } from "bu
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { SourceMeta } from "@amaze/pi-coding-agent/capability/types";
-import type { MCPServerConfig } from "@amaze/pi-coding-agent/mcp/types";
-import { MCPCommandController } from "@amaze/pi-coding-agent/modes/controllers/mcp-command-controller";
-import { initTheme } from "@amaze/pi-coding-agent/modes/theme/theme";
-import { getConfigRootDir, getMCPConfigPath, getProjectDir, setAgentDir, setProjectDir } from "@amaze/pi-utils";
+import type { SourceMeta } from "@steve-z8k/pi-coding-agent/capability/types";
+import type { MCPServerConfig } from "@steve-z8k/pi-coding-agent/mcp/types";
+import { MCPCommandController } from "@steve-z8k/pi-coding-agent/modes/controllers/mcp-command-controller";
+import { initTheme } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
+import { getConfigRootDir, getMCPConfigPath, getProjectDir, setAgentDir, setProjectDir } from "@steve-z8k/pi-utils";
 
 const originalProjectDir = getProjectDir();
 const originalAgentDir = process.env.PI_CODING_AGENT_DIR;

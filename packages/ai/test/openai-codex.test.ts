@@ -2,12 +2,12 @@ import { describe, expect, it } from "bun:test";
 import {
 	createOpenAICodexAuthorizationUrl,
 	formatOpenAICodexTokenEndpointError,
-} from "@amaze/pi-ai/oauth/openai-codex";
-import { type RequestBody, transformRequestBody } from "@amaze/pi-ai/providers/openai-codex/request-transformer";
-import { CodexApiError, parseCodexError } from "@amaze/pi-ai/providers/openai-codex/response-handler";
-import { convertOpenAICodexResponsesTools } from "@amaze/pi-ai/providers/openai-codex-responses";
-import type { Tool } from "@amaze/pi-ai/types";
-import { OPENAI_HEADER_VALUES } from "@amaze/pi-catalog/wire/codex";
+} from "@steve-z8k/pi-ai/oauth/openai-codex";
+import { type RequestBody, transformRequestBody } from "@steve-z8k/pi-ai/providers/openai-codex/request-transformer";
+import { CodexApiError, parseCodexError } from "@steve-z8k/pi-ai/providers/openai-codex/response-handler";
+import { convertOpenAICodexResponsesTools } from "@steve-z8k/pi-ai/providers/openai-codex-responses";
+import type { Tool } from "@steve-z8k/pi-ai/types";
+import { OPENAI_HEADER_VALUES } from "@steve-z8k/pi-catalog/wire/codex";
 import { createCodexModel } from "./helpers";
 
 const DEFAULT_PROMPT_PREFIX =

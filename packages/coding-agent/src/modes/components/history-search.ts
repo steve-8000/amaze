@@ -10,7 +10,7 @@ import {
 	Text,
 	truncateToWidth,
 	visibleWidth,
-} from "@amaze/pi-tui";
+} from "@steve-z8k/pi-tui";
 import { theme } from "../../modes/theme/theme";
 import {
 	matchesAppInterrupt,

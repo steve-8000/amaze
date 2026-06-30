@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import type { AgentMessage } from "@amaze/pi-agent-core";
-import { type AsyncJob, AsyncJobManager } from "@amaze/pi-coding-agent/async";
-import type { CustomMessage } from "@amaze/pi-coding-agent/session/messages";
-import { TurnScheduler } from "@amaze/pi-coding-agent/session/turn-scheduler";
-import { YieldQueue } from "@amaze/pi-coding-agent/session/yield-queue";
-import type { ToolSession } from "@amaze/pi-coding-agent/tools";
-import { JobTool } from "@amaze/pi-coding-agent/tools/job";
+import type { AgentMessage } from "@steve-z8k/pi-agent-core";
+import { type AsyncJob, AsyncJobManager } from "@steve-z8k/pi-coding-agent/async";
+import type { CustomMessage } from "@steve-z8k/pi-coding-agent/session/messages";
+import { TurnScheduler } from "@steve-z8k/pi-coding-agent/session/turn-scheduler";
+import { YieldQueue } from "@steve-z8k/pi-coding-agent/session/yield-queue";
+import type { ToolSession } from "@steve-z8k/pi-coding-agent/tools";
+import { JobTool } from "@steve-z8k/pi-coding-agent/tools/job";
 
 type AsyncEntry = {
 	jobId: string;

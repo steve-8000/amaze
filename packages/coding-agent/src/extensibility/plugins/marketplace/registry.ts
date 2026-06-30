@@ -15,7 +15,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
-import { getConfigRootDir, getPluginsDir, isEnoent, logger, tryParseJson } from "@amaze/pi-utils";
+import { getConfigRootDir, getPluginsDir, isEnoent, logger, tryParseJson } from "@steve-z8k/pi-utils";
 
 import type {
 	InstalledPluginEntry,

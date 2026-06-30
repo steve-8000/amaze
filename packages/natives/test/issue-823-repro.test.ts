@@ -1,5 +1,5 @@
 /**
- * Regression for https://github.com/can1357/amaze-agent/issues/823.
+ * Regression for https://github.com/steve-8000/amaze/issues/823.
  *
  * On WSL (and any host where the user moves the standalone binary away from the
  * build-time native artifacts), the compiled `amaze` binary fails to load
@@ -139,8 +139,8 @@ describe("issue 823: standalone-binary native loader path resolution", () => {
 	});
 
 	it("prefers platform leaf package candidates ahead of core nativeDir candidates on npm installs", () => {
-		const leafPackageDir = "/app/node_modules/@amaze/pi-natives-linux-x64";
-		const nativeDir = "/app/node_modules/@amaze/pi-natives/native";
+		const leafPackageDir = "/app/node_modules/@steve-z8k/pi-natives-linux-x64";
+		const nativeDir = "/app/node_modules/@steve-z8k/pi-natives/native";
 		const candidates = resolveLoaderCandidates({
 			addonFilenames: getAddonFilenames({ tag: "linux-x64", arch: "x64", variant: "baseline" }),
 			isCompiledBinary: false,
@@ -159,8 +159,8 @@ describe("issue 823: standalone-binary native loader path resolution", () => {
 
 	it("keeps Windows staging ahead of leaf package and core nativeDir candidates", () => {
 		const versionedDir = "/home/u/.amaze/natives/15.5.15";
-		const leafPackageDir = "/app/node_modules/@amaze/pi-natives-win32-x64";
-		const nativeDir = "/app/node_modules/@amaze/pi-natives/native";
+		const leafPackageDir = "/app/node_modules/@steve-z8k/pi-natives-win32-x64";
+		const nativeDir = "/app/node_modules/@steve-z8k/pi-natives/native";
 		const candidates = resolveLoaderCandidates({
 			addonFilenames: getAddonFilenames({ tag: "win32-x64", arch: "x64", variant: "baseline" }),
 			isCompiledBinary: false,

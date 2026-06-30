@@ -5,18 +5,18 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { AgentMessage } from "@amaze/pi-agent-core";
-import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
-import { discoverAndLoadExtensions } from "@amaze/pi-coding-agent/extensibility/extensions/loader";
+import type { AgentMessage } from "@steve-z8k/pi-agent-core";
+import { ModelRegistry } from "@steve-z8k/pi-coding-agent/config/model-registry";
+import { discoverAndLoadExtensions } from "@steve-z8k/pi-coding-agent/extensibility/extensions/loader";
 import {
 	EXTENSION_HANDLER_TIMEOUT_MS,
 	ExtensionRunner,
 	testSetExtensionHandlerTimeoutMs,
-} from "@amaze/pi-coding-agent/extensibility/extensions/runner";
-import { ExtensionToolWrapper } from "@amaze/pi-coding-agent/extensibility/extensions/wrapper";
-import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import { getProjectAgentDir, logger, TempDir } from "@amaze/pi-utils";
+} from "@steve-z8k/pi-coding-agent/extensibility/extensions/runner";
+import { ExtensionToolWrapper } from "@steve-z8k/pi-coding-agent/extensibility/extensions/wrapper";
+import { AuthStorage } from "@steve-z8k/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import { getProjectAgentDir, logger, TempDir } from "@steve-z8k/pi-utils";
 
 describe("ExtensionRunner", () => {
 	let tempDir: TempDir;
@@ -643,7 +643,7 @@ describe("ExtensionRunner", () => {
 				content: [{ type: "text", text: "main session finished" }],
 				api: "anthropic-messages",
 				provider: "anthropic",
-				model: "claude-sonnet-4-5",
+				model: "claude-sonnet-4-6",
 				usage: {
 					input: 0,
 					output: 0,
@@ -707,7 +707,7 @@ describe("ExtensionRunner", () => {
 				content: [{ type: "text", text: "main session finished" }],
 				api: "anthropic-messages",
 				provider: "anthropic",
-				model: "claude-sonnet-4-5",
+				model: "claude-sonnet-4-6",
 				usage: {
 					input: 0,
 					output: 0,

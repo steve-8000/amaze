@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { buildParams, convertTools } from "@amaze/pi-ai/providers/openai-responses";
-import type { Context, Model, ModelSpec, Tool } from "@amaze/pi-ai/types";
-import { findStrictToolSchemaViolation } from "@amaze/pi-ai/utils/schema";
-import { buildModel } from "@amaze/pi-catalog/build";
+import { buildParams, convertTools } from "@steve-z8k/pi-ai/providers/openai-responses";
+import type { Context, Model, ModelSpec, Tool } from "@steve-z8k/pi-ai/types";
+import { findStrictToolSchemaViolation } from "@steve-z8k/pi-ai/utils/schema";
+import { buildModel } from "@steve-z8k/pi-catalog/build";
 import { type } from "arktype";
 
 function makeModel(): Model<"openai-responses"> {

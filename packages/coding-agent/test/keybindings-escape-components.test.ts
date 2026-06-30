@@ -1,13 +1,13 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import { getBundledModel } from "@amaze/pi-catalog/models";
-import { KeybindingsManager } from "@amaze/pi-coding-agent/config/keybindings";
-import type { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import { ModelSelectorComponent } from "@amaze/pi-coding-agent/modes/components/model-selector";
-import { SessionSelectorComponent } from "@amaze/pi-coding-agent/modes/components/session-selector";
-import { initTheme } from "@amaze/pi-coding-agent/modes/theme/theme";
-import type { SessionInfo } from "@amaze/pi-coding-agent/session/session-listing";
-import { setKeybindings, type TUI } from "@amaze/pi-tui";
+import { getBundledModel } from "@steve-z8k/pi-catalog/models";
+import { KeybindingsManager } from "@steve-z8k/pi-coding-agent/config/keybindings";
+import type { ModelRegistry } from "@steve-z8k/pi-coding-agent/config/model-registry";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { ModelSelectorComponent } from "@steve-z8k/pi-coding-agent/modes/components/model-selector";
+import { SessionSelectorComponent } from "@steve-z8k/pi-coding-agent/modes/components/session-selector";
+import { initTheme } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
+import type { SessionInfo } from "@steve-z8k/pi-coding-agent/session/session-listing";
+import { setKeybindings, type TUI } from "@steve-z8k/pi-tui";
 
 beforeAll(() => {
 	initTheme();
@@ -65,9 +65,9 @@ describe("component escape bindings", () => {
 		});
 		setKeybindings(keybindings);
 
-		const model = getBundledModel("anthropic", "claude-sonnet-4-5");
+		const model = getBundledModel("anthropic", "claude-sonnet-4-6");
 		if (!model) {
-			throw new Error("Expected bundled model anthropic/claude-sonnet-4-5");
+			throw new Error("Expected bundled model anthropic/claude-sonnet-4-6");
 		}
 
 		const settings = Settings.isolated({

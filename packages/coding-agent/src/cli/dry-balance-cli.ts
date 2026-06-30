@@ -10,11 +10,11 @@ import type {
 	OAuthAccess,
 	OAuthAccessResolution,
 	SimpleStreamOptions,
-} from "@amaze/pi-ai";
-import { streamSimple } from "@amaze/pi-ai";
-import type { CanonicalModelVariant } from "@amaze/pi-catalog/identity";
-import { replaceTabs, truncateToWidth } from "@amaze/pi-tui";
-import { formatDuration, getProjectDir } from "@amaze/pi-utils";
+} from "@steve-z8k/pi-ai";
+import { streamSimple } from "@steve-z8k/pi-ai";
+import type { CanonicalModelVariant } from "@steve-z8k/pi-catalog/identity";
+import { replaceTabs, truncateToWidth } from "@steve-z8k/pi-tui";
+import { formatDuration, getProjectDir } from "@steve-z8k/pi-utils";
 import chalk from "chalk";
 import { type CanonicalModelQueryOptions, ModelRegistry } from "../config/model-registry";
 import {
@@ -563,7 +563,7 @@ async function resolveDryBalanceModel(
 		);
 	}
 
-	const defaultRoleSpec = resolveModelRoleValue(settings?.getModelRole("default"), allowedModels, {
+	const defaultRoleSpec = resolveModelRoleValue(settings?.getModelRole("flash"), allowedModels, {
 		settings,
 		matchPreferences: preferences,
 		modelRegistry,

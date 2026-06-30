@@ -1,8 +1,7 @@
-import type { AgentMessage } from "@amaze/pi-agent-core";
-import type { AssistantMessage, ImageContent, Message, Usage } from "@amaze/pi-ai";
-import { type Component, Spacer, Text, TruncatedText } from "@amaze/pi-tui";
+import type { AgentMessage } from "@steve-z8k/pi-agent-core";
+import type { AssistantMessage, ImageContent, Message, Usage } from "@steve-z8k/pi-ai";
+import { type Component, Spacer, Text, TruncatedText } from "@steve-z8k/pi-tui";
 import type { AdvisorMessageDetails } from "../../advisor";
-import { COLLAB_PROMPT_MESSAGE_TYPE, type CollabPromptDetails } from "../../collab/protocol";
 import { settings } from "../../config/settings";
 import { getFileSnapshotStore } from "../../edit/file-snapshot-store";
 import { createAdvisorMessageCard } from "../../modes/components/advisor-message";
@@ -10,7 +9,6 @@ import { AssistantMessageComponent } from "../../modes/components/assistant-mess
 import { createBackgroundTanDispatchBlock } from "../../modes/components/background-tan-message";
 import { BashExecutionComponent } from "../../modes/components/bash-execution";
 import { detectCacheInvalidation } from "../../modes/components/cache-invalidation-marker";
-import { CollabPromptMessageComponent } from "../../modes/components/collab-prompt-message";
 import {
 	BranchSummaryMessageComponent,
 	CompactionSummaryMessageComponent,
@@ -144,12 +142,14 @@ export class UiHelpers {
 								type?: "bash" | "task";
 								status?: "running" | "completed" | "failed" | "cancelled";
 								label?: string;
+								agentName?: string;
 								durationMs?: number;
 								jobs?: Array<{
 									jobId?: string;
 									type?: "bash" | "task";
 									status?: "running" | "completed" | "failed" | "cancelled";
 									label?: string;
+									agentName?: string;
 									durationMs?: number;
 								}>;
 							}>
@@ -163,6 +163,7 @@ export class UiHelpers {
 											type: details?.type,
 											status: details?.status,
 											label: details?.label,
+											agentName: details?.agentName,
 											durationMs: details?.durationMs,
 										},
 									];
@@ -171,7 +172,12 @@ export class UiHelpers {
 						const block = new TranscriptBlock();
 						for (const job of visibleJobs) {
 							const jobId = job.jobId ?? "unknown";
-							const typeLabel = job.type ? `[${job.type}]` : "[job]";
+							const typeLabel =
+								job.type === "task" && job.agentName
+									? `[${job.type}:${job.agentName}]`
+									: job.type
+										? `[${job.type}]`
+										: "[job]";
 							const duration = typeof job.durationMs === "number" ? formatDuration(job.durationMs) : undefined;
 							const line = [
 								theme.fg("success", `${theme.status.done} Background job completed`),
@@ -184,11 +190,6 @@ export class UiHelpers {
 							block.addChild(new Text(line, 1, 0));
 						}
 						this.ctx.chatContainer.addChild(block);
-						break;
-					}
-					if (message.customType === COLLAB_PROMPT_MESSAGE_TYPE) {
-						const component = new CollabPromptMessageComponent(message as CustomMessage<CollabPromptDetails>);
-						this.ctx.chatContainer.addChild(component);
 						break;
 					}
 					if (message.customType === SKILL_PROMPT_MESSAGE_TYPE) {

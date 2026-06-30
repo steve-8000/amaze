@@ -1,4 +1,4 @@
-import { getProjectDir, logger } from "@amaze/pi-utils";
+import { getProjectDir, logger } from "@steve-z8k/pi-utils";
 import {
 	type AutocompleteProvider,
 	type CombinedAutocompleteProvider,

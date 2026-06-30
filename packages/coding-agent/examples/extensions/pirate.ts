@@ -9,7 +9,7 @@
  * 2. Use /pirate to toggle pirate mode
  * 3. When enabled, the agent will respond like a pirate
  */
-import type { ExtensionAPI } from "@amaze/pi-coding-agent";
+import type { ExtensionAPI } from "@steve-z8k/pi-coding-agent";
 
 export default function pirateExtension(pi: ExtensionAPI) {
 	let pirateMode = false;

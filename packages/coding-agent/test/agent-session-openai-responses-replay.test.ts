@@ -9,17 +9,17 @@ import type {
 	ProviderSessionState,
 	ToolResultMessage,
 	Usage,
-} from "@amaze/pi-ai/types";
-import { createOpenAIResponsesHistoryPayload } from "@amaze/pi-ai/utils";
-import { getBundledModel } from "@amaze/pi-catalog/models";
-import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import { createAgentSession } from "@amaze/pi-coding-agent/sdk";
-import type { AgentSession } from "@amaze/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
-import type { SessionEntry, SessionMessageEntry } from "@amaze/pi-coding-agent/session/session-entries";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import { Snowflake } from "@amaze/pi-utils";
+} from "@steve-z8k/pi-ai/types";
+import { createOpenAIResponsesHistoryPayload } from "@steve-z8k/pi-ai/utils";
+import { getBundledModel } from "@steve-z8k/pi-catalog/models";
+import { ModelRegistry } from "@steve-z8k/pi-coding-agent/config/model-registry";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { createAgentSession } from "@steve-z8k/pi-coding-agent/sdk";
+import type { AgentSession } from "@steve-z8k/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@steve-z8k/pi-coding-agent/session/auth-storage";
+import type { SessionEntry, SessionMessageEntry } from "@steve-z8k/pi-coding-agent/session/session-entries";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import { Snowflake } from "@steve-z8k/pi-utils";
 
 function createUsage(): Usage {
 	return {
@@ -56,7 +56,7 @@ function createStaleAssistantMessage(
 	text: string,
 	options: { api?: AssistantMessage["api"]; provider?: string; model?: string } = {},
 ): AssistantMessage {
-	const { api = "openai-responses", provider = "openai", model = "gpt-5-mini" } = options;
+	const { api = "openai-responses", provider = "openai", model = "gpt-5.4-mini" } = options;
 	return {
 		role: "assistant",
 		content: [
@@ -223,7 +223,7 @@ async function createSessionHarness(
 	sessionManager: SessionManager,
 	options: { provider?: Parameters<typeof getBundledModel>[0]; modelId?: string } = {},
 ): Promise<{ session: AgentSession }> {
-	const { provider = "openai", modelId = "gpt-5-mini" } = options;
+	const { provider = "openai", modelId = "gpt-5.4-mini" } = options;
 	const model = getBundledModel(provider, modelId);
 	if (!model) {
 		throw new Error(`Expected bundled test model ${provider}/${modelId}`);
@@ -340,7 +340,7 @@ describe("AgentSession OpenAI Responses replay boundaries", () => {
 			appendStaleAssistantTurn(sessionManager, assistantText, {
 				api: "openai-codex-responses",
 				provider: "openai-codex",
-				model: "gpt-5.2-codex",
+				model: "gpt-5.3-codex",
 			});
 		});
 
@@ -391,12 +391,12 @@ describe("AgentSession OpenAI Responses replay boundaries", () => {
 		const assistantText = "Reloaded assistant response";
 
 		const { sessionFile } = await createPersistedSession(tempDir, sessionManager => {
-			sessionManager.appendModelChange("openai-codex/gpt-5.2-codex");
+			sessionManager.appendModelChange("openai-codex/gpt-5.3-codex");
 			sessionManager.appendMessage({ role: "user", content: "Reload summary", timestamp: Date.now() - 2 });
 			appendStaleAssistantTurn(sessionManager, assistantText, {
 				api: "openai-codex-responses",
 				provider: "openai-codex",
-				model: "gpt-5.2-codex",
+				model: "gpt-5.3-codex",
 			});
 			sessionManager.appendMessage({ role: "user", content: "Reload follow-up", timestamp: Date.now() - 1 });
 		});
@@ -404,7 +404,7 @@ describe("AgentSession OpenAI Responses replay boundaries", () => {
 		const reloadedSessionManager = await SessionManager.open(sessionFile, tempDir);
 		const { session } = await createSessionHarness(tempDir, reloadedSessionManager, {
 			provider: "openai-codex",
-			modelId: "gpt-5.2-codex",
+			modelId: "gpt-5.3-codex",
 		});
 		sessions.push(session);
 
@@ -430,18 +430,18 @@ describe("AgentSession OpenAI Responses replay boundaries", () => {
 		const assistantText = "Reloaded metadata-only response";
 
 		const { sessionFile } = await createPersistedSession(tempDir, sessionManager => {
-			sessionManager.appendModelChange("openai-codex/gpt-5.2-codex");
+			sessionManager.appendModelChange("openai-codex/gpt-5.3-codex");
 			appendStaleAssistantTurn(sessionManager, assistantText, {
 				api: "openai-codex-responses",
 				provider: "openai-codex",
-				model: "gpt-5.2-codex",
+				model: "gpt-5.3-codex",
 			});
 		});
 
 		const reloadedSessionManager = await SessionManager.open(sessionFile, tempDir);
 		const { session } = await createSessionHarness(tempDir, reloadedSessionManager, {
 			provider: "openai-codex",
-			modelId: "gpt-5.2-codex",
+			modelId: "gpt-5.3-codex",
 		});
 		sessions.push(session);
 
@@ -466,7 +466,7 @@ describe("AgentSession OpenAI Responses replay boundaries", () => {
 		expect(closeSpy).not.toHaveBeenCalled();
 		expect(session.providerSessionState.size).toBe(1);
 		expect(session.model?.provider).toBe("openai-codex");
-		expect(session.model?.id).toBe("gpt-5.2-codex");
+		expect(session.model?.id).toBe("gpt-5.3-codex");
 		expectAssistantReplayMetadataSanitized(findRuntimeAssistant(session, assistantText));
 	});
 
@@ -521,18 +521,18 @@ describe("AgentSession OpenAI Responses replay boundaries", () => {
 		const assistantText = "Reloaded content change response";
 
 		const { sessionFile } = await createPersistedSession(tempDir, sessionManager => {
-			sessionManager.appendModelChange("openai-codex/gpt-5.2-codex");
+			sessionManager.appendModelChange("openai-codex/gpt-5.3-codex");
 			appendStaleAssistantTurn(sessionManager, assistantText, {
 				api: "openai-codex-responses",
 				provider: "openai-codex",
-				model: "gpt-5.2-codex",
+				model: "gpt-5.3-codex",
 			});
 		});
 
 		const reloadedSessionManager = await SessionManager.open(sessionFile, tempDir);
 		const { session } = await createSessionHarness(tempDir, reloadedSessionManager, {
 			provider: "openai-codex",
-			modelId: "gpt-5.2-codex",
+			modelId: "gpt-5.3-codex",
 		});
 		sessions.push(session);
 
@@ -553,7 +553,7 @@ describe("AgentSession OpenAI Responses replay boundaries", () => {
 		expect(closeSpy).toHaveBeenCalledTimes(1);
 		expect(session.providerSessionState.size).toBe(0);
 		expect(session.model?.provider).toBe("openai-codex");
-		expect(session.model?.id).toBe("gpt-5.2-codex");
+		expect(session.model?.id).toBe("gpt-5.3-codex");
 		expect(
 			session.messages.some(
 				message => message.role === "user" && getTextContent(message) === "Externally appended follow-up",
@@ -567,18 +567,18 @@ describe("AgentSession OpenAI Responses replay boundaries", () => {
 		const assistantText = "Reloaded model change response";
 
 		const { sessionFile } = await createPersistedSession(tempDir, sessionManager => {
-			sessionManager.appendModelChange("openai-codex/gpt-5.2-codex");
+			sessionManager.appendModelChange("openai-codex/gpt-5.3-codex");
 			appendStaleAssistantTurn(sessionManager, assistantText, {
 				api: "openai-codex-responses",
 				provider: "openai-codex",
-				model: "gpt-5.2-codex",
+				model: "gpt-5.3-codex",
 			});
 		});
 
 		const reloadedSessionManager = await SessionManager.open(sessionFile, tempDir);
 		const { session } = await createSessionHarness(tempDir, reloadedSessionManager, {
 			provider: "openai-codex",
-			modelId: "gpt-5.2-codex",
+			modelId: "gpt-5.3-codex",
 		});
 		sessions.push(session);
 
@@ -586,15 +586,15 @@ describe("AgentSession OpenAI Responses replay boundaries", () => {
 		session.providerSessionState.set("openai-codex-responses", { close: closeSpy } satisfies ProviderSessionState);
 
 		const mutatedSessionManager = await SessionManager.open(sessionFile, tempDir);
-		mutatedSessionManager.appendModelChange("openai/gpt-5-mini");
+		mutatedSessionManager.appendModelChange("openai/gpt-5.4-mini");
 		await mutatedSessionManager.flush();
-		expect(mutatedSessionManager.buildSessionContext().models.default).toBe("openai/gpt-5-mini");
+		expect(mutatedSessionManager.buildSessionContext().models.flash).toBe("openai/gpt-5.4-mini");
 		await mutatedSessionManager.close();
 
 		await session.reload();
 
 		expect(session.model?.provider).toBe("openai");
-		expect(session.model?.id).toBe("gpt-5-mini");
+		expect(session.model?.id).toBe("gpt-5.4-mini");
 		expect(closeSpy).toHaveBeenCalledTimes(1);
 		expect(session.providerSessionState.size).toBe(0);
 		expectAssistantReplayMetadataSanitized(findRuntimeAssistant(session, assistantText));
@@ -606,7 +606,7 @@ describe("AgentSession OpenAI Responses replay boundaries", () => {
 		const assistantText = "Reloaded openai responses model change";
 
 		const { sessionFile } = await createPersistedSession(tempDir, sessionManager => {
-			sessionManager.appendModelChange("openai/gpt-5-mini");
+			sessionManager.appendModelChange("openai/gpt-5.4-mini");
 			appendStaleAssistantTurn(sessionManager, assistantText);
 		});
 
@@ -618,15 +618,15 @@ describe("AgentSession OpenAI Responses replay boundaries", () => {
 		session.providerSessionState.set("openai-responses:openai", { close: closeSpy } satisfies ProviderSessionState);
 
 		const mutatedSessionManager = await SessionManager.open(sessionFile, tempDir);
-		mutatedSessionManager.appendModelChange("openai/gpt-5.4-mini");
+		mutatedSessionManager.appendModelChange("openai/gpt-5.4");
 		await mutatedSessionManager.flush();
-		expect(mutatedSessionManager.buildSessionContext().models.default).toBe("openai/gpt-5.4-mini");
+		expect(mutatedSessionManager.buildSessionContext().models.flash).toBe("openai/gpt-5.4");
 		await mutatedSessionManager.close();
 
 		await session.reload();
 
 		expect(session.model?.provider).toBe("openai");
-		expect(session.model?.id).toBe("gpt-5.4-mini");
+		expect(session.model?.id).toBe("gpt-5.4");
 		expect(closeSpy).toHaveBeenCalledTimes(1);
 		expect(session.providerSessionState.size).toBe(0);
 		expectAssistantReplayMetadataSanitized(findRuntimeAssistant(session, assistantText));
@@ -716,7 +716,7 @@ describe("AgentSession OpenAI Responses replay boundaries", () => {
 				content: [{ type: "text", text: "Main branch" }],
 				api: "openai-responses",
 				provider: "openai",
-				model: "gpt-5-mini",
+				model: "gpt-5.4-mini",
 				usage: createUsage(),
 				stopReason: "stop",
 				timestamp: Date.now() - 4,

@@ -1,5 +1,5 @@
-import type { SnapshotStore } from "@amaze/hashline";
-import type { AgentTool } from "@amaze/pi-agent-core";
+import type { SnapshotStore } from "@steve-z8k/hashline";
+import type { AgentTool } from "@steve-z8k/pi-agent-core";
 import {
 	Box,
 	type Component,
@@ -13,13 +13,12 @@ import {
 	TERMINAL,
 	Text,
 	type TUI,
-} from "@amaze/pi-tui";
-import { getProjectDir, logger, sanitizeText } from "@amaze/pi-utils";
+} from "@steve-z8k/pi-tui";
+import { getProjectDir, logger, sanitizeText } from "@steve-z8k/pi-utils";
 import { EDIT_MODE_STRATEGIES, type EditMode, type PerFileDiffPreview } from "../../edit";
 import type { Theme } from "../../modes/theme/theme";
 import { getThemeEpoch, theme } from "../../modes/theme/theme";
 import { BASH_DEFAULT_PREVIEW_LINES } from "../../tools/bash";
-import { EVAL_DEFAULT_PREVIEW_LINES } from "../../tools/eval";
 import { isWaitingPollDetails } from "../../tools/job";
 import {
 	formatArgsInline,
@@ -43,6 +42,8 @@ import { TODO_STRIKE_TOTAL_FRAMES } from "../../tools/todo";
 import { isFramedBlockComponent, renderStatusLine, WidthAwareText } from "../../tui";
 import { sanitizeWithOptionalSixelPassthrough } from "../../utils/sixel";
 import { renderDiff } from "./diff";
+
+const EVAL_DEFAULT_PREVIEW_LINES = 12;
 
 /**
  * Drop trailing removal/hunk-header lines that appear in a streaming diff

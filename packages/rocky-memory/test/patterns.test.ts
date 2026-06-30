@@ -4,7 +4,7 @@ import {
 	DetectedPattern,
 	MemoryCompressor,
 	PatternDetector,
-} from "@amaze/pi-rocky-memory/core/patterns";
+} from "@steve-z8k/pi-rocky-memory/core/patterns";
 
 describe("memory compression", () => {
 	it("reports savings and zero-size stats", () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { CustomEntry } from "@amaze/pi-coding-agent/session/session-entries";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
+import type { CustomEntry } from "@steve-z8k/pi-coding-agent/session/session-entries";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
 import { assistantMsg, userMsg } from "../utilities";
 
 describe("SessionManager append and tree traversal", () => {

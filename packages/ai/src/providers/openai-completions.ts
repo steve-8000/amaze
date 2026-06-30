@@ -1,9 +1,9 @@
-import type { Effort } from "@amaze/pi-catalog/effort";
-import { isKimiModelId } from "@amaze/pi-catalog/identity";
-import { resolveWireModelId } from "@amaze/pi-catalog/model-thinking";
-import { calculateCost } from "@amaze/pi-catalog/models";
-import type { ResolvedOpenAICompat } from "@amaze/pi-catalog/types";
-import { $env, extractHttpStatusFromError } from "@amaze/pi-utils";
+import type { Effort } from "@steve-z8k/pi-catalog/effort";
+import { isKimiModelId } from "@steve-z8k/pi-catalog/identity";
+import { resolveWireModelId } from "@steve-z8k/pi-catalog/model-thinking";
+import { calculateCost } from "@steve-z8k/pi-catalog/models";
+import type { ResolvedOpenAICompat } from "@steve-z8k/pi-catalog/types";
+import { $env, extractHttpStatusFromError } from "@steve-z8k/pi-utils";
 import { getKimiCommonHeaders } from "../registry/oauth/kimi";
 import { getEnvApiKey } from "../stream";
 import type {

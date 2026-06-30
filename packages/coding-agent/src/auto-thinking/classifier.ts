@@ -5,7 +5,7 @@
  * {@link Effort}, clamped into the active model's supported range (never below
  * {@link Effort.Low}). Two backends, selected by `providers.autoThinkingModel`:
  *
- * - `online` (default): a smol model classifies into `low|medium|high|xhigh`.
+ * - `online` (default): a flash model classifies into `low|medium|high|xhigh`.
  * - a local key: an on-device memory model classifies into the coarser
  *   `trivial|moderate|hard` scheme (3-class is more reliable than 4-way ordinal
  *   on sub-2B models), mapped to `low|high|xhigh`.
@@ -13,21 +13,14 @@
  * Throws on any failure (no model, no key, unparseable output, abort/timeout);
  * the caller falls back to a concrete level and continues the turn.
  */
-import { type AssistantMessage, completeSimple, Effort, type Model } from "@amaze/pi-ai";
-import { prompt } from "@amaze/pi-utils";
+import { type AssistantMessage, completeSimple, Effort, type Model } from "@steve-z8k/pi-ai";
+import { prompt } from "@steve-z8k/pi-utils";
 
 import type { ModelRegistry } from "../config/model-registry";
 import { resolveRoleSelection } from "../config/model-resolver";
 import type { Settings } from "../config/settings";
 import difficultySystemPrompt from "../prompts/system/auto-thinking-difficulty.md" with { type: "text" };
-import difficultyLocalPrompt from "../prompts/system/auto-thinking-difficulty-local.md" with { type: "text" };
 import { clampAutoThinkingEffort } from "../thinking";
-import {
-	isTinyMemoryLocalModelKey,
-	isTinyMemoryReasoningModelKey,
-	ONLINE_AUTO_THINKING_MODEL_KEY,
-} from "../tiny/models";
-import { tinyModelClient } from "../tiny/title-client";
 
 const DIFFICULTY_SYSTEM_PROMPT = prompt.render(difficultySystemPrompt);
 
@@ -37,12 +30,6 @@ const HEAD_CHARS = 4000;
 const TAIL_CHARS = 2000;
 /** The online answer is a single word; keep budgets tiny for non-reasoning backends. */
 const ANSWER_MAX_TOKENS = 8;
-/** Local classifiers occasionally need more room for chat-template boilerplate. */
-const LOCAL_ANSWER_MAX_TOKENS = 16;
-/**
- * Reasoning backends ignore `disableReasoning` on some providers, so reserve
- * enough output room for the keyword to still land after unavoidable thinking.
- */
 const REASONING_SAFE_MAX_TOKENS = 1024;
 
 export interface ClassifyDifficultyDeps {
@@ -59,20 +46,16 @@ export interface ClassifyDifficultyDeps {
  * @throws when the backend cannot produce a usable classification.
  */
 export async function classifyDifficulty(promptText: string, deps: ClassifyDifficultyDeps): Promise<Effort> {
-	const backend = deps.settings.get("providers.autoThinkingModel");
 	const input = prepareClassifierInput(promptText);
-	const effort =
-		backend === ONLINE_AUTO_THINKING_MODEL_KEY
-			? await classifyOnline(input, deps)
-			: await classifyLocal(input, backend, deps);
+	const effort = await classifyOnline(input, deps);
 	return clampAutoThinkingEffort(deps.model, effort);
 }
 
 async function classifyOnline(input: string, deps: ClassifyDifficultyDeps): Promise<Effort> {
-	const resolved = resolveRoleSelection(["smol"], deps.settings, deps.registry.getAvailable(), deps.registry);
+	const resolved = resolveRoleSelection(["flash"], deps.settings, deps.registry.getAvailable(), deps.registry);
 	const model = resolved?.model;
 	if (!model) {
-		throw new Error("auto-thinking: no smol model available for classification");
+		throw new Error("auto-thinking: no flash model available for classification");
 	}
 	const apiKey = await deps.registry.getApiKey(model, deps.sessionId);
 	if (!apiKey) {
@@ -105,28 +88,6 @@ async function classifyOnline(input: string, deps: ClassifyDifficultyDeps): Prom
 	const effort = parseDifficultyLevel(text);
 	if (!effort) {
 		throw new Error(`auto-thinking: unparseable online classification: ${JSON.stringify(text)}`);
-	}
-	return effort;
-}
-
-async function classifyLocal(input: string, modelKey: string, deps: ClassifyDifficultyDeps): Promise<Effort> {
-	if (!isTinyMemoryLocalModelKey(modelKey)) {
-		throw new Error(`auto-thinking: unsupported local classifier model: ${modelKey}`);
-	}
-	const maxTokens = isTinyMemoryReasoningModelKey(modelKey)
-		? Math.max(LOCAL_ANSWER_MAX_TOKENS, REASONING_SAFE_MAX_TOKENS)
-		: LOCAL_ANSWER_MAX_TOKENS;
-	const builtPrompt = prompt.render(difficultyLocalPrompt, { prompt: input });
-	const text = await tinyModelClient.complete(modelKey, builtPrompt, {
-		maxTokens,
-		signal: deps.signal,
-	});
-	if (!text) {
-		throw new Error("auto-thinking: local classification returned no output");
-	}
-	const effort = parseDifficultyBucket(text);
-	if (!effort) {
-		throw new Error(`auto-thinking: unparseable local classification: ${JSON.stringify(text)}`);
 	}
 	return effort;
 }

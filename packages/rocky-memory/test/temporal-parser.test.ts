@@ -6,7 +6,7 @@ import {
 	MONTH_MAP,
 	NAMED_TIMES,
 	parseNlDate,
-} from "@amaze/pi-rocky-memory/core/temporal-parser";
+} from "@steve-z8k/pi-rocky-memory/core/temporal-parser";
 
 const REF = new Date("2026-05-20T15:30:00Z"); // Wednesday
 

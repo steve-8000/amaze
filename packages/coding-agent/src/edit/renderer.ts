@@ -2,10 +2,10 @@
  * Edit tool renderer and write-through batching helpers.
  */
 
-import { HL_FILE_PREFIX, HL_FILE_SUFFIX } from "@amaze/hashline";
-import type { Component } from "@amaze/pi-tui";
-import { sliceWithWidth, visibleWidth, wrapTextWithAnsi } from "@amaze/pi-tui";
-import { sanitizeText } from "@amaze/pi-utils";
+import { HL_FILE_PREFIX, HL_FILE_SUFFIX } from "@steve-z8k/hashline";
+import type { Component } from "@steve-z8k/pi-tui";
+import { sliceWithWidth, visibleWidth, wrapTextWithAnsi } from "@steve-z8k/pi-tui";
+import { sanitizeText } from "@steve-z8k/pi-utils";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
 import { renderDiff as renderDiffColored } from "../modes/components/diff";
 import { getLanguageFromPath, type Theme } from "../modes/theme/theme";

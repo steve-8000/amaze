@@ -1,9 +1,9 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { GALLERY_STATES, renderGalleryState, resolveFixture } from "@amaze/pi-coding-agent/cli/gallery-cli";
-import type { GalleryFixture } from "@amaze/pi-coding-agent/cli/gallery-fixtures";
-import { resetSettingsForTest, Settings } from "@amaze/pi-coding-agent/config/settings";
-import { initTheme, theme } from "@amaze/pi-coding-agent/modes/theme/theme";
-import { toolRenderers } from "@amaze/pi-coding-agent/tools/renderers";
+import { GALLERY_STATES, renderGalleryState, resolveFixture } from "@steve-z8k/pi-coding-agent/cli/gallery-cli";
+import type { GalleryFixture } from "@steve-z8k/pi-coding-agent/cli/gallery-fixtures";
+import { resetSettingsForTest, Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { initTheme, theme } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
+import { toolRenderers } from "@steve-z8k/pi-coding-agent/tools/renderers";
 
 beforeAll(async () => {
 	resetSettingsForTest();

@@ -2,10 +2,10 @@ import { afterEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { Settings } from "@amaze/pi-coding-agent/config/settings";
-import { AgentDashboard } from "@amaze/pi-coding-agent/modes/components/agent-dashboard";
-import { initTheme } from "@amaze/pi-coding-agent/modes/theme/theme";
-import * as discovery from "@amaze/pi-coding-agent/task/discovery";
+import type { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { AgentDashboard } from "@steve-z8k/pi-coding-agent/modes/components/agent-dashboard";
+import { initTheme } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
+import * as discovery from "@steve-z8k/pi-coding-agent/task/discovery";
 
 const ANSI_PATTERN = /\x1b\[[0-?]*[ -/]*[@-~]/g;
 const tempDirs: string[] = [];

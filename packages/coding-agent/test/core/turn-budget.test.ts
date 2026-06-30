@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { parseTurnBudget } from "@amaze/pi-coding-agent/modes/turn-budget";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
+import { parseTurnBudget } from "@steve-z8k/pi-coding-agent/modes/turn-budget";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
 
 describe("parseTurnBudget", () => {
 	it("parses k/m multipliers, plain counts, and decimals", () => {

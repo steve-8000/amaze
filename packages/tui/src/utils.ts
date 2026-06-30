@@ -6,12 +6,12 @@ import {
 	truncateToWidth as nativeTruncateToWidth,
 	wrapTextWithAnsi as nativeWrapTextWithAnsi,
 	type SliceResult,
-} from "@amaze/pi-natives";
-import { DEFAULT_TAB_WIDTH } from "@amaze/pi-utils";
+} from "@steve-z8k/pi-natives";
+import { DEFAULT_TAB_WIDTH } from "@steve-z8k/pi-utils";
 
-export { Ellipsis } from "@amaze/pi-natives";
+export { Ellipsis } from "@steve-z8k/pi-natives";
 
-export { DEFAULT_TAB_WIDTH } from "@amaze/pi-utils";
+export { DEFAULT_TAB_WIDTH } from "@steve-z8k/pi-utils";
 
 export type TextSizingScale = 1 | 2 | 3;
 export type TextSizingVerticalAlign = "top" | "bottom" | "center";

@@ -1,9 +1,9 @@
 import { afterAll, afterEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import type { Api, AssistantMessage, Model } from "@amaze/pi-ai";
-import * as ai from "@amaze/pi-ai";
-import { Effort } from "@amaze/pi-ai";
-import { TempDir } from "@amaze/pi-utils";
+import type { Api, AssistantMessage, Model } from "@steve-z8k/pi-ai";
+import * as ai from "@steve-z8k/pi-ai";
+import { Effort } from "@steve-z8k/pi-ai";
+import { TempDir } from "@steve-z8k/pi-utils";
 import { $ } from "bun";
 import type { ModelRegistry } from "../../config/model-registry";
 import { Settings } from "../../config/settings";
@@ -32,10 +32,9 @@ function makeModel(provider: string, id: string, extra: Partial<Model<Api>> = {}
 	} as Model<Api>;
 }
 
-const SMOL = makeModel("p", "smol");
-const DEFAULT = makeModel("p", "default");
-const SLOW = makeModel("p", "slow");
-const REASONING_SLOW = makeModel("p", "slow", {
+const FLASH = makeModel("p", "flash");
+const DEEP = makeModel("p", "deep");
+const REASONING_DEEP = makeModel("p", "deep", {
 	api: "anthropic-messages",
 	reasoning: true,
 	thinking: { efforts: [Effort.Low, Effort.Medium, Effort.High], mode: "anthropic-adaptive" },
@@ -45,25 +44,25 @@ interface SessionOptions {
 	available?: Model<Api>[];
 	apiKey?: string | null;
 	activeModel?: string;
-	roles?: Partial<Record<"smol" | "default" | "slow", string>>;
+	roles?: Partial<Record<"flash" | "spark" | "deep" | "ultra", string>>;
 }
 
 function makeSession(opts: SessionOptions = {}): ToolSession {
 	const settings = Settings.isolated({ "async.enabled": false, "task.isolation.mode": "none" });
-	const roles = opts.roles ?? { smol: "p/smol", slow: "p/slow" };
+	const roles = opts.roles ?? { flash: "p/flash", spark: "p/flash", deep: "p/deep", ultra: "p/deep" };
 	for (const role in roles) {
 		const value = roles[role as keyof typeof roles];
 		if (value) settings.setModelRole(role, value);
 	}
 	const modelRegistry = {
-		getAvailable: () => opts.available ?? [SMOL, DEFAULT, SLOW],
+		getAvailable: () => opts.available ?? [FLASH, DEEP],
 		getApiKey: async () => (opts.apiKey === undefined ? "test-key" : opts.apiKey),
 		resolver: () => async () => (opts.apiKey === undefined ? "test-key" : opts.apiKey),
 	} as unknown as ModelRegistry;
 	return {
 		settings,
 		modelRegistry,
-		getActiveModelString: () => opts.activeModel ?? "p/default",
+		getActiveModelString: () => opts.activeModel ?? "p/flash",
 	} as unknown as ToolSession;
 }
 
@@ -83,7 +82,7 @@ function assistant(opts: {
 		content,
 		api: "openai-responses",
 		provider: "p",
-		model: "default",
+		model: "flash",
 		usage: {
 			input: 0,
 			output: 0,
@@ -110,7 +109,7 @@ async function runPythonCompletionInSubprocess(options: {
 	const settingsPath = path.resolve(import.meta.dir, "../../config/settings.ts");
 	const code = options.structured
 		? 'import json\nprint(json.dumps(completion("hi", schema={"type": "object"})))'
-		: 'print(completion("hi", model="smol"))';
+		: 'print(completion("hi", model="flash"))';
 	const responseContent = options.structured
 		? '[{ type: "toolCall", id: "tc-1", name: "respond", arguments: { ok: true } }]'
 		: '[{ type: "text", text: "hello from python" }]';
@@ -122,9 +121,9 @@ import * as ai from ${JSON.stringify(aiPath)};
 import { executePython } from ${JSON.stringify(executorPath)};
 import { Settings } from ${JSON.stringify(settingsPath)};
 
-const SMOL = {
-	id: "smol",
-	name: "smol",
+const FLASH = {
+	id: "flash",
+	name: "flash",
 	api: "openai-responses",
 	provider: "p",
 	baseUrl: "https://example.test/v1",
@@ -135,22 +134,22 @@ const SMOL = {
 	maxTokens: 4096,
 };
 const settings = Settings.isolated({ "async.enabled": false, "task.isolation.mode": "none" });
-settings.setModelRole("smol", "p/smol");
-settings.setModelRole("slow", "p/slow");
+settings.setModelRole("flash", "p/flash");
+settings.setModelRole("deep", "p/deep");
 const session = {
 	settings,
 	modelRegistry: {
-		getAvailable: () => [SMOL],
+		getAvailable: () => [FLASH],
 		getApiKey: async () => "test-key",
 		resolver: () => async () => "test-key",
 	},
-	getActiveModelString: () => "p/smol",
+	getActiveModelString: () => "p/flash",
 };
 vi.spyOn(ai, "completeSimple").mockResolvedValue({
 	role: "assistant",
 	api: "openai-responses",
 	provider: "p",
-	model: "smol",
+	model: "flash",
 	stopReason: "stop",
 	content: ${responseContent},
 });
@@ -178,36 +177,37 @@ describe("runEvalCompletion", () => {
 		vi.restoreAllMocks();
 	});
 
-	it("resolves each tier to its expected model", async () => {
+	it("resolves each tier to its expected model role alias", async () => {
 		const spy = vi.spyOn(ai, "completeSimple").mockResolvedValue(assistant({ text: "ok" }));
 		const session = makeSession();
 
-		await runEvalCompletion({ prompt: "q", model: "smol" }, { session });
-		await runEvalCompletion({ prompt: "q", model: "default" }, { session });
-		await runEvalCompletion({ prompt: "q", model: "slow" }, { session });
+		await runEvalCompletion({ prompt: "q", model: "flash" }, { session });
+		await runEvalCompletion({ prompt: "q", model: "spark" }, { session });
+		await runEvalCompletion({ prompt: "q", model: "deep" }, { session });
+		await runEvalCompletion({ prompt: "q", model: "ultra" }, { session });
 
 		const resolved = spy.mock.calls.map(call => {
 			const model = call[0] as Model<Api>;
 			return `${model.provider}/${model.id}`;
 		});
-		expect(resolved).toEqual(["p/smol", "p/default", "p/slow"]);
+		expect(resolved).toEqual(["p/flash", "p/flash", "p/deep", "p/deep"]);
 	});
 
-	it("prefers the session active model for the default tier, falling back to pi/default", async () => {
+	it("prefers the session active model for the flash lane, falling back to pi/flash", async () => {
 		const spy = vi.spyOn(ai, "completeSimple").mockResolvedValue(assistant({ text: "ok" }));
-		const session = makeSession({ available: [SMOL, DEFAULT, SLOW], activeModel: "p/slow" });
+		const session = makeSession({ available: [FLASH, DEEP], activeModel: "p/deep" });
 
-		await runEvalCompletion({ prompt: "q", model: "default" }, { session });
+		await runEvalCompletion({ prompt: "q", model: "flash" }, { session });
 
 		const model = spy.mock.calls[0]?.[0] as Model<Api>;
-		expect(`${model.provider}/${model.id}`).toBe("p/slow");
+		expect(`${model.provider}/${model.id}`).toBe("p/deep");
 	});
 
 	it("returns the completion text in plain mode", async () => {
 		vi.spyOn(ai, "completeSimple").mockResolvedValue(assistant({ text: "the answer" }));
-		const result = await runEvalCompletion({ prompt: "q", model: "smol" }, { session: makeSession() });
+		const result = await runEvalCompletion({ prompt: "q", model: "flash" }, { session: makeSession() });
 		expect(result.text).toBe("the answer");
-		expect(result.details).toEqual({ model: "p/smol", tier: "smol", structured: false });
+		expect(result.details).toEqual({ model: "p/flash", tier: "flash", structured: false });
 	});
 
 	it("supplies a non-empty systemPrompt when system is omitted (codex 'Instructions are required' guard)", async () => {
@@ -216,7 +216,7 @@ describe("runEvalCompletion", () => {
 		// "Instructions are required". runEvalCompletion must always carry a non-empty
 		// systemPrompt so `completion("…")` without a `system` argument works.
 		const spy = vi.spyOn(ai, "completeSimple").mockResolvedValue(assistant({ text: "ok" }));
-		await runEvalCompletion({ prompt: "q", model: "smol" }, { session: makeSession() });
+		await runEvalCompletion({ prompt: "q", model: "flash" }, { session: makeSession() });
 		const ctx = spy.mock.calls[0]?.[1] as { systemPrompt?: string[] };
 		expect(ctx.systemPrompt).toBeDefined();
 		expect(ctx.systemPrompt?.length).toBeGreaterThan(0);
@@ -225,7 +225,7 @@ describe("runEvalCompletion", () => {
 
 	it("honors an explicit system prompt instead of overriding it", async () => {
 		const spy = vi.spyOn(ai, "completeSimple").mockResolvedValue(assistant({ text: "ok" }));
-		await runEvalCompletion({ prompt: "q", model: "smol", system: "Be terse." }, { session: makeSession() });
+		await runEvalCompletion({ prompt: "q", model: "flash", system: "Be terse." }, { session: makeSession() });
 		const ctx = spy.mock.calls[0]?.[1] as { systemPrompt?: string[] };
 		expect(ctx.systemPrompt).toEqual(["Be terse."]);
 	});
@@ -235,7 +235,7 @@ describe("runEvalCompletion", () => {
 			.spyOn(ai, "completeSimple")
 			.mockResolvedValue(assistant({ toolCall: { name: "respond", arguments: { answer: 42 } } }));
 		const result = await runEvalCompletion(
-			{ prompt: "q", model: "smol", schema: { type: "object", properties: { answer: { type: "number" } } } },
+			{ prompt: "q", model: "flash", schema: { type: "object", properties: { answer: { type: "number" } } } },
 			{ session: makeSession() },
 		);
 
@@ -251,29 +251,31 @@ describe("runEvalCompletion", () => {
 	it("falls back to JSON embedded in text when the model skips the respond tool", async () => {
 		vi.spyOn(ai, "completeSimple").mockResolvedValue(assistant({ text: 'here: {"answer": 7}' }));
 		const result = await runEvalCompletion(
-			{ prompt: "q", model: "smol", schema: { type: "object" } },
+			{ prompt: "q", model: "flash", schema: { type: "object" } },
 			{ session: makeSession() },
 		);
 		expect(JSON.parse(result.text)).toEqual({ answer: 7 });
 	});
 
-	it("requests reasoning only for the slow tier on a reasoning-capable model", async () => {
+	it("requests reasoning only for the deep and ultra lanes on a reasoning-capable model", async () => {
 		const spy = vi.spyOn(ai, "completeSimple").mockResolvedValue(assistant({ text: "ok" }));
-		const session = makeSession({ available: [SMOL, DEFAULT, REASONING_SLOW] });
+		const session = makeSession({ available: [FLASH, REASONING_DEEP] });
 
-		await runEvalCompletion({ prompt: "q", model: "smol" }, { session });
-		await runEvalCompletion({ prompt: "q", model: "slow" }, { session });
+		await runEvalCompletion({ prompt: "q", model: "flash" }, { session });
+		await runEvalCompletion({ prompt: "q", model: "deep" }, { session });
+		await runEvalCompletion({ prompt: "q", model: "ultra" }, { session });
 
-		const smolOpts = spy.mock.calls[0]?.[2] as { reasoning?: unknown };
-		const slowOpts = spy.mock.calls[1]?.[2] as { reasoning?: unknown };
-		expect(smolOpts.reasoning).toBeUndefined();
-		expect(slowOpts.reasoning).toBe(Effort.High);
+		const flashOpts = spy.mock.calls[0]?.[2] as { reasoning?: unknown };
+		const deepOpts = spy.mock.calls[1]?.[2] as { reasoning?: unknown };
+		const ultraOpts = spy.mock.calls[2]?.[2] as { reasoning?: unknown };
+		expect(flashOpts.reasoning).toBeUndefined();
+		expect(deepOpts.reasoning).toBe(Effort.High);
+		expect(ultraOpts.reasoning).toBe(Effort.High);
 	});
 
-	it("does not request reasoning for the slow tier on a non-reasoning model", async () => {
+	it("does not request reasoning for the deep lane on a non-reasoning model", async () => {
 		const spy = vi.spyOn(ai, "completeSimple").mockResolvedValue(assistant({ text: "ok" }));
-		// SLOW is reasoning:false — must not trip requireSupportedEffort downstream.
-		const result = await runEvalCompletion({ prompt: "q", model: "slow" }, { session: makeSession() });
+		const result = await runEvalCompletion({ prompt: "q", model: "deep" }, { session: makeSession() });
 		expect(result.text).toBe("ok");
 		const opts = spy.mock.calls[0]?.[2] as { reasoning?: unknown };
 		expect(opts.reasoning).toBeUndefined();
@@ -287,35 +289,35 @@ describe("runEvalCompletion", () => {
 	});
 
 	it("throws ToolError when no model resolves for the tier", async () => {
-		const session = makeSession({ available: [DEFAULT], roles: { smol: "missing/model" } });
-		await expect(runEvalCompletion({ prompt: "q", model: "smol" }, { session })).rejects.toBeInstanceOf(ToolError);
+		const session = makeSession({ available: [DEEP], roles: { flash: "missing/model" } });
+		await expect(runEvalCompletion({ prompt: "q", model: "flash" }, { session })).rejects.toBeInstanceOf(ToolError);
 	});
 
 	it("throws ToolError when the resolved model has no API key", async () => {
 		const session = makeSession({ apiKey: null });
-		await expect(runEvalCompletion({ prompt: "q", model: "smol" }, { session })).rejects.toBeInstanceOf(ToolError);
+		await expect(runEvalCompletion({ prompt: "q", model: "flash" }, { session })).rejects.toBeInstanceOf(ToolError);
 	});
 
 	it("maps error and aborted stop reasons to ToolError", async () => {
 		vi.spyOn(ai, "completeSimple").mockResolvedValueOnce(assistant({ stopReason: "error", errorMessage: "boom" }));
-		await expect(runEvalCompletion({ prompt: "q", model: "smol" }, { session: makeSession() })).rejects.toThrow(
+		await expect(runEvalCompletion({ prompt: "q", model: "flash" }, { session: makeSession() })).rejects.toThrow(
 			"boom",
 		);
 
 		vi.spyOn(ai, "completeSimple").mockResolvedValueOnce(assistant({ stopReason: "aborted" }));
 		await expect(
-			runEvalCompletion({ prompt: "q", model: "smol" }, { session: makeSession() }),
+			runEvalCompletion({ prompt: "q", model: "flash" }, { session: makeSession() }),
 		).rejects.toBeInstanceOf(ToolError);
 	});
 
 	it("throws ToolError when plain mode produces no text", async () => {
 		vi.spyOn(ai, "completeSimple").mockResolvedValue(assistant({ text: "" }));
 		await expect(
-			runEvalCompletion({ prompt: "q", model: "smol" }, { session: makeSession() }),
+			runEvalCompletion({ prompt: "q", model: "flash" }, { session: makeSession() }),
 		).rejects.toBeInstanceOf(ToolError);
 	});
 
-	it("pauses the idle watchdog while a slow completion() request is in flight", async () => {
+	it("pauses the idle watchdog while a deep completion() request is in flight", async () => {
 		// A oneshot completion emits no status until it returns; delegated model
 		// time must be invisible to the eval timeout budget.
 		vi.spyOn(ai, "completeSimple").mockImplementation(async () => {
@@ -326,7 +328,7 @@ describe("runEvalCompletion", () => {
 		const ops: string[] = [];
 		using idle = new IdleTimeout(60);
 		const result = await runEvalCompletion(
-			{ prompt: "q", model: "smol" },
+			{ prompt: "q", model: "deep" },
 			{
 				session: makeSession(),
 				signal: idle.signal,
@@ -358,9 +360,9 @@ describe("completion() through eval runtimes", () => {
 		using tempDir = TempDir.createSync("@amaze-eval-completion-js-");
 		const sessionFile = path.join(tempDir.path(), "session.jsonl");
 		const sessionId = `js-completion:${crypto.randomUUID()}`;
-		vi.spyOn(ai, "completeSimple").mockResolvedValue(assistant({ text: "hello from smol" }));
+		vi.spyOn(ai, "completeSimple").mockResolvedValue(assistant({ text: "hello from flash" }));
 
-		const result = await executeJs('return await completion("hi", { model: "smol" });', {
+		const result = await executeJs('return await completion("hi", { model: "flash" });', {
 			cwd: tempDir.path(),
 			sessionId,
 			session: makeSession(),
@@ -368,7 +370,7 @@ describe("completion() through eval runtimes", () => {
 		});
 
 		expect(result.exitCode).toBe(0);
-		expect(result.output.trim()).toBe("hello from smol");
+		expect(result.output.trim()).toBe("hello from flash");
 	});
 
 	it("parses structured completion() output in the JavaScript runtime", async () => {

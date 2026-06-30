@@ -2,10 +2,10 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type ContextFile, contextFileCapability } from "@amaze/pi-coding-agent/capability/context-file";
-import { resetSettingsForTest, Settings } from "@amaze/pi-coding-agent/config/settings";
-import { initializeWithSettings, loadCapability } from "@amaze/pi-coding-agent/discovery";
-import { buildSystemPrompt } from "@amaze/pi-coding-agent/system-prompt";
+import { type ContextFile, contextFileCapability } from "@steve-z8k/pi-coding-agent/capability/context-file";
+import { resetSettingsForTest, Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { initializeWithSettings, loadCapability } from "@steve-z8k/pi-coding-agent/discovery";
+import { buildSystemPrompt } from "@steve-z8k/pi-coding-agent/system-prompt";
 
 describe("disabledCapabilities runtime filtering", () => {
 	let tempDir = "";

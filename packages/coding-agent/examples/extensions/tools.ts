@@ -8,9 +8,9 @@
  * 1. Copy this file to ~/.amaze/agent/extensions/ (legacy: ~/.pi/agent/extensions/) or your project's .amaze/extensions/
  * 2. Use /tools to open the tool selector
  */
-import type { ExtensionAPI, ExtensionContext } from "@amaze/pi-coding-agent";
-import { getSettingsListTheme } from "@amaze/pi-coding-agent";
-import { Container, type SettingItem, SettingsList } from "@amaze/pi-tui";
+import type { ExtensionAPI, ExtensionContext } from "@steve-z8k/pi-coding-agent";
+import { getSettingsListTheme } from "@steve-z8k/pi-coding-agent";
+import { Container, type SettingItem, SettingsList } from "@steve-z8k/pi-tui";
 
 // State persisted to session
 interface ToolsState {

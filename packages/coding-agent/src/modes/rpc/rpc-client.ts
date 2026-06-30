@@ -5,10 +5,10 @@
  */
 
 import { isPromise } from "node:util/types";
-import type { AgentEvent, AgentMessage, AgentToolResult, ThinkingLevel } from "@amaze/pi-agent-core";
-import type { CompactionResult } from "@amaze/pi-agent-core/compaction";
-import type { ImageContent, Model } from "@amaze/pi-ai";
-import { isRecord, ptree, readJsonl } from "@amaze/pi-utils";
+import type { AgentEvent, AgentMessage, AgentToolResult, ThinkingLevel } from "@steve-z8k/pi-agent-core";
+import type { CompactionResult } from "@steve-z8k/pi-agent-core/compaction";
+import type { ImageContent, Model } from "@steve-z8k/pi-ai";
+import { isRecord, ptree, readJsonl } from "@steve-z8k/pi-utils";
 import type { FileSink } from "bun";
 import type { BashResult } from "../../exec/bash-executor";
 import type { AgentSessionEvent, SessionStats } from "../../session/agent-session";
@@ -622,14 +622,6 @@ export class RpcClient {
 	 */
 	async handoff(customInstructions?: string): Promise<RpcHandoffResult | null> {
 		const response = await this.#send({ type: "handoff", customInstructions });
-		return this.#getData(response);
-	}
-
-	/**
-	 * Export session to HTML.
-	 */
-	async exportHtml(outputPath?: string): Promise<{ path: string }> {
-		const response = await this.#send({ type: "export_html", outputPath });
 		return this.#getData(response);
 	}
 

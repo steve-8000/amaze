@@ -43,7 +43,7 @@
 
 ### Fixed
 
-- Fixed the stats dashboard's SQLite init never setting `PRAGMA busy_timeout`, so a concurrent `amaze` startup hitting WAL recovery could crash `initDb()` with `SQLITE_BUSY` instead of waiting through it. The busy handler is now installed before `PRAGMA journal_mode=WAL` ([#2421](https://github.com/can1357/amaze-agent/issues/2421)).
+- Fixed the stats dashboard's SQLite init never setting `PRAGMA busy_timeout`, so a concurrent `amaze` startup hitting WAL recovery could crash `initDb()` with `SQLITE_BUSY` instead of waiting through it. The busy handler is now installed before `PRAGMA journal_mode=WAL` ([#2421](https://github.com/steve-8000/amaze/issues/2421)).
 
 ## [15.11.0] - 2026-06-10
 
@@ -60,14 +60,14 @@
 
 ### Changed
 
-- Bundled-model lookups (`getBundledModel`, `GeneratedProvider`) now import from the new `@amaze/pi-catalog` package instead of the `@amaze/pi-ai` barrel, which no longer re-exports catalog values
+- Bundled-model lookups (`getBundledModel`, `GeneratedProvider`) now import from the new `@steve-z8k/pi-catalog` package instead of the `@steve-z8k/pi-ai` barrel, which no longer re-exports catalog values
 - The session-sync worker re-enters the host CLI entry (`workerHostEntry()` + `__omp_stats_sync_worker` argv selector) when running inside amaze — source, npm bundle, or compiled binary — and keeps loading its own `sync-worker.ts` module directly for standalone `amaze-stats`, bun test, and SDK hosts
 
 ## [15.1.6] - 2026-05-19
 
 ### Fixed
 
-- Fixed `amaze stats` crashing on first session sync in published `amaze-{linux,darwin,windows}-*` binaries with `BuildMessage: ModuleNotFound resolving "./packages/stats/src/sync-worker.ts"`; the release build script now lists the stats sync, browser tab, and JS eval workers as explicit `--compile` entrypoints so Bun emits them into bunfs, matching the dev build script and the AGENTS.md worker spawn contract. ([#1150](https://github.com/can1357/amaze-agent/issues/1150))
+- Fixed `amaze stats` crashing on first session sync in published `amaze-{linux,darwin,windows}-*` binaries with `BuildMessage: ModuleNotFound resolving "./packages/stats/src/sync-worker.ts"`; the release build script now lists the stats sync, browser tab, and JS eval workers as explicit `--compile` entrypoints so Bun emits them into bunfs, matching the dev build script and the AGENTS.md worker spawn contract. ([#1150](https://github.com/steve-8000/amaze/issues/1150))
 
 ## [15.1.0] - 2026-05-15
 
@@ -152,4 +152,4 @@
 
 ### Fixed
 
-- Include subtask session files in usage stats ([#250](https://github.com/can1357/amaze-agent/issues/250))
+- Include subtask session files in usage stats ([#250](https://github.com/steve-8000/amaze/issues/250))

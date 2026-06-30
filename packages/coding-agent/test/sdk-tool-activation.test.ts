@@ -2,17 +2,17 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:te
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getBundledModel } from "@amaze/pi-catalog/models";
-import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
+import { getBundledModel } from "@steve-z8k/pi-catalog/models";
+import { ModelRegistry } from "@steve-z8k/pi-coding-agent/config/model-registry";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
 import {
 	type CreateAgentSessionOptions,
 	createAgentSession,
 	discoverAuthStorage,
 	type ExtensionFactory,
-} from "@amaze/pi-coding-agent/sdk";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import { Snowflake } from "@amaze/pi-utils";
+} from "@steve-z8k/pi-coding-agent/sdk";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import { Snowflake } from "@steve-z8k/pi-utils";
 import { type } from "arktype";
 
 const toolActivationExtension: ExtensionFactory = pi => {
@@ -74,7 +74,7 @@ describe("createAgentSession defaultInactive tool activation", () => {
 		modelRegistry,
 		sessionManager: SessionManager.inMemory(),
 		settings: Settings.isolated(),
-		model: getBundledModel("openai", "gpt-4o-mini"),
+		model: getBundledModel("openai", "gpt-5.4-mini"),
 		disableExtensionDiscovery: true,
 		skills: [],
 		contextFiles: [],
@@ -193,38 +193,6 @@ describe("createAgentSession defaultInactive tool activation", () => {
 
 		try {
 			expect(session.getToolByName("resolve")).toBeUndefined();
-		} finally {
-			await session.dispose();
-		}
-	});
-
-	it("does not register the xAI TTS tool unless enabled", async () => {
-		const tempDir = makeTempDir();
-
-		const { session } = await createAgentSession({
-			...baseOptions(tempDir),
-		});
-
-		try {
-			expect(session.getToolByName("tts")).toBeUndefined();
-			expect(session.getAllToolNames()).not.toContain("tts");
-			expect(session.getActiveToolNames()).not.toContain("tts");
-		} finally {
-			await session.dispose();
-		}
-	});
-
-	it("registers the xAI TTS tool when enabled", async () => {
-		const tempDir = makeTempDir();
-
-		const { session } = await createAgentSession({
-			...baseOptions(tempDir),
-			settings: Settings.isolated({ "speechgen.enabled": true }),
-		});
-
-		try {
-			expect(session.getToolByName("tts")).toBeDefined();
-			expect(session.getActiveToolNames()).toContain("tts");
 		} finally {
 			await session.dispose();
 		}

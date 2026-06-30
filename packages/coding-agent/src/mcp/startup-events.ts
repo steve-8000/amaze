@@ -1,4 +1,4 @@
-import { sanitizeText } from "@amaze/pi-utils";
+import { sanitizeText } from "@steve-z8k/pi-utils";
 import { replaceTabs, shortenPath, TRUNCATE_LENGTHS, truncateToWidth } from "../tools/render-utils";
 
 export const MCP_CONNECTION_STATUS_EVENT_CHANNEL = "mcp:connection-status";

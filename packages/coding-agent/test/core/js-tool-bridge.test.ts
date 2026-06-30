@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "bun:test";
-import type { AgentTool, AgentToolResult } from "@amaze/pi-agent-core";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import { callSessionTool } from "@amaze/pi-coding-agent/eval/js/tool-bridge";
-import type { ToolSession } from "@amaze/pi-coding-agent/tools";
-import { INTENT_FIELD } from "@amaze/pi-wire";
+import type { AgentTool, AgentToolResult } from "@steve-z8k/pi-agent-core";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { callSessionTool } from "@steve-z8k/pi-coding-agent/eval/js/tool-bridge";
+import type { ToolSession } from "@steve-z8k/pi-coding-agent/tools";
+import { INTENT_FIELD } from "@steve-z8k/pi-wire";
 import { type } from "arktype";
 
 function createTool(

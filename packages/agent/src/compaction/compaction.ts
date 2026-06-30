@@ -17,11 +17,11 @@ import {
 	type Tool,
 	type Usage,
 	withAuth,
-} from "@amaze/pi-ai";
-import { preferredDialect } from "@amaze/pi-catalog/identity";
-import { clampThinkingLevelForModel } from "@amaze/pi-catalog/model-thinking";
-import { logger, prompt } from "@amaze/pi-utils";
-import * as snapcompact from "@amaze/snapcompact";
+} from "@steve-z8k/pi-ai";
+import { preferredDialect } from "@steve-z8k/pi-catalog/identity";
+import { clampThinkingLevelForModel } from "@steve-z8k/pi-catalog/model-thinking";
+import { logger, prompt } from "@steve-z8k/pi-utils";
+import * as snapcompact from "@steve-z8k/snapcompact";
 import { type AgentTelemetry, instrumentedCompleteSimple } from "../telemetry";
 import { ThinkingLevel } from "../thinking";
 import { countTokens } from "../tokenizer";

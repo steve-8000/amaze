@@ -1,5 +1,5 @@
-import type { AgentToolUpdateCallback } from "@amaze/pi-agent-core";
-import { sanitizeText } from "@amaze/pi-utils";
+import type { AgentToolUpdateCallback } from "@steve-z8k/pi-agent-core";
+import { sanitizeText } from "@steve-z8k/pi-utils";
 import { formatBytes } from "../tools/render-utils";
 import { sanitizeWithOptionalSixelPassthrough } from "../utils/sixel";
 

@@ -3,7 +3,7 @@ import {
 	type PlaceholderKind,
 	renderPlaceholders,
 	shiftImageMarkers,
-} from "@amaze/pi-coding-agent/modes/image-references";
+} from "@steve-z8k/pi-coding-agent/modes/image-references";
 
 function capture(text: string): {
 	out: string;

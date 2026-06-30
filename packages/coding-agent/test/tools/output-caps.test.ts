@@ -6,7 +6,7 @@
  * bounded-output paths (bash sink/minimizer) see zero behavior change.
  */
 import { describe, expect, it } from "bun:test";
-import { DEFAULT_MAX_BYTES, enforceInlineByteCap } from "@amaze/pi-coding-agent/session/streaming-output";
+import { DEFAULT_MAX_BYTES, enforceInlineByteCap } from "@steve-z8k/pi-coding-agent/session/streaming-output";
 
 const MARKER_PATTERN = /\[…\d+B elided…\]/;
 

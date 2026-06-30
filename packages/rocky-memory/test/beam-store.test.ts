@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { initBeam } from "@amaze/pi-rocky-memory/core/beam/schema";
+import { initBeam } from "@steve-z8k/pi-rocky-memory/core/beam/schema";
 import {
 	exportToDict,
 	forgetWorking,
@@ -15,9 +15,9 @@ import {
 	scratchpadRead,
 	scratchpadWrite,
 	updateWorking,
-} from "@amaze/pi-rocky-memory/core/beam/store";
-import type { BeamEvent, BeamMemoryState } from "@amaze/pi-rocky-memory/core/beam/types";
-import { openDatabase } from "@amaze/pi-rocky-memory/db";
+} from "@steve-z8k/pi-rocky-memory/core/beam/store";
+import type { BeamEvent, BeamMemoryState } from "@steve-z8k/pi-rocky-memory/core/beam/types";
+import { openDatabase } from "@steve-z8k/pi-rocky-memory/db";
 
 const states: BeamMemoryState[] = [];
 

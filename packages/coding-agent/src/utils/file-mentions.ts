@@ -7,10 +7,10 @@
  */
 import * as fs from "node:fs/promises";
 import path from "node:path";
-import { formatHashlineHeader, formatNumberedLines, type SnapshotStore } from "@amaze/hashline";
-import type { AgentMessage } from "@amaze/pi-agent-core";
-import type { ImageContent } from "@amaze/pi-ai";
-import { formatAge, formatBytes, readImageMetadata } from "@amaze/pi-utils";
+import { formatHashlineHeader, formatNumberedLines, type SnapshotStore } from "@steve-z8k/hashline";
+import type { AgentMessage } from "@steve-z8k/pi-agent-core";
+import type { ImageContent } from "@steve-z8k/pi-ai";
+import { formatAge, formatBytes, readImageMetadata } from "@steve-z8k/pi-utils";
 import { canonicalSnapshotKey } from "../edit/file-snapshot-store";
 import { normalizeToLF } from "../edit/normalize";
 import type { FileMentionMessage } from "../session/messages";

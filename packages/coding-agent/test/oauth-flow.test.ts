@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import type { FetchImpl } from "@amaze/pi-ai/types";
-import { MCPOAuthFlow, refreshMCPOAuthToken } from "@amaze/pi-coding-agent/mcp/oauth-flow";
+import type { FetchImpl } from "@steve-z8k/pi-ai/types";
+import { MCPOAuthFlow, refreshMCPOAuthToken } from "@steve-z8k/pi-coding-agent/mcp/oauth-flow";
 
 afterEach(() => {
 	vi.restoreAllMocks();

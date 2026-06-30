@@ -1,6 +1,6 @@
-import type { AgentMessage } from "@amaze/pi-agent-core";
-import { estimateTokens } from "@amaze/pi-agent-core/compaction";
-import { logger } from "@amaze/pi-utils";
+import type { AgentMessage } from "@steve-z8k/pi-agent-core";
+import { estimateTokens } from "@steve-z8k/pi-agent-core/compaction";
+import { logger } from "@steve-z8k/pi-utils";
 import { formatSessionHistoryMarkdown, PRIMARY_CONTEXT_CUSTOM_TYPES } from "../session/session-history-format";
 
 /** Minimal slice of `Agent` the runtime drives — satisfied by pi-agent-core `Agent`. */

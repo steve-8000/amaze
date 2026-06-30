@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { CustomEntry } from "@amaze/pi-coding-agent/session/session-entries";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
+import type { CustomEntry } from "@steve-z8k/pi-coding-agent/session/session-entries";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
 
 describe("SessionManager.saveCustomEntry", () => {
 	it("saves custom entries and includes them in tree traversal", () => {
@@ -22,7 +22,7 @@ describe("SessionManager.saveCustomEntry", () => {
 			content: [{ type: "text", text: "hi" }],
 			api: "openai-responses",
 			provider: "openai",
-			model: "gpt-5-mini",
+			model: "gpt-5.4-mini",
 			usage: {
 				input: 1,
 				output: 1,

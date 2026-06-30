@@ -1,13 +1,13 @@
 import { describe, expect, it } from "bun:test";
-import type { AgentToolContext } from "@amaze/pi-agent-core";
-import { validateToolArguments } from "@amaze/pi-ai/utils/validation";
+import type { AgentToolContext } from "@steve-z8k/pi-agent-core";
+import { validateToolArguments } from "@steve-z8k/pi-ai/utils/validation";
 import {
 	type BashInterceptorRule,
 	DEFAULT_BASH_INTERCEPTOR_RULES,
-} from "@amaze/pi-coding-agent/config/settings-schema";
-import type { ToolSession } from "@amaze/pi-coding-agent/tools";
-import { BashTool, type BashToolInput } from "@amaze/pi-coding-agent/tools/bash";
-import { checkBashInterception } from "@amaze/pi-coding-agent/tools/bash-interceptor";
+} from "@steve-z8k/pi-coding-agent/config/settings-schema";
+import type { ToolSession } from "@steve-z8k/pi-coding-agent/tools";
+import { BashTool, type BashToolInput } from "@steve-z8k/pi-coding-agent/tools/bash";
+import { checkBashInterception } from "@steve-z8k/pi-coding-agent/tools/bash-interceptor";
 
 function createBashTool(rules: BashInterceptorRule[]): BashTool {
 	const session = {

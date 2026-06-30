@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import type { AssistantMessage } from "@amaze/pi-ai";
+import type { AssistantMessage } from "@steve-z8k/pi-ai";
 import {
 	isUnexpectedStopCandidate,
 	parseUnexpectedStopClassification,
-} from "@amaze/pi-coding-agent/session/unexpected-stop-classifier";
+} from "@steve-z8k/pi-coding-agent/session/unexpected-stop-classifier";
 
 function makeAssistantMessage(options: {
 	stopReason: AssistantMessage["stopReason"];

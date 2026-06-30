@@ -1,7 +1,7 @@
-import { ThinkingLevel } from "@amaze/pi-agent-core";
-import type { Model } from "@amaze/pi-ai";
-import { getSupportedEfforts } from "@amaze/pi-catalog/model-thinking";
-import { modelsAreEqual } from "@amaze/pi-catalog/models";
+import { ThinkingLevel } from "@steve-z8k/pi-agent-core";
+import type { Model } from "@steve-z8k/pi-ai";
+import { getSupportedEfforts } from "@steve-z8k/pi-catalog/model-thinking";
+import { modelsAreEqual } from "@steve-z8k/pi-catalog/models";
 import {
 	Container,
 	fuzzyFilter,
@@ -15,8 +15,8 @@ import {
 	Text,
 	type TUI,
 	visibleWidth,
-} from "@amaze/pi-tui";
-import { formatNumber } from "@amaze/pi-utils";
+} from "@steve-z8k/pi-tui";
+import { formatNumber } from "@steve-z8k/pi-utils";
 import type { ModelRegistry } from "../../config/model-registry";
 import { getModelMatchPreferences, resolveModelRoleValue } from "../../config/model-resolver";
 import { getKnownRoleIds, getRoleInfo, MODEL_ROLE_IDS, MODEL_ROLES } from "../../config/model-roles";
@@ -145,7 +145,7 @@ function createProviderTab(providerId: string): ProviderTabState {
 	return { id: providerId, label: formatProviderTabLabel(providerId), providerId };
 }
 const TEMPORARY_MODEL_PICKER_HINT =
-	"Temporary model selection is session-only. Use Alt+M or /model for role models (default/smol/plan/task/slow/custom roles).";
+	"Temporary model selection is session-only. Use Alt+M or /model for role models (flash/deep/ultra/local/spark/custom roles).";
 
 /**
  * Component that renders a model selector with provider tabs and context menu.
@@ -715,7 +715,7 @@ export class ModelSelectorComponent extends Container {
 	}
 
 	#isDefaultRoleActionOverContextLimit(action: MenuRoleAction, model: Model): boolean {
-		return action.role === "default" && this.#isModelOverCurrentContext(model);
+		return action.role === "flash" && this.#isModelOverCurrentContext(model);
 	}
 
 	#formatCurrentContextLimitSuffix(model: Model): string {
@@ -952,7 +952,7 @@ export class ModelSelectorComponent extends Container {
 			const isDisabled = this.#isItemDisabled(item);
 			const disabledSuffix = this.#formatContextLimitSuffix(item.model);
 
-			// Build role badges. Solid badges are configured; outlined badges are auto-selected defaults.
+			// Build role badges. Solid badges are configured; outlined badges are auto-selected lane defaults.
 			const roleBadgeTokens: string[] = [];
 			for (const role of MODEL_ROLE_IDS) {
 				const { tag, color, hidden } = getRoleInfo(role, this.#settings);

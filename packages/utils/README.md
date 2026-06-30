@@ -1,6 +1,6 @@
-# @amaze/pi-utils
+# @steve-z8k/pi-utils
 
-Shared utilities for [amaze-agent](https://github.com/can1357/amaze-agent) packages. Zero ceremony, Bun-first.
+Shared utilities for [amaze-agent](https://github.com/steve-8000/amaze) packages. Zero ceremony, Bun-first.
 
 ## Notable modules
 
@@ -20,17 +20,17 @@ Shared utilities for [amaze-agent](https://github.com/can1357/amaze-agent) packa
 | `peek-file` | Read the first N bytes of a file with pooled buffers |
 | `frontmatter`, `glob`, `mime`, `temp`, `format`, `color`, `snowflake`, `tab-spacing`, `path-tree`, `sanitize-text` | Smaller single-purpose helpers |
 
-Import from the root barrel or per-module subpaths (`@amaze/pi-utils/<module>`).
+Import from the root barrel or per-module subpaths (`@steve-z8k/pi-utils/<module>`).
 
 ## Install
 
 ```sh
-bun add @amaze/pi-utils
+bun add @steve-z8k/pi-utils
 ```
 
 Ships TypeScript source directly (no build step); requires Bun ≥ 1.3.14.
 
 ## References
 
-- [Monorepo README](https://github.com/can1357/amaze-agent#readme)
+- [Monorepo README](https://github.com/steve-8000/amaze#readme)
 - [CHANGELOG](./CHANGELOG.md)

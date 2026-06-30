@@ -2,14 +2,14 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { AuthStorage } from "@amaze/pi-ai";
-import { getBundledModel } from "@amaze/pi-catalog/models";
-import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import { createAgentSession } from "@amaze/pi-coding-agent/sdk";
-import type { AgentSession } from "@amaze/pi-coding-agent/session/agent-session";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import { Snowflake } from "@amaze/pi-utils";
+import { AuthStorage } from "@steve-z8k/pi-ai";
+import { getBundledModel } from "@steve-z8k/pi-catalog/models";
+import { ModelRegistry } from "@steve-z8k/pi-coding-agent/config/model-registry";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { createAgentSession } from "@steve-z8k/pi-coding-agent/sdk";
+import type { AgentSession } from "@steve-z8k/pi-coding-agent/session/agent-session";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import { Snowflake } from "@steve-z8k/pi-utils";
 
 // Guards the auto-learn tool ACTIVATION wiring in createAgentSession: createTools
 // force-includes manage_skill into the built registry for an enabled top-level
@@ -42,7 +42,7 @@ describe("createAgentSession auto-learn tool activation", () => {
 			modelRegistry,
 			sessionManager: SessionManager.inMemory(),
 			settings,
-			model: getBundledModel("openai", "gpt-4o-mini"),
+			model: getBundledModel("openai", "gpt-5.4-mini"),
 			disableExtensionDiscovery: true,
 			toolNames: ["read"],
 		});

@@ -1,6 +1,6 @@
 # Natives Shell, PTY, Process, and Key Internals
 
-This document covers execution/process/terminal primitives in `@amaze/pi-natives`: `shell`, `pty`, `ps`, and `keys`, using the architecture terms from `docs/natives-architecture.md`.
+This document covers execution/process/terminal primitives in `@steve-z8k/pi-natives`: `shell`, `pty`, `ps`, and `keys`, using the architecture terms from `docs/natives-architecture.md`.
 
 ## Implementation files
 

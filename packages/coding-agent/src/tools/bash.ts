@@ -5,10 +5,10 @@ import type {
 	AgentToolResult,
 	AgentToolUpdateCallback,
 	ToolApprovalDecision,
-} from "@amaze/pi-agent-core";
-import type { Component } from "@amaze/pi-tui";
-import { ImageProtocol, TERMINAL } from "@amaze/pi-tui";
-import { getProjectDir, isEnoent, logger, prompt } from "@amaze/pi-utils";
+} from "@steve-z8k/pi-agent-core";
+import type { Component } from "@steve-z8k/pi-tui";
+import { ImageProtocol, TERMINAL } from "@steve-z8k/pi-tui";
+import { getProjectDir, isEnoent, logger, prompt } from "@steve-z8k/pi-utils";
 import { type } from "arktype";
 import { type BashResult, executeBash } from "../exec/bash-executor";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";

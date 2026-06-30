@@ -1,7 +1,7 @@
-import type { ThinkingLevel } from "@amaze/pi-agent-core";
-import type { Api, ApiKey, Model } from "@amaze/pi-ai";
-import { completeSimple } from "@amaze/pi-ai";
-import { prompt } from "@amaze/pi-utils";
+import type { ThinkingLevel } from "@steve-z8k/pi-agent-core";
+import type { Api, ApiKey, Model } from "@steve-z8k/pi-ai";
+import { completeSimple } from "@steve-z8k/pi-ai";
+import { prompt } from "@steve-z8k/pi-utils";
 import analysisSystemPrompt from "../../commit/prompts/analysis-system.md" with { type: "text" };
 import analysisUserPrompt from "../../commit/prompts/analysis-user.md" with { type: "text" };
 import type { ConventionalAnalysis } from "../../commit/types";

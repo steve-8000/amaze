@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { CURSOR_MARKER } from "@amaze/pi-tui/tui";
+import { CURSOR_MARKER } from "@steve-z8k/pi-tui/tui";
 import {
 	compositeExpectedLineAt,
 	cursorInsertionIndex,

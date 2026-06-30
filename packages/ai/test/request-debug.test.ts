@@ -2,12 +2,12 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { clearCustomApis, registerCustomApi } from "@amaze/pi-ai/api-registry";
-import { stream } from "@amaze/pi-ai/stream";
-import type { AssistantMessage, FetchImpl, Model, ModelSpec } from "@amaze/pi-ai/types";
-import { AssistantMessageEventStream } from "@amaze/pi-ai/utils/event-stream";
-import { wrapFetchForRequestDebug } from "@amaze/pi-ai/utils/request-debug";
-import { buildModel } from "@amaze/pi-catalog/build";
+import { clearCustomApis, registerCustomApi } from "@steve-z8k/pi-ai/api-registry";
+import { stream } from "@steve-z8k/pi-ai/stream";
+import type { AssistantMessage, FetchImpl, Model, ModelSpec } from "@steve-z8k/pi-ai/types";
+import { AssistantMessageEventStream } from "@steve-z8k/pi-ai/utils/event-stream";
+import { wrapFetchForRequestDebug } from "@steve-z8k/pi-ai/utils/request-debug";
+import { buildModel } from "@steve-z8k/pi-catalog/build";
 
 const enc = new TextEncoder();
 

@@ -1,17 +1,17 @@
 import { afterEach, describe, expect, it, spyOn } from "bun:test";
-import { Agent, type AgentTool } from "@amaze/pi-agent-core";
-import type { Model } from "@amaze/pi-ai";
-import { buildModel } from "@amaze/pi-catalog/build";
-import { reset as resetCapabilities } from "@amaze/pi-coding-agent/capability";
-import { type SSHHost, sshCapability } from "@amaze/pi-coding-agent/capability/ssh";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import { loadCapability } from "@amaze/pi-coding-agent/discovery";
-import { AgentSession } from "@amaze/pi-coding-agent/session/agent-session";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import { addSSHHost, removeSSHHost, updateSSHHost } from "@amaze/pi-coding-agent/ssh/config-writer";
-import * as connectionManager from "@amaze/pi-coding-agent/ssh/connection-manager";
-import { loadSshTool, type ToolSession } from "@amaze/pi-coding-agent/tools";
-import { getSSHConfigPath, TempDir } from "@amaze/pi-utils";
+import { Agent, type AgentTool } from "@steve-z8k/pi-agent-core";
+import type { Model } from "@steve-z8k/pi-ai";
+import { buildModel } from "@steve-z8k/pi-catalog/build";
+import { reset as resetCapabilities } from "@steve-z8k/pi-coding-agent/capability";
+import { type SSHHost, sshCapability } from "@steve-z8k/pi-coding-agent/capability/ssh";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { loadCapability } from "@steve-z8k/pi-coding-agent/discovery";
+import { AgentSession } from "@steve-z8k/pi-coding-agent/session/agent-session";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import { addSSHHost, removeSSHHost, updateSSHHost } from "@steve-z8k/pi-coding-agent/ssh/config-writer";
+import * as connectionManager from "@steve-z8k/pi-coding-agent/ssh/connection-manager";
+import { loadSshTool, type ToolSession } from "@steve-z8k/pi-coding-agent/tools";
+import { getSSHConfigPath, TempDir } from "@steve-z8k/pi-utils";
 
 function createModel(): Model<"openai-responses"> {
 	return buildModel({

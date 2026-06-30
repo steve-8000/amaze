@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import type { AgentMessage } from "@amaze/pi-agent-core";
+import type { AgentMessage } from "@steve-z8k/pi-agent-core";
 import { TurnScheduler } from "../turn-scheduler";
 
 function autoMessage(content: string): AgentMessage {

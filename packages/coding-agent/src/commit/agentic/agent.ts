@@ -1,8 +1,8 @@
-import type { ThinkingLevel } from "@amaze/pi-agent-core";
-import type { Api, Model } from "@amaze/pi-ai";
-import { Markdown } from "@amaze/pi-tui";
-import { prompt } from "@amaze/pi-utils";
-import { INTENT_FIELD } from "@amaze/pi-wire";
+import type { ThinkingLevel } from "@steve-z8k/pi-agent-core";
+import type { Api, Model } from "@steve-z8k/pi-ai";
+import { Markdown } from "@steve-z8k/pi-tui";
+import { prompt } from "@steve-z8k/pi-utils";
+import { INTENT_FIELD } from "@steve-z8k/pi-wire";
 import chalk from "chalk";
 import typesDescriptionPrompt from "../../commit/prompts/types-description.md" with { type: "text" };
 import type { ModelRegistry } from "../../config/model-registry";
@@ -42,7 +42,7 @@ export async function runCommitAgentSession(input: CommitAgentInput): Promise<Co
 		types_description: typesDescription,
 	});
 	const state: CommitAgentState = { diffText: input.diffText };
-	const spawns = "finder";
+	const spawns = "spark";
 	const tools = createCommitTools({
 		cwd: input.cwd,
 		authStorage: input.authStorage,

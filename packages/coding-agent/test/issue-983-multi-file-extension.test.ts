@@ -2,8 +2,8 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { discoverAndLoadExtensions } from "@amaze/pi-coding-agent/extensibility/extensions/loader";
-import { getAgentDir, setAgentDir } from "@amaze/pi-utils";
+import { discoverAndLoadExtensions } from "@steve-z8k/pi-coding-agent/extensibility/extensions/loader";
+import { getAgentDir, setAgentDir } from "@steve-z8k/pi-utils";
 
 const TOOL_NAME = "legacy-multi-file-tool";
 

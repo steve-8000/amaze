@@ -12,7 +12,7 @@ Hooks are event-driven interceptors that run alongside the agent loop. They are 
 ## Factory signature
 
 ```ts
-import type { HookAPI } from "@amaze/pi-coding-agent/extensibility/hooks";
+import type { HookAPI } from "@steve-z8k/pi-coding-agent/extensibility/hooks";
 
 export default function myHook(amaze: HookAPI): void {
   amaze.on("tool_call", async (event, ctx) => {
@@ -26,7 +26,7 @@ The default export must be a plain function (not async, not a class). It receive
 Alternatively, using `ExtensionAPI` (preferred):
 
 ```ts
-import type { ExtensionAPI } from "@amaze/pi-coding-agent";
+import type { ExtensionAPI } from "@steve-z8k/pi-coding-agent";
 
 export default function myExtension(pi: ExtensionAPI): void {
   pi.on("tool_call", async (event, ctx) => { /* ... */ });
@@ -151,7 +151,7 @@ Contract:
 ### 1. rm-rf blocker
 
 ```ts
-import type { HookAPI } from "@amaze/pi-coding-agent/extensibility/hooks";
+import type { HookAPI } from "@steve-z8k/pi-coding-agent/extensibility/hooks";
 
 export default function rmRfBlocker(amaze: HookAPI): void {
   amaze.on("tool_call", async (event, ctx) => {
@@ -177,7 +177,7 @@ export default function rmRfBlocker(amaze: HookAPI): void {
 ### 2. API-key redactor
 
 ```ts
-import type { HookAPI } from "@amaze/pi-coding-agent/extensibility/hooks";
+import type { HookAPI } from "@steve-z8k/pi-coding-agent/extensibility/hooks";
 
 // Common API-key shapes. Not exhaustive — providers using bespoke formats
 // (Anthropic `sk-ant-…`, JWT-style bearers, gateway-specific prefixes, etc.)
@@ -214,7 +214,7 @@ export default function apiKeyRedactor(amaze: HookAPI): void {
 ### 3. Context filter
 
 ```ts
-import type { HookAPI } from "@amaze/pi-coding-agent/extensibility/hooks";
+import type { HookAPI } from "@steve-z8k/pi-coding-agent/extensibility/hooks";
 
 export default function contextFilter(amaze: HookAPI): void {
   amaze.on("context", async (event) => {

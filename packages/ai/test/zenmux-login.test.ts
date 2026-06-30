@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "bun:test";
-import { loginZenMux } from "@amaze/pi-ai/registry/zenmux";
-import type { FetchImpl } from "@amaze/pi-ai/types";
+import { loginZenMux } from "@steve-z8k/pi-ai/registry/zenmux";
+import type { FetchImpl } from "@steve-z8k/pi-ai/types";
 
 describe("zenmux login", () => {
 	it("opens ZenMux key settings and validates against models endpoint", async () => {

@@ -1,10 +1,10 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import { resetSettingsForTest, Settings } from "@amaze/pi-coding-agent/config/settings";
-import { EventController } from "@amaze/pi-coding-agent/modes/controllers/event-controller";
-import { initTheme } from "@amaze/pi-coding-agent/modes/theme/theme";
-import type { InteractiveModeContext } from "@amaze/pi-coding-agent/modes/types";
-import type { AgentSessionEvent } from "@amaze/pi-coding-agent/session/agent-session";
-import { TERMINAL } from "@amaze/pi-tui";
+import { resetSettingsForTest, Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { EventController } from "@steve-z8k/pi-coding-agent/modes/controllers/event-controller";
+import { initTheme } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
+import type { InteractiveModeContext } from "@steve-z8k/pi-coding-agent/modes/types";
+import type { AgentSessionEvent } from "@steve-z8k/pi-coding-agent/session/agent-session";
+import { TERMINAL } from "@steve-z8k/pi-tui";
 
 /**
  * Models the loader lifecycle InteractiveMode owns: `agent_start` creates the

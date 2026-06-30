@@ -1,4 +1,4 @@
-import { escapeXmlText, prompt, Snowflake } from "@amaze/pi-utils";
+import { escapeXmlText, prompt, Snowflake } from "@steve-z8k/pi-utils";
 import goalBudgetLimitPrompt from "../prompts/goals/goal-budget-limit.md" with { type: "text" };
 import goalContinuationPrompt from "../prompts/goals/goal-continuation.md" with { type: "text" };
 import goalModeActivePrompt from "../prompts/goals/goal-mode-active.md" with { type: "text" };

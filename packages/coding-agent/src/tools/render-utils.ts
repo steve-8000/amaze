@@ -7,19 +7,19 @@
 
 import * as os from "node:os";
 import * as path from "node:path";
-import type { ToolCallContext } from "@amaze/pi-agent-core";
-import type { Ellipsis } from "@amaze/pi-natives";
-import type { Component } from "@amaze/pi-tui";
-import { getKeybindings, replaceTabs, truncateToWidth } from "@amaze/pi-tui";
-import { pluralize } from "@amaze/pi-utils";
+import type { ToolCallContext } from "@steve-z8k/pi-agent-core";
+import type { Ellipsis } from "@steve-z8k/pi-natives";
+import type { Component } from "@steve-z8k/pi-tui";
+import { getKeybindings, replaceTabs, truncateToWidth } from "@steve-z8k/pi-tui";
+import { pluralize } from "@steve-z8k/pi-utils";
 import { formatKeyHints, type KeyId } from "../config/keybindings";
 import { settings } from "../config/settings";
 import type { Theme } from "../modes/theme/theme";
 import { Hasher } from "../tui/utils";
 import { formatDimensionNote, type ResizedImage } from "../utils/image-resize";
 
-export { Ellipsis } from "@amaze/pi-natives";
-export { replaceTabs, truncateToWidth, wrapTextWithAnsi } from "@amaze/pi-tui";
+export { Ellipsis } from "@steve-z8k/pi-natives";
+export { replaceTabs, truncateToWidth, wrapTextWithAnsi } from "@steve-z8k/pi-tui";
 
 // =============================================================================
 // Standardized Display Constants
@@ -119,7 +119,7 @@ export function getDomain(url: string): string {
 // Formatting Utilities
 // =============================================================================
 
-export { formatAge, formatBytes, formatCount, formatDuration, pluralize } from "@amaze/pi-utils";
+export { formatAge, formatBytes, formatCount, formatDuration, pluralize } from "@steve-z8k/pi-utils";
 
 // =============================================================================
 // Theme Helper Utilities

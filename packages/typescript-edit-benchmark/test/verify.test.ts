@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { TempDir } from "@amaze/pi-utils";
-import { verifyExpectedFiles } from "@amaze/typescript-edit-benchmark/verify";
+import { TempDir } from "@steve-z8k/pi-utils";
+import { verifyExpectedFiles } from "@steve-z8k/typescript-edit-benchmark/verify";
 
 async function createTempDirs(): Promise<{
 	root: string;

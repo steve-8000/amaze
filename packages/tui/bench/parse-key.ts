@@ -1,4 +1,4 @@
-import { parseKey as nativeParseKey } from "@amaze/pi-natives";
+import { parseKey as nativeParseKey } from "@steve-z8k/pi-natives";
 import * as native from "../src/keys";
 import * as js from "./_jskey";
 

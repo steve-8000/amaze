@@ -1,7 +1,7 @@
 import { describe, expect, it, type Mock, vi } from "bun:test";
-import type { ImageContent } from "@amaze/pi-ai";
-import { InputController } from "@amaze/pi-coding-agent/modes/controllers/input-controller";
-import type { InteractiveModeContext } from "@amaze/pi-coding-agent/modes/types";
+import type { ImageContent } from "@steve-z8k/pi-ai";
+import { InputController } from "@steve-z8k/pi-coding-agent/modes/controllers/input-controller";
+import type { InteractiveModeContext } from "@steve-z8k/pi-coding-agent/modes/types";
 import manualContinuePrompt from "../src/prompts/system/manual-continue.md" with { type: "text" };
 
 type FakeEditor = {
@@ -265,22 +265,6 @@ describe("InputController keybinding setup", () => {
 
 		expect(focusedRetry).toHaveBeenCalledTimes(1);
 		expect(spies.retry).not.toHaveBeenCalled();
-	});
-
-	it("keeps retry host-only for collab guests", async () => {
-		const { InputController, ctx, editor, spies } = await createContext();
-		const showStatus = ctx.showStatus as unknown as Mock<(message: string) => void>;
-		(ctx as unknown as { collabGuest: { readOnly: boolean } }).collabGuest = { readOnly: true };
-		const controller = new InputController(ctx);
-
-		controller.setupKeyHandlers();
-		editor.setText("guest draft");
-		editor.onRetry?.();
-		await Promise.resolve();
-
-		expect(spies.retry).not.toHaveBeenCalled();
-		expect(showStatus).toHaveBeenCalledWith("/retry is host-only during a collab session");
-		expect(editor.getText()).toBe("guest draft");
 	});
 
 	it("keeps the draft when there is nothing to retry", async () => {

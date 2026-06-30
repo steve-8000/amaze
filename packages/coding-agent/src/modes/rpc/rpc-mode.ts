@@ -10,9 +10,9 @@
  * - Events: AgentSessionEvent objects streamed as they occur
  * - Extension UI: Extension UI requests are emitted, client responds with extension_ui_response
  */
-import { getOAuthProviders } from "@amaze/pi-ai/oauth";
-import { isZodSchema, zodToWireSchema } from "@amaze/pi-ai/utils/schema";
-import { $env, readJsonl, Snowflake } from "@amaze/pi-utils";
+import { getOAuthProviders } from "@steve-z8k/pi-ai/oauth";
+import { isZodSchema, zodToWireSchema } from "@steve-z8k/pi-ai/utils/schema";
+import { $env, readJsonl, Snowflake } from "@steve-z8k/pi-utils";
 import { reset as resetCapabilities } from "../../capability";
 import { clearPluginRootsAndCaches, resolveActiveProjectRegistryPath } from "../../discovery/helpers";
 import {
@@ -995,11 +995,6 @@ export async function runRpcMode(
 			case "get_session_stats": {
 				const stats = session.getSessionStats();
 				return success(id, "get_session_stats", stats);
-			}
-
-			case "export_html": {
-				const path = await session.exportToHtml(command.outputPath);
-				return success(id, "export_html", { path });
 			}
 
 			case "get_branch_messages": {

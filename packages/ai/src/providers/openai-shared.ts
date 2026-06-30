@@ -1,8 +1,8 @@
-import type { Effort } from "@amaze/pi-catalog/effort";
-import { toFirepassWireModelId, toFireworksWireModelId } from "@amaze/pi-catalog/fireworks-model-id";
-import { isGlm52ReasoningEffortModelId } from "@amaze/pi-catalog/identity";
-import { getSupportedEfforts } from "@amaze/pi-catalog/model-thinking";
-import { calculateCost } from "@amaze/pi-catalog/models";
+import type { Effort } from "@steve-z8k/pi-catalog/effort";
+import { toFirepassWireModelId, toFireworksWireModelId } from "@steve-z8k/pi-catalog/fireworks-model-id";
+import { isGlm52ReasoningEffortModelId } from "@steve-z8k/pi-catalog/identity";
+import { getSupportedEfforts } from "@steve-z8k/pi-catalog/model-thinking";
+import { calculateCost } from "@steve-z8k/pi-catalog/models";
 import type {
 	OpenAICompat,
 	OpenAIReasoningDisableMode,
@@ -12,9 +12,9 @@ import type {
 	ResolvedOpenAIResponsesCompat,
 	ResolvedOpenAISharedCompat,
 	VercelGatewayRouting,
-} from "@amaze/pi-catalog/types";
-import { parseGitHubCopilotApiKey } from "@amaze/pi-catalog/wire/github-copilot";
-import { $env, extractHttpStatusFromError, logger, structuredCloneJSON } from "@amaze/pi-utils";
+} from "@steve-z8k/pi-catalog/types";
+import { parseGitHubCopilotApiKey } from "@steve-z8k/pi-catalog/wire/github-copilot";
+import { $env, extractHttpStatusFromError, logger, structuredCloneJSON } from "@steve-z8k/pi-utils";
 import {
 	type Api,
 	type AssistantMessage,
@@ -1685,7 +1685,7 @@ export async function processResponsesStream<TApi extends Api>(
 
 	// Multiple items (parallel function_calls in particular) can be open at the same
 	// time. OpenAI's spec routes every per-item event by `output_index`/`item_id`;
-	// see https://github.com/can1357/amaze-agent/issues/1880 — llama.cpp emits parallel
+	// see https://github.com/steve-8000/amaze/issues/1880 — llama.cpp emits parallel
 	// function_call deltas interleaved, and a singleton `current` reference would
 	// fold them into the wrong block and drop arguments on every call but the last.
 	//

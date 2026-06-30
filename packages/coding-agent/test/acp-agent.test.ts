@@ -17,27 +17,20 @@ import {
 	zPromptResponse,
 	zSessionNotification,
 } from "@agentclientprotocol/sdk/dist/schema/zod.gen.js";
-import type { Model } from "@amaze/pi-ai";
-import { buildModel } from "@amaze/pi-catalog/build";
-import { resetSettingsForTest, Settings } from "@amaze/pi-coding-agent/config/settings";
-import { resolveLocalUrlToPath } from "@amaze/pi-coding-agent/internal-urls";
+import type { Model } from "@steve-z8k/pi-ai";
+import { buildModel } from "@steve-z8k/pi-catalog/build";
+import { resetSettingsForTest, Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { resolveLocalUrlToPath } from "@steve-z8k/pi-coding-agent/internal-urls";
 import {
 	ACP_BOOTSTRAP_RACE_GUARD_MS,
 	AcpAgent,
 	createAcpExtensionUiContext,
-} from "@amaze/pi-coding-agent/modes/acp/acp-agent";
-import type { PlanModeState } from "@amaze/pi-coding-agent/plan-mode/state";
-import type { AgentSession, AgentSessionEvent } from "@amaze/pi-coding-agent/session/agent-session";
-import { SILENT_ABORT_MARKER } from "@amaze/pi-coding-agent/session/messages";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import { DEFAULT_STT_MODEL_KEY, STT_MODEL_OPTIONS } from "@amaze/pi-coding-agent/stt/models";
-import {
-	DEFAULT_TTS_LOCAL_MODEL_KEY,
-	DEFAULT_TTS_VOICE,
-	TTS_LOCAL_MODELS,
-	TTS_LOCAL_VOICE_OPTIONS,
-} from "@amaze/pi-coding-agent/tts/models";
-import { getConfigRootDir, setAgentDir } from "@amaze/pi-utils";
+} from "@steve-z8k/pi-coding-agent/modes/acp/acp-agent";
+import type { PlanModeState } from "@steve-z8k/pi-coding-agent/plan-mode/state";
+import type { AgentSession, AgentSessionEvent } from "@steve-z8k/pi-coding-agent/session/agent-session";
+import { SILENT_ABORT_MARKER } from "@steve-z8k/pi-coding-agent/session/messages";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import { getConfigRootDir, setAgentDir } from "@steve-z8k/pi-utils";
 import type { z } from "zod/v4";
 
 /**
@@ -891,43 +884,16 @@ describe("ACP agent", () => {
 		await Bun.sleep(0);
 	});
 
-	it("lists static speech models for ACP mobile voice settings", async () => {
+	it("returns an empty speech model catalog after speech sources are removed", async () => {
 		const harness = await createHarness();
-		const voices = TTS_LOCAL_VOICE_OPTIONS.map(({ value, label }) => ({ value, label }));
 
 		const result = await harness.agent.extMethod("speech.models.list", {});
 
 		expect(result).toEqual({
-			settings: {
-				speechToTextModel: "stt.modelName",
-				textToSpeechModel: "tts.localModel",
-				textToSpeechVoice: "tts.localVoice",
-				speechVoice: "speech.voice",
-			},
-			defaults: {
-				speechToTextModel: DEFAULT_STT_MODEL_KEY,
-				textToSpeechModel: DEFAULT_TTS_LOCAL_MODEL_KEY,
-				voice: DEFAULT_TTS_VOICE,
-			},
-			speechToText: {
-				setting: "stt.modelName",
-				defaultValue: DEFAULT_STT_MODEL_KEY,
-				models: STT_MODEL_OPTIONS.map(({ value, label, description }) => ({ value, label, description })),
-			},
-			textToSpeech: {
-				modelSetting: "tts.localModel",
-				voiceSetting: "tts.localVoice",
-				speechVoiceSetting: "speech.voice",
-				defaultModel: DEFAULT_TTS_LOCAL_MODEL_KEY,
-				defaultVoice: DEFAULT_TTS_VOICE,
-				models: TTS_LOCAL_MODELS.map(({ key, label, description, voices: modelVoices }) => ({
-					value: key,
-					label,
-					description,
-					voices: modelVoices.map(({ id, label: voiceLabel }) => ({ value: id, label: voiceLabel })),
-				})),
-				voices,
-			},
+			settings: {},
+			defaults: {},
+			speechToText: { models: [] },
+			textToSpeech: { models: [], voices: [] },
 		});
 
 		harness.abortController.abort();

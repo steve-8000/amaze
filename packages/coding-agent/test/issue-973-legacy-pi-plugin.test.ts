@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { loadExtensions } from "@amaze/pi-coding-agent/extensibility/extensions/loader";
-import { TempDir } from "@amaze/pi-utils";
+import { loadExtensions } from "@steve-z8k/pi-coding-agent/extensibility/extensions/loader";
+import { TempDir } from "@steve-z8k/pi-utils";
 
-const currentPiCodingAgentPath = Bun.resolveSync("@amaze/pi-coding-agent", import.meta.dir);
-const currentPiExtensionsPath = Bun.resolveSync("@amaze/pi-coding-agent/extensibility/extensions", import.meta.dir);
+const currentPiCodingAgentPath = Bun.resolveSync("@steve-z8k/pi-coding-agent", import.meta.dir);
+const currentPiExtensionsPath = Bun.resolveSync("@steve-z8k/pi-coding-agent/extensibility/extensions", import.meta.dir);
 
 describe("issue #973: legacy Pi plugin imports", () => {
 	let projectDir: TempDir;

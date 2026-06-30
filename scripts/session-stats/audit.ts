@@ -9,7 +9,7 @@
  * failures, compactions).
  *
  * Phase 2 (classify): for the costliest sessions, builds a compact digest and
- * asks a small model (default: anthropic/claude-sonnet-4-6 via @amaze/pi-ai)
+ * asks a small model (default: anthropic/claude-sonnet-4-6 via @steve-z8k/pi-ai)
  * to judge:
  *   a) session hygiene — multiple topics in one chat, missed handoff points,
  *   b) task-spawn quality — wasteful spawns, context-transfer failures,
@@ -39,9 +39,9 @@ import {
 	SqliteAuthCredentialStore,
 	type Tool,
 	type ToolCall,
-} from "@amaze/pi-ai";
-import { type GeneratedProvider, getBundledModel } from "@amaze/pi-catalog/models";
-import { getAgentDbPath, isEnoent } from "@amaze/pi-utils";
+} from "@steve-z8k/pi-ai";
+import { type GeneratedProvider, getBundledModel } from "@steve-z8k/pi-catalog/models";
+import { getAgentDbPath, isEnoent } from "@steve-z8k/pi-utils";
 import SYSTEM_PROMPT from "./audit-prompt.md" with { type: "text" };
 
 const SESSIONS_ROOT = path.join(os.homedir(), ".amaze", "agent", "sessions");

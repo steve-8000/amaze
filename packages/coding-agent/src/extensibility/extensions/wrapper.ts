@@ -1,8 +1,8 @@
 /**
  * Tool wrappers for extensions.
  */
-import type { AgentTool, AgentToolContext, AgentToolUpdateCallback } from "@amaze/pi-agent-core";
-import type { ImageContent, Static, TextContent, TSchema } from "@amaze/pi-ai";
+import type { AgentTool, AgentToolContext, AgentToolUpdateCallback } from "@steve-z8k/pi-agent-core";
+import type { ImageContent, Static, TextContent, TSchema } from "@steve-z8k/pi-ai";
 import type { Settings } from "../../config/settings";
 import type { Theme } from "../../modes/theme/theme";
 import { type ApprovalMode, formatApprovalPrompt, requiresApproval } from "../../tools/approval";

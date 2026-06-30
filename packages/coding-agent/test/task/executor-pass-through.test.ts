@@ -4,18 +4,18 @@
  * paid for. Regression guard for issue #2190.
  */
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import type { Rule } from "@amaze/pi-coding-agent/capability/rule";
-import type { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import type { ToolPathWithSource } from "@amaze/pi-coding-agent/extensibility/custom-tools";
-import type { LoadExtensionsResult } from "@amaze/pi-coding-agent/extensibility/extensions/types";
-import type { CreateAgentSessionResult } from "@amaze/pi-coding-agent/sdk";
-import * as sdkModule from "@amaze/pi-coding-agent/sdk";
-import type { AgentSession, AgentSessionEvent, PromptOptions } from "@amaze/pi-coding-agent/session/agent-session";
-import { createSubagentSettings, runSubprocess } from "@amaze/pi-coding-agent/task/executor";
-import { buildSubagentLaunchSpec } from "@amaze/pi-coding-agent/task/subagent-launch-spec";
-import type { AgentDefinition } from "@amaze/pi-coding-agent/task/types";
-import { EventBus } from "@amaze/pi-coding-agent/utils/event-bus";
+import type { Rule } from "@steve-z8k/pi-coding-agent/capability/rule";
+import type { ModelRegistry } from "@steve-z8k/pi-coding-agent/config/model-registry";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import type { ToolPathWithSource } from "@steve-z8k/pi-coding-agent/extensibility/custom-tools";
+import type { LoadExtensionsResult } from "@steve-z8k/pi-coding-agent/extensibility/extensions/types";
+import type { CreateAgentSessionResult } from "@steve-z8k/pi-coding-agent/sdk";
+import * as sdkModule from "@steve-z8k/pi-coding-agent/sdk";
+import type { AgentSession, AgentSessionEvent, PromptOptions } from "@steve-z8k/pi-coding-agent/session/agent-session";
+import { createSubagentSettings, runSubprocess } from "@steve-z8k/pi-coding-agent/task/executor";
+import { buildSubagentLaunchSpec } from "@steve-z8k/pi-coding-agent/task/subagent-launch-spec";
+import type { AgentDefinition } from "@steve-z8k/pi-coding-agent/task/types";
+import { EventBus } from "@steve-z8k/pi-coding-agent/utils/event-bus";
 
 function createMockSession(onPrompt: (params: { emit: (event: AgentSessionEvent) => void }) => void): AgentSession {
 	const listeners: Array<(event: AgentSessionEvent) => void> = [];

@@ -1,19 +1,19 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
 import { scheduler } from "node:timers/promises";
-import { Agent } from "@amaze/pi-agent-core";
-import { type AssistantMessage, Effort, type Model, type ProviderSessionState } from "@amaze/pi-ai";
-import { createMockModel } from "@amaze/pi-ai/providers/mock";
-import { buildModel } from "@amaze/pi-catalog/build";
-import { writeModelCache } from "@amaze/pi-catalog/model-cache";
-import { getBundledModel } from "@amaze/pi-catalog/models";
-import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
-import { parseModelPattern } from "@amaze/pi-coding-agent/config/model-resolver";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import { AgentSession, type AgentSessionEvent } from "@amaze/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import { TempDir } from "@amaze/pi-utils";
+import { Agent } from "@steve-z8k/pi-agent-core";
+import { type AssistantMessage, Effort, type Model, type ProviderSessionState } from "@steve-z8k/pi-ai";
+import { createMockModel } from "@steve-z8k/pi-ai/providers/mock";
+import { buildModel } from "@steve-z8k/pi-catalog/build";
+import { writeModelCache } from "@steve-z8k/pi-catalog/model-cache";
+import { getBundledModel } from "@steve-z8k/pi-catalog/models";
+import { ModelRegistry } from "@steve-z8k/pi-coding-agent/config/model-registry";
+import { parseModelPattern } from "@steve-z8k/pi-coding-agent/config/model-resolver";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { AgentSession, type AgentSessionEvent } from "@steve-z8k/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@steve-z8k/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import { TempDir } from "@steve-z8k/pi-utils";
 
 type AutoRetryStartEvent = Extract<AgentSessionEvent, { type: "auto_retry_start" }>;
 type AutoRetryEndEvent = Extract<AgentSessionEvent, { type: "auto_retry_end" }>;
@@ -111,9 +111,9 @@ describe("AgentSession retry fallback", () => {
 	});
 
 	it("advances through a role-keyed fallback chain across retries", async () => {
-		const primaryModel = getBundledModel("anthropic", "claude-sonnet-4-5");
-		const firstFallback = getBundledModel("openai", "gpt-4o-mini");
-		const secondFallback = getBundledModel("openai", "gpt-4o");
+		const primaryModel = getBundledModel("anthropic", "claude-sonnet-4-6");
+		const firstFallback = getBundledModel("openai", "gpt-5.4-mini");
+		const secondFallback = getBundledModel("openai", "gpt-5.4");
 		if (!primaryModel || !firstFallback || !secondFallback) {
 			throw new Error("Expected bundled test models to exist");
 		}
@@ -219,8 +219,8 @@ describe("AgentSession retry fallback", () => {
 	});
 
 	it("falls back on structured classifier refusals and pins the fallback", async () => {
-		const primaryModel = getBundledModel("anthropic", "claude-sonnet-4-5");
-		const fallbackModel = getBundledModel("openai", "gpt-4o-mini");
+		const primaryModel = getBundledModel("anthropic", "claude-sonnet-4-6");
+		const fallbackModel = getBundledModel("openai", "gpt-5.4-mini");
 		if (!primaryModel || !fallbackModel) {
 			throw new Error("Expected bundled test models to exist");
 		}
@@ -329,9 +329,9 @@ describe("AgentSession retry fallback", () => {
 	});
 
 	it("does not exceed retry.maxRetries for classifier fallback chains", async () => {
-		const primaryModel = getBundledModel("anthropic", "claude-sonnet-4-5");
-		const firstFallback = getBundledModel("openai", "gpt-4o-mini");
-		const secondFallback = getBundledModel("openai", "gpt-4o");
+		const primaryModel = getBundledModel("anthropic", "claude-sonnet-4-6");
+		const firstFallback = getBundledModel("openai", "gpt-5.4-mini");
+		const secondFallback = getBundledModel("openai", "gpt-5.4");
 		if (!primaryModel || !firstFallback || !secondFallback) {
 			throw new Error("Expected bundled test models to exist");
 		}
@@ -426,7 +426,7 @@ describe("AgentSession retry fallback", () => {
 	});
 
 	it("uses Google retry hints in quota errors before quota backoff", async () => {
-		const model = getBundledModel("google", "gemini-1.5-flash");
+		const model = getBundledModel("google", "claude-sonnet-4-6");
 		if (!model) {
 			throw new Error("Expected bundled Google test model to exist");
 		}
@@ -487,8 +487,8 @@ describe("AgentSession retry fallback", () => {
 	});
 
 	it("keeps retry on the primary model when retry model fallback is disabled", async () => {
-		const primaryModel = getBundledModel("anthropic", "claude-sonnet-4-5");
-		const fallbackModel = getBundledModel("openai", "gpt-4o-mini");
+		const primaryModel = getBundledModel("anthropic", "claude-sonnet-4-6");
+		const fallbackModel = getBundledModel("openai", "gpt-5.4-mini");
 		if (!primaryModel || !fallbackModel) {
 			throw new Error("Expected bundled test models to exist");
 		}
@@ -568,7 +568,7 @@ describe("AgentSession retry fallback", () => {
 	});
 
 	it("auto-retries preserved OpenAI first-event timeout errors", async () => {
-		const model = getBundledModel("openai", "gpt-4o-mini");
+		const model = getBundledModel("openai", "gpt-5.4-mini");
 		if (!model) {
 			throw new Error("Expected bundled OpenAI test model to exist");
 		}
@@ -626,7 +626,7 @@ describe("AgentSession retry fallback", () => {
 	});
 
 	it("auto-retries stream stall errors", async () => {
-		const model = getBundledModel("openai", "gpt-4o-mini");
+		const model = getBundledModel("openai", "gpt-5.4-mini");
 		if (!model) {
 			throw new Error("Expected bundled OpenAI test model to exist");
 		}
@@ -684,7 +684,7 @@ describe("AgentSession retry fallback", () => {
 	});
 
 	it("auto-retries OpenAI processing-request transient errors", async () => {
-		const model = getBundledModel("openai", "gpt-4o-mini");
+		const model = getBundledModel("openai", "gpt-5.4-mini");
 		if (!model) {
 			throw new Error("Expected bundled OpenAI test model to exist");
 		}
@@ -746,8 +746,8 @@ describe("AgentSession retry fallback", () => {
 	});
 
 	it("restarts Responses provider state before retrying stale item-id replay errors", async () => {
-		const model = getBundledModel("openai", "gpt-4o-mini");
-		const fallbackModel = getBundledModel("anthropic", "claude-sonnet-4-5");
+		const model = getBundledModel("openai", "gpt-5.4-mini");
+		const fallbackModel = getBundledModel("anthropic", "claude-sonnet-4-6");
 		if (!model || !fallbackModel) {
 			throw new Error("Expected bundled test models to exist");
 		}
@@ -823,8 +823,8 @@ describe("AgentSession retry fallback", () => {
 	});
 
 	it("restarts Responses provider state before retrying Zero Data Retention errors", async () => {
-		const model = getBundledModel("openai", "gpt-4o-mini");
-		const fallbackModel = getBundledModel("anthropic", "claude-sonnet-4-5");
+		const model = getBundledModel("openai", "gpt-5.4-mini");
+		const fallbackModel = getBundledModel("anthropic", "claude-sonnet-4-6");
 		if (!model || !fallbackModel) {
 			throw new Error("Expected bundled test models to exist");
 		}
@@ -901,7 +901,7 @@ describe("AgentSession retry fallback", () => {
 	});
 
 	it("auto-retries Anthropic stream-envelope failures before message_start", async () => {
-		const model = getBundledModel("anthropic", "claude-sonnet-4-5");
+		const model = getBundledModel("anthropic", "claude-sonnet-4-6");
 		if (!model) {
 			throw new Error("Expected bundled Anthropic test model to exist");
 		}
@@ -959,8 +959,8 @@ describe("AgentSession retry fallback", () => {
 	});
 
 	it("does not auto-retry Anthropic stream-envelope failures before terminal stop signal", async () => {
-		const primaryModel = getBundledModel("anthropic", "claude-sonnet-4-5");
-		const fallbackModel = getBundledModel("openai", "gpt-4o-mini");
+		const primaryModel = getBundledModel("anthropic", "claude-sonnet-4-6");
+		const fallbackModel = getBundledModel("openai", "gpt-5.4-mini");
 		if (!primaryModel || !fallbackModel) {
 			throw new Error("Expected bundled test models to exist");
 		}
@@ -1025,7 +1025,7 @@ describe("AgentSession retry fallback", () => {
 	});
 
 	it("does not auto-retry generic Request was aborted. errors", async () => {
-		const model = getBundledModel("openai", "gpt-4o-mini");
+		const model = getBundledModel("openai", "gpt-5.4-mini");
 		if (!model) {
 			throw new Error("Expected bundled OpenAI test model to exist");
 		}
@@ -1073,7 +1073,7 @@ describe("AgentSession retry fallback", () => {
 	});
 
 	it("matches plain fallback roles for compat-routed primary models", async () => {
-		const fallbackModel = getBundledModel("openai", "gpt-4o-mini");
+		const fallbackModel = getBundledModel("openai", "gpt-5.4-mini");
 		if (!fallbackModel) {
 			throw new Error("Expected bundled OpenAI test model to exist");
 		}
@@ -1148,7 +1148,7 @@ describe("AgentSession retry fallback", () => {
 	});
 
 	it("keeps exact @-suffixed model IDs in fallback selectors", async () => {
-		const primaryModel = getBundledModel("openai", "gpt-4o-mini");
+		const primaryModel = getBundledModel("openai", "gpt-5.4-mini");
 		const fallbackModel = getBundledModel("google-vertex", "claude-opus-4-8@default");
 		if (!primaryModel || !fallbackModel) {
 			throw new Error("Expected bundled OpenAI and Vertex Anthropic test models to exist");
@@ -1203,8 +1203,8 @@ describe("AgentSession retry fallback", () => {
 		expect(session.model?.id).toBe(fallbackModel.id);
 	});
 	it("suppresses cooled selectors and lazily reverts to the role primary after cooldown expiry", async () => {
-		const primaryModel = getBundledModel("anthropic", "claude-sonnet-4-5");
-		const fallbackModel = getBundledModel("openai", "gpt-4o-mini");
+		const primaryModel = getBundledModel("anthropic", "claude-sonnet-4-6");
+		const fallbackModel = getBundledModel("openai", "gpt-5.4-mini");
 		if (!primaryModel || !fallbackModel) {
 			throw new Error("Expected bundled test models to exist");
 		}
@@ -1265,7 +1265,7 @@ describe("AgentSession retry fallback", () => {
 
 	it("restores routed fallback primaries after cooldown expiry", async () => {
 		const openRouterModel = getBundledModel("openrouter", "z-ai/glm-4.7");
-		const fallbackModel = getBundledModel("openai", "gpt-4o-mini");
+		const fallbackModel = getBundledModel("openai", "gpt-5.4-mini");
 		if (!openRouterModel || !fallbackModel) {
 			throw new Error("Expected bundled OpenRouter and OpenAI test models to exist");
 		}
@@ -1347,8 +1347,8 @@ describe("AgentSession retry fallback", () => {
 		).toEqual(["cerebras"]);
 	});
 	it("preserves thinking on bare fallback selectors and does not overwrite user thinking on restore", async () => {
-		const primaryModel = getBundledModel("anthropic", "claude-sonnet-4-5");
-		const fallbackModel = getBundledModel("openai", "gpt-4o-mini");
+		const primaryModel = getBundledModel("anthropic", "claude-sonnet-4-6");
+		const fallbackModel = getBundledModel("openai", "gpt-5.4-mini");
 		if (!primaryModel || !fallbackModel) {
 			throw new Error("Expected bundled test models to exist");
 		}
@@ -1401,12 +1401,12 @@ describe("AgentSession retry fallback", () => {
 	});
 
 	it("accepts cached Ollama Cloud fallback selectors during startup validation", () => {
-		const primaryModel = getBundledModel("openai", "gpt-4o-mini");
+		const primaryModel = getBundledModel("openai", "gpt-5.4-mini");
 		if (!primaryModel) {
 			throw new Error("Expected bundled OpenAI test model to exist");
 		}
 		const cachedModel: Model<"ollama-chat"> = buildModel({
-			id: "deepseek-v4-pro",
+			id: "gpt-5.4",
 			name: "DeepSeek V4 Pro",
 			api: "ollama-chat",
 			provider: "ollama-cloud",
@@ -1422,7 +1422,7 @@ describe("AgentSession retry fallback", () => {
 
 		const settings = Settings.isolated({
 			"compaction.enabled": false,
-			"retry.fallbackChains": { default: ["ollama-cloud/deepseek-v4-pro"] },
+			"retry.fallbackChains": { default: ["ollama-cloud/gpt-5.4"] },
 		});
 		settings.setModelRole("default", `${primaryModel.provider}/${primaryModel.id}`);
 		const agent = new Agent({
@@ -1441,14 +1441,14 @@ describe("AgentSession retry fallback", () => {
 		});
 
 		expect(session.configWarnings).not.toContain(
-			"Fallback chain for role 'default' references unknown model: ollama-cloud/deepseek-v4-pro",
+			"Fallback chain for role 'default' references unknown model: ollama-cloud/gpt-5.4",
 		);
 	});
 
 	it("normalizes suppression by base selector and clears it on model refresh", async () => {
 		const future = Date.now() + 60_000;
 		modelRegistry.suppressSelector("openai/gpt-4o:high", future);
-		expect(modelRegistry.isSelectorSuppressed("openai/gpt-4o")).toBe(true);
+		expect(modelRegistry.isSelectorSuppressed("openai/gpt-5.4")).toBe(true);
 		expect(modelRegistry.isSelectorSuppressed("openai/gpt-4o:low")).toBe(true);
 
 		modelRegistry.suppressSelector("openai/gpt-4o:max", future);
@@ -1456,11 +1456,11 @@ describe("AgentSession retry fallback", () => {
 		expect(modelRegistry.isSelectorSuppressed("openai/gpt-4o:max")).toBe(true);
 
 		await modelRegistry.refresh("offline");
-		expect(modelRegistry.isSelectorSuppressed("openai/gpt-4o")).toBe(false);
+		expect(modelRegistry.isSelectorSuppressed("openai/gpt-5.4")).toBe(false);
 	});
 
 	it("auto-retries Gemini MALFORMED_FUNCTION_CALL transient errors", async () => {
-		const model = getBundledModel("google", "gemini-1.5-flash");
+		const model = getBundledModel("google", "claude-sonnet-4-6");
 		if (!model) {
 			throw new Error("Expected bundled Google test model to exist");
 		}
@@ -1529,7 +1529,7 @@ describe("AgentSession retry fallback", () => {
 	});
 
 	it("auto-retries provider finish_reason errors after partial text", async () => {
-		const model = getBundledModel("openai", "gpt-4o-mini");
+		const model = getBundledModel("openai", "gpt-5.4-mini");
 		if (!model) {
 			throw new Error("Expected bundled OpenAI test model to exist");
 		}

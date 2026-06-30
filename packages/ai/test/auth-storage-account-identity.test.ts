@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type AuthCredentialStore, AuthStorage, SqliteAuthCredentialStore } from "@amaze/pi-ai/auth-storage";
-import * as oauthUtils from "@amaze/pi-ai/registry/oauth";
+import { type AuthCredentialStore, AuthStorage, SqliteAuthCredentialStore } from "@steve-z8k/pi-ai/auth-storage";
+import * as oauthUtils from "@steve-z8k/pi-ai/registry/oauth";
 
 const PROVIDER = "unit-oauth-identity";
 

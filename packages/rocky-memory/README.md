@@ -1,4 +1,4 @@
-# @amaze/pi-rocky-memory
+# @steve-z8k/pi-rocky-memory
 
 Local SQLite memory engine for Amaze Agent agents.
 
@@ -14,7 +14,7 @@ The package does not bundle or download a local GGUF LLM. LLM paths are host-bac
 ## Basic use
 
 ```ts
-import { RockyMemory } from "@amaze/pi-rocky-memory";
+import { RockyMemory } from "@steve-z8k/pi-rocky-memory";
 
 const memory = new RockyMemory({ dbPath: "./rocky-memory.db", bank: "project" });
 const id = memory.remember("The deployment target is stable-cluster.", {
@@ -34,8 +34,8 @@ memory.close();
 `RockyMemory` accepts LLM and embedding options directly. `ROCKY_MEMORY_*` environment variables remain fallbacks/defaults when the matching constructor option is omitted.
 
 ```ts
-import { RockyMemory } from "@amaze/pi-rocky-memory";
-import type { Model } from "@amaze/pi-ai";
+import { RockyMemory } from "@steve-z8k/pi-rocky-memory";
+import type { Model } from "@steve-z8k/pi-ai";
 
 const ftsOnly = new RockyMemory({ noEmbeddings: true });
 

@@ -2,7 +2,7 @@
  * Discovery integration tests for Amaze plugin registry reading.
  *
  * NOTE: listClaudePluginRoots() lives in discovery/helpers.ts which imports
- * @amaze/pi-natives (native Rust addon via glob). We cannot call it here.
+ * @steve-z8k/pi-natives (native Rust addon via glob). We cannot call it here.
  *
  * Instead these tests validate the structural contract that listClaudePluginRoots
  * depends on:
@@ -19,18 +19,18 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { InstalledPluginEntry } from "@amaze/pi-coding-agent/extensibility/plugins/marketplace";
+import type { InstalledPluginEntry } from "@steve-z8k/pi-coding-agent/extensibility/plugins/marketplace";
 import {
 	addInstalledPlugin,
 	buildPluginId,
 	readInstalledPluginsRegistry,
 	writeInstalledPluginsRegistry,
-} from "@amaze/pi-coding-agent/extensibility/plugins/marketplace";
+} from "@steve-z8k/pi-coding-agent/extensibility/plugins/marketplace";
 
 // ── Inline validator ───────────────────────────────────────────────────────────
 //
 // Mirrors parseClaudePluginsRegistry() in discovery/helpers.ts exactly.
-// Kept here to avoid importing helpers.ts (which pulls in @amaze/pi-natives).
+// Kept here to avoid importing helpers.ts (which pulls in @steve-z8k/pi-natives).
 function validateClaudeRegistryFormat(content: string): Record<string, unknown> | null {
 	let data: Record<string, unknown>;
 	try {
@@ -51,7 +51,7 @@ function validateClaudeRegistryFormat(content: string): Record<string, unknown> 
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-// Matches getConfigDirName() — single source of truth is in @amaze/pi-utils,
+// Matches getConfigDirName() — single source of truth is in @steve-z8k/pi-utils,
 // but we know the value is ".amaze" and hardcoding it here keeps tests free of
 // native-addon transitive imports.
 const OMP_CONFIG_DIR = ".amaze";

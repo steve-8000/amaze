@@ -1,7 +1,7 @@
 import { vi } from "bun:test";
-import { type Component, TUI } from "@amaze/pi-tui";
-import { ProcessTerminal } from "@amaze/pi-tui/terminal";
-import { setTerminalHeadless } from "@amaze/pi-utils";
+import { type Component, TUI } from "@steve-z8k/pi-tui";
+import { ProcessTerminal } from "@steve-z8k/pi-tui/terminal";
+import { setTerminalHeadless } from "@steve-z8k/pi-utils";
 
 // Pristine descriptors, captured once at module load. Every dispose() restores
 // to these so the harness is full-suite safe across repeated create/dispose

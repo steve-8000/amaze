@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import type { Api, Model } from "@amaze/pi-ai";
-import * as ai from "@amaze/pi-ai";
-import { type GeneratedProvider, getBundledModel } from "@amaze/pi-catalog/models";
-import { generateSessionTitle } from "@amaze/pi-coding-agent/utils/title-generator";
-import { logger } from "@amaze/pi-utils";
+import type { Api, Model } from "@steve-z8k/pi-ai";
+import * as ai from "@steve-z8k/pi-ai";
+import { type GeneratedProvider, getBundledModel } from "@steve-z8k/pi-catalog/models";
+import { generateSessionTitle } from "@steve-z8k/pi-coding-agent/utils/title-generator";
+import { logger } from "@steve-z8k/pi-utils";
 
 function getModelOrThrow(id: string): Model<Api> {
 	const model = getBundledModel("anthropic", id);
@@ -28,7 +28,7 @@ function createSettings(model: Model<Api>, tinyModel = "online") {
 			return undefined;
 		},
 		getModelRole(role: string) {
-			return role === "smol" ? `${model.provider}/${model.id}` : undefined;
+			return role === "flash" ? `${model.provider}/${model.id}` : undefined;
 		},
 		getStorage() {
 			return undefined;
@@ -52,7 +52,7 @@ afterEach(() => {
 
 describe("title generator", () => {
 	it("returns the title from a forced set_title tool call", async () => {
-		const model = getModelOrThrow("claude-sonnet-4-5");
+		const model = getModelOrThrow("claude-sonnet-4-6");
 		const completeSimpleMock = vi.spyOn(ai, "completeSimple").mockResolvedValue({
 			stopReason: "stop",
 			content: [
@@ -82,7 +82,7 @@ describe("title generator", () => {
 	});
 
 	it("uses the bundled default prompt when no title prompt file is resolved", async () => {
-		const model = getModelOrThrow("claude-sonnet-4-5");
+		const model = getModelOrThrow("claude-sonnet-4-6");
 		const completeSimpleMock = vi.spyOn(ai, "completeSimple").mockResolvedValue({
 			stopReason: "stop",
 			content: [{ type: "toolCall", id: "call-title", name: "set_title", arguments: { title: "Default Prompt" } }],
@@ -96,7 +96,7 @@ describe("title generator", () => {
 	});
 
 	it("uses the resolved TITLE_SYSTEM.md prompt for online title generation", async () => {
-		const model = getModelOrThrow("claude-sonnet-4-5");
+		const model = getModelOrThrow("claude-sonnet-4-6");
 		const customPrompt = "Generate lowercase colon-delimited session names.";
 		const completeSimpleMock = vi.spyOn(ai, "completeSimple").mockResolvedValue({
 			stopReason: "stop",
@@ -125,7 +125,7 @@ describe("title generator", () => {
 	});
 
 	it("falls back to text content when no set_title tool call is returned", async () => {
-		const model = getModelOrThrow("claude-sonnet-4-5");
+		const model = getModelOrThrow("claude-sonnet-4-6");
 		vi.spyOn(ai, "completeSimple").mockResolvedValue({
 			stopReason: "stop",
 			content: [{ type: "text", text: "Text Title" }],
@@ -141,7 +141,7 @@ describe("title generator", () => {
 	});
 
 	it("defers titling for a greeting without invoking the model", async () => {
-		const model = getModelOrThrow("claude-sonnet-4-5");
+		const model = getModelOrThrow("claude-sonnet-4-6");
 		const completeSimpleMock = vi.spyOn(ai, "completeSimple");
 
 		const title = await generateSessionTitle("hi", createRegistry(model), createSettings(model));
@@ -151,7 +151,7 @@ describe("title generator", () => {
 	});
 
 	it("returns null when the model rejects a non-greeting taskless message with the none sentinel", async () => {
-		const model = getModelOrThrow("claude-sonnet-4-5");
+		const model = getModelOrThrow("claude-sonnet-4-6");
 		const completeSimpleMock = vi.spyOn(ai, "completeSimple").mockResolvedValue({
 			stopReason: "stop",
 			content: [
@@ -175,7 +175,7 @@ describe("title generator", () => {
 	});
 
 	it("logs and returns null when title credentials are missing", async () => {
-		const model = getModelOrThrow("claude-sonnet-4-5");
+		const model = getModelOrThrow("claude-sonnet-4-6");
 		const completeSimpleMock = vi.spyOn(ai, "completeSimple");
 		const warnSpy = vi.spyOn(logger, "warn").mockImplementation(() => {});
 
@@ -203,7 +203,7 @@ describe("title generator", () => {
 	});
 
 	it("logs and returns null when title credential lookup throws", async () => {
-		const model = getModelOrThrow("claude-sonnet-4-5");
+		const model = getModelOrThrow("claude-sonnet-4-6");
 		const completeSimpleMock = vi.spyOn(ai, "completeSimple");
 		const warnSpy = vi.spyOn(logger, "warn").mockImplementation(() => {});
 
@@ -234,7 +234,7 @@ describe("title generator", () => {
 	});
 
 	it("uses a reasoning-safe output budget for reasoning models", async () => {
-		const model = getModelOrThrow("claude-sonnet-4-5");
+		const model = getModelOrThrow("claude-sonnet-4-6");
 		const completeSimpleMock = vi.spyOn(ai, "completeSimple").mockResolvedValue({
 			stopReason: "stop",
 			content: [
@@ -259,7 +259,7 @@ describe("title generator", () => {
 	});
 
 	it("strips code blocks from the message sent to the model", async () => {
-		const model = getModelOrThrow("claude-sonnet-4-5");
+		const model = getModelOrThrow("claude-sonnet-4-6");
 		const completeSimpleMock = vi.spyOn(ai, "completeSimple").mockResolvedValue({
 			stopReason: "stop",
 			content: [{ type: "toolCall", id: "call-title", name: "set_title", arguments: { title: "Setup Screen" } }],
@@ -279,7 +279,7 @@ describe("title generator", () => {
 	});
 
 	it("uses <title> markers instead of a forced tool call when the model lacks tool_choice support", async () => {
-		const model = getModelFor("deepseek", "deepseek-v4-pro");
+		const model = withoutForcedToolChoice(getModelOrThrow("claude-sonnet-4-6"));
 		const completeSimpleMock = vi.spyOn(ai, "completeSimple").mockResolvedValue({
 			stopReason: "stop",
 			content: [{ type: "text", text: "<title>Add OAuth authentication</title>" }],
@@ -300,7 +300,7 @@ describe("title generator", () => {
 	});
 
 	it("uses the marker path when the model rejects forced tool choice", async () => {
-		const model = withoutForcedToolChoice(getModelOrThrow("claude-sonnet-4-5"));
+		const model = withoutForcedToolChoice(getModelOrThrow("claude-sonnet-4-6"));
 		const completeSimpleMock = vi.spyOn(ai, "completeSimple").mockResolvedValue({
 			stopReason: "stop",
 			content: [{ type: "text", text: "<title>Investigate the resolver</title>" }],
@@ -318,7 +318,7 @@ describe("title generator", () => {
 	});
 
 	it("accepts a plain sentence when the model omits the <title> markers", async () => {
-		const model = getModelFor("deepseek", "deepseek-v4-pro");
+		const model = withoutForcedToolChoice(getModelOrThrow("claude-sonnet-4-6"));
 		vi.spyOn(ai, "completeSimple").mockResolvedValue({
 			stopReason: "stop",
 			content: [{ type: "text", text: "Fix login button on mobile" }],
@@ -334,7 +334,7 @@ describe("title generator", () => {
 	});
 
 	it("strips an unclosed <title> tag from a truncated response", async () => {
-		const model = getModelFor("deepseek", "deepseek-v4-pro");
+		const model = withoutForcedToolChoice(getModelOrThrow("claude-sonnet-4-6"));
 		vi.spyOn(ai, "completeSimple").mockResolvedValue({
 			stopReason: "stop",
 			content: [{ type: "text", text: "<title>Refactor API client error handling" }],
@@ -350,7 +350,7 @@ describe("title generator", () => {
 	});
 
 	it("appends the marker instruction after a custom prompt in marker mode", async () => {
-		const model = getModelFor("deepseek", "deepseek-v4-pro");
+		const model = withoutForcedToolChoice(getModelOrThrow("claude-sonnet-4-6"));
 		const customPrompt = "Generate lowercase colon-delimited session names.";
 		const completeSimpleMock = vi.spyOn(ai, "completeSimple").mockResolvedValue({
 			stopReason: "stop",
@@ -374,17 +374,16 @@ describe("title generator", () => {
 		expect(request?.systemPrompt?.[1]).toContain("<title>");
 	});
 
-	it("resolves the model roles in precedence order: title -> commit -> smol", async () => {
-		const titleModel = getModelOrThrow("claude-haiku-4-5");
-		const commitModel = getModelOrThrow("claude-sonnet-4-5");
-		const smolModel = getModelOrThrow("claude-opus-4-8");
+	it("resolves the model roles in precedence order: title -> commit -> flash", async () => {
+		const titleModel = getModelOrThrow("claude-opus-4-7");
+		const commitModel = getModelOrThrow("claude-sonnet-4-6");
+		const flashModel = getModelOrThrow("claude-opus-4-8");
 
 		const mockComplete = vi.spyOn(ai, "completeSimple").mockResolvedValue({
 			stopReason: "stop",
 			content: [{ type: "text", text: "<title>Test Title</title>" }],
 		} as never);
 
-		// Case 1: All three roles configured. 'title' should be used.
 		let currentSettings = {
 			get(path: string) {
 				if (path === "providers.tinyModel") return "online";
@@ -393,7 +392,7 @@ describe("title generator", () => {
 			getModelRole(role: string) {
 				if (role === "title") return `${titleModel.provider}/${titleModel.id}`;
 				if (role === "commit") return `${commitModel.provider}/${commitModel.id}`;
-				if (role === "smol") return `${smolModel.provider}/${smolModel.id}`;
+				if (role === "flash") return `${flashModel.provider}/${flashModel.id}`;
 				return undefined;
 			},
 			getStorage() {
@@ -402,7 +401,7 @@ describe("title generator", () => {
 		} as never;
 
 		const registry = {
-			getAvailable: () => [titleModel, commitModel, smolModel],
+			getAvailable: () => [titleModel, commitModel, flashModel],
 			getApiKey: async () => "test-key",
 			getApiKeyForProvider: async () => "test-key",
 			authStorage: { rotateSessionCredential: async () => false },
@@ -415,7 +414,6 @@ describe("title generator", () => {
 
 		mockComplete.mockClear();
 
-		// Case 2: 'title' role not configured, 'commit' and 'smol' configured. 'commit' should be used.
 		currentSettings = {
 			get(path: string) {
 				if (path === "providers.tinyModel") return "online";
@@ -423,7 +421,7 @@ describe("title generator", () => {
 			},
 			getModelRole(role: string) {
 				if (role === "commit") return `${commitModel.provider}/${commitModel.id}`;
-				if (role === "smol") return `${smolModel.provider}/${smolModel.id}`;
+				if (role === "flash") return `${flashModel.provider}/${flashModel.id}`;
 				return undefined;
 			},
 			getStorage() {
@@ -437,14 +435,13 @@ describe("title generator", () => {
 
 		mockComplete.mockClear();
 
-		// Case 3: Only 'smol' role configured. 'smol' should be used.
 		currentSettings = {
 			get(path: string) {
 				if (path === "providers.tinyModel") return "online";
 				return undefined;
 			},
 			getModelRole(role: string) {
-				if (role === "smol") return `${smolModel.provider}/${smolModel.id}`;
+				if (role === "flash") return `${flashModel.provider}/${flashModel.id}`;
 				return undefined;
 			},
 			getStorage() {
@@ -454,6 +451,6 @@ describe("title generator", () => {
 
 		await generateSessionTitle("Some message", registry, currentSettings);
 		expect(mockComplete).toHaveBeenCalled();
-		expect(mockComplete.mock.calls[0]?.[0]).toBe(smolModel);
+		expect(mockComplete.mock.calls[0]?.[0]).toBe(flashModel);
 	});
 });

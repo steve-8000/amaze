@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import type { AssistantMessage } from "@amaze/pi-ai";
-import { resetSettingsForTest, Settings } from "@amaze/pi-coding-agent/config/settings";
-import { EventController } from "@amaze/pi-coding-agent/modes/controllers/event-controller";
-import type { InteractiveModeContext } from "@amaze/pi-coding-agent/modes/types";
+import type { AssistantMessage } from "@steve-z8k/pi-ai";
+import { resetSettingsForTest, Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { EventController } from "@steve-z8k/pi-coding-agent/modes/controllers/event-controller";
+import type { InteractiveModeContext } from "@steve-z8k/pi-coding-agent/modes/types";
 
 function createAssistantMessage(): AssistantMessage {
 	return {
@@ -10,7 +10,7 @@ function createAssistantMessage(): AssistantMessage {
 		content: [{ type: "text", text: "done" }],
 		api: "anthropic-messages",
 		provider: "anthropic",
-		model: "claude-sonnet-4-5",
+		model: "claude-sonnet-4-6",
 		usage: {
 			input: 200,
 			output: 10,

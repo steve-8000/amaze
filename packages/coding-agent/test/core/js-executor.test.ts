@@ -1,12 +1,12 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, setDefaultTimeout, vi } from "bun:test";
 import * as path from "node:path";
-import type { AgentTool, AgentToolResult } from "@amaze/pi-agent-core";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import { disposeAllVmContexts } from "@amaze/pi-coding-agent/eval/js/context-manager";
-import { executeJs, type JsResult } from "@amaze/pi-coding-agent/eval/js/executor";
-import type { ToolSession } from "@amaze/pi-coding-agent/tools";
-import { TempDir } from "@amaze/pi-utils";
-import { INTENT_FIELD } from "@amaze/pi-wire";
+import type { AgentTool, AgentToolResult } from "@steve-z8k/pi-agent-core";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { disposeAllVmContexts } from "@steve-z8k/pi-coding-agent/eval/js/context-manager";
+import { executeJs, type JsResult } from "@steve-z8k/pi-coding-agent/eval/js/executor";
+import type { ToolSession } from "@steve-z8k/pi-coding-agent/tools";
+import { TempDir } from "@steve-z8k/pi-utils";
+import { INTENT_FIELD } from "@steve-z8k/pi-wire";
 import { type } from "arktype";
 
 // JS eval cold-starts a Bun worker; under --isolate + high CI concurrency that startup

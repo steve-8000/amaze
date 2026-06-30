@@ -39,7 +39,7 @@ uplinks:
   npmjs:
     url: https://registry.npmjs.org/
 packages:
-  '@amaze/*':
+  '@steve-z8k/*':
     access: $all
     publish: $all
     unpublish: $all
@@ -127,7 +127,7 @@ RUN verdaccio --config /root/.config/verdaccio/config.yaml &>/dev/null & \
 WORKDIR /test
 RUN verdaccio --config /root/.config/verdaccio/config.yaml &>/dev/null & \
     sleep 3 && \
-    bun add @amaze/pi-coding-agent --registry http://localhost:4873 && \
+    bun add @steve-z8k/pi-coding-agent --registry http://localhost:4873 && \
     pkill -f verdaccio
 
 # Verify the installed package works

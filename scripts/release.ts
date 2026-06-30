@@ -237,7 +237,7 @@ async function cmdRelease(version: string): Promise<void> {
 	}
 	console.log();
 
-	// Update @amaze/* catalog entries in root package.json
+	// Update @steve-z8k/* catalog entries in root package.json
 	console.log("Updating root catalog versions...");
 	let rootPkgRaw = await Bun.file("package.json").text();
 	rootPkgRaw = rootPkgRaw.replace(
@@ -245,7 +245,7 @@ async function cmdRelease(version: string): Promise<void> {
 		`$1"${version}"`,
 	);
 	await Bun.write("package.json", rootPkgRaw);
-	console.log("  Updated root catalog @amaze/* entries");
+	console.log("  Updated root catalog @steve-z8k/* entries");
 
 	// 3. Update Rust workspace version
 	console.log(`Updating Rust workspace version to ${version}…`);

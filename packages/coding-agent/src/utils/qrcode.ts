@@ -2,10 +2,10 @@
  * Self-contained QR Code generator (byte mode, versions 1-40, EC levels
  * L/M/Q/H) with a half-block ANSI terminal renderer.
  *
- * Pure TypeScript, zero dependencies: the collab `/collab qrcode` command uses
- * it to print scannable browser-join codes without pulling a runtime QR
- * package into the bundle. The algorithm follows ISO/IEC 18004; the two
- * error-correction tables below are direct transcriptions of that spec.
+ * Pure TypeScript, zero dependencies, suitable for printing scannable URLs in
+ * the terminal without pulling a runtime QR package into the bundle. The
+ * algorithm follows ISO/IEC 18004; the two error-correction tables below are
+ * direct transcriptions of that spec.
  */
 
 export type QrEcLevel = "L" | "M" | "Q" | "H";

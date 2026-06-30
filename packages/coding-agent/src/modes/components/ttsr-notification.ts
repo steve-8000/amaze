@@ -1,4 +1,4 @@
-import { Box, Container, Spacer, Text } from "@amaze/pi-tui";
+import { Box, Container, Spacer, Text } from "@steve-z8k/pi-tui";
 import type { Rule } from "../../capability/rule";
 import { theme } from "../../modes/theme/theme";
 

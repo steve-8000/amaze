@@ -4,7 +4,7 @@
  * Provides structured display of MCP tool calls and results,
  * showing args and output in JSON tree format similar to task tool.
  */
-import type { Component } from "@amaze/pi-tui";
+import type { Component } from "@steve-z8k/pi-tui";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
 import type { Theme } from "../modes/theme/theme";
 import {

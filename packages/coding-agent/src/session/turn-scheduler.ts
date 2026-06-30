@@ -1,4 +1,4 @@
-import type { AgentMessage } from "@amaze/pi-agent-core";
+import type { AgentMessage } from "@steve-z8k/pi-agent-core";
 
 export type AutoTurnSource =
 	| "compaction"

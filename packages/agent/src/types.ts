@@ -17,9 +17,9 @@ import type {
 	ToolChoice,
 	ToolResultMessage,
 	TSchema,
-} from "@amaze/pi-ai";
-import type { Dialect } from "@amaze/pi-ai/dialect";
-import type { HarmonyAuditEvent } from "@amaze/pi-ai/utils/harmony-leak";
+} from "@steve-z8k/pi-ai";
+import type { Dialect } from "@steve-z8k/pi-ai/dialect";
+import type { HarmonyAuditEvent } from "@steve-z8k/pi-ai/utils/harmony-leak";
 import type { AppendOnlyContextManager } from "./append-only-context";
 import type { AgentRunCoverage, AgentRunSummary } from "./run-collector";
 import type { AgentTelemetryConfig } from "./telemetry";
@@ -472,7 +472,7 @@ export interface AfterToolCallContext {
  *
  * @example
  * ```typescript
- * declare module "@amaze/agent" {
+ * declare module "@steve-z8k/agent" {
  *   interface CustomAgentMessages {
  *     artifact: ArtifactMessage;
  *     notification: NotificationMessage;

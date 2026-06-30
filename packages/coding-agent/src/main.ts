@@ -7,8 +7,8 @@
 import * as fsSync from "node:fs";
 import * as os from "node:os";
 import { createInterface } from "node:readline/promises";
-import { EventLoopKeepalive } from "@amaze/pi-agent-core";
-import type { ImageContent } from "@amaze/pi-ai";
+import { EventLoopKeepalive } from "@steve-z8k/pi-agent-core";
+import type { ImageContent } from "@steve-z8k/pi-ai";
 import {
 	$env,
 	directoryExists,
@@ -19,7 +19,7 @@ import {
 	postmortem,
 	setProjectDir,
 	VERSION,
-} from "@amaze/pi-utils";
+} from "@steve-z8k/pi-utils";
 import chalk from "chalk";
 import { reset as resetCapabilities } from "./capability";
 import { type Args, reportUnrecognizedFlags } from "./cli/args";
@@ -41,19 +41,12 @@ import { ModelsConfigFile } from "./config/models-config";
 import { getDefault, type SettingPath, Settings, settings } from "./config/settings";
 import { initializeWithSettings } from "./discovery";
 import { injectAmazeExtensionCliRoots } from "./discovery/amaze-extension-roots";
-import {
-	clearPluginRootsAndCaches,
-	injectPluginDirRoots,
-	preloadPluginRoots,
-	resolveActiveProjectRegistryPath,
-} from "./discovery/helpers";
+import { clearPluginRootsAndCaches, injectPluginDirRoots, preloadPluginRoots } from "./discovery/helpers";
 import { ExtensionRunner } from "./extensibility/extensions/runner";
 import type { ExtensionUIContext } from "./extensibility/extensions/types";
-import { scheduleMarketplaceAutoUpdate } from "./extensibility/plugins/marketplace-auto-update";
 import type { MCPManager } from "./mcp";
 import { InteractiveMode } from "./modes/interactive-mode";
 import type { PrintModeOptions } from "./modes/print-mode";
-import { CURRENT_SETUP_VERSION } from "./modes/setup-version";
 import { initTheme, stopThemeWatcher } from "./modes/theme/theme";
 import type { SubmittedUserInput } from "./modes/types";
 import { AgentLifecycleManager } from "./registry/agent-lifecycle";
@@ -68,8 +61,6 @@ import type { AgentSession } from "./session/agent-session";
 import type { AuthStorage } from "./session/auth-storage";
 import { resolveResumableSession, type SessionInfo } from "./session/session-listing";
 import { SessionManager } from "./session/session-manager";
-import { executeBuiltinSlashCommand } from "./slash-commands/builtin-registry";
-import { shouldShowStartupSplash } from "./startup-splash";
 import { discoverTitleSystemPromptFile, resolvePromptInput } from "./system-prompt";
 import { createPersistedSubagentReviverFactory } from "./task/persisted-revive";
 import { initTelemetryExport, isTelemetryExportEnabled } from "./telemetry-export";
@@ -348,13 +339,10 @@ async function runInteractiveMode(
 	setExtensionUIContext: (uiContext: ExtensionUIContext, hasUI: boolean) => void,
 	mcpManager: MCPManager | undefined,
 	resuming: boolean,
-	forceSetupWizard: boolean,
-	showStartupSplash: boolean,
 	eventBus?: EventBus,
 	initialMessage?: string,
 	initialImages?: ImageContent[],
 	titleSystemPrompt?: string,
-	joinLink?: string,
 ): Promise<void> {
 	const mode = new InteractiveMode(
 		session,
@@ -366,38 +354,10 @@ async function runInteractiveMode(
 		titleSystemPrompt,
 	);
 
-	// Cold-launch gate: the full setup wizard (every scene + the overlay and
-	// their TUI/OAuth/search/theme deps) is heavy, yet the common case only needs
-	// to know whether the stored setup version is current. Lazy-load the wizard
-	// barrel only when setup is stale, forced, or the explicit startup splash
-	// setting needs the shared setup splash renderer.
-	const storedSetupVersion = settings.get("setupVersion");
-	const setupWizard =
-		forceSetupWizard || storedSetupVersion < CURRENT_SETUP_VERSION || showStartupSplash
-			? await import("./modes/setup-wizard")
-			: undefined;
-	const setupScenes = setupWizard
-		? await setupWizard.selectSetupScenes(storedSetupVersion, setupWizard.ALL_SCENES, mode, {
-				resuming,
-				isTTY: process.stdin.isTTY && process.stdout.isTTY,
-				setupWizardEnabled: settings.get("startup.setupWizard"),
-				force: forceSetupWizard,
-			})
-		: [];
-	const playStartupSplash = showStartupSplash && setupScenes.length === 0;
-
 	await mode.init({
-		suppressWelcomeIntro: resuming || setupScenes.length > 0 || playStartupSplash,
+		suppressWelcomeIntro: resuming,
 		clearInitialTerminalHistory: true,
 	});
-
-	if (setupWizard && playStartupSplash) {
-		await setupWizard.runStartupSplash(mode);
-	}
-
-	if (setupWizard && setupScenes.length > 0) {
-		await setupWizard.runSetupWizard(mode, setupScenes);
-	}
 
 	void versionCheckPromise;
 
@@ -419,12 +379,6 @@ async function runInteractiveMode(
 		} else if (notify.kind === "info") {
 			mode.showStatus(notify.message);
 		}
-	}
-
-	// `amaze join <link>`: dispatch through the same builtin path as a typed
-	// `/join` so collab guards and error rendering stay in one place.
-	if (joinLink !== undefined) {
-		await executeBuiltinSlashCommand(`/join ${joinLink}`, { ctx: mode });
 	}
 
 	if (initialMessage !== undefined) {
@@ -759,7 +713,7 @@ async function buildSessionOptions(
 			}
 		}
 	} else if (scopedModels.length > 0 && !parsed.continue && !parsed.resume) {
-		const remembered = activeSettings.getModelRole("default");
+		const remembered = activeSettings.getModelRole("flash");
 		if (remembered) {
 			const rememberedSpec = resolveModelRoleValue(
 				remembered,
@@ -861,7 +815,14 @@ interface RunRootCommandDependencies {
 	discoverAuthStorage?: typeof discoverAuthStorage;
 	runAcpMode?: RunAcpMode;
 	settings?: Settings;
-	forceSetupWizard?: boolean;
+}
+
+function resolveProjectModelsConfigPath(): string | undefined {
+	const projectDir = getProjectDir();
+	const yamlPath = `${projectDir}/.amaze/models.yml`;
+	if (fsSync.existsSync(yamlPath)) return yamlPath;
+	const ymlPath = `${projectDir}/.amaze/models.yaml`;
+	return fsSync.existsSync(ymlPath) ? ymlPath : undefined;
 }
 
 export async function runRootCommand(
@@ -881,27 +842,17 @@ export async function runRootCommand(
 
 	const notifs: (InteractiveModeNotify | null)[] = [];
 
-	// Create AuthStorage and ModelRegistry upfront
+	// Create AuthStorage and ModelRegistry upfront. A project-local .amaze/models.yml
+	// augments the global model catalog so repo-specific local gateways work in RPC,
+	// print, and interactive modes without requiring global config mutation.
 	const authStorage = await logger.time("discoverAuthStorage", deps.discoverAuthStorage ?? discoverAuthStorage);
-	const modelRegistry = logger.time("modelRegistry:init", () => new ModelRegistry(authStorage));
+	const modelRegistry = logger.time(
+		"modelRegistry:init",
+		() => new ModelRegistry(authStorage, resolveProjectModelsConfigPath()),
+	);
 
 	if (parsedArgs.version) {
 		writeStartupNotice(parsedArgs, `${VERSION}\n`);
-		process.exit(0);
-	}
-
-	if (parsedArgs.export) {
-		let result: string;
-		try {
-			const outputPath = parsedArgs.messages.length > 0 ? parsedArgs.messages[0] : undefined;
-			const { exportFromFile } = await import("./export/html");
-			result = await exportFromFile(parsedArgs.export, outputPath);
-		} catch (error: unknown) {
-			const message = error instanceof Error ? error.message : "Failed to export session";
-			process.stderr.write(`${chalk.red(`Error: ${message}`)}\n`);
-			process.exit(1);
-		}
-		writeStartupNotice(parsedArgs, `Exported to: ${result}\n`);
 		process.exit(0);
 	}
 
@@ -965,18 +916,6 @@ export async function runRootCommand(
 	// Initialize discovery system with settings for provider persistence
 	logger.time("initializeWithSettings", initializeWithSettings, settingsInstance);
 
-	// Apply model role overrides from CLI args or env vars (ephemeral, not persisted)
-	const smolModel = parsedArgs.smol ?? $env.PI_SMOL_MODEL;
-	const slowModel = parsedArgs.slow ?? $env.PI_SLOW_MODEL;
-	const planModel = parsedArgs.plan ?? $env.PI_PLAN_MODEL;
-	if (smolModel || slowModel || planModel) {
-		settingsInstance.overrideModelRoles({
-			smol: smolModel,
-			slow: slowModel,
-			plan: planModel,
-		});
-	}
-
 	// --print-thoughts (single-shot print mode) must surface reasoning, so un-hide
 	// thinking before the session is built — otherwise a passive omitThinking
 	// setting makes the provider omit summaries and the flag prints nothing. An
@@ -987,10 +926,6 @@ export async function runRootCommand(
 	// Apply --hide-thinking CLI flag (ephemeral, not persisted)
 	if (parsedArgs.hideThinking) {
 		settingsInstance.override("hideThinkingBlock", true);
-	}
-	// Apply --advisor CLI flag (ephemeral, not persisted)
-	if (parsedArgs.advisor) {
-		settingsInstance.override("advisor.enabled", true);
 	}
 
 	await logger.time(
@@ -1100,12 +1035,6 @@ export async function runRootCommand(
 
 	await pluginPreloadPromise;
 
-	scheduleMarketplaceAutoUpdate({
-		autoUpdate: settingsInstance.get("marketplace.autoUpdate"),
-		resolveActiveProjectRegistryPath,
-		clearPluginRootsCache: clearPluginRootsAndCaches,
-	});
-
 	const { options: sessionOptions, titleSystemPrompt } = await logger.time(
 		"buildSessionOptions",
 		buildSessionOptions,
@@ -1210,25 +1139,15 @@ export async function runRootCommand(
 			stdinContent: pipedInput,
 		});
 
-		const showStartupSplash = shouldShowStartupSplash({
-			configured: settingsInstance.get("startup.showSplash"),
-			isInteractive,
-			resuming: Boolean(parsedArgs.continue || parsedArgs.resume || parsedArgs.fork),
-			quiet: settingsInstance.get("startup.quiet"),
-			timing: Boolean($env.PI_TIMING),
-			stdinIsTTY: process.stdin.isTTY,
-			stdoutIsTTY: process.stdout.isTTY,
-		});
-
 		const { session, setToolUIContext, modelFallbackMessage, mcpManager } = await createSession({
 			...sessionOptions,
 			eventBus,
 			preloadedExtensions: extensionsResult,
 		});
 
-		// Cold-revive support: a `parked` subagent ref restored from disk (Agent Hub
-		// scan, collab mirror, resumed process) has a sessionFile but no in-memory
-		// reviver, so `ensureLive` (IRC sends, hub focus) would refuse it. Install a
+		// Cold-revive support: a `parked` subagent ref restored from Agent Hub scans
+		// or resumed processes has a sessionFile but no in-memory reviver, so
+		// `ensureLive` (IRC sends, hub focus) would refuse it. Install a
 		// factory — bound to THIS top-level session — that rebuilds the subagent from
 		// its persisted JSONL (see persisted-revive.ts). Scoped to the non-ACP
 		// bootstrap: ACP keeps several concurrent top-level sessions and a single
@@ -1306,13 +1225,10 @@ export async function runRootCommand(
 				setToolUIContext,
 				mcpManager,
 				Boolean(parsedArgs.continue || parsedArgs.resume || parsedArgs.fork),
-				deps.forceSetupWizard === true,
-				showStartupSplash,
 				eventBus,
 				initialMessage,
 				initialImages,
 				titleSystemPrompt,
-				parsedArgs.join,
 			);
 		} else {
 			// Branch-only single-shot runner: keep print-mode code out of normal interactive startup.

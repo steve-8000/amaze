@@ -1,5 +1,5 @@
-import type { ImageContent } from "@amaze/pi-ai";
-import { logger } from "@amaze/pi-utils";
+import type { ImageContent } from "@steve-z8k/pi-ai";
+import { logger } from "@steve-z8k/pi-utils";
 import { type BlobPutResult, blobExtensionForImageMimeType } from "../session/blob-store";
 import { fileHyperlink } from "../tui/hyperlink";
 

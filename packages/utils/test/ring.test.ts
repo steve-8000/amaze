@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { RingBuffer } from "@amaze/pi-utils/ring";
+import { RingBuffer } from "@steve-z8k/pi-utils/ring";
 
 describe("construction", () => {
 	it("starts empty", () => {

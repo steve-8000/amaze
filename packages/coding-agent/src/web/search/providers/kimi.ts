@@ -4,8 +4,8 @@
  * Uses Moonshot Kimi Code search API to retrieve web results.
  * Endpoint: POST https://api.kimi.com/coding/v1/search
  */
-import { type ApiKey, type AuthStorage, type FetchImpl, withAuth } from "@amaze/pi-ai";
-import { $env } from "@amaze/pi-utils";
+import { type ApiKey, type AuthStorage, type FetchImpl, withAuth } from "@steve-z8k/pi-ai";
+import { $env } from "@steve-z8k/pi-utils";
 
 import type { SearchResponse, SearchSource } from "../../../web/search/types";
 import { SearchProviderError } from "../../../web/search/types";

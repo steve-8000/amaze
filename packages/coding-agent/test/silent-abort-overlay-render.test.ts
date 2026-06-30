@@ -11,13 +11,13 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { resetSettingsForTest, Settings } from "@amaze/pi-coding-agent/config/settings";
-import { AgentTranscriptViewer } from "@amaze/pi-coding-agent/modes/components/agent-transcript-viewer";
-import type { ObservableSession } from "@amaze/pi-coding-agent/modes/session-observer-registry";
-import { initTheme } from "@amaze/pi-coding-agent/modes/theme/theme";
-import { AgentRegistry } from "@amaze/pi-coding-agent/registry/agent-registry";
-import { SILENT_ABORT_MARKER } from "@amaze/pi-coding-agent/session/messages";
-import type { TUI } from "@amaze/pi-tui";
+import { resetSettingsForTest, Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { AgentTranscriptViewer } from "@steve-z8k/pi-coding-agent/modes/components/agent-transcript-viewer";
+import type { ObservableSession } from "@steve-z8k/pi-coding-agent/modes/session-observer-registry";
+import { initTheme } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
+import { AgentRegistry } from "@steve-z8k/pi-coding-agent/registry/agent-registry";
+import { SILENT_ABORT_MARKER } from "@steve-z8k/pi-coding-agent/session/messages";
+import type { TUI } from "@steve-z8k/pi-tui";
 
 const SESSION_ID = "test-session-1";
 
@@ -34,7 +34,7 @@ function makeSubagentRegistry(sessions: ObservableSession[]) {
 		onChange: () => () => {},
 		setMainSession: () => {},
 		getActiveSubagentCount: () => sessions.filter(s => s.status === "active").length,
-	} as unknown as import("@amaze/pi-coding-agent/modes/session-observer-registry").SessionObserverRegistry;
+	} as unknown as import("@steve-z8k/pi-coding-agent/modes/session-observer-registry").SessionObserverRegistry;
 }
 
 function makeViewer(sessionFile: string, observed: ObservableSession[]): AgentTranscriptViewer {
@@ -101,7 +101,7 @@ describe("Agent hub silent-abort regression", () => {
 					content: [],
 					api: "anthropic-messages",
 					provider: "anthropic",
-					model: "claude-sonnet-4-5",
+					model: "claude-sonnet-4-6",
 					stopReason: "aborted",
 					errorMessage: SILENT_ABORT_MARKER,
 					usage: {
@@ -158,7 +158,7 @@ describe("Agent hub silent-abort regression", () => {
 					content: [],
 					api: "anthropic-messages",
 					provider: "anthropic",
-					model: "claude-sonnet-4-5",
+					model: "claude-sonnet-4-6",
 					stopReason: "error",
 					errorMessage: "Connection timed out",
 					usage: {

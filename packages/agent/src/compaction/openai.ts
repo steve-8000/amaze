@@ -12,17 +12,22 @@
  *   with `{ summary, shortSummary? }`.
  */
 
-import { ProviderHttpError } from "@amaze/pi-ai/errors";
-import { parseTextSignature } from "@amaze/pi-ai/providers/openai-shared";
-import { transformMessages } from "@amaze/pi-ai/providers/transform-messages";
-import type { AssistantMessage, FetchImpl, Message, Model } from "@amaze/pi-ai/types";
+import { ProviderHttpError } from "@steve-z8k/pi-ai/errors";
+import { parseTextSignature } from "@steve-z8k/pi-ai/providers/openai-shared";
+import { transformMessages } from "@steve-z8k/pi-ai/providers/transform-messages";
+import type { AssistantMessage, FetchImpl, Message, Model } from "@steve-z8k/pi-ai/types";
 import {
 	getOpenAIResponsesHistoryItems,
 	getOpenAIResponsesHistoryPayload,
 	normalizeResponsesToolCallId,
-} from "@amaze/pi-ai/utils";
-import { CODEX_BASE_URL, getCodexAccountId, OPENAI_HEADER_VALUES, OPENAI_HEADERS } from "@amaze/pi-catalog/wire/codex";
-import { logger } from "@amaze/pi-utils";
+} from "@steve-z8k/pi-ai/utils";
+import {
+	CODEX_BASE_URL,
+	getCodexAccountId,
+	OPENAI_HEADER_VALUES,
+	OPENAI_HEADERS,
+} from "@steve-z8k/pi-catalog/wire/codex";
+import { logger } from "@steve-z8k/pi-utils";
 
 // ============================================================================
 // Public types

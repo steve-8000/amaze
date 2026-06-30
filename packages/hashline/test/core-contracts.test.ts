@@ -12,7 +12,7 @@ import {
 	parsePatch,
 	Recovery,
 	type SplitOptions,
-} from "@amaze/hashline";
+} from "@steve-z8k/hashline";
 
 const repl = (text: string): string => `+${text}`;
 

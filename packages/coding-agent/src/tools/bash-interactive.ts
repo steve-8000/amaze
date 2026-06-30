@@ -1,5 +1,5 @@
-import type { AgentToolContext } from "@amaze/pi-agent-core";
-import { type PtyRunResult, PtySession } from "@amaze/pi-natives";
+import type { AgentToolContext } from "@steve-z8k/pi-agent-core";
+import { type PtyRunResult, PtySession } from "@steve-z8k/pi-natives";
 import {
 	type Component,
 	extractPrintableText,
@@ -9,8 +9,8 @@ import {
 	parseKittySequence,
 	truncateToWidth,
 	visibleWidth,
-} from "@amaze/pi-tui";
-import { sanitizeText } from "@amaze/pi-utils";
+} from "@steve-z8k/pi-tui";
+import { sanitizeText } from "@steve-z8k/pi-utils";
 import type * as XtermModule from "@xterm/headless";
 import type { Terminal as XtermTerminalType } from "@xterm/headless";
 import { Settings } from "../config/settings";

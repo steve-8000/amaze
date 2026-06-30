@@ -2,15 +2,15 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { AuthStorage, SqliteAuthCredentialStore } from "@amaze/pi-ai";
+import { AuthStorage, SqliteAuthCredentialStore } from "@steve-z8k/pi-ai";
 import {
 	type AuthBrokerServerHandle,
 	readAuthBrokerSnapshotCache,
 	type SnapshotResponse,
 	startAuthBroker,
 	writeAuthBrokerSnapshotCache,
-} from "@amaze/pi-ai/auth-broker";
-import { discoverAuthStorage } from "@amaze/pi-coding-agent/sdk";
+} from "@steve-z8k/pi-ai/auth-broker";
+import { discoverAuthStorage } from "@steve-z8k/pi-coding-agent/sdk";
 
 const ENV_KEYS = [
 	"OMP_AUTH_BROKER_URL",

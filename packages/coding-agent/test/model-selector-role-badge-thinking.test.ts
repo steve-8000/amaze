@@ -1,13 +1,13 @@
 import { beforeAll, describe, expect, test, vi } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import type { Model } from "@amaze/pi-ai";
-import { buildModel } from "@amaze/pi-catalog/build";
-import { getBundledModel } from "@amaze/pi-catalog/models";
-import type { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import { ModelSelectorComponent } from "@amaze/pi-coding-agent/modes/components/model-selector";
-import { getThemeByName, setThemeInstance } from "@amaze/pi-coding-agent/modes/theme/theme";
-import type { TUI } from "@amaze/pi-tui";
+import type { Model } from "@steve-z8k/pi-ai";
+import { buildModel } from "@steve-z8k/pi-catalog/build";
+import { getBundledModel } from "@steve-z8k/pi-catalog/models";
+import type { ModelRegistry } from "@steve-z8k/pi-coding-agent/config/model-registry";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { ModelSelectorComponent } from "@steve-z8k/pi-coding-agent/modes/components/model-selector";
+import { getThemeByName, setThemeInstance } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
+import type { TUI } from "@steve-z8k/pi-tui";
 
 function normalizeRenderedText(text: string): string {
 	return stripVTControlCharacters(text).replace(/\s+/g, " ").trim();
@@ -107,18 +107,18 @@ describe("ModelSelector role badge thinking display", () => {
 
 	test("shows custom roles from cycleOrder/modelRoles and honors built-in metadata overrides", async () => {
 		installTestTheme();
-		const model = getBundledModel("anthropic", "claude-sonnet-4-5");
-		if (!model) throw new Error("Expected bundled model anthropic/claude-sonnet-4-5");
+		const model = getBundledModel("anthropic", "claude-sonnet-4-6");
+		if (!model) throw new Error("Expected bundled model anthropic/claude-sonnet-4-6");
 
 		const settings = Settings.isolated({
-			cycleOrder: ["smol", "custom-fast", "default"],
+			cycleOrder: ["flash", "custom-fast", "deep"],
 			modelRoles: {
-				default: `${model.provider}/${model.id}`,
+				deep: `${model.provider}/${model.id}`,
 				"custom-fast": `${model.provider}/${model.id}:low`,
-				smol: `${model.provider}/${model.id}`,
+				flash: `${model.provider}/${model.id}`,
 			},
 			modelTags: {
-				smol: { name: "Quick", color: "error" },
+				flash: { name: "Quick", color: "error" },
 			},
 		});
 
@@ -128,13 +128,13 @@ describe("ModelSelector role badge thinking display", () => {
 
 		const rendered = normalizeRenderedText(selector.render(220).join("\n"));
 		expect(rendered).toContain("custom-fast (low)");
-		expect(rendered).toContain("SMOL (inherit)");
+		expect(rendered).toContain("FLASH (inherit)");
 
 		selector.handleInput("\n");
 		installTestTheme();
 		const menuRendered = normalizeRenderedText(selector.render(220).join("\n"));
 		expect(menuRendered).toContain("Set as custom-fast");
-		expect(menuRendered).toContain("Set as SMOL (Quick)");
+		expect(menuRendered).toContain("Set as FLASH (Quick)");
 	});
 
 	test("renders xhigh effort for OpenAI GPT-5.5 thinking options", async () => {
@@ -150,7 +150,7 @@ describe("ModelSelector role badge thinking display", () => {
 		selector.handleInput("\n");
 
 		const rendered = normalizeRenderedText(selector.render(220).join("\n"));
-		expect(rendered).toContain("Thinking for: Default (gpt-5.5)");
+		expect(rendered).toContain("Thinking for: Flash (gpt-5.5)");
 		expect(rendered).toContain("low medium high xhigh");
 		expect(rendered).not.toContain("low medium high max");
 	});
@@ -158,18 +158,18 @@ describe("ModelSelector role badge thinking display", () => {
 	test("shows compact auto badges for unconfigured role defaults", async () => {
 		installTestTheme();
 		const settings = Settings.isolated({});
-		const haiku = createContextTestModel("claude-haiku-4.5", 128_000);
-		const codex = createContextTestModel("gpt-5.1-codex", 128_000);
+		const haiku = createContextTestModel("claude-opus-4.7", 128_000);
+		const codex = createContextTestModel("gpt-5.3-codex", 128_000);
 
 		const selector = createScopedSelector([codex, haiku], settings, () => {});
 		await Bun.sleep(0);
 		installTestTheme();
 
 		const rendered = normalizeRenderedText(selector.render(220).join("\n"));
-		expect(rendered).toContain("claude-haiku-4.5");
-		expect(rendered).toContain("gpt-5.1-codex");
-		expect(rendered).toContain("[SMOL auto]");
-		expect(rendered).toContain("[SLOW auto]");
+		expect(rendered).toContain("claude-opus-4.7");
+		expect(rendered).toContain("gpt-5.3-codex");
+		expect(rendered).not.toContain("[FLASH auto]");
+		expect(rendered).not.toContain("[DEEP auto]");
 	});
 
 	test("dims and disables models below the current context size in temporary mode", async () => {
@@ -204,7 +204,7 @@ describe("ModelSelector role badge thinking display", () => {
 		const rendered = normalizeRenderedText(selector.render(220).join("\n"));
 		expect(rendered).toContain("Temporary model selection is session-only");
 		expect(rendered).toContain("Alt+M or /model");
-		expect(rendered).toContain("default/smol/plan/task/slow/custom roles");
+		expect(rendered).toContain("flash/deep/ultra/local/spark/custom roles");
 	});
 
 	test("opens the role assignment menu but guards over-context default switches", async () => {
@@ -225,11 +225,11 @@ describe("ModelSelector role badge thinking display", () => {
 		selector.handleInput("\n");
 		const afterOpen = normalizeRenderedText(selector.render(220).join("\n"));
 		expect(afterOpen).toContain("Action for: only-small");
-		expect(afterOpen).toContain("Set as DEFAULT (Default) ⦸ context>4.1k");
+		expect(afterOpen).toContain("Set as FLASH (Flash) ⦸ context>4.1k");
 
 		selector.handleInput("\n");
 		const afterRoleEnter = normalizeRenderedText(selector.render(220).join("\n"));
-		expect(afterRoleEnter).toContain("Thinking for: Fast (only-small)");
+		expect(afterRoleEnter).toContain("Thinking for: Spark (only-small)");
 		expect(onSelect).not.toHaveBeenCalled();
 	});
 
@@ -316,7 +316,7 @@ describe("ModelSelector role badge thinking display", () => {
 	test("refreshes Ollama Cloud using provider id instead of tab label", async () => {
 		installTestTheme();
 		const settings = Settings.isolated({});
-		const discoveredModel = createOllamaCloudModel("deepseek-v4-pro");
+		const discoveredModel = createOllamaCloudModel("gpt-5.4");
 		let availableModels: Model[] = [];
 		const refreshProvider = vi.fn(async (providerId: string) => {
 			if (providerId === "ollama-cloud") {
@@ -366,14 +366,14 @@ describe("ModelSelector role badge thinking display", () => {
 		expect(refreshProvider).toHaveBeenCalledWith("ollama-cloud", "online");
 		expect(modelRegistry.refresh).toHaveBeenCalledTimes(1);
 		const rendered = normalizeRenderedText(selector.render(220).join("\n"));
-		expect(rendered).toContain("deepseek-v4-pro");
+		expect(rendered).toContain("gpt-5.4");
 		expect(rendered).not.toContain("Provider has not been refreshed yet");
 	});
 
 	test("switches provider tabs immediately and refreshes in background with spinner animation", async () => {
 		installTestTheme();
 		const settings = Settings.isolated({});
-		const discoveredModel = createOllamaCloudModel("deepseek-v4-pro");
+		const discoveredModel = createOllamaCloudModel("gpt-5.4");
 		let availableModels: Model[] = [];
 		let resolveRefresh: (() => void) | undefined;
 		const refreshProvider = vi.fn(
@@ -444,7 +444,7 @@ describe("ModelSelector role badge thinking display", () => {
 
 		expect(modelRegistry.refresh).toHaveBeenCalledTimes(1);
 		const finalRendered = normalizeRenderedText(selector.render(220).join("\n"));
-		expect(finalRendered).toContain("deepseek-v4-pro");
+		expect(finalRendered).toContain("gpt-5.4");
 		expect(finalRendered).not.toContain("Refreshing OLLAMA CLOUD in background");
 	});
 });

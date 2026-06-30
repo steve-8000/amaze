@@ -14,7 +14,7 @@
  * — see `commands/complete.ts`. The flag→source mapping below is the only manual
  * knob and is keyed by flag name so it stays stable as flags are added.
  */
-import type { ArgDescriptor, CliConfig, CommandCtor, FlagDescriptor } from "@amaze/pi-utils/cli";
+import type { ArgDescriptor, CliConfig, CommandCtor, FlagDescriptor } from "@steve-z8k/pi-utils/cli";
 import { BUILTIN_TOOL_NAMES } from "../tools/builtin-names";
 
 export type Shell = "bash" | "zsh" | "fish";
@@ -65,7 +65,7 @@ export interface CompletionSpec {
 // --- Flag/arg value classification (the single manual mapping) ----------------
 
 /** Single-value flags resolved against the live model catalog. */
-const MODEL_FLAGS: Record<string, true> = { model: true, smol: true, slow: true, plan: true };
+const MODEL_FLAGS: Record<string, true> = { model: true };
 /** Single-value flags resolved against on-disk sessions. */
 const SESSION_FLAGS: Record<string, true> = { resume: true, fork: true, session: true };
 /** Flags whose value is a directory path. */

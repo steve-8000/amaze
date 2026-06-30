@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { isSelfReferentialMCPConfig, loadAllMCPConfigs } from "@amaze/pi-coding-agent/mcp/config";
+import { isSelfReferentialMCPConfig, loadAllMCPConfigs } from "@steve-z8k/pi-coding-agent/mcp/config";
 
 const packageRoot = path.resolve(import.meta.dir, "..");
 const originalLauncherPath = process.env.AMAZE_CLI_LAUNCHER_PATH;
@@ -59,8 +59,8 @@ describe("self-referential MCP config guard", () => {
 	});
 });
 
-describe("disabled MCP config guard", () => {
-	test("drops rocky-codebase from discovered MCP configs", async () => {
+describe("MCP config guard", () => {
+	test("drops only self-referential MCP servers and keeps Clab-named configs", async () => {
 		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "amaze-disabled-mcp-"));
 		try {
 			const claudeDir = path.join(tempDir, ".claude");
@@ -69,7 +69,12 @@ describe("disabled MCP config guard", () => {
 				path.join(claudeDir, ".mcp.json"),
 				JSON.stringify({
 					mcpServers: {
-						"rocky-codebase": { command: "/bin/echo", args: ["blocked"] },
+						"clab-codebase": { command: "/bin/echo", args: ["ok-codebase"] },
+						"clab-skills": { command: "/bin/echo", args: ["ok-skills"] },
+						"self-referential-server": {
+							command: process.execPath,
+							args: [path.join(packageRoot, "src", "cli.ts")],
+						},
 						"allowed-server": { command: "/bin/echo", args: ["ok"] },
 					},
 				}),
@@ -78,10 +83,11 @@ describe("disabled MCP config guard", () => {
 			const { configs } = await loadAllMCPConfigs(tempDir, {
 				filterExa: false,
 				filterBrowser: false,
-				filterSelfReference: false,
 			});
 
-			expect(configs["rocky-codebase"]).toBeUndefined();
+			expect(configs["clab-codebase"]).toBeDefined();
+			expect(configs["clab-skills"]).toBeDefined();
+			expect(configs["self-referential-server"]).toBeUndefined();
 			expect(configs["allowed-server"]).toBeDefined();
 		} finally {
 			await fs.rm(tempDir, { recursive: true, force: true });

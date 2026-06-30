@@ -12,14 +12,14 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import { InternalUrlRouter } from "@amaze/pi-coding-agent/internal-urls";
-import { HistoryProtocolHandler } from "@amaze/pi-coding-agent/internal-urls/history-protocol";
-import { AgentRegistry } from "@amaze/pi-coding-agent/registry/agent-registry";
-import type { AgentSession } from "@amaze/pi-coding-agent/session/agent-session";
-import { CURRENT_SESSION_VERSION } from "@amaze/pi-coding-agent/session/session-entries";
-import type { ToolSession } from "@amaze/pi-coding-agent/tools";
-import { ReadTool } from "@amaze/pi-coding-agent/tools/read";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { InternalUrlRouter } from "@steve-z8k/pi-coding-agent/internal-urls";
+import { HistoryProtocolHandler } from "@steve-z8k/pi-coding-agent/internal-urls/history-protocol";
+import { AgentRegistry } from "@steve-z8k/pi-coding-agent/registry/agent-registry";
+import type { AgentSession } from "@steve-z8k/pi-coding-agent/session/agent-session";
+import { CURRENT_SESSION_VERSION } from "@steve-z8k/pi-coding-agent/session/session-entries";
+import type { ToolSession } from "@steve-z8k/pi-coding-agent/tools";
+import { ReadTool } from "@steve-z8k/pi-coding-agent/tools/read";
 
 async function withTempDir<T>(fn: (dir: string) => Promise<T>): Promise<T> {
 	const dir = await fs.mkdtemp(path.join(os.tmpdir(), "history-protocol-"));

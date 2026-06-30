@@ -10,8 +10,8 @@ import {
 	parseApplyPatch,
 	parseDiffHunks,
 	seekSequence,
-} from "@amaze/pi-coding-agent/edit";
-import { removeSyncWithRetries } from "@amaze/pi-utils";
+} from "@steve-z8k/pi-coding-agent/edit";
+import { removeSyncWithRetries } from "@steve-z8k/pi-utils";
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Test-local adapters over the production Codex envelope API.

@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { hasMagicKeyword, highlightMagicKeywords } from "@amaze/pi-coding-agent/modes/magic-keywords";
-import { initTheme } from "@amaze/pi-coding-agent/modes/theme/theme";
+import { hasMagicKeyword, highlightMagicKeywords } from "@steve-z8k/pi-coding-agent/modes/magic-keywords";
+import { initTheme } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
 
 beforeAll(async () => {
 	// Gradient palettes read the active theme's color mode.

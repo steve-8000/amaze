@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import type { FetchImpl } from "@amaze/pi-ai";
-import { createMockModel, registerMockApi } from "@amaze/pi-ai/providers/mock";
+import type { FetchImpl } from "@steve-z8k/pi-ai";
+import { createMockModel, registerMockApi } from "@steve-z8k/pi-ai/providers/mock";
 import {
 	CallableLlmBackend,
 	resetHostLlmBackendForTests,
 	setHostLlmBackend,
-} from "@amaze/pi-rocky-memory/core/llm-backends";
+} from "@steve-z8k/pi-rocky-memory/core/llm-backends";
 import {
 	buildHostPrompt,
 	callLocalLlm,
@@ -15,9 +15,9 @@ import {
 	llmAvailable,
 	localGgufAvailable,
 	summarizeMemories,
-} from "@amaze/pi-rocky-memory/core/local-llm";
-import { RockyMemory } from "@amaze/pi-rocky-memory/core/memory";
-import { withRockyMemoryRuntimeOptions } from "@amaze/pi-rocky-memory/core/runtime-options";
+} from "@steve-z8k/pi-rocky-memory/core/local-llm";
+import { RockyMemory } from "@steve-z8k/pi-rocky-memory/core/memory";
+import { withRockyMemoryRuntimeOptions } from "@steve-z8k/pi-rocky-memory/core/runtime-options";
 
 const OLD_ENV = { ...process.env };
 

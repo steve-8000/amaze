@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { clearCache as clearFsCache } from "@amaze/pi-coding-agent/capability/fs";
-import { expandAtImports, MAX_AT_IMPORT_DEPTH } from "@amaze/pi-coding-agent/discovery/at-imports";
+import { clearCache as clearFsCache } from "@steve-z8k/pi-coding-agent/capability/fs";
+import { expandAtImports, MAX_AT_IMPORT_DEPTH } from "@steve-z8k/pi-coding-agent/discovery/at-imports";
 
 /**
  * Behavior contract for the @-import expander used by every AGENTS.md /

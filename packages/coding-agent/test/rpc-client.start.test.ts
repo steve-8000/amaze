@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import * as path from "node:path";
-import { RpcClient } from "@amaze/pi-coding-agent/modes/rpc/rpc-client";
+import { RpcClient } from "@steve-z8k/pi-coding-agent/modes/rpc/rpc-client";
 
 describe("RpcClient.start", () => {
 	test("rejects when RPC process exits immediately", async () => {
@@ -8,7 +8,7 @@ describe("RpcClient.start", () => {
 			cliPath: path.join(import.meta.dir, "..", "src", "cli.ts"),
 			cwd: path.join(import.meta.dir, ".."),
 			provider: "__missing_provider__",
-			model: "claude-sonnet-4-5",
+			model: "claude-sonnet-4-6",
 			env: { PI_NO_TITLE: "1" },
 		});
 

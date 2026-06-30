@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "bun:test";
-import { loginUmans } from "@amaze/pi-ai/registry/umans";
-import type { FetchImpl } from "@amaze/pi-ai/types";
+import { loginUmans } from "@steve-z8k/pi-ai/registry/umans";
+import type { FetchImpl } from "@steve-z8k/pi-ai/types";
 
 describe("umans login", () => {
 	it("validates pasted keys against the Anthropic messages endpoint", async () => {

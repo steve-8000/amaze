@@ -1,4 +1,4 @@
-import { $env } from "@amaze/pi-utils";
+import { $env } from "@steve-z8k/pi-utils";
 import type { Context, Model, StreamFunction } from "../types";
 import type { AssistantMessageEventStream } from "../utils/event-stream";
 import { getVertexAccessToken } from "./google-auth";

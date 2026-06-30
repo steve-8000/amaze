@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { getPrompt, listPrompts, serverSupportsPrompts } from "@amaze/pi-coding-agent/mcp/client";
-import type { MCPGetPromptResult, MCPPrompt, MCPPromptsListResult } from "@amaze/pi-coding-agent/mcp/types";
+import { getPrompt, listPrompts, serverSupportsPrompts } from "@steve-z8k/pi-coding-agent/mcp/client";
+import type { MCPGetPromptResult, MCPPrompt, MCPPromptsListResult } from "@steve-z8k/pi-coding-agent/mcp/types";
 import { createMockConnection, createMockTransport } from "./mcp-test-utils";
 
 describe("listPrompts", () => {

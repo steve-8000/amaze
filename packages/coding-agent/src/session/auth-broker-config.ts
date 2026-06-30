@@ -2,7 +2,7 @@
  * Resolve auth-broker connection configuration for the local amaze client.
  *
  * This is a thin coding-agent wrapper around the shared resolver in
- * `@amaze/pi-ai/auth-broker/discover` that preserves the process-lifetime
+ * `@steve-z8k/pi-ai/auth-broker/discover` that preserves the process-lifetime
  * memoization expected by the CLI and injects the full `resolveConfigValue`
  * (including `!command` config indirection) from coding-agent's config layer.
  *
@@ -27,8 +27,8 @@ import {
 	discoverAuthStorage as discoverAuthStorageShared,
 	getAuthBrokerTokenFilePath,
 	resolveAuthBrokerConfig as resolveAuthBrokerConfigShared,
-} from "@amaze/pi-ai/auth-broker/discover";
-import { getAgentDir } from "@amaze/pi-utils";
+} from "@steve-z8k/pi-ai/auth-broker/discover";
+import { getAgentDir } from "@steve-z8k/pi-utils";
 import { resolveConfigValue } from "../config/resolve-config-value";
 import type { AuthStorage } from "./auth-storage";
 

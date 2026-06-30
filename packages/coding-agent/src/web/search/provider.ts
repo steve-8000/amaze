@@ -8,7 +8,7 @@
 // Provider modules are loaded lazily; display metadata lives in types.ts so UI
 // listings can share it without importing provider implementations.
 
-import type { AuthStorage } from "@amaze/pi-ai";
+import type { AuthStorage } from "@steve-z8k/pi-ai";
 import type { SearchProvider } from "./providers/base";
 import { SEARCH_PROVIDER_LABELS, SEARCH_PROVIDER_ORDER, type SearchProviderId } from "./types";
 

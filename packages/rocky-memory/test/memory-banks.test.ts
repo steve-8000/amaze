@@ -13,7 +13,7 @@ import {
 	resetBankForTests,
 	setBank,
 	ValueError,
-} from "@amaze/pi-rocky-memory/core/banks";
+} from "@steve-z8k/pi-rocky-memory/core/banks";
 
 describe("BankManager", () => {
 	it("creates, lists, renames, stats, and deletes isolated bank directories", () => {

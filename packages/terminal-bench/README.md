@@ -1,4 +1,4 @@
-# @amaze/terminal-bench
+# @steve-z8k/terminal-bench
 
 Run [harbor-framework/terminal-bench-2](https://github.com/harbor-framework/terminal-bench-2)
 against the **local `amaze` build** with a live progress / spend / success dashboard.
@@ -33,7 +33,7 @@ harbor: ...
    package into `dist/cli.js` — and a custom Harbor agent
    ([`agent/omp_local.py`](./agent/omp_local.py)) uploads that tarball into each
    task container, installs Bun, `bun install`s the bundle's external deps + the
-   matching `@amaze/pi-natives-linux-<arch>` prebuilt, and runs
+   matching `@steve-z8k/pi-natives-linux-<arch>` prebuilt, and runs
    `bun .../dist/cli.js --print --mode json --no-session --auto-approve`.
 2. **Auth via the host gateway — no keys in containers.** A generated
    `~/.amaze/agent/models.yml` routes the model providers' `baseUrl` at the host
@@ -68,7 +68,7 @@ bun src/runner.ts [options] [-- <extra harbor args>]
 | `--thinking <level>` | — | `off…xhigh` |
 | `--advisor-model <p/m>` | — | Second model reviewing the primary; spend summed in |
 | `--agent <name>` | `amaze` | `oracle`/`nop`/any harbor agent (bypasses amaze) |
-| `--install <local\|published>` | `local` | `published` = npm `@amaze/pi-coding-agent` |
+| `--install <local\|published>` | `local` | `published` = npm `@steve-z8k/pi-coding-agent` |
 | `--tarball <path>` / `--no-build` | — | Reuse a prebuilt amaze tarball |
 | `--gateway-url <url>` | `http://host.docker.internal:4000` | |
 | `--no-gateway` | off | Pass host provider keys into containers instead |

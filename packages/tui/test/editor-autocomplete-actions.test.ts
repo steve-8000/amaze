@@ -4,8 +4,8 @@ import {
 	type AutocompleteProvider,
 	CombinedAutocompleteProvider,
 	findLeadingSlashCommandStart,
-} from "@amaze/pi-tui/autocomplete";
-import { Editor } from "@amaze/pi-tui/components/editor";
+} from "@steve-z8k/pi-tui/autocomplete";
+import { Editor } from "@steve-z8k/pi-tui/components/editor";
 import { defaultEditorTheme } from "./test-themes";
 
 class HashActionProvider implements AutocompleteProvider {

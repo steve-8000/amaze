@@ -9,7 +9,7 @@
  * Transport security is delegated to the operator (Tailscale / Wireguard);
  * the server only checks a bearer token against an allow-list per request.
  */
-import { logger } from "@amaze/pi-utils";
+import { logger } from "@steve-z8k/pi-utils";
 import { type Type, type } from "arktype";
 import type { AuthStorage } from "../auth-storage";
 import { parseBind } from "../utils/parse-bind";

@@ -1,4 +1,4 @@
-import { sanitizeText as currentSanitizeText } from "@amaze/pi-utils/sanitize-text";
+import { sanitizeText as currentSanitizeText } from "@steve-z8k/pi-utils/sanitize-text";
 
 const STRIP_RE = new RegExp(
 	[

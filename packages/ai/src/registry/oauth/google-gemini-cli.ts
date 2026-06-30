@@ -3,8 +3,8 @@
  * Standard Gemini models only (gemini-2.0-flash, gemini-2.5-*)
  */
 
-import { getGeminiCliHeaders } from "@amaze/pi-catalog/wire/gemini-headers";
-import { $env } from "@amaze/pi-utils";
+import { getGeminiCliHeaders } from "@steve-z8k/pi-catalog/wire/gemini-headers";
+import { $env } from "@steve-z8k/pi-utils";
 import { runGoogleOAuthLogin } from "./google-oauth-shared";
 import type { OAuthController, OAuthCredentials } from "./types";
 

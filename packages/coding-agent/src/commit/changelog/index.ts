@@ -1,7 +1,7 @@
 import * as path from "node:path";
-import type { ThinkingLevel } from "@amaze/pi-agent-core";
-import type { Api, ApiKey, Model } from "@amaze/pi-ai";
-import { logger } from "@amaze/pi-utils";
+import type { ThinkingLevel } from "@steve-z8k/pi-agent-core";
+import type { Api, ApiKey, Model } from "@steve-z8k/pi-ai";
+import { logger } from "@steve-z8k/pi-utils";
 import { CHANGELOG_CATEGORIES } from "../../commit/types";
 import * as git from "../../utils/git";
 import { detectChangelogBoundaries } from "./detect";

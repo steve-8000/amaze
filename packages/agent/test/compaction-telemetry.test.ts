@@ -8,6 +8,13 @@
  * `runInActiveSpan` → `finishChatSpan` / `failChatSpan`).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
+import { SpanStatusCode } from "@opentelemetry/api";
+import {
+	BasicTracerProvider,
+	InMemorySpanExporter,
+	type ReadableSpan,
+	SimpleSpanProcessor,
+} from "@opentelemetry/sdk-trace-base";
 import {
 	type CompactionPreparation,
 	compact,
@@ -16,25 +23,18 @@ import {
 	generateBranchSummary,
 	generateHandoff,
 	generateSummary,
-} from "@amaze/pi-agent-core/compaction";
+} from "@steve-z8k/pi-agent-core/compaction";
 import {
 	type AgentTelemetryConfig,
 	GenAIAttr,
 	GenAIOperation,
 	PiGenAIAttr,
 	resolveTelemetry,
-} from "@amaze/pi-agent-core/telemetry";
-import type { AgentMessage } from "@amaze/pi-agent-core/types";
-import type { AssistantMessage, Model, Usage } from "@amaze/pi-ai";
-import * as ai from "@amaze/pi-ai";
-import { buildModel } from "@amaze/pi-catalog/build";
-import { SpanStatusCode } from "@opentelemetry/api";
-import {
-	BasicTracerProvider,
-	InMemorySpanExporter,
-	type ReadableSpan,
-	SimpleSpanProcessor,
-} from "@opentelemetry/sdk-trace-base";
+} from "@steve-z8k/pi-agent-core/telemetry";
+import type { AgentMessage } from "@steve-z8k/pi-agent-core/types";
+import type { AssistantMessage, Model, Usage } from "@steve-z8k/pi-ai";
+import * as ai from "@steve-z8k/pi-ai";
+import { buildModel } from "@steve-z8k/pi-catalog/build";
 
 const MODEL: Model = buildModel({
 	id: "mock-model",

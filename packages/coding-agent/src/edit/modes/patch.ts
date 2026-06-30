@@ -7,8 +7,8 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { AgentToolResult } from "@amaze/pi-agent-core";
-import { isEnoent } from "@amaze/pi-utils";
+import type { AgentToolResult } from "@steve-z8k/pi-agent-core";
+import { isEnoent } from "@steve-z8k/pi-utils";
 import { type } from "arktype";
 import type { ToolSession } from "../../tools";
 import { routeWriteThroughBridge } from "../../tools/acp-bridge";

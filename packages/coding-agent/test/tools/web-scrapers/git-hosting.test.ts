@@ -1,6 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { handleGitHub, parseGitHubUrl, stripActionsLogTimestamps } from "@amaze/pi-coding-agent/web/scrapers/github";
-import { handleGitHubGist } from "@amaze/pi-coding-agent/web/scrapers/github-gist";
+import {
+	handleGitHub,
+	parseGitHubUrl,
+	stripActionsLogTimestamps,
+} from "@steve-z8k/pi-coding-agent/web/scrapers/github";
+import { handleGitHubGist } from "@steve-z8k/pi-coding-agent/web/scrapers/github-gist";
 
 const SKIP = !Bun.env.WEB_FETCH_INTEGRATION;
 
@@ -210,34 +214,34 @@ describe.skipIf(SKIP)("handleGitHubGist", () => {
 
 describe("parseGitHubUrl — Actions", () => {
 	it("classifies a workflow run URL", () => {
-		const gh = parseGitHubUrl("https://github.com/can1357/amaze-agent/actions/runs/27070071296");
-		expect(gh).toEqual({ type: "actions-run", owner: "can1357", repo: "amaze-agent", runId: 27070071296 });
+		const gh = parseGitHubUrl("https://github.com/steve-8000/amaze/actions/runs/27070071296");
+		expect(gh).toEqual({ type: "actions-run", owner: "steve-8000", repo: "amaze", runId: 27070071296 });
 	});
 
 	it("classifies a job URL using the web-form singular `job` segment", () => {
-		const gh = parseGitHubUrl("https://github.com/can1357/amaze-agent/actions/runs/27070071296/job/79897931171");
+		const gh = parseGitHubUrl("https://github.com/steve-8000/amaze/actions/runs/27070071296/job/79897931171");
 		expect(gh).toEqual({
 			type: "actions-job",
-			owner: "can1357",
-			repo: "amaze-agent",
+			owner: "steve-8000",
+			repo: "amaze",
 			runId: 27070071296,
 			jobId: 79897931171,
 		});
 	});
 
 	it("classifies a job URL using the API-form plural `jobs` segment", () => {
-		const gh = parseGitHubUrl("https://github.com/can1357/amaze-agent/actions/runs/27070071296/jobs/79897931171");
+		const gh = parseGitHubUrl("https://github.com/steve-8000/amaze/actions/runs/27070071296/jobs/79897931171");
 		expect(gh?.type).toBe("actions-job");
 		expect(gh?.jobId).toBe(79897931171);
 	});
 
 	it("does not treat non-run Actions URLs (e.g. workflow files) as runs/jobs", () => {
-		expect(parseGitHubUrl("https://github.com/can1357/amaze-agent/actions/workflows/ci.yml")?.type).toBe("other");
-		expect(parseGitHubUrl("https://github.com/can1357/amaze-agent/actions")?.type).toBe("other");
+		expect(parseGitHubUrl("https://github.com/steve-8000/amaze/actions/workflows/ci.yml")?.type).toBe("other");
+		expect(parseGitHubUrl("https://github.com/steve-8000/amaze/actions")?.type).toBe("other");
 	});
 
 	it("does not misparse a run URL with a non-numeric id", () => {
-		expect(parseGitHubUrl("https://github.com/can1357/amaze-agent/actions/runs/latest")?.type).toBe("other");
+		expect(parseGitHubUrl("https://github.com/steve-8000/amaze/actions/runs/latest")?.type).toBe("other");
 	});
 
 	it("returns null for non-github hosts", () => {
@@ -247,28 +251,26 @@ describe("parseGitHubUrl — Actions", () => {
 
 describe("parseGitHubUrl — commit", () => {
 	it("classifies a commit URL with a full SHA", () => {
-		const gh = parseGitHubUrl(
-			"https://github.com/can1357/amaze-agent/commit/c1a1cb6149e73b345919dd4cf629b0d9ac74fb57",
-		);
+		const gh = parseGitHubUrl("https://github.com/steve-8000/amaze/commit/c1a1cb6149e73b345919dd4cf629b0d9ac74fb57");
 		expect(gh).toEqual({
 			type: "commit",
-			owner: "can1357",
-			repo: "amaze-agent",
+			owner: "steve-8000",
+			repo: "amaze",
 			ref: "c1a1cb6149e73b345919dd4cf629b0d9ac74fb57",
 		});
 	});
 
 	it("accepts an abbreviated SHA", () => {
-		expect(parseGitHubUrl("https://github.com/can1357/amaze-agent/commit/c1a1cb6")).toEqual({
+		expect(parseGitHubUrl("https://github.com/steve-8000/amaze/commit/c1a1cb6")).toEqual({
 			type: "commit",
-			owner: "can1357",
-			repo: "amaze-agent",
+			owner: "steve-8000",
+			repo: "amaze",
 			ref: "c1a1cb6",
 		});
 	});
 
 	it("falls back to `other` for a bare /commit segment with no SHA", () => {
-		expect(parseGitHubUrl("https://github.com/can1357/amaze-agent/commit")?.type).toBe("other");
+		expect(parseGitHubUrl("https://github.com/steve-8000/amaze/commit")?.type).toBe("other");
 	});
 });
 

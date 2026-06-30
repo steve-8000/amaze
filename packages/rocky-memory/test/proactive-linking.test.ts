@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import "./setup";
-import { configureRecallFeatures } from "@amaze/pi-rocky-memory/config";
-import { BeamMemory } from "@amaze/pi-rocky-memory/core/beam";
-import type { EpisodicGraph, RelatedMemory } from "@amaze/pi-rocky-memory/core/episodic-graph";
-import { RockyMemory } from "@amaze/pi-rocky-memory/core/memory";
+import { configureRecallFeatures } from "@steve-z8k/pi-rocky-memory/config";
+import { BeamMemory } from "@steve-z8k/pi-rocky-memory/core/beam";
+import type { EpisodicGraph, RelatedMemory } from "@steve-z8k/pi-rocky-memory/core/episodic-graph";
+import { RockyMemory } from "@steve-z8k/pi-rocky-memory/core/memory";
 
 const previousProactive = process.env.ROCKY_MEMORY_PROACTIVE_LINKING;
 

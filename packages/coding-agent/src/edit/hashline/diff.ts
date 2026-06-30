@@ -27,7 +27,7 @@ import {
 	resolveBlockEdits,
 	type SnapshotStore,
 	stripBom,
-} from "@amaze/hashline";
+} from "@steve-z8k/hashline";
 import { resolveToCwd } from "../../tools/path-utils";
 import { generateDiffString } from "../diff";
 import { readEditFileText } from "../read-file";

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import * as Beam from "@amaze/pi-rocky-memory/core/beam";
+import * as Beam from "@steve-z8k/pi-rocky-memory/core/beam";
 import {
 	explainRecallDiagnostics,
 	getDiagnostics,
@@ -7,8 +7,8 @@ import {
 	RECALL_TIERS,
 	RecallDiagnostics,
 	resetRecallDiagnostics,
-} from "@amaze/pi-rocky-memory/core/recall-diagnostics";
-import * as Db from "@amaze/pi-rocky-memory/db";
+} from "@steve-z8k/pi-rocky-memory/core/recall-diagnostics";
+import * as Db from "@steve-z8k/pi-rocky-memory/db";
 
 describe("recall diagnostics counters", () => {
 	it("starts with canonical tiers and zeroed JSON-serializable snapshot", () => {

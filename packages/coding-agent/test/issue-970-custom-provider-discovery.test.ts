@@ -3,16 +3,16 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { stripVTControlCharacters } from "node:util";
-import { buildModel } from "@amaze/pi-catalog/build";
-import { writeModelCache } from "@amaze/pi-catalog/model-cache";
-import type { ModelRegistry, ProviderDiscoveryState } from "@amaze/pi-coding-agent/config/model-registry";
-import { ModelRegistry as ModelRegistryImpl } from "@amaze/pi-coding-agent/config/model-registry";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import { ModelSelectorComponent } from "@amaze/pi-coding-agent/modes/components/model-selector";
-import { getThemeByName, setThemeInstance } from "@amaze/pi-coding-agent/modes/theme/theme";
-import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
-import type { TUI } from "@amaze/pi-tui";
-import { Snowflake } from "@amaze/pi-utils";
+import { buildModel } from "@steve-z8k/pi-catalog/build";
+import { writeModelCache } from "@steve-z8k/pi-catalog/model-cache";
+import type { ModelRegistry, ProviderDiscoveryState } from "@steve-z8k/pi-coding-agent/config/model-registry";
+import { ModelRegistry as ModelRegistryImpl } from "@steve-z8k/pi-coding-agent/config/model-registry";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { ModelSelectorComponent } from "@steve-z8k/pi-coding-agent/modes/components/model-selector";
+import { getThemeByName, setThemeInstance } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
+import { AuthStorage } from "@steve-z8k/pi-coding-agent/session/auth-storage";
+import type { TUI } from "@steve-z8k/pi-tui";
+import { Snowflake } from "@steve-z8k/pi-utils";
 
 function normalizeRenderedText(text: string): string {
 	return stripVTControlCharacters(text).replace(/\s+/g, " ").trim();

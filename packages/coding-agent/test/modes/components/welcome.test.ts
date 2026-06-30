@@ -1,7 +1,7 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import { WelcomeComponent } from "@amaze/pi-coding-agent/modes/components/welcome";
-import { initTheme, theme } from "@amaze/pi-coding-agent/modes/theme/theme";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { WelcomeComponent } from "@steve-z8k/pi-coding-agent/modes/components/welcome";
+import { initTheme, theme } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
 
 describe("WelcomeComponent", () => {
 	beforeAll(async () => {

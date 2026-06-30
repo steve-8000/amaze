@@ -4,8 +4,8 @@
  * Handles `amaze stats` subcommand for viewing AI usage statistics.
  */
 
-import { truncateToWidth } from "@amaze/pi-tui/utils";
-import { APP_NAME, formatDuration, formatNumber, formatPercent } from "@amaze/pi-utils";
+import { truncateToWidth } from "@steve-z8k/pi-tui/utils";
+import { APP_NAME, formatDuration, formatNumber, formatPercent } from "@steve-z8k/pi-utils";
 import chalk from "chalk";
 import { openPath } from "../utils/open";
 
@@ -113,7 +113,7 @@ function normalizePremiumRequests(n: number): number {
 export async function runStatsCommand(cmd: StatsCommandArgs): Promise<void> {
 	// Lazy import to avoid loading stats module when not needed
 	const { getDashboardStats, syncAllSessions, getTotalMessageCount, startServer, closeDb } = await import(
-		"@amaze/amaze-stats"
+		"@steve-z8k/amaze-stats"
 	);
 
 	// Sync session files first
@@ -157,7 +157,7 @@ export async function runStatsCommand(cmd: StatsCommandArgs): Promise<void> {
 }
 
 async function printStatsSummary(): Promise<void> {
-	const { getDashboardStats } = await import("@amaze/amaze-stats");
+	const { getDashboardStats } = await import("@steve-z8k/amaze-stats");
 	const stats = await getDashboardStats();
 	const { overall, byModel, byFolder } = stats;
 

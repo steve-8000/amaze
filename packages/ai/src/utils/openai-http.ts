@@ -14,7 +14,7 @@
  *   captured response body for the strict-tools fallback and the responses
  *   chain-state detectors, which regex over `error.message`.
  */
-import { fetchWithRetry, readSseJson, type SseEventObserver } from "@amaze/pi-utils";
+import { fetchWithRetry, readSseJson, type SseEventObserver } from "@steve-z8k/pi-utils";
 import { ProviderHttpError } from "../errors";
 import type { FetchImpl } from "../types";
 import type { CapturedHttpErrorResponse } from "./http-inspector";

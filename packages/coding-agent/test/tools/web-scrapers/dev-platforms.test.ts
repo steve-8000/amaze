@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { handleDevTo } from "@amaze/pi-coding-agent/web/scrapers/devto";
-import { handleGitLab } from "@amaze/pi-coding-agent/web/scrapers/gitlab";
-import { handleHackerNews } from "@amaze/pi-coding-agent/web/scrapers/hackernews";
-import { handleLobsters } from "@amaze/pi-coding-agent/web/scrapers/lobsters";
+import { handleDevTo } from "@steve-z8k/pi-coding-agent/web/scrapers/devto";
+import { handleGitLab } from "@steve-z8k/pi-coding-agent/web/scrapers/gitlab";
+import { handleHackerNews } from "@steve-z8k/pi-coding-agent/web/scrapers/hackernews";
+import { handleLobsters } from "@steve-z8k/pi-coding-agent/web/scrapers/lobsters";
 
 const SKIP = !Bun.env.WEB_FETCH_INTEGRATION;
 

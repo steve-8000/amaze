@@ -16,12 +16,12 @@
 
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
-import { AuthStorage } from "@amaze/pi-ai";
-import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
-import { getModelMatchPreferences, resolveCliModel } from "@amaze/pi-coding-agent/config/model-resolver";
-import { resetSettingsForTest, Settings } from "@amaze/pi-coding-agent/config/settings";
-import { loadCliExtensionProviders } from "@amaze/pi-coding-agent/sdk";
-import { TempDir } from "@amaze/pi-utils";
+import { AuthStorage } from "@steve-z8k/pi-ai";
+import { ModelRegistry } from "@steve-z8k/pi-coding-agent/config/model-registry";
+import { getModelMatchPreferences, resolveCliModel } from "@steve-z8k/pi-coding-agent/config/model-resolver";
+import { resetSettingsForTest, Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { loadCliExtensionProviders } from "@steve-z8k/pi-coding-agent/sdk";
+import { TempDir } from "@steve-z8k/pi-utils";
 
 let tmp: TempDir;
 let extPath: string;

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "bun:test";
-import { Effort } from "@amaze/pi-catalog/effort";
-import { nanoGptModelManagerOptions } from "@amaze/pi-catalog/provider-models/openai-compat";
+import { Effort } from "@steve-z8k/pi-catalog/effort";
+import { nanoGptModelManagerOptions } from "@steve-z8k/pi-catalog/provider-models/openai-compat";
 
 async function discoverNanoGptModels(
 	payload: unknown,

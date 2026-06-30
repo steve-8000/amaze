@@ -1,5 +1,5 @@
-import { isDashscopeCompatibleModeUrl } from "@amaze/pi-catalog/hosts";
-import { isQwenModelId } from "@amaze/pi-catalog/identity";
+import { isDashscopeCompatibleModeUrl } from "@steve-z8k/pi-catalog/hosts";
+import { isQwenModelId } from "@steve-z8k/pi-catalog/identity";
 
 import type { ImageContent, Model, TextContent } from "../types";
 

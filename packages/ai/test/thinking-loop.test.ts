@@ -1,17 +1,17 @@
 import { describe, expect, test } from "bun:test";
-import { clearCustomApis } from "@amaze/pi-ai/api-registry";
-import { createMockModel, type MockContent, registerMockApi } from "@amaze/pi-ai/providers/mock";
-import { stream, streamSimple } from "@amaze/pi-ai/stream";
-import type { Api, AssistantMessage, AssistantMessageEvent, Context, Model } from "@amaze/pi-ai/types";
-import { AssistantMessageEventStream } from "@amaze/pi-ai/utils/event-stream";
+import { clearCustomApis } from "@steve-z8k/pi-ai/api-registry";
+import { createMockModel, type MockContent, registerMockApi } from "@steve-z8k/pi-ai/providers/mock";
+import { stream, streamSimple } from "@steve-z8k/pi-ai/stream";
+import type { Api, AssistantMessage, AssistantMessageEvent, Context, Model } from "@steve-z8k/pi-ai/types";
+import { AssistantMessageEventStream } from "@steve-z8k/pi-ai/utils/event-stream";
 import {
 	isGeminiThinkingLoopModel,
 	isLoopGuardedModel,
 	THINKING_LOOP_ERROR_MARKER,
 	ThinkingLoopDetector,
 	withGeminiThinkingLoopGuard,
-} from "@amaze/pi-ai/utils/thinking-loop";
-import { isRetryableError } from "@amaze/pi-utils";
+} from "@steve-z8k/pi-ai/utils/thinking-loop";
+import { isRetryableError } from "@steve-z8k/pi-utils";
 
 function context(): Context {
 	return { systemPrompt: [], messages: [{ role: "user", content: "go", timestamp: 0 }] };

@@ -1,4 +1,4 @@
-import type { AssistantMessage, ToolCall } from "@amaze/pi-ai";
+import type { AssistantMessage, ToolCall } from "@steve-z8k/pi-ai";
 import type { ChangelogCategory, ConventionalAnalysis, ConventionalDetail } from "./types";
 
 export function extractToolCall(message: AssistantMessage, name: string): ToolCall | undefined {

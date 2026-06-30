@@ -1,7 +1,7 @@
 import { Database } from "bun:sqlite";
 import { afterEach, describe, expect, it, type Mock, spyOn } from "bun:test";
-import { initBeam } from "@amaze/pi-rocky-memory/core/beam";
-import * as embeddings from "@amaze/pi-rocky-memory/core/embeddings";
+import { initBeam } from "@steve-z8k/pi-rocky-memory/core/beam";
+import * as embeddings from "@steve-z8k/pi-rocky-memory/core/embeddings";
 import {
 	clusterBySimilarity,
 	cosineSimilarity,
@@ -9,7 +9,7 @@ import {
 	getResonanceLog,
 	harmonize,
 	recallBeliefs,
-} from "@amaze/pi-rocky-memory/core/shmr";
+} from "@steve-z8k/pi-rocky-memory/core/shmr";
 
 let embedSpy: Mock<typeof embeddings.embed> | null = null;
 

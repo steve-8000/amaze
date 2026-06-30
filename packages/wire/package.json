@@ -1,6 +1,6 @@
 {
 	"type": "module",
-	"name": "@amaze/pi-wire",
+	"name": "@steve-z8k/pi-wire",
 	"version": "3.1.0",
 	"description": "Shared wire protocol types for Amaze Agent packages",
 	"homepage": "https://amaze",
@@ -8,11 +8,11 @@
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/can1357/amaze-agent.git",
+		"url": "git+https://github.com/steve-8000/amaze.git",
 		"directory": "packages/wire"
 	},
 	"bugs": {
-		"url": "https://github.com/can1357/amaze-agent/issues"
+		"url": "https://github.com/steve-8000/amaze/issues"
 	},
 	"keywords": [
 		"wire",

@@ -2,10 +2,10 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { clearCache as clearFsCache } from "@amaze/pi-coding-agent/capability/fs";
-import { type SlashCommand, slashCommandCapability } from "@amaze/pi-coding-agent/capability/slash-command";
-import { resetSettingsForTest } from "@amaze/pi-coding-agent/config/settings";
-import { loadCapability } from "@amaze/pi-coding-agent/discovery";
+import { clearCache as clearFsCache } from "@steve-z8k/pi-coding-agent/capability/fs";
+import { type SlashCommand, slashCommandCapability } from "@steve-z8k/pi-coding-agent/capability/slash-command";
+import { resetSettingsForTest } from "@steve-z8k/pi-coding-agent/config/settings";
+import { loadCapability } from "@steve-z8k/pi-coding-agent/discovery";
 
 async function writeFile(filePath: string, content: string): Promise<void> {
 	await fs.mkdir(path.dirname(filePath), { recursive: true });

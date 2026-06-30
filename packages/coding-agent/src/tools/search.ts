@@ -1,12 +1,12 @@
 import { mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import * as path from "node:path";
-import { formatHashlineHeader } from "@amaze/hashline";
-import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@amaze/pi-agent-core";
-import { type GrepMatch, GrepOutputMode, type GrepResult, grep } from "@amaze/pi-natives";
-import type { Component } from "@amaze/pi-tui";
-import { Text } from "@amaze/pi-tui";
-import { prompt, untilAborted } from "@amaze/pi-utils";
+import { formatHashlineHeader } from "@steve-z8k/hashline";
+import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@steve-z8k/pi-agent-core";
+import { type GrepMatch, GrepOutputMode, type GrepResult, grep } from "@steve-z8k/pi-natives";
+import type { Component } from "@steve-z8k/pi-tui";
+import { Text } from "@steve-z8k/pi-tui";
+import { prompt, untilAborted } from "@steve-z8k/pi-utils";
 import { type } from "arktype";
 import { recordFileSnapshot, recordSeenLinesFromBody } from "../edit/file-snapshot-store";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";

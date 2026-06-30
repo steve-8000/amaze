@@ -1,4 +1,4 @@
-export { isRecord } from "@amaze/pi-utils";
+export { isRecord } from "@steve-z8k/pi-utils";
 
 export function toNumber(value: unknown): number | undefined {
 	if (typeof value === "number" && Number.isFinite(value)) {

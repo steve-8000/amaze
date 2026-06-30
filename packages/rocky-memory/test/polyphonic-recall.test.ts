@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { type BeamMemoryState, initBeam } from "@amaze/pi-rocky-memory/core/beam";
+import { type BeamMemoryState, initBeam } from "@steve-z8k/pi-rocky-memory/core/beam";
 import {
 	PolyphonicRecallEngine,
 	polyphonicRecall,
 	polyphonicRecallIsEnabled,
-} from "@amaze/pi-rocky-memory/core/polyphonic-recall";
-import { closeQuietly, openDatabase } from "@amaze/pi-rocky-memory/db";
+} from "@steve-z8k/pi-rocky-memory/core/polyphonic-recall";
+import { closeQuietly, openDatabase } from "@steve-z8k/pi-rocky-memory/db";
 
 function makeBeam(): BeamMemoryState {
 	const db = openDatabase(":memory:", { create: true, readwrite: true });

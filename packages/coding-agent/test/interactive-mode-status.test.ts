@@ -1,10 +1,10 @@
 import { beforeAll, describe, expect, test, vi } from "bun:test";
-import type { AgentMessage } from "@amaze/pi-agent-core";
-import { initTheme } from "@amaze/pi-coding-agent/modes/theme/theme";
-import type { InteractiveModeContext } from "@amaze/pi-coding-agent/modes/types";
-import { UiHelpers } from "@amaze/pi-coding-agent/modes/utils/ui-helpers";
-import { buildSessionContext, type SessionContext } from "@amaze/pi-coding-agent/session/session-context";
-import { type Component, Container } from "@amaze/pi-tui";
+import type { AgentMessage } from "@steve-z8k/pi-agent-core";
+import { initTheme } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
+import type { InteractiveModeContext } from "@steve-z8k/pi-coding-agent/modes/types";
+import { UiHelpers } from "@steve-z8k/pi-coding-agent/modes/utils/ui-helpers";
+import { buildSessionContext, type SessionContext } from "@steve-z8k/pi-coding-agent/session/session-context";
+import { type Component, Container } from "@steve-z8k/pi-tui";
 
 function renderLastLine(container: Container, width = 120): string {
 	const last = container.children[container.children.length - 1];
@@ -157,6 +157,7 @@ describe("InteractiveMode.showStatus", () => {
 			details: {
 				jobs: [
 					{ jobId: "task-job", type: "task", status: "completed" },
+					{ jobId: "task-failed", type: "task", status: "failed", agentName: "flash" },
 					{ jobId: "bash-job", type: "bash", status: "completed" },
 				],
 			},
@@ -165,6 +166,7 @@ describe("InteractiveMode.showStatus", () => {
 
 		const rendered = Bun.stripANSI(renderContainer(ctx.chatContainer));
 		expect(rendered).toContain("Background job completed [bash] bash-job");
+		expect(rendered).toContain("Background job completed [task:flash] task-failed");
 		expect(rendered).not.toContain("task-job");
 	});
 });

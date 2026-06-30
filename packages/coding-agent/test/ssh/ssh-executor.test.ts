@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import * as connectionManager from "@amaze/pi-coding-agent/ssh/connection-manager";
-import { executeSSH } from "@amaze/pi-coding-agent/ssh/ssh-executor";
-import * as sshfsMount from "@amaze/pi-coding-agent/ssh/sshfs-mount";
-import { type ChildProcess, ptree } from "@amaze/pi-utils";
+import * as connectionManager from "@steve-z8k/pi-coding-agent/ssh/connection-manager";
+import { executeSSH } from "@steve-z8k/pi-coding-agent/ssh/ssh-executor";
+import * as sshfsMount from "@steve-z8k/pi-coding-agent/ssh/sshfs-mount";
+import { type ChildProcess, ptree } from "@steve-z8k/pi-utils";
 
 type TestStdin = "pipe" | "ignore" | Buffer | Uint8Array | null;
 

@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { resetSettingsForTest, Settings } from "@amaze/pi-coding-agent/config/settings";
-import { initializeWithSettings } from "@amaze/pi-coding-agent/discovery";
-import { discoverAndLoadExtensions, loadExtensions } from "@amaze/pi-coding-agent/extensibility/extensions/loader";
-import { getProjectAgentDir, TempDir } from "@amaze/pi-utils";
+import { resetSettingsForTest, Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { initializeWithSettings } from "@steve-z8k/pi-coding-agent/discovery";
+import { discoverAndLoadExtensions, loadExtensions } from "@steve-z8k/pi-coding-agent/extensibility/extensions/loader";
+import { getProjectAgentDir, TempDir } from "@steve-z8k/pi-utils";
 import { filterUserScoped } from "./utils/filter-user-extensions";
 
 describe("extensions discovery", () => {

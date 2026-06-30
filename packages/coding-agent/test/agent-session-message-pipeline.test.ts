@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { Agent, type AgentMessage, type AgentTool } from "@amaze/pi-agent-core";
+import { Agent, type AgentMessage, type AgentTool } from "@steve-z8k/pi-agent-core";
 import {
 	type Api,
 	type Context,
@@ -11,14 +11,14 @@ import {
 	registerCustomApi,
 	type SimpleStreamOptions,
 	type TextContent,
-} from "@amaze/pi-ai";
-import { AssistantMessageEventStream } from "@amaze/pi-ai/utils/event-stream";
-import { buildModel } from "@amaze/pi-catalog/build";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import { obfuscateProviderContext, SecretObfuscator } from "@amaze/pi-coding-agent/secrets";
-import { AgentSession, type AgentSessionEvent } from "@amaze/pi-coding-agent/session/agent-session";
-import { convertToLlm, wrapSteeringForModel } from "@amaze/pi-coding-agent/session/messages";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
+} from "@steve-z8k/pi-ai";
+import { AssistantMessageEventStream } from "@steve-z8k/pi-ai/utils/event-stream";
+import { buildModel } from "@steve-z8k/pi-catalog/build";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { obfuscateProviderContext, SecretObfuscator } from "@steve-z8k/pi-coding-agent/secrets";
+import { AgentSession, type AgentSessionEvent } from "@steve-z8k/pi-coding-agent/session/agent-session";
+import { convertToLlm, wrapSteeringForModel } from "@steve-z8k/pi-coding-agent/session/messages";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
 import { createAssistantMessage } from "./helpers/agent-session-setup";
 
 function createAgent(): Agent {
@@ -519,7 +519,7 @@ describe("AgentSession message pipeline", () => {
 		});
 	});
 
-	it("records raw SSE diagnostics into the session buffer before request hooks", async () => {
+	it("forwards raw SSE events to request hooks", async () => {
 		const requestOnSseEvent = vi.fn();
 		const session = new AgentSession({
 			agent: createAgent(),
@@ -533,11 +533,11 @@ describe("AgentSession message pipeline", () => {
 		const prepared = session.prepareSimpleStreamOptions({});
 		prepared.onSseEvent?.({ event: "message", data: "{}", raw: ["event: message", "data: {}"] });
 
-		expect(session.rawSseDebugBuffer.snapshot().totalEvents).toBe(1);
-		expect(requestOnSseEvent).toHaveBeenCalledWith(
-			{ event: "message", data: "{}", raw: ["event: message", "data: {}"] },
-			undefined,
-		);
+		expect(requestOnSseEvent).toHaveBeenCalledWith({
+			event: "message",
+			data: "{}",
+			raw: ["event: message", "data: {}"],
+		});
 	});
 
 	it("emits message_update to session listeners before slow extension handlers finish", async () => {

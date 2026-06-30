@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { handleReddit } from "@amaze/pi-coding-agent/web/scrapers/reddit";
-import { handleStackOverflow } from "@amaze/pi-coding-agent/web/scrapers/stackoverflow";
-import { handleTwitter } from "@amaze/pi-coding-agent/web/scrapers/twitter";
+import { handleReddit } from "@steve-z8k/pi-coding-agent/web/scrapers/reddit";
+import { handleStackOverflow } from "@steve-z8k/pi-coding-agent/web/scrapers/stackoverflow";
+import { handleTwitter } from "@steve-z8k/pi-coding-agent/web/scrapers/twitter";
 
 const SKIP = !Bun.env.WEB_FETCH_INTEGRATION;
 

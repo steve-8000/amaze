@@ -1,7 +1,7 @@
 /**
  * Manage bundled task agents.
  */
-import { Args, Command, Flags, renderCommandHelp } from "@amaze/pi-utils/cli";
+import { Args, Command, Flags, renderCommandHelp } from "@steve-z8k/pi-utils/cli";
 import { type AgentsAction, type AgentsCommandArgs, runAgentsCommand } from "../cli/agents-cli";
 import { initTheme } from "../modes/theme/theme";
 

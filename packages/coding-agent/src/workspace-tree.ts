@@ -1,6 +1,6 @@
 import * as path from "node:path";
-import { FileType, type GlobMatch, listWorkspace } from "@amaze/pi-natives";
-import { formatAge, formatBytes } from "@amaze/pi-utils";
+import { FileType, type GlobMatch, listWorkspace } from "@steve-z8k/pi-natives";
+import { formatAge, formatBytes } from "@steve-z8k/pi-utils";
 
 /** Defaults for the workspace tree shown in the system prompt. */
 const WORKSPACE_DEFAULTS = {

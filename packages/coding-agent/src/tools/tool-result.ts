@@ -1,5 +1,5 @@
-import type { AgentToolResult } from "@amaze/pi-agent-core";
-import type { ImageContent, TextContent } from "@amaze/pi-ai";
+import type { AgentToolResult } from "@steve-z8k/pi-agent-core";
+import type { ImageContent, TextContent } from "@steve-z8k/pi-ai";
 import type { OutputSummary, TruncationResult } from "../session/streaming-output";
 import type { OutputMeta, TruncationOptions, TruncationSummaryOptions, TruncationTextOptions } from "./output-meta";
 import { outputMeta } from "./output-meta";

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { buildSessionContext } from "@amaze/pi-coding-agent/session/session-context";
+import { buildSessionContext } from "@steve-z8k/pi-coding-agent/session/session-context";
 import type {
 	BranchSummaryEntry,
 	CompactionEntry,
@@ -7,7 +7,7 @@ import type {
 	SessionEntry,
 	SessionMessageEntry,
 	ThinkingLevelChangeEntry,
-} from "@amaze/pi-coding-agent/session/session-entries";
+} from "@steve-z8k/pi-coding-agent/session/session-entries";
 
 function msg(id: string, parentId: string | null, role: "user" | "assistant", text: string): SessionMessageEntry {
 	const base = { type: "message" as const, id, parentId, timestamp: "2025-01-01T00:00:00Z" };
@@ -141,7 +141,7 @@ describe("buildSessionContext", () => {
 		it("tracks model from assistant message", () => {
 			const entries: SessionEntry[] = [msg("1", null, "user", "hello"), msg("2", "1", "assistant", "hi")];
 			const ctx = buildSessionContext(entries);
-			expect(ctx.models.default).toBe("anthropic/claude-test");
+			expect(ctx.models.flash).toBe("anthropic/claude-test");
 		});
 
 		it("tracks model from model change entry", () => {
@@ -151,11 +151,11 @@ describe("buildSessionContext", () => {
 				msg("3", "2", "assistant", "hi"),
 			];
 			const ctx = buildSessionContext(entries);
-			// Issue #849: an explicit model_change with role="default" must NOT
+			// Issue #849: an explicit model_change with role="flash" must NOT
 			// be silently overwritten by a later assistant message tagged with a
 			// different model id. Temporary fallbacks and provider-side
 			// downgrades both produce such mismatched messages.
-			expect(ctx.models.default).toBe("openai/gpt-4");
+			expect(ctx.models.flash).toBe("openai/gpt-4");
 		});
 	});
 

@@ -8,7 +8,7 @@ import packageJson from "../package.json" with { type: "json" };
 import { embeddedAddon } from "./embedded-addon.js";
 
 /**
- * Native addon loader for `@amaze/pi-natives`.
+ * Native addon loader for `@steve-z8k/pi-natives`.
  *
  * Owns every step between "Node imports `native/index.js`" and "the right
  * `pi_natives.<platform>-<arch>*.node` is required, validated, and returned":
@@ -59,7 +59,7 @@ function getNativesDir() {
 function resolveLeafPackageDir(platformTag) {
 	try {
 		const require_ = createRequire(import.meta.url);
-		return path.dirname(require_.resolve(`@amaze/pi-natives-${platformTag}/package.json`));
+		return path.dirname(require_.resolve(`@steve-z8k/pi-natives-${platformTag}/package.json`));
 	} catch {
 		return null;
 	}
@@ -109,7 +109,7 @@ export function getAddonFilenames({ tag, arch, variant }) {
  *
  * Windows-only safety net for `bun install -g` updates: when a previous `amaze`
  * process is running, bun cannot overwrite the locked `.node` inside
- * `node_modules/@amaze/pi-natives/native/`, leaving an old binary next to a
+ * `node_modules/@steve-z8k/pi-natives/native/`, leaving an old binary next to a
  * newer `index.js` and producing `<sym> is not a function` crashes on the next
  * launch. Staging into the version-pinned cache:
  *   1. Gives every package version its own filesystem path, so concurrent amaze
@@ -510,7 +510,7 @@ function validateLoadedBindings(ctx, bindings, candidate) {
 	if (ctx.isWorkspaceLoad) return;
 	if (typeof bindings[ctx.versionSentinelExport] === "function") return;
 	throw new Error(
-		`Loaded ${candidate} but it does not expose the @amaze/pi-natives@${ctx.packageVersion} ` +
+		`Loaded ${candidate} but it does not expose the @steve-z8k/pi-natives@${ctx.packageVersion} ` +
 			`version sentinel \`${ctx.versionSentinelExport}\`. The .node file on disk is from a different ` +
 			"release than this loader — reinstall to re-sync.",
 	);
@@ -541,7 +541,7 @@ function buildHelpMessage(ctx) {
 		const expectedPaths = ctx.addonFilenames.map(filename => `  ${path.join(ctx.versionedDir, filename)}`).join("\n");
 		const downloadHints = ctx.addonFilenames
 			.map(filename => {
-				const downloadUrl = `https://github.com/can1357/amaze-agent/releases/latest/download/${filename}`;
+				const downloadUrl = `https://github.com/steve-8000/amaze/releases/latest/download/${filename}`;
 				const targetPath = path.join(ctx.versionedDir, filename);
 				return `  curl -fsSL "${downloadUrl}" -o "${targetPath}"`;
 			})
@@ -552,7 +552,7 @@ function buildHelpMessage(ctx) {
 		);
 	}
 	return (
-		"If installed via npm/bun, try reinstalling: bun install @amaze/pi-natives\n" +
+		"If installed via npm/bun, try reinstalling: bun install @steve-z8k/pi-natives\n" +
 		"If developing locally, build with: bun --cwd=packages/natives run build\n" +
 		"Optional x64 variants: TARGET_VARIANT=baseline|modern bun --cwd=packages/natives run build"
 	);

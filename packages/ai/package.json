@@ -1,6 +1,6 @@
 {
 	"type": "module",
-	"name": "@amaze/pi-ai",
+	"name": "@steve-z8k/pi-ai",
 	"version": "3.1.0",
 	"description": "Unified LLM API with automatic model discovery and provider configuration",
 	"homepage": "https://amaze",
@@ -11,11 +11,11 @@
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/can1357/amaze-agent.git",
+		"url": "git+https://github.com/steve-8000/amaze.git",
 		"directory": "packages/ai"
 	},
 	"bugs": {
-		"url": "https://github.com/can1357/amaze-agent/issues"
+		"url": "https://github.com/steve-8000/amaze/issues"
 	},
 	"keywords": [
 		"ai",
@@ -38,9 +38,9 @@
 	},
 	"dependencies": {
 		"@bufbuild/protobuf": "catalog:",
-		"@amaze/pi-catalog": "catalog:",
-		"@amaze/pi-utils": "catalog:",
-		"@amaze/pi-wire": "catalog:",
+		"@steve-z8k/pi-catalog": "catalog:",
+		"@steve-z8k/pi-utils": "catalog:",
+		"@steve-z8k/pi-wire": "catalog:",
 		"arktype": "catalog:",
 		"zod": "catalog:"
 	},

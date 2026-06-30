@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { LocalProtocolOptions } from "@amaze/pi-coding-agent/internal-urls";
-import { loadOverallPlanReference } from "@amaze/pi-coding-agent/plan-mode/plan-handoff";
+import type { LocalProtocolOptions } from "@steve-z8k/pi-coding-agent/internal-urls";
+import { loadOverallPlanReference } from "@steve-z8k/pi-coding-agent/plan-mode/plan-handoff";
 
 describe("loadOverallPlanReference", () => {
 	let tmpDir: string;

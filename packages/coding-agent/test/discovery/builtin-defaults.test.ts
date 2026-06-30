@@ -5,12 +5,12 @@
  * rule of the same name overrides a bundled default (first-wins dedup).
  */
 import { describe, expect, it } from "bun:test";
-import { getCapability } from "@amaze/pi-coding-agent/capability";
-import { BUILTIN_DEFAULTS_PROVIDER_ID, type Rule, ruleCapability } from "@amaze/pi-coding-agent/capability/rule";
-import type { LoadContext } from "@amaze/pi-coding-agent/capability/types";
+import { getCapability } from "@steve-z8k/pi-coding-agent/capability";
+import { BUILTIN_DEFAULTS_PROVIDER_ID, type Rule, ruleCapability } from "@steve-z8k/pi-coding-agent/capability/rule";
+import type { LoadContext } from "@steve-z8k/pi-coding-agent/capability/types";
 // Register all discovery providers as a side effect.
-import "@amaze/pi-coding-agent/discovery";
-import { TtsrManager, type TtsrMatchContext } from "@amaze/pi-coding-agent/export/ttsr";
+import "@steve-z8k/pi-coding-agent/discovery";
+import { TtsrManager, type TtsrMatchContext } from "@steve-z8k/pi-coding-agent/export/ttsr";
 
 function ruleProvider() {
 	const cap = getCapability(ruleCapability.id);

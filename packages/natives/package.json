@@ -1,5 +1,5 @@
 {
-  "name": "@amaze/pi-natives",
+  "name": "@steve-z8k/pi-natives",
   "version": "3.1.0",
   "description": "Native Rust bindings for grep, clipboard, image processing, syntax highlighting, PTY, and shell operations via N-API",
   "type": "module",
@@ -8,11 +8,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/can1357/amaze-agent.git",
+    "url": "git+https://github.com/steve-8000/amaze.git",
     "directory": "packages/natives"
   },
   "bugs": {
-    "url": "https://github.com/can1357/amaze-agent/issues"
+    "url": "https://github.com/steve-8000/amaze/issues"
   },
   "keywords": [
     "napi",

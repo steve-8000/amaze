@@ -1,5 +1,5 @@
-import type { Component, OverlayHandle, TUI } from "@amaze/pi-tui";
-import { Container, Spacer, Text } from "@amaze/pi-tui";
+import type { Component, OverlayHandle, TUI } from "@steve-z8k/pi-tui";
+import { Container, Spacer, Text } from "@steve-z8k/pi-tui";
 import { KeybindingsManager } from "../../config/keybindings";
 import type {
 	CompactOptions,

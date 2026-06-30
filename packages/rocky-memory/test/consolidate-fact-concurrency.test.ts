@@ -2,8 +2,8 @@ import { describe, expect, it } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { VeracityConsolidator } from "@amaze/pi-rocky-memory/core/veracity-consolidation";
-import { closeQuietly } from "@amaze/pi-rocky-memory/db";
+import { VeracityConsolidator } from "@steve-z8k/pi-rocky-memory/core/veracity-consolidation";
+import { closeQuietly } from "@steve-z8k/pi-rocky-memory/db";
 
 function withDb<T>(fn: (path: string, cons: VeracityConsolidator) => T): T {
 	const dir = mkdtempSync(join(tmpdir(), "rockyMemory-veracity-concurrency-"));

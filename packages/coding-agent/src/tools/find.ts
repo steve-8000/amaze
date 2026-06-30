@@ -1,11 +1,11 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@amaze/pi-agent-core";
-import type { ToolExample } from "@amaze/pi-ai";
-import * as natives from "@amaze/pi-natives";
-import type { Component } from "@amaze/pi-tui";
-import { Text } from "@amaze/pi-tui";
-import { formatGroupedPaths, isEnoent, prompt, untilAborted } from "@amaze/pi-utils";
+import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@steve-z8k/pi-agent-core";
+import type { ToolExample } from "@steve-z8k/pi-ai";
+import * as natives from "@steve-z8k/pi-natives";
+import type { Component } from "@steve-z8k/pi-tui";
+import { Text } from "@steve-z8k/pi-tui";
+import { formatGroupedPaths, isEnoent, prompt, untilAborted } from "@steve-z8k/pi-utils";
 import { type } from "arktype";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
 import { InternalUrlRouter } from "../internal-urls";

@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { callToolJson, handleJsonRpc, runStdio } from "@amaze/pi-rocky-memory/mcp-server";
-import { getToolDefinitions, handleToolCall, TOOLS } from "@amaze/pi-rocky-memory/mcp-tools";
+import { callToolJson, handleJsonRpc, runStdio } from "@steve-z8k/pi-rocky-memory/mcp-server";
+import { getToolDefinitions, handleToolCall, TOOLS } from "@steve-z8k/pi-rocky-memory/mcp-tools";
 
 let dataDir: string;
 

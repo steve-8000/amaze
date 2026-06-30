@@ -8,10 +8,10 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import path from "node:path";
-import type { AgentTool } from "@amaze/pi-agent-core";
-import type { Component } from "@amaze/pi-tui";
-import { Container, Text } from "@amaze/pi-tui";
-import { isRecord } from "@amaze/pi-utils";
+import type { AgentTool } from "@steve-z8k/pi-agent-core";
+import type { Component } from "@steve-z8k/pi-tui";
+import { Container, Text } from "@steve-z8k/pi-tui";
+import { isRecord } from "@steve-z8k/pi-utils";
 import { type } from "arktype";
 import type { Theme, ThemeColor } from "../modes/theme/theme";
 import { subprocessToolRegistry } from "../task/subprocess-tool-registry";

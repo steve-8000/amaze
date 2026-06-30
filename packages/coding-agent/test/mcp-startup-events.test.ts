@@ -5,7 +5,7 @@ import {
 	formatMCPConnectionStatusMessage,
 	isMcpConnectionStatusEvent,
 	MCP_CONNECTION_STATUS_EVENT_CHANNEL,
-} from "@amaze/pi-coding-agent/mcp/startup-events";
+} from "@steve-z8k/pi-coding-agent/mcp/startup-events";
 
 // Cross-module contract guard.
 //

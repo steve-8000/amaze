@@ -3,14 +3,14 @@ import {
 	disposeAllKernelSessions,
 	disposeKernelSessionsByOwner,
 	executePython,
-} from "@amaze/pi-coding-agent/eval/py/executor";
+} from "@steve-z8k/pi-coding-agent/eval/py/executor";
 import type {
 	KernelExecuteResult,
 	KernelShutdownResult,
 	PythonKernel as PythonKernelInstance,
-} from "@amaze/pi-coding-agent/eval/py/kernel";
-import * as pythonKernel from "@amaze/pi-coding-agent/eval/py/kernel";
-import { PythonKernel } from "@amaze/pi-coding-agent/eval/py/kernel";
+} from "@steve-z8k/pi-coding-agent/eval/py/kernel";
+import * as pythonKernel from "@steve-z8k/pi-coding-agent/eval/py/kernel";
+import { PythonKernel } from "@steve-z8k/pi-coding-agent/eval/py/kernel";
 
 const OK_RESULT: KernelExecuteResult = {
 	status: "ok",

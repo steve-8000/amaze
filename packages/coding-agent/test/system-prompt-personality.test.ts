@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { Personality } from "@amaze/pi-coding-agent/config/settings-schema";
-import { buildSystemPrompt } from "@amaze/pi-coding-agent/system-prompt";
+import type { Personality } from "@steve-z8k/pi-coding-agent/config/settings-schema";
+import { buildSystemPrompt } from "@steve-z8k/pi-coding-agent/system-prompt";
 import { cleanupTempHome } from "./helpers/temp-home-cleanup";
 
 const EMPTY_TREE = {

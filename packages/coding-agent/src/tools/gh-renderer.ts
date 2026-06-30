@@ -1,4 +1,4 @@
-import { type Component, padding, Text, visibleWidth } from "@amaze/pi-tui";
+import { type Component, padding, Text, visibleWidth } from "@steve-z8k/pi-tui";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
 import type { Theme, ThemeColor } from "../modes/theme/theme";
 import { framedBlock, renderStatusLine } from "../tui";

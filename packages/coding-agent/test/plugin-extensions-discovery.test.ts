@@ -2,11 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { discoverAndLoadExtensions } from "@amaze/pi-coding-agent/extensibility/extensions/loader";
-import { getAgentDir, getPluginsDir, setAgentDir, TempDir } from "@amaze/pi-utils";
+import { discoverAndLoadExtensions } from "@steve-z8k/pi-coding-agent/extensibility/extensions/loader";
+import { getAgentDir, getPluginsDir, setAgentDir, TempDir } from "@steve-z8k/pi-utils";
 
-const currentPiCodingAgentPath = Bun.resolveSync("@amaze/pi-coding-agent", import.meta.dir);
-const currentPiExtensionsPath = Bun.resolveSync("@amaze/pi-coding-agent/extensibility/extensions", import.meta.dir);
+const currentPiCodingAgentPath = Bun.resolveSync("@steve-z8k/pi-coding-agent", import.meta.dir);
+const currentPiExtensionsPath = Bun.resolveSync("@steve-z8k/pi-coding-agent/extensibility/extensions", import.meta.dir);
 
 describe("plugin extension discovery", () => {
 	let projectDir: TempDir;

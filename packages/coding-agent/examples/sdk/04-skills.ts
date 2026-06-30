@@ -4,7 +4,7 @@
  * Skills provide specialized instructions loaded into the system prompt.
  * Discover, filter, merge, or replace them.
  */
-import { createAgentSession, discoverSkills, SessionManager, type Skill } from "@amaze/pi-coding-agent";
+import { createAgentSession, discoverSkills, SessionManager, type Skill } from "@steve-z8k/pi-coding-agent";
 
 // Discover all skills from cwd/.amaze/skills, ~/.amaze/agent/skills, etc.
 const { skills: allSkills } = await discoverSkills();

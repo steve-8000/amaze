@@ -1,8 +1,8 @@
 import { Database } from "bun:sqlite";
 import { afterEach, describe, expect, it } from "bun:test";
-import { factRecall, formatContext, recall, recallEnhanced } from "@amaze/pi-rocky-memory/core/beam/recall";
-import { initBeam } from "@amaze/pi-rocky-memory/core/beam/schema";
-import type { BeamMemoryState } from "@amaze/pi-rocky-memory/core/beam/types";
+import { factRecall, formatContext, recall, recallEnhanced } from "@steve-z8k/pi-rocky-memory/core/beam/recall";
+import { initBeam } from "@steve-z8k/pi-rocky-memory/core/beam/schema";
+import type { BeamMemoryState } from "@steve-z8k/pi-rocky-memory/core/beam/types";
 
 type TestBeam = BeamMemoryState & { close(): void };
 

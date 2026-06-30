@@ -11,8 +11,8 @@ import {
 	Text,
 	truncateToWidth,
 	visibleWidth,
-} from "@amaze/pi-tui";
-import { formatBytes } from "@amaze/pi-utils";
+} from "@steve-z8k/pi-tui";
+import { formatBytes } from "@steve-z8k/pi-utils";
 import { theme } from "../../modes/theme/theme";
 import { matchesAppInterrupt, matchesSelectDown, matchesSelectUp } from "../../modes/utils/keybinding-matchers";
 import type { SessionInfo, SessionStatus } from "../../session/session-listing";

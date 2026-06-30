@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { ProcessTerminal } from "@amaze/pi-tui/terminal";
+import { ProcessTerminal } from "@steve-z8k/pi-tui/terminal";
 import {
 	getTerminalInfo,
 	isOsc99Supported,
 	NotifyProtocol,
 	setOsc99Supported,
 	TERMINAL,
-} from "@amaze/pi-tui/terminal-capabilities";
-import { setTerminalHeadless } from "@amaze/pi-utils";
+} from "@steve-z8k/pi-tui/terminal-capabilities";
+import { setTerminalHeadless } from "@steve-z8k/pi-utils";
 
 const stdinIsTtyDescriptor = Object.getOwnPropertyDescriptor(process.stdin, "isTTY");
 const stdoutIsTtyDescriptor = Object.getOwnPropertyDescriptor(process.stdout, "isTTY");

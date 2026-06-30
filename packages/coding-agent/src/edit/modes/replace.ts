@@ -4,7 +4,7 @@
  * Provides both character-level and line-level fuzzy matching with progressive
  * fallback strategies for finding text in files.
  */
-import type { AgentToolResult } from "@amaze/pi-agent-core";
+import type { AgentToolResult } from "@steve-z8k/pi-agent-core";
 import { type } from "arktype";
 import type { ToolSession } from "../../tools";
 import { routeWriteThroughBridge } from "../../tools/acp-bridge";

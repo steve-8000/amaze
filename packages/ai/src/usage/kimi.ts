@@ -1,4 +1,4 @@
-import { $env } from "@amaze/pi-utils";
+import { $env } from "@steve-z8k/pi-utils";
 import { getKimiCommonHeaders } from "../registry/oauth/kimi";
 import type {
 	UsageAmount,

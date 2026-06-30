@@ -6,7 +6,7 @@
 
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { getMCPConfigPath, isCompiledBinary, logger } from "@amaze/pi-utils";
+import { getMCPConfigPath, isCompiledBinary, logger } from "@steve-z8k/pi-utils";
 import { mcpCapability } from "../capability/mcp";
 import type { SourceMeta } from "../capability/types";
 import type { MCPServer } from "../discovery";
@@ -165,7 +165,7 @@ export async function isSelfReferentialMCPConfig(config: MCPServerConfig, cwd: s
 	return argPath !== null && entrypoints.has(argPath);
 }
 
-const DISABLED_MCP_SERVER_NAMES = new Set(["rocky-codebase"]);
+const DISABLED_MCP_SERVER_NAMES = new Set<string>();
 
 function isDisabledMCPServerName(name: string): boolean {
 	const normalized = name.toLowerCase().replace(/_/g, "-");

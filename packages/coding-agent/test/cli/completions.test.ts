@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { buildSpec, type CompletionSpec, generateCompletion } from "@amaze/pi-coding-agent/cli/completion-gen";
-import type { CliConfig, CommandCtor } from "@amaze/pi-utils/cli";
+import { buildSpec, type CompletionSpec, generateCompletion } from "@steve-z8k/pi-coding-agent/cli/completion-gen";
+import type { CliConfig, CommandCtor } from "@steve-z8k/pi-utils/cli";
 
 const repoRoot = path.resolve(import.meta.dir, "..", "..", "..", "..");
 const cliEntry = path.join(repoRoot, "packages", "coding-agent", "src", "cli.ts");

@@ -1,6 +1,6 @@
 /**
  * Compatibility shim for legacy extensions importing the package root of
- * `@amaze/pi-coding-agent` (or one of its aliased scopes like
+ * `@steve-z8k/pi-coding-agent` (or one of its aliased scopes like
  * `@earendil-works/pi-coding-agent` or `@mariozechner/pi-coding-agent`).
  *
  * The coding-agent package's own barrel (`./src/index.ts`) cannot be listed
@@ -9,12 +9,12 @@
  * Routing legacy plugin imports through this sibling shim sidesteps that
  * conflict: bun bundles a distinct entry whose path differs from the CLI
  * entry, while still re-exporting the canonical surface so plugins observe
- * the same module identity as a direct `@amaze/pi-coding-agent` import.
+ * the same module identity as a direct `@steve-z8k/pi-coding-agent` import.
  */
 
-import type { AgentToolUpdateCallback } from "@amaze/pi-agent-core";
-import type { TSchema } from "@amaze/pi-ai";
-import { parseFrontmatter as parseAmazeFrontmatter } from "@amaze/pi-utils";
+import type { AgentToolUpdateCallback } from "@steve-z8k/pi-agent-core";
+import type { TSchema } from "@steve-z8k/pi-ai";
+import { parseFrontmatter as parseAmazeFrontmatter } from "@steve-z8k/pi-utils";
 import { Settings } from "../config/settings";
 import { BUILTIN_TOOLS, type Tool, type ToolSession } from "../tools";
 import type { ToolDefinition } from "./extensions/types";

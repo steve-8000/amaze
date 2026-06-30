@@ -3,8 +3,8 @@ import { mkdtemp, rm } from "node:fs/promises";
 import * as net from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { CmuxSocketClient } from "@amaze/pi-coding-agent/tools/browser";
-import { ToolError } from "@amaze/pi-coding-agent/tools/tool-errors";
+import { CmuxSocketClient } from "@steve-z8k/pi-coding-agent/tools/browser";
+import { ToolError } from "@steve-z8k/pi-coding-agent/tools/tool-errors";
 
 type RequestLine = {
 	id?: unknown;

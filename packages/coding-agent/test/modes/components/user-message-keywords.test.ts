@@ -1,14 +1,14 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import * as path from "node:path";
 import * as url from "node:url";
-import type { AgentMessage } from "@amaze/pi-agent-core";
-import { resetSettingsForTest, Settings } from "@amaze/pi-coding-agent/config/settings";
-import { CustomEditor } from "@amaze/pi-coding-agent/modes/components/custom-editor";
-import { UserMessageComponent } from "@amaze/pi-coding-agent/modes/components/user-message";
-import { getEditorTheme, initTheme } from "@amaze/pi-coding-agent/modes/theme/theme";
-import type { InteractiveModeContext } from "@amaze/pi-coding-agent/modes/types";
-import { UiHelpers } from "@amaze/pi-coding-agent/modes/utils/ui-helpers";
-import { Container } from "@amaze/pi-tui";
+import type { AgentMessage } from "@steve-z8k/pi-agent-core";
+import { resetSettingsForTest, Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { CustomEditor } from "@steve-z8k/pi-coding-agent/modes/components/custom-editor";
+import { UserMessageComponent } from "@steve-z8k/pi-coding-agent/modes/components/user-message";
+import { getEditorTheme, initTheme } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
+import type { InteractiveModeContext } from "@steve-z8k/pi-coding-agent/modes/types";
+import { UiHelpers } from "@steve-z8k/pi-coding-agent/modes/utils/ui-helpers";
+import { Container } from "@steve-z8k/pi-tui";
 
 beforeAll(async () => {
 	resetSettingsForTest();

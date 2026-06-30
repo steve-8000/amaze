@@ -2,10 +2,10 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import * as mcpClient from "@amaze/pi-coding-agent/mcp/client";
-import { MCPCommandController } from "@amaze/pi-coding-agent/modes/controllers/mcp-command-controller";
-import { initTheme } from "@amaze/pi-coding-agent/modes/theme/theme";
-import { getConfigRootDir, getProjectDir, setAgentDir, setProjectDir } from "@amaze/pi-utils";
+import * as mcpClient from "@steve-z8k/pi-coding-agent/mcp/client";
+import { MCPCommandController } from "@steve-z8k/pi-coding-agent/modes/controllers/mcp-command-controller";
+import { initTheme } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
+import { getConfigRootDir, getProjectDir, setAgentDir, setProjectDir } from "@steve-z8k/pi-utils";
 
 const originalProjectDir = getProjectDir();
 const originalAgentDir = process.env.PI_CODING_AGENT_DIR;

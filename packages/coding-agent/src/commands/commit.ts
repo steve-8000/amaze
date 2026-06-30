@@ -1,8 +1,8 @@
 /**
  * Generate and optionally push a commit with changelog updates.
  */
-import { postmortem } from "@amaze/pi-utils";
-import { Command, Flags } from "@amaze/pi-utils/cli";
+import { postmortem } from "@steve-z8k/pi-utils";
+import { Command, Flags } from "@steve-z8k/pi-utils/cli";
 import { runCommitCommand } from "../commit";
 import type { CommitCommandArgs } from "../commit/types";
 import { initTheme } from "../modes/theme/theme";

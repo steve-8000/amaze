@@ -2,17 +2,17 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { ThinkingLevel } from "@amaze/pi-agent-core";
-import { AuthStorage, Effort, type Model } from "@amaze/pi-ai";
-import { buildModel } from "@amaze/pi-catalog/build";
-import { getBundledModel } from "@amaze/pi-catalog/models";
-import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import type { CustomTool } from "@amaze/pi-coding-agent/extensibility/custom-tools/types";
-import { createAgentSession } from "@amaze/pi-coding-agent/sdk";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import { TOOL_DISCOVERY_AUTO_THRESHOLD } from "@amaze/pi-coding-agent/tool-discovery/mode";
-import { Snowflake } from "@amaze/pi-utils";
+import { ThinkingLevel } from "@steve-z8k/pi-agent-core";
+import { AuthStorage, Effort, type Model } from "@steve-z8k/pi-ai";
+import { buildModel } from "@steve-z8k/pi-catalog/build";
+import { getBundledModel } from "@steve-z8k/pi-catalog/models";
+import { ModelRegistry } from "@steve-z8k/pi-coding-agent/config/model-registry";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import type { CustomTool } from "@steve-z8k/pi-coding-agent/extensibility/custom-tools/types";
+import { createAgentSession } from "@steve-z8k/pi-coding-agent/sdk";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import { TOOL_DISCOVERY_AUTO_THRESHOLD } from "@steve-z8k/pi-coding-agent/tool-discovery/mode";
+import { Snowflake } from "@steve-z8k/pi-utils";
 import { type } from "arktype";
 
 function createMcpCustomTool(name: string, serverName: string, mcpToolName: string): CustomTool {
@@ -89,7 +89,7 @@ describe("createAgentSession MCP discovery prompt gating", () => {
 			modelRegistry,
 			sessionManager: SessionManager.inMemory(),
 			settings: Settings.isolated({ "mcp.discoveryMode": true }),
-			model: getBundledModel("openai", "gpt-4o-mini"),
+			model: getBundledModel("openai", "gpt-5.4-mini"),
 			disableExtensionDiscovery: true,
 			skills: [],
 			contextFiles: [],
@@ -116,7 +116,7 @@ describe("createAgentSession MCP discovery prompt gating", () => {
 			modelRegistry,
 			sessionManager: SessionManager.inMemory(),
 			settings: Settings.isolated({}),
-			model: getBundledModel("openai", "gpt-4o-mini"),
+			model: getBundledModel("openai", "gpt-5.4-mini"),
 			disableExtensionDiscovery: true,
 			skills: [],
 			contextFiles: [],
@@ -140,7 +140,7 @@ describe("createAgentSession MCP discovery prompt gating", () => {
 			modelRegistry,
 			sessionManager: SessionManager.inMemory(),
 			settings: Settings.isolated({ "tools.discoveryMode": "all" }),
-			model: getBundledModel("openai", "gpt-4o-mini"),
+			model: getBundledModel("openai", "gpt-5.4-mini"),
 			disableExtensionDiscovery: true,
 			skills: [],
 			contextFiles: [],
@@ -163,7 +163,7 @@ describe("createAgentSession MCP discovery prompt gating", () => {
 			modelRegistry,
 			sessionManager: SessionManager.inMemory(),
 			settings: Settings.isolated({ "tools.discoveryMode": "all", "task.eager": "preferred" }),
-			model: getBundledModel("openai", "gpt-4o-mini"),
+			model: getBundledModel("openai", "gpt-5.4-mini"),
 			disableExtensionDiscovery: true,
 			skills: [],
 			contextFiles: [],
@@ -183,7 +183,7 @@ describe("createAgentSession MCP discovery prompt gating", () => {
 			modelRegistry,
 			sessionManager: SessionManager.inMemory(),
 			settings: Settings.isolated({ "tools.discoveryMode": "all" }),
-			model: getBundledModel("openai", "gpt-4o-mini"),
+			model: getBundledModel("openai", "gpt-5.4-mini"),
 			disableExtensionDiscovery: true,
 			skills: [],
 			contextFiles: [],
@@ -203,7 +203,7 @@ describe("createAgentSession MCP discovery prompt gating", () => {
 			modelRegistry,
 			sessionManager: SessionManager.inMemory(),
 			settings: Settings.isolated({ "mcp.discoveryMode": true }),
-			model: getBundledModel("openai", "gpt-4o-mini"),
+			model: getBundledModel("openai", "gpt-5.4-mini"),
 			disableExtensionDiscovery: true,
 			skills: [],
 			contextFiles: [],
@@ -239,7 +239,7 @@ describe("createAgentSession MCP discovery prompt gating", () => {
 				"mcp.discoveryMode": true,
 				"mcp.discoveryDefaultServers": ["github", "missing"],
 			}),
-			model: getBundledModel("openai", "gpt-4o-mini"),
+			model: getBundledModel("openai", "gpt-5.4-mini"),
 			disableExtensionDiscovery: true,
 			skills: [],
 			contextFiles: [],
@@ -270,7 +270,7 @@ describe("createAgentSession MCP discovery prompt gating", () => {
 			modelRegistry,
 			sessionManager: SessionManager.inMemory(),
 			settings: Settings.isolated({ "mcp.discoveryMode": true }),
-			model: getBundledModel("openai", "gpt-4o-mini"),
+			model: getBundledModel("openai", "gpt-5.4-mini"),
 			disableExtensionDiscovery: true,
 			skills: [],
 			contextFiles: [],
@@ -293,7 +293,7 @@ describe("createAgentSession MCP discovery prompt gating", () => {
 			modelRegistry,
 			sessionManager: SessionManager.inMemory(),
 			settings: Settings.isolated({ "tools.discoveryMode": "all" }),
-			model: getBundledModel("openai", "gpt-4o-mini"),
+			model: getBundledModel("openai", "gpt-5.4-mini"),
 			disableExtensionDiscovery: true,
 			skills: [],
 			contextFiles: [],
@@ -449,7 +449,7 @@ describe("createAgentSession MCP discovery prompt gating", () => {
 			modelRegistry,
 			sessionManager: firstManager,
 			settings: Settings.isolated({ "mcp.discoveryMode": true }),
-			model: getBundledModel("openai", "gpt-4o-mini"),
+			model: getBundledModel("openai", "gpt-5.4-mini"),
 			disableExtensionDiscovery: true,
 			skills: [],
 			contextFiles: [],
@@ -476,7 +476,7 @@ describe("createAgentSession MCP discovery prompt gating", () => {
 			modelRegistry,
 			sessionManager: resumedManager,
 			settings: Settings.isolated({ "mcp.discoveryMode": true }),
-			model: getBundledModel("openai", "gpt-4o-mini"),
+			model: getBundledModel("openai", "gpt-5.4-mini"),
 			disableExtensionDiscovery: true,
 			skills: [],
 			contextFiles: [],

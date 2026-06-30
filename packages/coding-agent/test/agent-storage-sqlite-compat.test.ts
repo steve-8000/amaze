@@ -1,8 +1,8 @@
 import { Database } from "bun:sqlite";
 import { afterEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { AgentStorage } from "@amaze/pi-coding-agent/session/agent-storage";
-import { TempDir } from "@amaze/pi-utils";
+import { AgentStorage } from "@steve-z8k/pi-coding-agent/session/agent-storage";
+import { TempDir } from "@steve-z8k/pi-utils";
 import { readTableSql } from "./helpers/sqlite-inspect";
 
 const LEGACY_TIMESTAMP = 1_700_000_000;
@@ -82,7 +82,7 @@ describe("AgentStorage SQLite compatibility", () => {
 			.run("theme", '"dark"', LEGACY_TIMESTAMP);
 		legacyDb
 			.prepare("INSERT INTO model_usage (model_key, last_used_at) VALUES (?, ?)")
-			.run("anthropic/claude-sonnet-4-5", LEGACY_TIMESTAMP);
+			.run("anthropic/claude-sonnet-4-6", LEGACY_TIMESTAMP);
 		legacyDb.close();
 
 		const storage = await AgentStorage.open(dbPath);
@@ -93,7 +93,7 @@ describe("AgentStorage SQLite compatibility", () => {
 		expect(readTableSql(dbPath, "model_usage")).not.toContain("unixepoch(");
 		expect(readTableSql(dbPath, "model_usage")).toContain("strftime('%s','now')");
 		expect(storage.getSettings()).toEqual({ theme: "dark" });
-		expect(storage.getModelUsageOrder()).toEqual(["anthropic/claude-sonnet-4-5"]);
+		expect(storage.getModelUsageOrder()).toEqual(["anthropic/claude-sonnet-4-6"]);
 		expect(readSettingsRows(dbPath)).toEqual([{ key: "theme", value: '"dark"', updated_at: LEGACY_TIMESTAMP }]);
 	});
 });

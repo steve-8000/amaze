@@ -1,19 +1,19 @@
 import { afterEach, beforeAll, describe, expect, it, spyOn, vi } from "bun:test";
 import * as path from "node:path";
-import * as core from "@amaze/pi-agent-core";
-import { ThinkingLevel } from "@amaze/pi-agent-core";
-import type { Api, Model } from "@amaze/pi-ai";
-import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings } from "@amaze/pi-coding-agent/config/settings";
-import { runGuidedGoalTurn } from "@amaze/pi-coding-agent/goals/guided-setup";
-import { InteractiveMode } from "@amaze/pi-coding-agent/modes/interactive-mode";
-import { initTheme } from "@amaze/pi-coding-agent/modes/theme/theme";
-import type { AgentSession } from "@amaze/pi-coding-agent/session/agent-session";
-import { AgentSession as RealAgentSession } from "@amaze/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import { createTools, type Tool, type ToolSession } from "@amaze/pi-coding-agent/tools";
-import { TempDir } from "@amaze/pi-utils";
+import * as core from "@steve-z8k/pi-agent-core";
+import { ThinkingLevel } from "@steve-z8k/pi-agent-core";
+import type { Api, Model } from "@steve-z8k/pi-ai";
+import { ModelRegistry } from "@steve-z8k/pi-coding-agent/config/model-registry";
+import { resetSettingsForTest, Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { runGuidedGoalTurn } from "@steve-z8k/pi-coding-agent/goals/guided-setup";
+import { InteractiveMode } from "@steve-z8k/pi-coding-agent/modes/interactive-mode";
+import { initTheme } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
+import type { AgentSession } from "@steve-z8k/pi-coding-agent/session/agent-session";
+import { AgentSession as RealAgentSession } from "@steve-z8k/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@steve-z8k/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import { createTools, type Tool, type ToolSession } from "@steve-z8k/pi-coding-agent/tools";
+import { TempDir } from "@steve-z8k/pi-utils";
 
 const planModel = { provider: "test", id: "plan" } as unknown as Model<Api>;
 const slowModel = { provider: "test", id: "slow" } as unknown as Model<Api>;
@@ -84,9 +84,9 @@ async function createInteractiveGoalHarness(): Promise<{
 	});
 	const authStorage = await AuthStorage.create(path.join(tempDir.path(), "testauth.db"));
 	const modelRegistry = new ModelRegistry(authStorage);
-	const model = modelRegistry.find("anthropic", "claude-sonnet-4-5");
+	const model = modelRegistry.find("anthropic", "claude-sonnet-4-6");
 	if (!model) {
-		throw new Error("Expected claude-sonnet-4-5 to exist in registry");
+		throw new Error("Expected claude-sonnet-4-6 to exist in registry");
 	}
 	const initialTools = await createTools(createToolSession(tempDir.path(), settings), ["read"]);
 	const toolRegistry = new Map<string, Tool>(initialTools.map(tool => [tool.name, tool] as const));

@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import { isReadOnlyAgent, TaskTool } from "@amaze/pi-coding-agent/task";
-import { loadBundledAgents } from "@amaze/pi-coding-agent/task/agents";
-import * as discoveryModule from "@amaze/pi-coding-agent/task/discovery";
-import type { AgentDefinition } from "@amaze/pi-coding-agent/task/types";
-import type { ToolSession } from "@amaze/pi-coding-agent/tools";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { isReadOnlyAgent, TaskTool } from "@steve-z8k/pi-coding-agent/task";
+import { loadBundledAgents } from "@steve-z8k/pi-coding-agent/task/agents";
+import * as discoveryModule from "@steve-z8k/pi-coding-agent/task/discovery";
+import type { AgentDefinition } from "@steve-z8k/pi-coding-agent/task/types";
+import type { ToolSession } from "@steve-z8k/pi-coding-agent/tools";
 
 function createSession(overrides: Partial<Record<string, unknown>> = {}): ToolSession {
 	return {
@@ -30,10 +30,7 @@ describe("task agent capability descriptions", () => {
 	it("classifies bundled contract agents by tool capability", () => {
 		const agents = loadBundledAgents();
 
-		for (const name of ["finder", "helper"]) {
-			expect(isReadOnlyAgent(agentByName(agents, name))).toBe(true);
-		}
-		for (const name of ["thinker", "coder", "fixer", "checker"]) {
+		for (const name of ["ultra", "deep", "flash", "spark"]) {
 			expect(isReadOnlyAgent(agentByName(agents, name))).toBe(false);
 		}
 	});
@@ -41,7 +38,7 @@ describe("task agent capability descriptions", () => {
 	it("leaves contract agents on the default read summarization behavior", () => {
 		const agents = loadBundledAgents();
 
-		for (const name of ["thinker", "coder", "finder", "fixer", "checker", "helper"]) {
+		for (const name of ["ultra", "deep", "flash", "spark"]) {
 			expect(agentByName(agents, name).readSummarize).toBeUndefined();
 		}
 	});

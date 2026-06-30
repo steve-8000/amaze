@@ -2,13 +2,13 @@ import { beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { InMemorySnapshotStore } from "@amaze/hashline";
-import type { AgentTool } from "@amaze/pi-agent-core";
-import { resetSettingsForTest, Settings } from "@amaze/pi-coding-agent/config/settings";
-import { editToolRenderer } from "@amaze/pi-coding-agent/edit/renderer";
-import { ToolExecutionComponent } from "@amaze/pi-coding-agent/modes/components/tool-execution";
-import * as themeModule from "@amaze/pi-coding-agent/modes/theme/theme";
-import { Text, type TUI, visibleWidth } from "@amaze/pi-tui";
+import { InMemorySnapshotStore } from "@steve-z8k/hashline";
+import type { AgentTool } from "@steve-z8k/pi-agent-core";
+import { resetSettingsForTest, Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { editToolRenderer } from "@steve-z8k/pi-coding-agent/edit/renderer";
+import { ToolExecutionComponent } from "@steve-z8k/pi-coding-agent/modes/components/tool-execution";
+import * as themeModule from "@steve-z8k/pi-coding-agent/modes/theme/theme";
+import { Text, type TUI, visibleWidth } from "@steve-z8k/pi-tui";
 
 beforeAll(async () => {
 	resetSettingsForTest();

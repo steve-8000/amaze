@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getDashboardStats } from "@amaze/amaze-stats/aggregator";
-import { closeDb, initDb, insertMessageStats } from "@amaze/amaze-stats/db";
-import type { MessageStats } from "@amaze/amaze-stats/types";
-import { getAgentDir, setAgentDir, TempDir } from "@amaze/pi-utils";
+import { getDashboardStats } from "@steve-z8k/amaze-stats/aggregator";
+import { closeDb, initDb, insertMessageStats } from "@steve-z8k/amaze-stats/db";
+import type { MessageStats } from "@steve-z8k/amaze-stats/types";
+import { getAgentDir, setAgentDir, TempDir } from "@steve-z8k/pi-utils";
 
 const originalConfigDir = process.env.PI_CONFIG_DIR;
 const originalAgentDir = getAgentDir();

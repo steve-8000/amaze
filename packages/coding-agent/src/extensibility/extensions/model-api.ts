@@ -6,8 +6,8 @@
  * alias, and compare model families — without touching the mutable registry or
  * duplicating resolution/family heuristics.
  */
-import type { Api, Model } from "@amaze/pi-ai";
-import { modelFamilyToken } from "@amaze/pi-catalog/identity";
+import type { Api, Model } from "@steve-z8k/pi-ai";
+import { modelFamilyToken } from "@steve-z8k/pi-catalog/identity";
 import type { ModelRegistry } from "../../config/model-registry";
 import { getModelMatchPreferences, resolveModelRoleValue } from "../../config/model-resolver";
 import type { Settings } from "../../config/settings";
@@ -25,7 +25,7 @@ export function createExtensionModelQuery(
 	return {
 		list: () => modelRegistry.getAvailable(),
 		current: () => getModel(),
-		// resolveModelRoleValue expands a role alias (`pi/slow`) to its full configured
+		// resolveModelRoleValue expands a role alias (`pi/deep`) to its full configured
 		// priority list and tries each pattern — the same path core selection uses — so a
 		// fallback model lower in the list still resolves. Plain model strings pass through
 		// as a single pattern.

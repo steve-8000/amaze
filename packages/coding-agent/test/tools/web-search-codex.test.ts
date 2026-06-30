@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import type { AuthStorage, FetchImpl } from "@amaze/pi-ai";
-import type { SearchParams } from "@amaze/pi-coding-agent/web/search/providers/base";
-import { searchCodex } from "@amaze/pi-coding-agent/web/search/providers/codex";
+import type { AuthStorage, FetchImpl } from "@steve-z8k/pi-ai";
+import type { SearchParams } from "@steve-z8k/pi-coding-agent/web/search/providers/base";
+import { searchCodex } from "@steve-z8k/pi-coding-agent/web/search/providers/codex";
 
 type CapturedRequest = {
 	url: string;
@@ -225,22 +225,22 @@ describe("searchCodex model selection", () => {
 
 	it("uses the built-in default model when PI_CODEX_WEB_SEARCH_MODEL is unset", async () => {
 		delete process.env.PI_CODEX_WEB_SEARCH_MODEL;
-		const result = await searchCodex(makeSearchParams("default codex model", mockCodexFetch("gpt-5.5")));
+		const result = await searchCodex(makeSearchParams("default codex model", mockCodexFetch("gpt-5.3-codex-spark")));
 
 		expect(capturedRequest).not.toBeNull();
 		expect(capturedRequest?.url).toBe("https://chatgpt.com/backend-api/codex/responses");
-		expect(capturedRequest?.body?.model).toBe("gpt-5.5");
-		expect(result.model).toBe("gpt-5.5");
+		expect(capturedRequest?.body?.model).toBe("gpt-5.3-codex-spark");
+		expect(result.model).toBe("gpt-5.3-codex-spark");
 		expect(result.sources).toEqual([{ title: "Example Article", url: "https://example.com/article" }]);
 	});
 
 	it("falls back to the default model when PI_CODEX_WEB_SEARCH_MODEL is blank", async () => {
 		process.env.PI_CODEX_WEB_SEARCH_MODEL = "   ";
-		const result = await searchCodex(makeSearchParams("blank codex model", mockCodexFetch("gpt-5.5")));
+		const result = await searchCodex(makeSearchParams("blank codex model", mockCodexFetch("gpt-5.3-codex-spark")));
 
 		expect(capturedRequest).not.toBeNull();
-		expect(capturedRequest?.body?.model).toBe("gpt-5.5");
-		expect(result.model).toBe("gpt-5.5");
+		expect(capturedRequest?.body?.model).toBe("gpt-5.3-codex-spark");
+		expect(result.model).toBe("gpt-5.3-codex-spark");
 	});
 
 	it("retries the next bundled default when Codex rejects a model for ChatGPT accounts", async () => {
@@ -257,20 +257,21 @@ describe("searchCodex model selection", () => {
 
 			const requestedModel = capturedRequest.body?.model;
 			if (calls === 1) {
-				expect(requestedModel).toBe("gpt-5.5");
+				expect(requestedModel).toBe("gpt-5.3-codex-spark");
 				return Promise.resolve(
 					new Response(
 						JSON.stringify({
-							detail: "The 'gpt-5.5' model is not supported when using Codex with a ChatGPT account.",
+							detail:
+								"The 'gpt-5.3-codex-spark' model is not supported when using Codex with a ChatGPT account.",
 						}),
 						{ status: 400, headers: { "Content-Type": "application/json" } },
 					),
 				);
 			}
 
-			expect(requestedModel).toBe("gpt-5.4");
+			expect(requestedModel).toBe("gpt-5.5");
 			return Promise.resolve(
-				new Response(makeSseResponse("gpt-5.4"), {
+				new Response(makeSseResponse("gpt-5.5"), {
 					status: 200,
 					headers: { "Content-Type": "text/event-stream" },
 				}),
@@ -280,7 +281,7 @@ describe("searchCodex model selection", () => {
 		const result = await searchCodex(makeSearchParams("retry unsupported default", fetchMock));
 
 		expect(calls).toBe(2);
-		expect(result.model).toBe("gpt-5.4");
+		expect(result.model).toBe("gpt-5.5");
 		expect(result.sources).toEqual([{ title: "Example Article", url: "https://example.com/article" }]);
 	});
 
@@ -395,6 +396,61 @@ describe("searchCodex model selection", () => {
 			},
 		]);
 	});
+
+	it("uses the timeout-composed request signal while consuming Codex SSE streams", async () => {
+		const timeoutController = new AbortController();
+		vi.spyOn(AbortSignal, "timeout").mockReturnValue(timeoutController.signal);
+
+		const callerController = new AbortController();
+		let fetchSignal: AbortSignal | undefined;
+		let markPullStarted = () => {};
+		const pullStarted = new Promise<void>(resolve => {
+			markPullStarted = resolve;
+		});
+		let resolveCancelled = () => {};
+		const cancelled = new Promise<void>(resolve => {
+			resolveCancelled = resolve;
+		});
+		let cancelReason: unknown;
+
+		const fetchMock: FetchImpl = (_url, init) => {
+			fetchSignal = init?.signal ?? undefined;
+			expect(fetchSignal).toBeDefined();
+			expect(fetchSignal).not.toBe(callerController.signal);
+			expect(fetchSignal?.aborted).toBe(false);
+
+			return Promise.resolve(
+				new Response(
+					new ReadableStream<Uint8Array>({
+						pull() {
+							markPullStarted();
+							return new Promise<void>(() => {});
+						},
+						cancel(reason) {
+							cancelReason = reason;
+							expect(fetchSignal?.aborted).toBe(true);
+							resolveCancelled();
+						},
+					}),
+					{ status: 200, headers: { "Content-Type": "text/event-stream" } },
+				),
+			);
+		};
+
+		const searchPromise = searchCodex({
+			...makeSearchParams("stream timeout signal", fetchMock),
+			signal: callerController.signal,
+		});
+
+		await pullStarted;
+		expect(fetchSignal?.aborted).toBe(false);
+		timeoutController.abort(new Error("synthetic hard timeout"));
+		await cancelled;
+
+		expect(callerController.signal.aborted).toBe(false);
+		expect(cancelReason).toBe(fetchSignal?.reason);
+		await expect(searchPromise).rejects.toThrow(/image-only response/);
+	}, 500);
 
 	it("throws to advance the chain when both streamed and final answers are image placeholders without sources", async () => {
 		const sse = [

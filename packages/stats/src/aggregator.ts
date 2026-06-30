@@ -1,5 +1,5 @@
 import * as fs from "node:fs";
-import { workerHostEntry } from "@amaze/pi-utils";
+import { workerHostEntry } from "@steve-z8k/pi-utils";
 import {
 	getRecentErrors as dbGetRecentErrors,
 	getRecentRequests as dbGetRecentRequests,
@@ -88,7 +88,7 @@ interface WorkerHandle {
  * self-dispatching CLI entry (amaze in source, npm-bundle, or compiled form),
  * re-enter that entry with a worker argv selector; otherwise (standalone
  * amaze-stats, bun test, SDK embedding) load the worker module directly, so this
- * package keeps zero runtime dependency on `@amaze/pi-coding-agent`.
+ * package keeps zero runtime dependency on `@steve-z8k/pi-coding-agent`.
  */
 function createSyncWorker(): Worker {
 	const hostEntry = workerHostEntry();

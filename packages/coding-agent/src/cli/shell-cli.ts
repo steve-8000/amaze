@@ -5,8 +5,8 @@
  */
 import * as path from "node:path";
 import { createInterface } from "node:readline/promises";
-import { Shell } from "@amaze/pi-natives";
-import { APP_NAME, getProjectDir } from "@amaze/pi-utils";
+import { Shell } from "@steve-z8k/pi-natives";
+import { APP_NAME, getProjectDir } from "@steve-z8k/pi-utils";
 import chalk from "chalk";
 import { Settings } from "../config/settings";
 import { buildMinimizerOptions } from "../exec/bash-executor";

@@ -2,17 +2,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Agent } from "@amaze/pi-agent-core";
-import type { AssistantMessage } from "@amaze/pi-ai";
-import { createMockModel, type MockHandler } from "@amaze/pi-ai/providers/mock";
-import { getBundledModel } from "@amaze/pi-catalog/models";
-import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import type { ExtensionRunner } from "@amaze/pi-coding-agent/extensibility/extensions";
-import { AgentSession } from "@amaze/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import { Snowflake } from "@amaze/pi-utils";
+import { Agent } from "@steve-z8k/pi-agent-core";
+import type { AssistantMessage } from "@steve-z8k/pi-ai";
+import { createMockModel, type MockHandler } from "@steve-z8k/pi-ai/providers/mock";
+import { getBundledModel } from "@steve-z8k/pi-catalog/models";
+import { ModelRegistry } from "@steve-z8k/pi-coding-agent/config/model-registry";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import type { ExtensionRunner } from "@steve-z8k/pi-coding-agent/extensibility/extensions";
+import { AgentSession } from "@steve-z8k/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@steve-z8k/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import { Snowflake } from "@steve-z8k/pi-utils";
 
 function createBtwAssistant(): AssistantMessage {
 	return {
@@ -24,7 +24,7 @@ function createBtwAssistant(): AssistantMessage {
 		],
 		api: "anthropic-messages",
 		provider: "anthropic",
-		model: "claude-sonnet-4-5",
+		model: "claude-sonnet-4-6",
 		usage: {
 			input: 1,
 			output: 2,
@@ -71,7 +71,7 @@ describe("AgentSession.branchFromBtw", () => {
 		extensionRunner?: ExtensionRunner;
 		handler?: MockHandler;
 	}) {
-		const model = getBundledModel("anthropic", "claude-sonnet-4-5")!;
+		const model = getBundledModel("anthropic", "claude-sonnet-4-6")!;
 		const mock = createMockModel({ handler: options?.handler ?? (() => ({ content: ["unused"] })) });
 		const agent = new Agent({
 			getApiKey: () => "test-key",
@@ -102,7 +102,7 @@ describe("AgentSession.branchFromBtw", () => {
 			content: [{ type: "text", text: "seed response" }],
 			api: "anthropic-messages",
 			provider: "anthropic",
-			model: "claude-sonnet-4-5",
+			model: "claude-sonnet-4-6",
 			usage: {
 				input: 0,
 				output: 0,

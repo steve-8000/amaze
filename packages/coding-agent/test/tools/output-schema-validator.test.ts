@@ -6,7 +6,7 @@ import {
 	formatAllValidationIssues,
 	formatValidationIssueHeadline,
 	summarizeValidationFailure,
-} from "@amaze/pi-coding-agent/tools/output-schema-validator";
+} from "@steve-z8k/pi-coding-agent/tools/output-schema-validator";
 
 describe("buildOutputValidator", () => {
 	it("returns the empty result for an absent schema", () => {

@@ -1,10 +1,10 @@
 import { afterEach, beforeEach } from "bun:test";
 
-import * as Beam from "@amaze/pi-rocky-memory/core/beam";
-import * as Embeddings from "@amaze/pi-rocky-memory/core/embeddings";
-import type { CompleteOptions, LlmBackend } from "@amaze/pi-rocky-memory/core/llm-backends";
-import * as LlmBackends from "@amaze/pi-rocky-memory/core/llm-backends";
-import * as Memory from "@amaze/pi-rocky-memory/core/memory";
+import * as Beam from "@steve-z8k/pi-rocky-memory/core/beam";
+import * as Embeddings from "@steve-z8k/pi-rocky-memory/core/embeddings";
+import type { CompleteOptions, LlmBackend } from "@steve-z8k/pi-rocky-memory/core/llm-backends";
+import * as LlmBackends from "@steve-z8k/pi-rocky-memory/core/llm-backends";
+import * as Memory from "@steve-z8k/pi-rocky-memory/core/memory";
 
 type ResettableModule = Record<string, unknown>;
 

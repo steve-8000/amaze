@@ -1,13 +1,12 @@
-import type { InMemorySnapshotStore } from "@amaze/hashline";
-import type { AgentTelemetryConfig, AgentTool } from "@amaze/pi-agent-core";
-import type { FetchImpl, ImageContent, Model, ToolChoice } from "@amaze/pi-ai";
-import { logger } from "@amaze/pi-utils";
+import type { InMemorySnapshotStore } from "@steve-z8k/hashline";
+import type { AgentTelemetryConfig, AgentTool } from "@steve-z8k/pi-agent-core";
+import type { FetchImpl, ImageContent, Model, ToolChoice } from "@steve-z8k/pi-ai";
+import { logger } from "@steve-z8k/pi-utils";
 import type { AsyncJobManager } from "../async/job-manager";
 import type { Rule } from "../capability/rule";
 import type { PromptTemplate } from "../config/prompt-templates";
 import type { Settings } from "../config/settings";
 import { EditTool } from "../edit";
-import { checkPythonKernelAvailability } from "../eval/py/kernel";
 import type { ToolPathWithSource } from "../extensibility/custom-tools";
 import type { Skill } from "../extensibility/skills";
 import type { GoalModeState, GoalRuntime } from "../goals";
@@ -36,19 +35,6 @@ import { BashTool } from "./bash";
 import { BrowserTool } from "./browser";
 import type { BuiltinToolName } from "./builtin-names";
 import { type CheckpointState, CheckpointTool, RewindTool } from "./checkpoint";
-import {
-	GetArchitectureTool,
-	GetCodeSnippetTool,
-	ListProjectsTool,
-	QueryGraphTool,
-	SearchCodeTool,
-	SearchGraphTool,
-	TracePathTool,
-} from "./codebase-graph";
-import { CodebaseExpandTool, CodebasePlanTool, CodebaseReadTool, CodebaseValidateTool } from "./codebase-profile";
-import { DebugTool } from "./debug";
-import { EvalTool } from "./eval";
-import { resolveEvalBackends } from "./eval-backends";
 import { FindTool } from "./find";
 import { GithubTool } from "./gh";
 import { InspectImageTool } from "./inspect-image";
@@ -80,13 +66,8 @@ export * from "./ast-grep";
 export * from "./bash";
 export * from "./browser";
 export * from "./checkpoint";
-export * from "./codebase-graph";
-export * from "./debug";
-export * from "./eval";
-export * from "./eval-backends";
 export * from "./find";
 export * from "./gh";
-export * from "./image-gen";
 export * from "./inspect-image";
 export * from "./irc";
 export * from "./job";
@@ -101,7 +82,6 @@ export * from "./search-tool-bm25";
 export * from "./skill-search";
 export * from "./ssh";
 export * from "./todo";
-export * from "./tts";
 export * from "./write";
 export * from "./yield";
 
@@ -397,20 +377,7 @@ export const BUILTIN_TOOLS: Record<BuiltinToolName, ToolFactory> = {
 	edit: s => new EditTool(s),
 	ast_grep: s => new AstGrepTool(s),
 	ast_edit: s => new AstEditTool(s),
-	list_projects: s => new ListProjectsTool(s),
-	search_graph: s => new SearchGraphTool(s),
-	search_code: s => new SearchCodeTool(s),
-	trace_path: s => new TracePathTool(s),
-	get_code_snippet: s => new GetCodeSnippetTool(s),
-	get_architecture: s => new GetArchitectureTool(s),
-	query_graph: s => new QueryGraphTool(s),
-	codebase_plan: s => new CodebasePlanTool(s),
-	codebase_read: s => new CodebaseReadTool(s),
-	codebase_expand: s => new CodebaseExpandTool(s),
-	codebase_validate: s => new CodebaseValidateTool(s),
 	ask: AskTool.createIf,
-	debug: DebugTool.createIf,
-	eval: s => new EvalTool(s),
 	ssh: loadSshTool,
 	github: GithubTool.createIf,
 	find: s => new FindTool(s),
@@ -428,7 +395,7 @@ export const BUILTIN_TOOLS: Record<BuiltinToolName, ToolFactory> = {
 	skill_search: s => new SkillSearchTool(s),
 	skill_get: s => new SkillGetTool(s),
 	write: s => new WriteTool(s),
-	learn: LearnTool.createIf,
+	capture_lesson: LearnTool.createIf,
 	manage_skill: ManageSkillTool.createIf,
 };
 
@@ -454,39 +421,6 @@ export async function createTools(session: ToolSession, toolNames?: string[]): P
 	if (goalModeActive && requestedTools && !requestedTools.includes("goal")) {
 		requestedTools = [...requestedTools, "goal"];
 	}
-	const backends = resolveEvalBackends(session);
-	const allowPython = backends.python;
-	const allowJs = backends.js;
-	const skipPythonPreflight = session.skipPythonPreflight === true;
-	// Eval tool is enabled if EITHER backend is reachable. We only need to know
-	// whether python is reachable when JS is disabled — otherwise allowEval is
-	// already true and the python-availability check can be deferred to first
-	// invocation of the python backend (already handled inside the executor).
-	let pythonAvailable = true;
-	if (
-		!skipPythonPreflight &&
-		allowPython &&
-		!allowJs &&
-		(requestedTools === undefined || requestedTools.includes("eval"))
-	) {
-		const availability = await logger.time(
-			"createTools:pythonCheck",
-			checkPythonKernelAvailability,
-			session.cwd,
-			session.settings.get("python.interpreter")?.trim() || undefined,
-		);
-		pythonAvailable = availability.ok;
-		if (!availability.ok) {
-			logger.warn("Python kernel unavailable and JS backend disabled; eval will be unavailable", {
-				reason: availability.reason,
-			});
-		}
-	}
-
-	const effectivePythonAllowed = allowPython && pythonAvailable;
-	// Eval is exposed whenever any backend is reachable. The python backend may
-	// be unreachable, in which case eval dispatches exclusively to js.
-	const allowEval = effectivePythonAllowed || allowJs;
 
 	// Auto-include AST counterparts when their text-based sibling is present
 	if (requestedTools) {
@@ -512,7 +446,7 @@ export async function createTools(session: ToolSession, toolNames?: string[]): P
 		// never be silently widened with write-capable tools.
 		if (session.settings.get("autolearn.enabled") && (session.taskDepth ?? 0) === 0) {
 			if (!requestedTools.includes("manage_skill")) requestedTools.push("manage_skill");
-			if (!requestedTools.includes("learn")) requestedTools.push("learn");
+			if (!requestedTools.includes("capture_lesson")) requestedTools.push("capture_lesson");
 		}
 	}
 	// Resolve effective tool discovery mode.
@@ -527,8 +461,6 @@ export async function createTools(session: ToolSession, toolNames?: string[]): P
 	const isToolAllowed = (name: string) => {
 		if (name === "goal") return goalEnabled && goalModeActive;
 		if (name === "bash") return session.settings.get("bash.enabled");
-		if (name === "eval") return allowEval;
-		if (name === "debug") return session.settings.get("debug.enabled");
 		if (name === "todo") return !includeYield && session.settings.get("todo.enabled");
 		if (name === "find") return session.settings.get("find.enabled");
 		if (name === "search") return session.settings.get("search.enabled");
@@ -543,7 +475,7 @@ export async function createTools(session: ToolSession, toolNames?: string[]): P
 		if (name === "checkpoint" || name === "rewind") return session.settings.get("checkpoint.enabled");
 		if (name === "irc") return isIrcEnabled(session.settings, session.taskDepth ?? 0);
 		if (name === "manage_skill") return session.settings.get("autolearn.enabled") && (session.taskDepth ?? 0) === 0;
-		if (name === "learn") return session.settings.get("autolearn.enabled") && (session.taskDepth ?? 0) === 0;
+		if (name === "capture_lesson") return session.settings.get("autolearn.enabled") && (session.taskDepth ?? 0) === 0;
 		if (name === "task") {
 			return canSpawnAtDepth(session.settings.get("task.maxRecursionDepth") ?? 2, session.taskDepth ?? 0);
 		}

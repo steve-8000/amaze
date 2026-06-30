@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { parseJsonWithRepair, parseStreamingJson, repairJson } from "@amaze/pi-ai/utils/json-parse";
+import { parseJsonWithRepair, parseStreamingJson, repairJson } from "@steve-z8k/pi-ai/utils/json-parse";
 
 describe("JSON repair", () => {
 	it("leaves valid string escapes unchanged", () => {

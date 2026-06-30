@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { type Component, type Focusable, type OverlayFocusOwner, TUI } from "@amaze/pi-tui";
-import type { Terminal, TerminalAppearance } from "@amaze/pi-tui/terminal";
+import { type Component, type Focusable, type OverlayFocusOwner, TUI } from "@steve-z8k/pi-tui";
+import type { Terminal, TerminalAppearance } from "@steve-z8k/pi-tui/terminal";
 
 class MinimalTerminal implements Terminal {
 	columns = 80;

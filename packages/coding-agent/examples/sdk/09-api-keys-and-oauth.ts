@@ -10,7 +10,7 @@ import {
 	discoverModels,
 	ModelRegistry,
 	SessionManager,
-} from "@amaze/pi-coding-agent";
+} from "@steve-z8k/pi-coding-agent";
 
 // Default: discoverAuthStorage() uses ~/.amaze/agent/agent.db
 // discoverModels() loads built-in + custom models from ~/.amaze/agent/models.json

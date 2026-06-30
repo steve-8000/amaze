@@ -1,14 +1,14 @@
-# @amaze/pi-wire
+# @steve-z8k/pi-wire
 
 Shared TypeScript wire contracts for amaze collab live sessions.
 
-The package contains only JSON-safe protocol shapes and constants. It has no runtime dependencies and is consumed by both the host CLI (`@amaze/pi-coding-agent`) and browser guest (`@amaze/collab-web`).
+The package contains only JSON-safe protocol shapes and constants. It has no runtime dependencies and is consumed by both the host CLI (`@steve-z8k/pi-coding-agent`) and browser guest (`@steve-z8k/collab-web`).
 
 ## Exports
 
 ```ts
-import type { GuestFrame, HostFrame, SessionEntry } from "@amaze/pi-wire";
-import { COLLAB_PROTO, DEFAULT_RELAY_URL, ENVELOPE_HEADER_LENGTH } from "@amaze/pi-wire";
+import type { GuestFrame, HostFrame, SessionEntry } from "@steve-z8k/pi-wire";
+import { COLLAB_PROTO, DEFAULT_RELAY_URL, ENVELOPE_HEADER_LENGTH } from "@steve-z8k/pi-wire";
 ```
 
 Key groups:

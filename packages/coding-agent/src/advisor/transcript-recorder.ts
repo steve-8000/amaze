@@ -1,7 +1,7 @@
 import * as path from "node:path";
-import type { AgentMessage } from "@amaze/pi-agent-core";
-import type { Message, UserMessage } from "@amaze/pi-ai";
-import { logger } from "@amaze/pi-utils";
+import type { AgentMessage } from "@steve-z8k/pi-agent-core";
+import type { Message, UserMessage } from "@steve-z8k/pi-ai";
+import { logger } from "@steve-z8k/pi-utils";
 import { SessionManager } from "../session/session-manager";
 
 /**

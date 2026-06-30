@@ -4,8 +4,8 @@ import {
 	embed,
 	resetEmbeddingProviderForTests,
 	setEmbeddingProviderForTests,
-} from "@amaze/pi-rocky-memory/core/embeddings";
-import { withRockyMemoryRuntimeOptions } from "@amaze/pi-rocky-memory/core/runtime-options";
+} from "@steve-z8k/pi-rocky-memory/core/embeddings";
+import { withRockyMemoryRuntimeOptions } from "@steve-z8k/pi-rocky-memory/core/runtime-options";
 
 /**
  * Regression coverage for issue #3126: `RockyMemorySessionState.retainMessages`

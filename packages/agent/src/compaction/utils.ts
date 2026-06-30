@@ -2,9 +2,9 @@
  * Shared utilities for compaction and branch summarization.
  */
 
-import type { Message, ToolCall } from "@amaze/pi-ai";
-import { type Dialect, getDialectDefinition } from "@amaze/pi-ai/dialect";
-import { formatGroupedPaths, prompt } from "@amaze/pi-utils";
+import type { Message, ToolCall } from "@steve-z8k/pi-ai";
+import { type Dialect, getDialectDefinition } from "@steve-z8k/pi-ai/dialect";
+import { formatGroupedPaths, prompt } from "@steve-z8k/pi-utils";
 import type { AgentMessage } from "../types";
 import fileOperationsTemplate from "./prompts/file-operations.md" with { type: "text" };
 import summarizationSystemPrompt from "./prompts/summarization-system.md" with { type: "text" };

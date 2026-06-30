@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { loadBundledAgents } from "@amaze/pi-coding-agent/task/agents";
-import { discoverAgents } from "@amaze/pi-coding-agent/task/discovery";
+import { loadBundledAgents } from "@steve-z8k/pi-coding-agent/task/agents";
+import { discoverAgents } from "@steve-z8k/pi-coding-agent/task/discovery";
 
 const OMP_AGENT_MD = [
 	"---",
@@ -61,11 +61,46 @@ describe("bundled contract agents", () => {
 		const agents = loadBundledAgents();
 		const byName = new Map(agents.map(agent => [agent.name, agent]));
 
-		for (const name of ["thinker", "coder", "finder", "fixer", "checker", "helper"]) {
+		for (const name of ["ultra", "deep", "flash", "spark"]) {
 			const agent = byName.get(name);
 			expect(agent).toBeDefined();
 			expect(agent?.model).toEqual([`pi/${name}`]);
 			expect(agent?.systemPrompt).toContain("contract");
 		}
+
+		for (const name of ["ultra", "deep", "spark"]) {
+			expect(byName.get(name)?.tools).toEqual(
+				expect.arrayContaining([
+					"mcp__circle_graph",
+					"mcp__circle_search",
+					"mcp__circle_snippet",
+					"mcp__circle_trace",
+					"mcp__circle_architecture",
+					"skill_search",
+					"skill_get",
+				]),
+			);
+		}
+
+		expect(byName.get("deep")?.description).toContain("merge synthesis");
+		expect(byName.get("deep")?.tools).toEqual(
+			expect.arrayContaining([
+				"read",
+				"search",
+				"find",
+				"mcp__circle_graph",
+				"mcp__circle_search",
+				"mcp__circle_snippet",
+				"mcp__circle_trace",
+				"mcp__circle_architecture",
+				"skill_search",
+				"skill_get",
+				"bash",
+				"edit",
+				"write",
+				"ast_grep",
+				"ast_edit",
+			]),
+		);
 	});
 });

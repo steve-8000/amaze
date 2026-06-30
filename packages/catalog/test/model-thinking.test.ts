@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { buildModel } from "@amaze/pi-catalog/build";
-import { Effort } from "@amaze/pi-catalog/effort";
+import { buildModel } from "@steve-z8k/pi-catalog/build";
+import { Effort } from "@steve-z8k/pi-catalog/effort";
 import {
 	clampThinkingLevelForModel,
 	getSupportedEfforts,
@@ -8,8 +8,8 @@ import {
 	mapEffortToGoogleThinkingLevel,
 	minimumSupportedEffort,
 	requireSupportedEffort,
-} from "@amaze/pi-catalog/model-thinking";
-import type { Api, Model, ModelSpec, Provider } from "@amaze/pi-catalog/types";
+} from "@steve-z8k/pi-catalog/model-thinking";
+import type { Api, Model, ModelSpec, Provider } from "@steve-z8k/pi-catalog/types";
 
 function createModel<TApi extends Api>(overrides: {
 	id: string;

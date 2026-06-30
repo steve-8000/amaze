@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import { isBareMathEnvironment, latexToUnicode, renderMathInText } from "@amaze/pi-tui/latex-to-unicode";
-import { TERMINAL } from "@amaze/pi-tui/terminal-capabilities";
+import { isBareMathEnvironment, latexToUnicode, renderMathInText } from "@steve-z8k/pi-tui/latex-to-unicode";
+import { TERMINAL } from "@steve-z8k/pi-tui/terminal-capabilities";
 
 const FG_RESET = "\x1b[39m";
 const BG_RESET = "\x1b[49m";

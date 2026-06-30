@@ -2,10 +2,10 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { applyResolvedSystemPromptInputs, submitInteractiveInput } from "@amaze/pi-coding-agent/main";
-import type { SubmittedUserInput } from "@amaze/pi-coding-agent/modes/types";
-import type { CreateAgentSessionOptions } from "@amaze/pi-coding-agent/sdk";
-import { discoverTitleSystemPromptFile } from "@amaze/pi-coding-agent/system-prompt";
+import { applyResolvedSystemPromptInputs, submitInteractiveInput } from "@steve-z8k/pi-coding-agent/main";
+import type { SubmittedUserInput } from "@steve-z8k/pi-coding-agent/modes/types";
+import type { CreateAgentSessionOptions } from "@steve-z8k/pi-coding-agent/sdk";
+import { discoverTitleSystemPromptFile } from "@steve-z8k/pi-coding-agent/system-prompt";
 
 const cleanupDirs: string[] = [];
 

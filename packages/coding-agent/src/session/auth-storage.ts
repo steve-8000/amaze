@@ -1,5 +1,5 @@
 /**
- * Re-exports from @amaze/pi-ai.
+ * Re-exports from @steve-z8k/pi-ai.
  * All credential storage types and the AuthStorage class now live in the ai package.
  */
 
@@ -19,6 +19,6 @@ export type {
 	ResetCreditTarget,
 	SerializedAuthStorage,
 	StoredAuthCredential,
-} from "@amaze/pi-ai";
-export { AuthStorage, REMOTE_REFRESH_SENTINEL, SqliteAuthCredentialStore } from "@amaze/pi-ai";
-export type { SnapshotResponse } from "@amaze/pi-ai/auth-broker/types";
+} from "@steve-z8k/pi-ai";
+export { AuthStorage, REMOTE_REFRESH_SENTINEL, SqliteAuthCredentialStore } from "@steve-z8k/pi-ai";
+export type { SnapshotResponse } from "@steve-z8k/pi-ai/auth-broker/types";

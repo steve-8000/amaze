@@ -1,8 +1,8 @@
 /**
  * List, search, and refresh available models.
  */
-import { APP_NAME } from "@amaze/pi-utils";
-import { Args, Command, Flags } from "@amaze/pi-utils/cli";
+import { APP_NAME } from "@steve-z8k/pi-utils";
+import { Args, Command, Flags } from "@steve-z8k/pi-utils/cli";
 import { resolveModelsArgs, runModelsCommand } from "../cli/models-cli";
 
 export default class Models extends Command {

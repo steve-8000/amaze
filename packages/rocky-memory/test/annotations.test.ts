@@ -10,8 +10,8 @@ import {
 	filterFacts,
 	initAnnotations,
 	queryAnnotations,
-} from "@amaze/pi-rocky-memory/core/annotations";
-import { openDatabase } from "@amaze/pi-rocky-memory/db";
+} from "@steve-z8k/pi-rocky-memory/core/annotations";
+import { openDatabase } from "@steve-z8k/pi-rocky-memory/db";
 
 const cleanup: string[] = [];
 

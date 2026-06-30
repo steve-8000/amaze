@@ -8,8 +8,8 @@
  *   POST /wham/rate-limit-reset-credits/consume  { credit_id, redeem_request_id }
  */
 import { describe, expect, it } from "bun:test";
-import type { FetchImpl } from "@amaze/pi-ai/types";
-import { consumeCodexResetCredit, listCodexResetCredits } from "@amaze/pi-ai/usage/openai-codex-reset";
+import type { FetchImpl } from "@steve-z8k/pi-ai/types";
+import { consumeCodexResetCredit, listCodexResetCredits } from "@steve-z8k/pi-ai/usage/openai-codex-reset";
 
 interface Captured {
 	url: string;

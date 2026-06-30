@@ -1,5 +1,5 @@
-import { getOAuthProviders } from "@amaze/pi-ai/oauth";
-import type { OAuthProviderInfo } from "@amaze/pi-ai/oauth/types";
+import { getOAuthProviders } from "@steve-z8k/pi-ai/oauth";
+import type { OAuthProviderInfo } from "@steve-z8k/pi-ai/oauth/types";
 import {
 	Container,
 	extractPrintableText,
@@ -9,7 +9,7 @@ import {
 	type SgrMouseEvent,
 	Spacer,
 	TruncatedText,
-} from "@amaze/pi-tui";
+} from "@steve-z8k/pi-tui";
 import { settings } from "../../config/settings";
 import { theme } from "../../modes/theme/theme";
 import { matchesSelectCancel, matchesSelectDown, matchesSelectUp } from "../../modes/utils/keybinding-matchers";

@@ -1,8 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { resetSettingsForTest, Settings } from "@amaze/pi-coding-agent/config/settings";
-import { getThemeByName, setThemeInstance, type Theme } from "@amaze/pi-coding-agent/modes/theme/theme";
-import type { TaskParams } from "@amaze/pi-coding-agent/task";
-import { taskToolRenderer } from "@amaze/pi-coding-agent/task/render";
+import { resetSettingsForTest, Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { getThemeByName, setThemeInstance, type Theme } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
+import type { TaskParams } from "@steve-z8k/pi-coding-agent/task";
+import { taskToolRenderer } from "@steve-z8k/pi-coding-agent/task/render";
 
 describe("task renderer: streaming call preview", () => {
 	let theme: Theme;
@@ -53,6 +53,17 @@ describe("task renderer: streaming call preview", () => {
 
 		expect(out).toContain("First");
 		expect(out).toContain("task");
+	});
+
+	it("shows the per-item agent when a batch omits the top-level default", () => {
+		const args: TaskParams = {
+			context: "# Goal\nRefactor one state manager.",
+			tasks: [{ agent: "flash", id: "ExtStateRefactor", assignment: "Implement the refactor." }],
+		};
+		const out = render(args);
+
+		expect(out).toContain("flash");
+		expect(out).toContain("ExtStateRefactor");
 	});
 
 	it("always renders the full assignment markdown, collapsed or expanded", () => {

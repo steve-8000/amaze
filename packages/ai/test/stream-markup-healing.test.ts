@@ -1,11 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import { streamOpenAICompletions } from "@amaze/pi-ai/providers/openai-completions";
-import { stream } from "@amaze/pi-ai/stream";
-import type { Context, FetchImpl, Model, ThinkingContent, Tool, ToolCall } from "@amaze/pi-ai/types";
-import { getStreamMarkupHealingPattern, StreamMarkupHealing } from "@amaze/pi-ai/utils/stream-markup-healing";
-import { buildModel } from "@amaze/pi-catalog/build";
-import { getBundledModel } from "@amaze/pi-catalog/models";
-import { INTENT_FIELD } from "@amaze/pi-wire";
+import { streamOpenAICompletions } from "@steve-z8k/pi-ai/providers/openai-completions";
+import { stream } from "@steve-z8k/pi-ai/stream";
+import type { Context, FetchImpl, Model, ThinkingContent, Tool, ToolCall } from "@steve-z8k/pi-ai/types";
+import { getStreamMarkupHealingPattern, StreamMarkupHealing } from "@steve-z8k/pi-ai/utils/stream-markup-healing";
+import { buildModel } from "@steve-z8k/pi-catalog/build";
+import { getBundledModel } from "@steve-z8k/pi-catalog/models";
+import { INTENT_FIELD } from "@steve-z8k/pi-wire";
 
 interface SseToolCallDelta {
 	index: number;

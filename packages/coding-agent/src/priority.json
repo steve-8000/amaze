@@ -42,7 +42,7 @@
 		"gemini-3.5-flash",
 		"gemini-3-5-flash"
 	],
-	"thinker": [
+	"ultra": [
 		"anthropic/claude-opus-4.8:xhigh",
 		"anthropic/claude-opus-4-8:xhigh",
 		"claude-opus-4.8:xhigh",
@@ -50,35 +50,18 @@
 		"opus-4.8:xhigh",
 		"opus-4-8:xhigh"
 	],
-	"coder": [
+	"deep": [
 		"openai/gpt-5.5:high",
 		"gpt-5.5:high",
 		"openai/gpt-5.3-codex:xhigh",
 		"gpt-5.3-codex:xhigh"
 	],
-	"finder": [
-		"anthropic/claude-sonnet-4.6:medium",
-		"anthropic/claude-sonnet-4-6:medium",
-		"claude-sonnet-4.6:medium",
-		"claude-sonnet-4-6:medium",
-		"sonnet-4.6:medium",
-		"sonnet-4-6:medium"
+	"flash": [
+		"openai/gpt-5.4-mini:medium",
+		"gpt-5.4-mini:medium"
 	],
-	"fixer": [
-		"openai/gpt-5.3-codex-spark-preview:low",
-		"gpt-5.3-codex-spark-preview:low",
-		"openai/gpt-5.3-codex-low:low",
-		"gpt-5.3-codex-low:low"
-	],
-	"checker": [
-		"xai/grok-4.3:high",
-		"x-ai/grok-4.3:high",
-		"grok-4.3:high",
-		"grok-4-3:high"
-	],
-	"helper": [
-		"local/gemma-3-12b-it:low",
-		"gemma-3-12b-it:low",
-		"gemma-12b:low"
+	"spark": [
+		"openai/gpt-5.3-codex-spark:medium",
+		"gpt-5.3-codex-spark:medium"
 	]
 }

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import type { AuthStorage } from "@amaze/pi-ai";
-import type { FetchImpl } from "@amaze/pi-ai/types";
-import { searchGemini } from "@amaze/pi-coding-agent/web/search/providers/gemini";
+import type { AuthStorage } from "@steve-z8k/pi-ai";
+import type { FetchImpl } from "@steve-z8k/pi-ai/types";
+import { searchGemini } from "@steve-z8k/pi-coding-agent/web/search/providers/gemini";
 
 const SSE_RESPONSE =
 	'data: {"response":{"candidates":[{"content":{"role":"model","parts":[{"text":"Gemini answer"}]}}],"modelVersion":"gemini-2.5-flash"}}\n\n';

@@ -1,13 +1,13 @@
 import { Database } from "bun:sqlite";
 import { afterEach, describe, expect, it, vi } from "bun:test";
 
-import { AuthStorage, SqliteAuthCredentialStore } from "@amaze/pi-ai/auth-storage";
-import { convertMessages } from "@amaze/pi-ai/providers/openai-completions";
-import { getOAuthProviders } from "@amaze/pi-ai/registry/oauth";
-import type { AssistantMessage, ThinkingContent, ToolCall } from "@amaze/pi-ai/types";
-import { buildModel } from "@amaze/pi-catalog/build";
-import { xiaomiModelManagerOptions } from "@amaze/pi-catalog/provider-models/openai-compat";
-import type { FetchImpl, Model } from "@amaze/pi-catalog/types";
+import { AuthStorage, SqliteAuthCredentialStore } from "@steve-z8k/pi-ai/auth-storage";
+import { convertMessages } from "@steve-z8k/pi-ai/providers/openai-completions";
+import { getOAuthProviders } from "@steve-z8k/pi-ai/registry/oauth";
+import type { AssistantMessage, ThinkingContent, ToolCall } from "@steve-z8k/pi-ai/types";
+import { buildModel } from "@steve-z8k/pi-catalog/build";
+import { xiaomiModelManagerOptions } from "@steve-z8k/pi-catalog/provider-models/openai-compat";
+import type { FetchImpl, Model } from "@steve-z8k/pi-catalog/types";
 
 const TP_KEY = "tp-ci1p8t1w4e1sbxgyc8v65tnrjbzro287igmvyf25van9mt76";
 const SGP_BASE_URL = "https://token-plan-sgp.xiaomimimo.com/v1";

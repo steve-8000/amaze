@@ -3,9 +3,9 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { extractionRate, normalizeBatch, normalizeChat } from "@amaze/pi-rocky-memory/core/chat-normalize";
-import { getCostStats, initCostLog, logCost } from "@amaze/pi-rocky-memory/core/cost-log";
-import { estimateCost, estimateTokens } from "@amaze/pi-rocky-memory/core/token-counter";
+import { extractionRate, normalizeBatch, normalizeChat } from "@steve-z8k/pi-rocky-memory/core/chat-normalize";
+import { getCostStats, initCostLog, logCost } from "@steve-z8k/pi-rocky-memory/core/cost-log";
+import { estimateCost, estimateTokens } from "@steve-z8k/pi-rocky-memory/core/token-counter";
 
 describe("token counter", () => {
 	it("uses the Python fallback token estimate and pricing table", () => {

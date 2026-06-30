@@ -1,4 +1,4 @@
-import { ThinkingLevel } from "@amaze/pi-agent-core";
+import { ThinkingLevel } from "@steve-z8k/pi-agent-core";
 import {
 	type Component,
 	Container,
@@ -11,7 +11,7 @@ import {
 	Text,
 	TruncatedText,
 	truncateToWidth,
-} from "@amaze/pi-tui";
+} from "@steve-z8k/pi-tui";
 import type { TreeFilterMode } from "../../config/settings-schema";
 import { theme } from "../../modes/theme/theme";
 import { matchesAppInterrupt, matchesSelectDown, matchesSelectUp } from "../../modes/utils/keybinding-matchers";

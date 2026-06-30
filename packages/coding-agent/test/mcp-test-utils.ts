@@ -1,4 +1,4 @@
-import type { MCPServerCapabilities, MCPServerConnection, MCPTransport } from "@amaze/pi-coding-agent/mcp/types";
+import type { MCPServerCapabilities, MCPServerConnection, MCPTransport } from "@steve-z8k/pi-coding-agent/mcp/types";
 
 export function createMockTransport(
 	responses: Map<string, unknown[]>,

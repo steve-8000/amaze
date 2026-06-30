@@ -5,8 +5,8 @@
  * - `amaze -p "prompt"` - text output
  * - `amaze --mode json "prompt"` - JSON event stream
  */
-import type { AssistantMessage, ImageContent } from "@amaze/pi-ai";
-import { logger, sanitizeText } from "@amaze/pi-utils";
+import type { AssistantMessage, ImageContent } from "@steve-z8k/pi-ai";
+import { logger, sanitizeText } from "@steve-z8k/pi-utils";
 import type { AgentSession } from "../session/agent-session";
 import { isSilentAbort } from "../session/messages";
 import { flushTelemetryExport } from "../telemetry-export";

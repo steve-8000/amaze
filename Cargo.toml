@@ -9,7 +9,7 @@ edition = "2024"
 license = "MIT"
 authors = ["Can Boluk"]
 homepage = "https://amaze/"
-repository = "https://github.com/can1357/amaze-agent"
+repository = "https://github.com/steve-8000/amaze"
 
 [patch.crates-io]
 brush-core = { path = "crates/brush-core-vendored" }

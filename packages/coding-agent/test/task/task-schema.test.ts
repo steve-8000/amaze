@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import { TaskTool, taskSchema } from "@amaze/pi-coding-agent/task";
-import * as discoveryModule from "@amaze/pi-coding-agent/task/discovery";
-import type { ToolSession } from "@amaze/pi-coding-agent/tools";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { TaskTool, taskSchema } from "@steve-z8k/pi-coding-agent/task";
+import * as discoveryModule from "@steve-z8k/pi-coding-agent/task/discovery";
+import type { ToolSession } from "@steve-z8k/pi-coding-agent/tools";
 import { type } from "arktype";
 
 // Contract: the single-spawn schema (`task.batch: false`; the exported
@@ -19,6 +19,11 @@ describe("task schema (single-spawn)", () => {
 
 	it("requires agent", () => {
 		const parsed = taskSchema({ assignment: "Map the auth module." });
+		expect(parsed instanceof type.errors).toBe(true);
+	});
+
+	it("rejects an empty agent", () => {
+		const parsed = taskSchema({ agent: "", assignment: "Map the auth module." });
 		expect(parsed instanceof type.errors).toBe(true);
 	});
 
@@ -70,6 +75,11 @@ describe("task spawn validation", () => {
 
 	it("rejects a missing agent", async () => {
 		const text = await executeText({ assignment: "..." });
+		expect(text).toContain("Missing `agent`");
+	});
+
+	it("rejects an empty agent before discovery fallback", async () => {
+		const text = await executeText({ agent: "", assignment: "..." });
 		expect(text).toContain("Missing `agent`");
 	});
 

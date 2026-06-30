@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { ToolSession } from "@amaze/pi-coding-agent/tools";
-import { BashTool } from "@amaze/pi-coding-agent/tools/bash";
+import type { ToolSession } from "@steve-z8k/pi-coding-agent/tools";
+import { BashTool } from "@steve-z8k/pi-coding-agent/tools/bash";
 
 function makeSession(): ToolSession {
 	return {

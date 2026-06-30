@@ -1,5 +1,5 @@
 import { AsyncLocalStorage } from "node:async_hooks";
-import type { Api, ApiKey, Model } from "@amaze/pi-ai";
+import type { Api, ApiKey, Model } from "@steve-z8k/pi-ai";
 
 export interface RockyMemoryLlmCompleteOptions {
 	maxTokens?: number;

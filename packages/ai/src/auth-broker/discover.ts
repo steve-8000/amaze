@@ -12,7 +12,7 @@ import {
 	getConfigRootDir,
 	isEnoent,
 	logger,
-} from "@amaze/pi-utils";
+} from "@steve-z8k/pi-utils";
 import { YAML } from "bun";
 import { AuthStorage } from "../auth-storage";
 import { AuthBrokerClient } from "./client";

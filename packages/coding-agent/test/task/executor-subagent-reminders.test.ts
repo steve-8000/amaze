@@ -1,24 +1,24 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { AgentBusyError, type AgentTelemetryConfig, type Tracer } from "@amaze/pi-agent-core";
-import { type AssistantMessage, Effort } from "@amaze/pi-ai";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import type { ExtensionActions, LoadExtensionsResult } from "@amaze/pi-coding-agent/extensibility/extensions/types";
-import { IrcBus } from "@amaze/pi-coding-agent/irc/bus";
-import { AgentLifecycleManager } from "@amaze/pi-coding-agent/registry/agent-lifecycle";
-import { AgentRegistry } from "@amaze/pi-coding-agent/registry/agent-registry";
-import type { CreateAgentSessionResult } from "@amaze/pi-coding-agent/sdk";
-import * as sdkModule from "@amaze/pi-coding-agent/sdk";
-import type { AgentSession, AgentSessionEvent, PromptOptions } from "@amaze/pi-coding-agent/session/agent-session";
-import type { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
+import { AgentBusyError, type AgentTelemetryConfig, type Tracer } from "@steve-z8k/pi-agent-core";
+import { type AssistantMessage, Effort } from "@steve-z8k/pi-ai";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import type { ExtensionActions, LoadExtensionsResult } from "@steve-z8k/pi-coding-agent/extensibility/extensions/types";
+import { IrcBus } from "@steve-z8k/pi-coding-agent/irc/bus";
+import { AgentLifecycleManager } from "@steve-z8k/pi-coding-agent/registry/agent-lifecycle";
+import { AgentRegistry } from "@steve-z8k/pi-coding-agent/registry/agent-registry";
+import type { CreateAgentSessionResult } from "@steve-z8k/pi-coding-agent/sdk";
+import * as sdkModule from "@steve-z8k/pi-coding-agent/sdk";
+import type { AgentSession, AgentSessionEvent, PromptOptions } from "@steve-z8k/pi-coding-agent/session/agent-session";
+import type { AuthStorage } from "@steve-z8k/pi-coding-agent/session/auth-storage";
 import {
 	finalizeSubprocessOutput,
 	runSubprocess,
 	SUBAGENT_WARNING_MISSING_YIELD,
-} from "@amaze/pi-coding-agent/task/executor";
-import { buildSubagentLaunchSpec } from "@amaze/pi-coding-agent/task/subagent-launch-spec";
-import type { AgentDefinition } from "@amaze/pi-coding-agent/task/types";
-import { EventBus } from "@amaze/pi-coding-agent/utils/event-bus";
-import { logger } from "@amaze/pi-utils";
+} from "@steve-z8k/pi-coding-agent/task/executor";
+import { buildSubagentLaunchSpec } from "@steve-z8k/pi-coding-agent/task/subagent-launch-spec";
+import type { AgentDefinition } from "@steve-z8k/pi-coding-agent/task/types";
+import { EventBus } from "@steve-z8k/pi-coding-agent/utils/event-bus";
+import { logger } from "@steve-z8k/pi-utils";
 
 function createAssistantStopMessage(text: string): AssistantMessage {
 	return {
@@ -124,7 +124,7 @@ describe("runSubprocess yield reminders", () => {
 		settings: Settings.isolated(),
 		modelRegistry: {
 			refresh: async () => {},
-		} as unknown as import("@amaze/pi-coding-agent/config/model-registry").ModelRegistry,
+		} as unknown as import("@steve-z8k/pi-coding-agent/config/model-registry").ModelRegistry,
 	};
 
 	it("waits for session_start extension user messages before prompting the subagent", async () => {
@@ -198,7 +198,7 @@ describe("runSubprocess yield reminders", () => {
 		const createAgentSessionSpy = mockCreateAgentSession(session);
 		const modelRegistry = {
 			refresh: async () => {},
-		} as unknown as import("@amaze/pi-coding-agent/config/model-registry").ModelRegistry;
+		} as unknown as import("@steve-z8k/pi-coding-agent/config/model-registry").ModelRegistry;
 		const refreshSpy = vi.spyOn(modelRegistry, "refresh");
 
 		await runSubprocess({ ...baseOptions, id: "subagent-skip-refresh", modelRegistry });
@@ -475,13 +475,13 @@ describe("runSubprocess yield reminders", () => {
 
 		const modelRegistry = {
 			refresh: async () => {},
-			getAvailable: () => [{ provider: "openai", id: "gpt-4o", name: "GPT-4o" }],
-		} as unknown as import("@amaze/pi-coding-agent/config/model-registry").ModelRegistry;
+			getAvailable: () => [{ provider: "openai", id: "gpt-5.4", name: "GPT-4o" }],
+		} as unknown as import("@steve-z8k/pi-coding-agent/config/model-registry").ModelRegistry;
 
 		await runSubprocess({
 			...baseOptions,
 			id: "subagent-thinking-fallback",
-			modelOverride: "openai/gpt-4o",
+			modelOverride: "openai/gpt-5.4",
 			thinkingLevel: Effort.High,
 			modelRegistry,
 		});
@@ -494,8 +494,8 @@ describe("runSubprocess yield reminders", () => {
 		vi.clearAllMocks();
 		const modelRegistry = {
 			refresh: async () => {},
-			getAvailable: () => [{ provider: "openai", id: "gpt-4o", name: "GPT-4o" }],
-		} as unknown as import("@amaze/pi-coding-agent/config/model-registry").ModelRegistry;
+			getAvailable: () => [{ provider: "openai", id: "gpt-5.4", name: "GPT-4o" }],
+		} as unknown as import("@steve-z8k/pi-coding-agent/config/model-registry").ModelRegistry;
 
 		const cases = [
 			{ modelOverride: "openai/gpt-4o:low", expectedThinkingLevel: Effort.Low },
@@ -643,7 +643,7 @@ describe("runSubprocess yield reminders", () => {
 		const modelRegistry = {
 			authStorage: fakeAuthStorage,
 			refresh: async () => {},
-		} as unknown as import("@amaze/pi-coding-agent/config/model-registry").ModelRegistry;
+		} as unknown as import("@steve-z8k/pi-coding-agent/config/model-registry").ModelRegistry;
 
 		await runSubprocess({ ...baseOptions, id: "subagent-registry-only", modelRegistry });
 
@@ -659,7 +659,7 @@ describe("runSubprocess yield reminders", () => {
 		const modelRegistry = {
 			authStorage: registryStorage,
 			refresh: async () => {},
-		} as unknown as import("@amaze/pi-coding-agent/config/model-registry").ModelRegistry;
+		} as unknown as import("@steve-z8k/pi-coding-agent/config/model-registry").ModelRegistry;
 
 		const result = await runSubprocess({
 			...baseOptions,
@@ -731,7 +731,7 @@ describe("runSubprocess telemetry propagation", () => {
 		settings: Settings.isolated(),
 		modelRegistry: {
 			refresh: async () => {},
-		} as unknown as import("@amaze/pi-coding-agent/config/model-registry").ModelRegistry,
+		} as unknown as import("@steve-z8k/pi-coding-agent/config/model-registry").ModelRegistry,
 	};
 
 	function buildSession() {

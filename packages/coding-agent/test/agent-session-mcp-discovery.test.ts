@@ -8,14 +8,14 @@ import {
 	type AgentToolContext,
 	type AgentToolResult,
 	ThinkingLevel,
-} from "@amaze/pi-agent-core";
-import { Effort, type Model } from "@amaze/pi-ai";
-import { buildModel } from "@amaze/pi-catalog/build";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import type { CustomTool } from "@amaze/pi-coding-agent/extensibility/custom-tools/types";
-import { AgentSession } from "@amaze/pi-coding-agent/session/agent-session";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import type { OutputMeta } from "@amaze/pi-coding-agent/tools/output-meta";
+} from "@steve-z8k/pi-agent-core";
+import { Effort, type Model } from "@steve-z8k/pi-ai";
+import { buildModel } from "@steve-z8k/pi-catalog/build";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import type { CustomTool } from "@steve-z8k/pi-coding-agent/extensibility/custom-tools/types";
+import { AgentSession } from "@steve-z8k/pi-coding-agent/session/agent-session";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import type { OutputMeta } from "@steve-z8k/pi-coding-agent/tools/output-meta";
 import { type } from "arktype";
 
 function createModel(): Model<"openai-responses"> {
@@ -220,7 +220,7 @@ describe("AgentSession MCP discovery", () => {
 		sessions.push(session);
 
 		await session.refreshMCPTools([
-			createMcpCustomTool("mcp__amaze_codebase_search_graph", "rocky-codebase", "search_graph", "Graph search", [
+			createMcpCustomTool("mcp__amaze_codebase_search_graph", "clab-codebase", "search_graph", "Graph search", [
 				"query",
 			]),
 			createMcpCustomTool("mcp__docs_search", "docs", "search", "Search internal docs", ["query"]),

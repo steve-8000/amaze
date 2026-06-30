@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { AsyncJobManager } from "@amaze/pi-coding-agent/async/job-manager";
+import { AsyncJobManager } from "@steve-z8k/pi-coding-agent/async/job-manager";
 
 describe("AsyncJobManager", () => {
 	test("forwards progress updates and delivers completion", async () => {

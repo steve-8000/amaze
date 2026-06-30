@@ -17,7 +17,7 @@
  * like a small validator at runtime.
  */
 
-import { areJsonValuesEqual } from "@amaze/pi-ai/utils/schema";
+import { areJsonValuesEqual } from "@steve-z8k/pi-ai/utils/schema";
 
 // ---------------------------------------------------------------------------
 // Type aliases — exported so `import type { Static, TSchema } from "..."`

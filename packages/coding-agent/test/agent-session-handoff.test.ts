@@ -1,18 +1,18 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent, type AgentMessage } from "@amaze/pi-agent-core";
-import * as compactionModule from "@amaze/pi-agent-core/compaction";
-import type { AssistantMessage, Model, ToolCall } from "@amaze/pi-ai";
-import { createMockModel } from "@amaze/pi-ai/providers/mock";
-import { getBundledModel } from "@amaze/pi-catalog/models";
-import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import { ExtensionRunner, loadExtensions } from "@amaze/pi-coding-agent/extensibility/extensions";
-import { SecretObfuscator } from "@amaze/pi-coding-agent/secrets";
-import { AgentSession, type AgentSessionEvent } from "@amaze/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import { TempDir } from "@amaze/pi-utils";
+import { Agent, type AgentMessage } from "@steve-z8k/pi-agent-core";
+import * as compactionModule from "@steve-z8k/pi-agent-core/compaction";
+import type { AssistantMessage, Model, ToolCall } from "@steve-z8k/pi-ai";
+import { createMockModel } from "@steve-z8k/pi-ai/providers/mock";
+import { getBundledModel } from "@steve-z8k/pi-catalog/models";
+import { ModelRegistry } from "@steve-z8k/pi-coding-agent/config/model-registry";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { ExtensionRunner, loadExtensions } from "@steve-z8k/pi-coding-agent/extensibility/extensions";
+import { SecretObfuscator } from "@steve-z8k/pi-coding-agent/secrets";
+import { AgentSession, type AgentSessionEvent } from "@steve-z8k/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@steve-z8k/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import { TempDir } from "@steve-z8k/pi-utils";
 
 const HANDOFF_SECRET = "HANDOFF_SECRET_TOKEN_12345";
 
@@ -60,7 +60,7 @@ describe("AgentSession handoff", () => {
 		authStorage.setRuntimeApiKey("anthropic", "test-key");
 		modelRegistry = new ModelRegistry(authStorage);
 
-		const bundled = getBundledModel("anthropic", "claude-sonnet-4-5");
+		const bundled = getBundledModel("anthropic", "claude-sonnet-4-6");
 		if (!bundled) {
 			throw new Error("Expected built-in anthropic model to exist");
 		}
@@ -979,7 +979,7 @@ describe("AgentSession handoff", () => {
 
 	it("completes threshold-triggered auto-handoff while the original prompt is still unwinding", async () => {
 		authStorage.setRuntimeApiKey("anthropic", "test-key");
-		const model = getBundledModel("anthropic", "claude-sonnet-4-5");
+		const model = getBundledModel("anthropic", "claude-sonnet-4-6");
 		if (!model) {
 			throw new Error("Expected built-in anthropic model to exist");
 		}

@@ -1,5 +1,5 @@
-import type { AgentMessage } from "@amaze/pi-agent-core";
-import { getBlobsDir, isEnoent, parseJsonlLenient } from "@amaze/pi-utils";
+import type { AgentMessage } from "@steve-z8k/pi-agent-core";
+import { getBlobsDir, isEnoent, parseJsonlLenient } from "@steve-z8k/pi-utils";
 import { BlobStore, isBlobRef, resolveImageData, resolveImageDataUrl } from "./blob-store";
 import { buildSessionContext } from "./session-context";
 import type { FileEntry, SessionEntry, SessionHeader } from "./session-entries";

@@ -3,7 +3,7 @@ name: plan
 description: Software architect for complex multi-file architectural decisions. NOT for simple tasks, single-file changes, or tasks completable in <5 tool calls.
 tools: read, search, find, bash, web_search, ast_grep
 spawns: explore
-model: pi/plan, pi/slow
+model: pi/deep, pi/ultra
 thinking-level: high
 ---
 

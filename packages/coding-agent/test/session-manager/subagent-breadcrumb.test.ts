@@ -3,10 +3,10 @@ import * as fs from "node:fs";
 import * as fsp from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import { readTerminalBreadcrumbEntry } from "@amaze/pi-coding-agent/session/session-paths";
-import { getTerminalId } from "@amaze/pi-tui";
-import { getConfigRootDir, getTerminalSessionsDir, setAgentDir } from "@amaze/pi-utils";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import { readTerminalBreadcrumbEntry } from "@steve-z8k/pi-coding-agent/session/session-paths";
+import { getTerminalId } from "@steve-z8k/pi-tui";
+import { getConfigRootDir, getTerminalSessionsDir, setAgentDir } from "@steve-z8k/pi-utils";
 
 import { makeAssistantMessage } from "./helpers";
 

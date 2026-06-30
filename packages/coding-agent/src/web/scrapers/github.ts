@@ -1,4 +1,4 @@
-import { $env, ptree } from "@amaze/pi-utils";
+import { $env, ptree } from "@steve-z8k/pi-utils";
 import type { RenderResult, SpecialHandler } from "./types";
 import { buildResult, formatMediaDuration, loadPage } from "./types";
 

@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import type { Api, Model } from "@amaze/pi-ai";
-import { buildModel } from "@amaze/pi-catalog/build";
-import type { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
-import type { Settings } from "@amaze/pi-coding-agent/config/settings";
+import type { Api, Model } from "@steve-z8k/pi-ai";
+import { buildModel } from "@steve-z8k/pi-catalog/build";
+import type { ModelRegistry } from "@steve-z8k/pi-coding-agent/config/model-registry";
+import type { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
 import { createExtensionModelQuery } from "../../src/extensibility/extensions/model-api";
 
 function model(id: string, name: string, provider: string): Model<"anthropic-messages"> {
@@ -58,10 +58,10 @@ describe("createExtensionModelQuery", () => {
 
 	test("resolve() honors configured role aliases via the same settings-backed path as core", () => {
 		const settings = {
-			getModelRole: (role: string) => (role === "slow" ? "anthropic/claude-opus-4-8" : undefined),
+			getModelRole: (role: string) => (role === "deep" ? "anthropic/claude-opus-4-8" : undefined),
 		} as unknown as Settings;
 		const q = createExtensionModelQuery(registry(), settings, () => undefined);
-		expect(q.resolve("pi/slow")).toBe(claude);
+		expect(q.resolve("pi/deep")).toBe(claude);
 	});
 
 	test("family() groups a vendor's point releases and separates vendors", () => {

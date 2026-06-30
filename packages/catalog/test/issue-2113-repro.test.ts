@@ -17,13 +17,13 @@
  * moonshot discovery mapper and stamps default thinking metadata.
  */
 import { describe, expect, it } from "bun:test";
-import { type OpenAICompletionsOptions, streamOpenAICompletions } from "@amaze/pi-ai/providers/openai-completions";
-import type { AssistantMessage, Context } from "@amaze/pi-ai/types";
-import { buildModel } from "@amaze/pi-catalog/build";
-import { Effort } from "@amaze/pi-catalog/effort";
-import { getBundledModel } from "@amaze/pi-catalog/models";
-import { moonshotModelManagerOptions } from "@amaze/pi-catalog/provider-models/openai-compat";
-import type { Model, ModelSpec } from "@amaze/pi-catalog/types";
+import { type OpenAICompletionsOptions, streamOpenAICompletions } from "@steve-z8k/pi-ai/providers/openai-completions";
+import type { AssistantMessage, Context } from "@steve-z8k/pi-ai/types";
+import { buildModel } from "@steve-z8k/pi-catalog/build";
+import { Effort } from "@steve-z8k/pi-catalog/effort";
+import { getBundledModel } from "@steve-z8k/pi-catalog/models";
+import { moonshotModelManagerOptions } from "@steve-z8k/pi-catalog/provider-models/openai-compat";
+import type { Model, ModelSpec } from "@steve-z8k/pi-catalog/types";
 
 function moonshotKimiModel(id: string, reasoning: boolean): Model<"openai-completions"> {
 	const reference = getBundledModel("openai", "gpt-4o-mini");

@@ -9,7 +9,7 @@ import {
 	informationTheoreticScore,
 	maximallyInformativeBinarization,
 	quantizeInt8,
-} from "@amaze/pi-rocky-memory/core/binary-vectors";
+} from "@steve-z8k/pi-rocky-memory/core/binary-vectors";
 
 describe("binary vector helpers", () => {
 	it("packs positive signs into Moorcheh MIB bit vectors", () => {

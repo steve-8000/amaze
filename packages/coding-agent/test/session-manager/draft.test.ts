@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import { isEnoent, TempDir } from "@amaze/pi-utils";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import { isEnoent, TempDir } from "@steve-z8k/pi-utils";
 
 async function fileExists(p: string): Promise<boolean> {
 	try {

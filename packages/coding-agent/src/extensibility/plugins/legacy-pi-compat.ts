@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as url from "node:url";
-import { isCompiledBinary } from "@amaze/pi-utils";
+import { isCompiledBinary } from "@steve-z8k/pi-utils";
 
 const IS_COMPILED_BINARY = isCompiledBinary();
 
@@ -118,7 +118,7 @@ export function __computeBunfsPackageRoot(metaDir: string, pathImpl: typeof path
  *
  * `bundle-dist.ts` defines `process.env.PI_BUNDLED="true"`; after bundling,
  * `import.meta.dir` points at `<package>/dist`. Do not resolve the package via
- * bare `@amaze/pi-coding-agent` here: from a global install Bun can pick an
+ * bare `@steve-z8k/pi-coding-agent` here: from a global install Bun can pick an
  * older cache entry, recreating mixed-runtime plugin loading.
  */
 export function __computeBundledSelfPackageRoot(metaDir: string, pathImpl: typeof path = path): string {
@@ -167,7 +167,7 @@ const TYPEBOX_SHIM_PATH = BUNFS_PACKAGE_ROOT
 // longer satisfies those imports. The override below redirects only the bare
 // pi-ai package root onto a sibling shim that re-exports the canonical surface
 // plus the borrowed `Type` runtime from the Zod-backed TypeBox shim. Subpath
-// imports such as `@amaze/pi-ai/oauth` continue to resolve directly
+// imports such as `@steve-z8k/pi-ai/oauth` continue to resolve directly
 // against the bundled pi-ai package.
 const LEGACY_PI_AI_SHIM_PATH = BUNFS_PACKAGE_ROOT
 	? bunfsPath("coding-agent", "src", "extensibility", "legacy-pi-ai-shim.js")
@@ -187,7 +187,7 @@ const LEGACY_PI_CODING_AGENT_SHIM_PATH = BUNFS_PACKAGE_ROOT
 // entries are added only in compiled-binary mode — in dev / source-link /
 // installed-package mode the canonical specifier resolves cleanly through
 // `Bun.resolveSync`, and hardcoding a relative source-tree path would break
-// installs where the bundled packages live at `node_modules/@amaze/pi-*`
+// installs where the bundled packages live at `node_modules/@steve-z8k/pi-*`
 // rather than `packages/*`.
 //
 // Every override target is validated against the on-disk filesystem at module
@@ -196,7 +196,7 @@ const LEGACY_PI_CODING_AGENT_SHIM_PATH = BUNFS_PACKAGE_ROOT
 // out so `resolveCanonicalPiSpecifier` falls through to `getResolvedSpecifier`,
 // which throws under bunfs and triggers the catch in `rewriteLegacyPiImports`.
 // That catch leaves the specifier untouched so Bun resolves the canonical
-// `@amaze/pi-*` import from the extension's own `node_modules` instead of
+// `@steve-z8k/pi-*` import from the extension's own `node_modules` instead of
 // emitting a bunfs `file://` URL to a module that isn't actually present.
 
 /**
@@ -254,7 +254,7 @@ function getResolvedSpecifier(specifier: string): string {
 }
 
 /**
- * Resolve a canonical `@amaze/*` specifier to a filesystem path, preferring
+ * Resolve a canonical `@steve-z8k/*` specifier to a filesystem path, preferring
  * a bundled compat shim when one is registered for the package root.
  *
  * Falls back to `getResolvedSpecifier` (which may throw under compiled binary
@@ -663,7 +663,7 @@ function resolveLegacyPiSpecifier(args: { path: string; importer: string }): { p
 		return undefined;
 	}
 
-	// Primary: resolve the canonical @amaze/* specifier from the host binary
+	// Primary: resolve the canonical @steve-z8k/* specifier from the host binary
 	// location. Works in dev mode and in source-link installs.
 	try {
 		return { path: resolveCanonicalPiSpecifier(remappedSpecifier) };

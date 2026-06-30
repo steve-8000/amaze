@@ -1,4 +1,4 @@
-import { type Component, visibleWidth } from "@amaze/pi-tui";
+import { type Component, visibleWidth } from "@steve-z8k/pi-tui";
 import type { AdvisorMessageDetails, AdvisorSeverity } from "../../advisor";
 import {
 	createCachedComponent,

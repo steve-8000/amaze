@@ -14,8 +14,8 @@ import {
 	type UsageLimit,
 	type UsageReport,
 	type UsageUnit,
-} from "@amaze/pi-ai";
-import { formatDuration, formatNumber } from "@amaze/pi-utils";
+} from "@steve-z8k/pi-ai";
+import { formatDuration, formatNumber } from "@steve-z8k/pi-utils";
 import chalk from "chalk";
 import { ModelRegistry } from "../config/model-registry";
 import { discoverAuthStorage } from "../sdk";

@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { ConfigFile } from "@amaze/pi-coding-agent/config/config-file";
-import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
-import { ModelsConfigSchema } from "@amaze/pi-coding-agent/config/models-config-schema";
-import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
-import { TempDir } from "@amaze/pi-utils";
+import { ConfigFile } from "@steve-z8k/pi-coding-agent/config/config-file";
+import { ModelRegistry } from "@steve-z8k/pi-coding-agent/config/model-registry";
+import { ModelsConfigSchema } from "@steve-z8k/pi-coding-agent/config/models-config-schema";
+import { AuthStorage } from "@steve-z8k/pi-coding-agent/session/auth-storage";
+import { TempDir } from "@steve-z8k/pi-utils";
 
 describe("ModelRegistry.create() factory (F6)", () => {
 	let tempDir: TempDir;
@@ -27,9 +27,9 @@ describe("ModelRegistry.create() factory (F6)", () => {
 			expect(registry.authStorage).toBe(authStorage);
 			// The constructor's bundled-model load runs after warmup, so the
 			// factory's returned instance must be queryable immediately.
-			const claude = registry.find("anthropic", "claude-sonnet-4-5");
+			const claude = registry.find("anthropic", "claude-sonnet-4-6");
 			expect(claude).toBeDefined();
-			expect(claude?.id).toBe("claude-sonnet-4-5");
+			expect(claude?.id).toBe("claude-sonnet-4-6");
 		} finally {
 			authStorage.close();
 		}

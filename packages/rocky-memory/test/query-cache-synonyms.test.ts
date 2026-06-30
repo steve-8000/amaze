@@ -3,8 +3,8 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { isEnhancedRecallEnabled, isQueryCacheEnabled, QueryCache } from "@amaze/pi-rocky-memory/core/query-cache";
-import { expandQuery, getSynonyms, normalizeQuery } from "@amaze/pi-rocky-memory/core/synonyms";
+import { isEnhancedRecallEnabled, isQueryCacheEnabled, QueryCache } from "@steve-z8k/pi-rocky-memory/core/query-cache";
+import { expandQuery, getSynonyms, normalizeQuery } from "@steve-z8k/pi-rocky-memory/core/synonyms";
 
 const openCaches: QueryCache[] = [];
 

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import { encodeTextSized, extractSegments, sliceWithWidth, truncateToWidth, visibleWidth } from "@amaze/pi-tui/utils";
+import {
+	encodeTextSized,
+	extractSegments,
+	sliceWithWidth,
+	truncateToWidth,
+	visibleWidth,
+} from "@steve-z8k/pi-tui/utils";
 
 describe("text utils", () => {
 	it("computes visible width for ANSI and tabs", () => {

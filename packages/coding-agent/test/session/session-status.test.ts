@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import type { SessionStatus } from "@amaze/pi-coding-agent/session/session-listing";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import { MemorySessionStorage } from "@amaze/pi-coding-agent/session/session-storage";
+import type { SessionStatus } from "@steve-z8k/pi-coding-agent/session/session-listing";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import { MemorySessionStorage } from "@steve-z8k/pi-coding-agent/session/session-storage";
 
 const SESSION_DIR = "/sessions/status-proj";
 

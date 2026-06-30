@@ -11,7 +11,7 @@ import {
 	replaceBinaryForUpdate,
 	resolveUpdateMethodForTest,
 	sweepStaleBackups,
-} from "@amaze/pi-coding-agent/cli/update-cli";
+} from "@steve-z8k/pi-coding-agent/cli/update-cli";
 
 const tempDirs: string[] = [];
 
@@ -82,17 +82,13 @@ describe("update-cli install target detection", () => {
 
 describe("update-cli package manager commands", () => {
 	it("targets the Homebrew tap formula and switches to reinstall for forced updates", () => {
-		expect(buildHomebrewUpdateArgs(false)).toEqual(["upgrade", "can1357/tap/amaze"]);
-		expect(buildHomebrewUpdateArgs(true)).toEqual(["reinstall", "can1357/tap/amaze"]);
+		expect(buildHomebrewUpdateArgs(false)).toEqual(["upgrade", "steve-8000/tap/amaze"]);
+		expect(buildHomebrewUpdateArgs(true)).toEqual(["reinstall", "steve-8000/tap/amaze"]);
 	});
 
 	it("targets the mise GitHub backend tool and force-reinstalls the checked version when requested", () => {
-		expect(buildMiseUpgradeArgs()).toEqual(["upgrade", "github:can1357/amaze-agent", "--bump"]);
-		expect(buildMiseForceInstallArgs("15.10.5")).toEqual([
-			"install",
-			"--force",
-			"github:can1357/amaze-agent@15.10.5",
-		]);
+		expect(buildMiseUpgradeArgs()).toEqual(["upgrade", "github:steve-8000/amaze", "--bump"]);
+		expect(buildMiseForceInstallArgs("15.10.5")).toEqual(["install", "--force", "github:steve-8000/amaze@15.10.5"]);
 	});
 });
 
@@ -105,28 +101,28 @@ describe("update-cli bun install command", () => {
 		//   - or bun's local manifest snapshot does the same when the user's bun
 		//     is already pointed at the official registry but its cache predates
 		//     the release.
-		// See https://github.com/can1357/amaze-agent/issues/1686.
+		// See https://github.com/steve-8000/amaze/issues/1686.
 		const args = buildBunInstallArgs("15.7.6", "linux-x64");
 		expect(args.slice(0, 5)).toEqual([
 			"install",
 			"-g",
 			"--no-cache",
 			"--registry=https://registry.npmjs.org/",
-			"@amaze/pi-coding-agent@15.7.6",
+			"@steve-z8k/pi-coding-agent@15.7.6",
 		]);
 	});
 
 	it("pins the native addon core and the platform-specific leaf to the same version so the loader sentinel cannot drift on supported tags", () => {
 		// Regression: bun install -g <pkg>@<v> would update only the top-level
-		// package, leaving @amaze/pi-natives and @amaze/pi-natives-<tag>
+		// package, leaving @steve-z8k/pi-natives and @steve-z8k/pi-natives-<tag>
 		// at their previous version. The next launch then loaded a stale .node
 		// file and aborted at validateLoadedBindings with `The .node file on
 		// disk is from a different release than this loader`. See
-		// https://github.com/can1357/amaze-agent/issues/1824.
+		// https://github.com/steve-8000/amaze/issues/1824.
 		for (const tag of ["linux-x64", "linux-arm64", "darwin-x64", "darwin-arm64", "win32-x64"]) {
 			const args = buildBunInstallArgs("15.9.0", tag);
-			expect(args).toContain("@amaze/pi-natives@15.9.0");
-			expect(args).toContain(`@amaze/pi-natives-${tag}@15.9.0`);
+			expect(args).toContain("@steve-z8k/pi-natives@15.9.0");
+			expect(args).toContain(`@steve-z8k/pi-natives-${tag}@15.9.0`);
 		}
 	});
 
@@ -137,8 +133,8 @@ describe("update-cli bun install command", () => {
 		// pipeline doesn't publish, otherwise bun aborts with EBADPLATFORM
 		// and hides the real diagnostic from `loadNative`'s aggregated error.
 		const args = buildBunInstallArgs("15.9.0", "linux-arm");
-		expect(args).toContain("@amaze/pi-natives@15.9.0");
-		expect(args.some(arg => arg.startsWith("@amaze/pi-natives-"))).toBe(false);
+		expect(args).toContain("@steve-z8k/pi-natives@15.9.0");
+		expect(args.some(arg => arg.startsWith("@steve-z8k/pi-natives-"))).toBe(false);
 	});
 });
 

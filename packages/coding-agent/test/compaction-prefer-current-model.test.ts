@@ -1,14 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@amaze/pi-agent-core";
-import * as compactionModule from "@amaze/pi-agent-core/compaction";
-import { getBundledModel } from "@amaze/pi-catalog/models";
-import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import { AgentSession } from "@amaze/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import { TempDir } from "@amaze/pi-utils";
+import { Agent } from "@steve-z8k/pi-agent-core";
+import * as compactionModule from "@steve-z8k/pi-agent-core/compaction";
+import { getBundledModel } from "@steve-z8k/pi-catalog/models";
+import { ModelRegistry } from "@steve-z8k/pi-coding-agent/config/model-registry";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { AgentSession } from "@steve-z8k/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@steve-z8k/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import { TempDir } from "@steve-z8k/pi-utils";
 import { assistantMsg, userMsg } from "./utilities";
 
 /**
@@ -37,15 +37,15 @@ describe("compaction prefers the current session model over modelRoles.default",
 		tempDir.removeSync();
 	});
 
-	it("uses the active Anthropic chat model when modelRoles.default points at an OpenAI model", async () => {
-		const currentModel = getBundledModel("anthropic", "claude-sonnet-4-5");
-		const defaultRoleModel = getBundledModel("openai", "gpt-5");
-		if (!currentModel || !defaultRoleModel) {
+	it("uses the active Anthropic chat model when modelRoles.flash points at an OpenAI model", async () => {
+		const currentModel = getBundledModel("anthropic", "claude-sonnet-4-6");
+		const flashRoleModel = getBundledModel("openai", "gpt-5.4");
+		if (!currentModel || !flashRoleModel) {
 			throw new Error("Expected bundled test models to exist");
 		}
 
 		const settings = Settings.isolated({ "compaction.keepRecentTokens": 1, "compaction.strategy": "context-full" });
-		settings.setModelRole("default", `${defaultRoleModel.provider}/${defaultRoleModel.id}`);
+		settings.setModelRole("flash", `${flashRoleModel.provider}/${flashRoleModel.id}`);
 
 		const agent = new Agent({
 			initialState: {
@@ -60,7 +60,7 @@ describe("compaction prefers the current session model over modelRoles.default",
 		// Both providers have credentials so an "auth failure" wouldn't be the
 		// reason a candidate is skipped — order alone must drive the choice.
 		authStorage.setRuntimeApiKey(currentModel.provider, "anthropic-token");
-		authStorage.setRuntimeApiKey(defaultRoleModel.provider, "openai-token");
+		authStorage.setRuntimeApiKey(flashRoleModel.provider, "openai-token");
 		modelRegistry = new ModelRegistry(authStorage, path.join(tempDir.path(), "models.yml"));
 
 		session = new AgentSession({

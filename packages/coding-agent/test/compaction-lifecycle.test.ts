@@ -1,9 +1,9 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import { CompactionCancelledError, type CompactionResult } from "@amaze/pi-agent-core/compaction";
-import { CommandController } from "@amaze/pi-coding-agent/modes/controllers/command-controller";
-import { getThemeByName, setThemeInstance, type Theme, theme } from "@amaze/pi-coding-agent/modes/theme/theme";
-import type { InteractiveModeContext } from "@amaze/pi-coding-agent/modes/types";
-import { Container, Spacer } from "@amaze/pi-tui";
+import { CompactionCancelledError, type CompactionResult } from "@steve-z8k/pi-agent-core/compaction";
+import { CommandController } from "@steve-z8k/pi-coding-agent/modes/controllers/command-controller";
+import { getThemeByName, setThemeInstance, type Theme, theme } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
+import type { InteractiveModeContext } from "@steve-z8k/pi-coding-agent/modes/types";
+import { Container, Spacer } from "@steve-z8k/pi-tui";
 
 /**
  * Contract under test: `CommandController.executeCompaction` must not leak

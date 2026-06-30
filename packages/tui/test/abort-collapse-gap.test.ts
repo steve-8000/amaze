@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { type Component, CURSOR_MARKER, type Focusable, type NativeScrollbackLiveRegion, TUI } from "@amaze/pi-tui";
+import { type Component, CURSOR_MARKER, type Focusable, type NativeScrollbackLiveRegion, TUI } from "@steve-z8k/pi-tui";
 import { StressRenderScheduler } from "./render-stress-scheduler";
 import { VirtualTerminal } from "./virtual-terminal";
 

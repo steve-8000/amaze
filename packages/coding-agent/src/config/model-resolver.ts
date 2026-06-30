@@ -11,27 +11,27 @@
  *   and `@upstream` provider routing (`splitUpstreamRouting`).
  * - Everything else (`resolveModelFromString`, `resolveModelOverride*`,
  *   `resolveRoleSelection`, `resolveModelScope`, `resolveCliModel`,
- *   `findSmolModel`/`findSlowModel`) adapts inputs — roles, settings patterns,
+ *   `findFlashModel`/`findDeepModel`) adapts inputs — roles, settings patterns,
  *   CLI flags, scope globs — onto that pipeline.
  */
 
-import { ThinkingLevel } from "@amaze/pi-agent-core";
-import type { Api, Effort, KnownProvider, Model, ModelSpec } from "@amaze/pi-ai";
-import { buildModel } from "@amaze/pi-catalog/build";
-import { modelMatchesHost } from "@amaze/pi-catalog/hosts";
-import { buildModelProviderPriorityRank } from "@amaze/pi-catalog/identity";
-import { stripThinkingVariantToken } from "@amaze/pi-catalog/identity/family";
-import { clampThinkingLevelForModel } from "@amaze/pi-catalog/model-thinking";
-import { modelsAreEqual } from "@amaze/pi-catalog/models";
-import { DEFAULT_MODEL_PER_PROVIDER } from "@amaze/pi-catalog/provider-models";
-import { resolveBareVariantAlias, resolveVariantAlias } from "@amaze/pi-catalog/variant-collapse";
-import { fuzzyMatch } from "@amaze/pi-tui";
-import { logger } from "@amaze/pi-utils";
+import { ThinkingLevel } from "@steve-z8k/pi-agent-core";
+import type { Api, Effort, KnownProvider, Model, ModelSpec } from "@steve-z8k/pi-ai";
+import { buildModel } from "@steve-z8k/pi-catalog/build";
+import { modelMatchesHost } from "@steve-z8k/pi-catalog/hosts";
+import { buildModelProviderPriorityRank } from "@steve-z8k/pi-catalog/identity";
+import { stripThinkingVariantToken } from "@steve-z8k/pi-catalog/identity/family";
+import { clampThinkingLevelForModel } from "@steve-z8k/pi-catalog/model-thinking";
+import { modelsAreEqual } from "@steve-z8k/pi-catalog/models";
+import { DEFAULT_MODEL_PER_PROVIDER } from "@steve-z8k/pi-catalog/provider-models";
+import { resolveBareVariantAlias, resolveVariantAlias } from "@steve-z8k/pi-catalog/variant-collapse";
+import { fuzzyMatch } from "@steve-z8k/pi-tui";
+import { logger } from "@steve-z8k/pi-utils";
 import chalk from "chalk";
 import MODEL_PRIO from "../priority.json" with { type: "json" };
 import { parseThinkingLevel, resolveThinkingLevelForModel } from "../thinking";
 import { isAuthenticated, kNoAuth, type ModelRegistry } from "./model-registry";
-import { MODEL_ROLE_IDS, type ModelRole } from "./model-roles";
+import { MODEL_ROLE_IDS, type ModelRole, PRIMARY_MODEL_ROLE } from "./model-roles";
 import type { Settings } from "./settings";
 
 function isKnownProvider(provider: string): provider is KnownProvider {
@@ -850,9 +850,9 @@ export function parseModelPattern(
 }
 
 const PREFIX_MODEL_ROLE = "pi/";
-const DEFAULT_MODEL_ROLE = "default";
+const DEFAULT_MODEL_ROLE = PRIMARY_MODEL_ROLE;
 
-function getModelRoleAlias(value: string): ModelRole | undefined {
+function getModelRoleAlias(value: string, settings?: Settings): string | undefined {
 	const normalized = value.trim();
 	if (!normalized.startsWith(PREFIX_MODEL_ROLE)) return undefined;
 
@@ -860,7 +860,7 @@ function getModelRoleAlias(value: string): ModelRole | undefined {
 	for (const role of MODEL_ROLE_IDS) {
 		if (candidate === role) return role;
 	}
-	return undefined;
+	return settings?.getModelRole(candidate) ? candidate : undefined;
 }
 
 function normalizeModelPatternList(value: string | string[] | undefined): string[] {
@@ -873,56 +873,22 @@ function isSessionInheritedAgentPattern(value: string): boolean {
 	return value === DEFAULT_MODEL_ROLE || value === `${PREFIX_MODEL_ROLE}${DEFAULT_MODEL_ROLE}`;
 }
 
-function shouldInheritDefaultBeforePriority(role: ModelRole): boolean {
-	return role === "smol" || role === "slow" || role === "designer";
-}
-
-function resolveDefaultInheritedPatterns(
-	role: ModelRole,
-	configuredDefault: string | undefined,
-	roleDefaults: string[],
-	settings: Settings | undefined,
-	visited: Set<ModelRole>,
+function resolveConfiguredModelPatternsInternal(
+	value: string | string[] | undefined,
+	settings?: Settings,
+	visited: Set<string> = new Set(),
 ): string[] {
-	if (!shouldInheritDefaultBeforePriority(role) || !configuredDefault) return [];
-
-	const resolved: string[] = [];
-	for (const pattern of normalizeModelPatternList(configuredDefault)) {
-		const { base: aliasCandidate, level: thinkingLevel } = splitThinkingSuffix(
-			pattern,
-			PREFIX_MODEL_ROLE.length,
-			MAX_THINKING_SUFFIX_OPTIONS,
-		);
-		const aliasRole = getModelRoleAlias(aliasCandidate);
-		if (aliasRole === role) {
-			// Self-alias (e.g. modelRoles.default = "pi/smol") would loop back to the
-			// same unset role; collapse straight to the built-in priority chain.
-			resolved.push(
-				...(thinkingLevel
-					? roleDefaults.map(defaultPattern => `${defaultPattern}:${thinkingLevel}`)
-					: roleDefaults),
-			);
-			continue;
-		}
-		if (aliasRole && !visited.has(aliasRole)) {
-			// Cross-role alias (e.g. modelRoles.default = "pi/slow"): resolve the
-			// target role's patterns now so downstream one-layer expanders see
-			// concrete model patterns instead of another role alias.
-			const recursed = resolveConfiguredRolePattern(pattern, settings, new Set(visited));
-			if (recursed && recursed.length > 0) {
-				resolved.push(...recursed);
-				continue;
-			}
-		}
-		resolved.push(pattern);
-	}
-	return resolved;
+	const patterns = normalizeModelPatternList(value);
+	return patterns.flatMap(pattern => {
+		const resolved = resolveConfiguredRolePattern(pattern, settings, new Set(visited));
+		return resolved ?? [];
+	});
 }
 
 function resolveConfiguredRolePattern(
 	value: string,
 	settings?: Settings,
-	visited: Set<ModelRole> = new Set(),
+	visited: Set<string> = new Set(),
 ): string[] | undefined {
 	const normalized = value.trim();
 	if (!normalized) return undefined;
@@ -932,19 +898,16 @@ function resolveConfiguredRolePattern(
 		PREFIX_MODEL_ROLE.length,
 		MAX_THINKING_SUFFIX_OPTIONS,
 	);
-	const role = getModelRoleAlias(aliasCandidate);
+	const role = getModelRoleAlias(aliasCandidate, settings);
 	if (!role) return [normalized];
 	if (visited.has(role)) return undefined;
 	visited.add(role);
 
 	const configured = settings?.getModelRole(role)?.trim();
-	const configuredDefault = settings?.getModelRole(DEFAULT_MODEL_ROLE)?.trim();
 	const roleDefaults = normalizeModelPatternList(MODEL_PRIO[role as keyof typeof MODEL_PRIO]);
-	const resolved = configured
-		? normalizeModelPatternList(configured)
-		: resolveDefaultInheritedPatterns(role, configuredDefault, roleDefaults, settings, visited);
+	let resolved = configured ? resolveConfiguredModelPatternsInternal(configured, settings, visited) : [];
 	if (resolved.length === 0) {
-		resolved.push(...roleDefaults);
+		resolved = roleDefaults;
 	}
 	if (resolved.length === 0) {
 		return undefined;
@@ -954,25 +917,17 @@ function resolveConfiguredRolePattern(
 }
 
 /**
- * Expand a role alias like "pi/smol" to the configured model string.
+ * Expand a role alias like "pi/flash" to the configured model string.
  */
 export function expandRoleAlias(value: string, settings?: Settings): string {
-	const normalized = value.trim();
-	if (normalized === DEFAULT_MODEL_ROLE) {
-		return settings?.getModelRole("default") ?? value;
-	}
-
 	const resolved = resolveConfiguredRolePattern(value, settings)?.[0];
 	return resolved ?? value;
 }
 
 export function resolveConfiguredModelPatterns(value: string | string[] | undefined, settings?: Settings): string[] {
-	const patterns = normalizeModelPatternList(value);
-	return patterns.flatMap(pattern => {
-		const resolved = resolveConfiguredRolePattern(pattern, settings);
-		return resolved ?? [];
-	});
+	return resolveConfiguredModelPatternsInternal(value, settings);
 }
+
 export interface AgentModelPatternResolutionOptions {
 	settingsOverride?: string | string[];
 	agentModel?: string | string[];
@@ -991,12 +946,15 @@ export function resolveAgentModelPatterns(options: AgentModelPatternResolutionOp
 	const configuredAgentPatterns = resolveConfiguredModelPatterns(agentModel, settings);
 	const singleAgentPattern = normalizedAgentPatterns.length === 1 ? normalizedAgentPatterns[0] : undefined;
 	const agentInheritsSessionModel = singleAgentPattern ? isSessionInheritedAgentPattern(singleAgentPattern) : false;
-	if (configuredAgentPatterns.length > 0) {
-		if (!agentInheritsSessionModel) return configuredAgentPatterns;
+	if (configuredAgentPatterns.length > 0 && !agentInheritsSessionModel) {
+		return configuredAgentPatterns;
 	}
 
 	const fallback =
-		activeModelPattern?.trim() || fallbackModelPattern?.trim() || settings?.getModelRole("default")?.trim() || "";
+		activeModelPattern?.trim() ||
+		fallbackModelPattern?.trim() ||
+		settings?.getModelRole(DEFAULT_MODEL_ROLE)?.trim() ||
+		"";
 	return resolveConfiguredModelPatterns(fallback, settings);
 }
 
@@ -1742,14 +1700,14 @@ export async function restoreModelFromSession(
 }
 
 /**
- * Find a smol/fast model using the priority chain.
+ * Find a flash model using the priority chain.
  * Tries exact matches first, then fuzzy matches.
  *
  * @param modelRegistry The model registry to search
  * @param savedModel Optional saved model string from settings (provider/modelId)
- * @returns The best available smol model, or undefined if none found
+ * @returns The best available flash model, or undefined if none found
  */
-export async function findSmolModel(
+export async function findFlashModel(
 	modelRegistry: ModelLookupRegistry,
 	savedModel?: string,
 ): Promise<Model<Api> | undefined> {
@@ -1763,7 +1721,7 @@ export async function findSmolModel(
 	}
 
 	// 2. Try priority chain
-	for (const pattern of MODEL_PRIO.smol) {
+	for (const pattern of MODEL_PRIO.flash) {
 		// Try exact match with provider prefix
 		const providerMatch = availableModels.find(m => `${m.provider}/${m.id}`.toLowerCase() === pattern);
 		if (providerMatch) return providerMatch;
@@ -1782,14 +1740,14 @@ export async function findSmolModel(
 }
 
 /**
- * Find a slow/comprehensive model using the priority chain.
+ * Find a deep/ultra model using the priority chain.
  * Prioritizes reasoning and codex models for thorough analysis.
  *
  * @param modelRegistry The model registry to search
  * @param savedModel Optional saved model string from settings (provider/modelId)
- * @returns The best available slow model, or undefined if none found
+ * @returns The best available deep model, or undefined if none found
  */
-export async function findSlowModel(
+export async function findDeepModel(
 	modelRegistry: ModelLookupRegistry,
 	savedModel?: string,
 ): Promise<Model<Api> | undefined> {
@@ -1803,7 +1761,7 @@ export async function findSlowModel(
 	}
 
 	// 2. Try priority chain
-	for (const pattern of MODEL_PRIO.slow) {
+	for (const pattern of MODEL_PRIO.deep) {
 		// Try exact match first
 		const exactMatch = parseModelPattern(pattern, availableModels, undefined, { modelRegistry }).model;
 		if (exactMatch) return exactMatch;

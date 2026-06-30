@@ -3,9 +3,9 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { Model } from "@amaze/pi-ai/types";
-import { buildModel } from "@amaze/pi-catalog/build";
-import { readModelCache, writeModelCache } from "@amaze/pi-catalog/model-cache";
+import type { Model } from "@steve-z8k/pi-ai/types";
+import { buildModel } from "@steve-z8k/pi-catalog/build";
+import { readModelCache, writeModelCache } from "@steve-z8k/pi-catalog/model-cache";
 
 const TTL_MS = 24 * 60 * 60 * 1000;
 

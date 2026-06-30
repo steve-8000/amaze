@@ -5,12 +5,12 @@
  * the hashline patcher to verify or recover from stale section tags (file
  * changed externally between read and edit, or a prior in-session edit
  * advanced the tag). The store is the {@link InMemorySnapshotStore}
- * from `@amaze/hashline`; the only coding-agent-specific concern here
+ * from `@steve-z8k/hashline`; the only coding-agent-specific concern here
  * is wiring it onto the per-session owner object.
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { InMemorySnapshotStore } from "@amaze/hashline";
+import { InMemorySnapshotStore } from "@steve-z8k/hashline";
 import { normalizeToLF } from "./normalize";
 
 /**

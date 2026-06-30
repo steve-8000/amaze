@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { buildModelProviderPriorityRank } from "@amaze/pi-catalog/identity/priority";
+import { buildModelProviderPriorityRank } from "@steve-z8k/pi-catalog/identity/priority";
 
 describe("model provider priority", () => {
 	test("ranks AIML API with hosted aggregators", () => {

@@ -6,9 +6,9 @@
  * 2. Shows a spinner while extracting (hides editor)
  * 3. Loads the result into the editor for user to fill in answers
  */
-import { complete, type UserMessage } from "@amaze/pi-ai";
-import type { HookAPI } from "@amaze/pi-coding-agent";
-import { BorderedLoader } from "@amaze/pi-coding-agent";
+import { complete, type UserMessage } from "@steve-z8k/pi-ai";
+import type { HookAPI } from "@steve-z8k/pi-coding-agent";
+import { BorderedLoader } from "@steve-z8k/pi-coding-agent";
 
 const SYSTEM_PROMPT = `You are a question extractor. Given text from a conversation, extract any questions that need answering and format them for the user to fill in.
 

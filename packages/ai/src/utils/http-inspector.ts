@@ -1,5 +1,5 @@
 import * as path from "node:path";
-import { extractHttpStatusFromError, getLogsDir, isBunTestRuntime } from "@amaze/pi-utils";
+import { extractHttpStatusFromError, getLogsDir, isBunTestRuntime } from "@steve-z8k/pi-utils";
 import { isCopilotTransientModelError } from "./retry.js";
 import { formatErrorMessageWithRetryAfter } from "./retry-after.js";
 

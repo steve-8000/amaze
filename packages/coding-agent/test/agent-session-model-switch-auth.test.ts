@@ -1,14 +1,14 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, spyOn } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@amaze/pi-agent-core";
-import { type Api, Effort, type Model } from "@amaze/pi-ai";
-import { getBundledModel } from "@amaze/pi-catalog/models";
-import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import { AgentSession } from "@amaze/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import { TempDir } from "@amaze/pi-utils";
+import { Agent } from "@steve-z8k/pi-agent-core";
+import { type Api, Effort, type Model } from "@steve-z8k/pi-ai";
+import { getBundledModel } from "@steve-z8k/pi-catalog/models";
+import { ModelRegistry } from "@steve-z8k/pi-coding-agent/config/model-registry";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { AgentSession } from "@steve-z8k/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@steve-z8k/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import { TempDir } from "@steve-z8k/pi-utils";
 
 // Switching the active model (Ctrl+P role cycling, /models selection) must be a
 // cheap, synchronous operation. It used to call the async `getApiKey`, which can
@@ -73,7 +73,7 @@ describe("AgentSession model switch auth pre-flight", () => {
 	}
 
 	it("switches the active model via the synchronous auth check, not the resolver", async () => {
-		const from = modelOrThrow("claude-sonnet-4-5");
+		const from = modelOrThrow("claude-sonnet-4-6");
 		const to = modelOrThrow("claude-sonnet-4-6");
 		const s = makeSession(from);
 
@@ -89,26 +89,26 @@ describe("AgentSession model switch auth pre-flight", () => {
 	});
 
 	it("cycles role models without invoking the resolver", async () => {
-		const from = modelOrThrow("claude-sonnet-4-5");
-		const slow = modelOrThrow("claude-sonnet-4-6");
+		const from = modelOrThrow("claude-sonnet-4-6");
+		const deep = modelOrThrow("claude-sonnet-4-6");
 		const s = makeSession(from, {
-			default: `${from.provider}/${from.id}`,
-			slow: `${slow.provider}/${slow.id}`,
+			flash: `${from.provider}/${from.id}`,
+			deep: `${deep.provider}/${deep.id}`,
 		});
 
 		const getApiKeySpy = spyOn(registry, "getApiKey");
 		spies.push(getApiKeySpy);
 
-		const result = await s.cycleRoleModels(["default", "slow"]);
+		const result = await s.cycleRoleModels(["flash", "deep"]);
 
-		expect(result?.role).toBe("slow");
-		expect(result?.model.id).toBe(slow.id);
-		expect(s.model?.id).toBe(slow.id);
+		expect(result?.role).toBe("deep");
+		expect(result?.model.id).toBe(deep.id);
+		expect(s.model?.id).toBe(deep.id);
 		expect(getApiKeySpy).not.toHaveBeenCalled();
 	});
 
 	it("temporary switch also avoids the resolver", async () => {
-		const from = modelOrThrow("claude-sonnet-4-5");
+		const from = modelOrThrow("claude-sonnet-4-6");
 		const to = modelOrThrow("claude-sonnet-4-6");
 		const s = makeSession(from);
 
@@ -122,7 +122,7 @@ describe("AgentSession model switch auth pre-flight", () => {
 	});
 
 	it("rejects the switch synchronously when no credential is configured, without calling the resolver", async () => {
-		const from = modelOrThrow("claude-sonnet-4-5");
+		const from = modelOrThrow("claude-sonnet-4-6");
 		const to = modelOrThrow("claude-sonnet-4-6");
 		const s = makeSession(from);
 

@@ -20,8 +20,8 @@ import {
 	sleep,
 	sleepAllSessions,
 	update,
-} from "@amaze/pi-rocky-memory/core/memory";
-import { openDatabase } from "@amaze/pi-rocky-memory/db";
+} from "@steve-z8k/pi-rocky-memory/core/memory";
+import { openDatabase } from "@steve-z8k/pi-rocky-memory/db";
 
 const roots: string[] = [];
 let previousDataDir: string | undefined;

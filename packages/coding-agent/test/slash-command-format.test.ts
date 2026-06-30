@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import * as settingsModule from "@amaze/pi-coding-agent/config/settings";
-import type { Theme } from "@amaze/pi-coding-agent/modes/theme/theme";
-import { renderAsciiBar } from "@amaze/pi-coding-agent/slash-commands/helpers/format";
+import * as settingsModule from "@steve-z8k/pi-coding-agent/config/settings";
+import type { Theme } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
+import { renderAsciiBar } from "@steve-z8k/pi-coding-agent/slash-commands/helpers/format";
 
 const testTheme = {
 	fg(color: Parameters<Theme["fg"]>[0], text: string): string {

@@ -5,9 +5,9 @@
  * task execution in the terminal UI.
  */
 import path from "node:path";
-import type { Component } from "@amaze/pi-tui";
-import { Container, Markdown, Text } from "@amaze/pi-tui";
-import { formatNumber } from "@amaze/pi-utils";
+import type { Component } from "@steve-z8k/pi-tui";
+import { Container, Markdown, Text } from "@steve-z8k/pi-tui";
+import { formatNumber } from "@steve-z8k/pi-utils";
 import { settings } from "../config/settings";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
 import { formatContextUsage } from "../modes/components/status-line/context-thresholds";
@@ -177,6 +177,24 @@ export function formatTaskId(id: string): string {
 	// (e.g. "Anna.Bob"). Render the hierarchy with a ">" breadcrumb.
 	const segments = id.split(".");
 	return segments.length < 2 ? id : segments.join(">");
+}
+function deriveAgentLabel(args?: TaskParams, details?: TaskToolDetails): string | undefined {
+	const explicitAgent = args?.agent?.trim();
+	if (explicitAgent) return explicitAgent;
+	const itemAgents = (args?.tasks ?? [])
+		.map(task => (typeof task?.agent === "string" ? task.agent.trim() : ""))
+		.filter((agent): agent is string => agent.length > 0);
+	if (itemAgents.length > 0) {
+		const uniqueAgents = [...new Set(itemAgents)];
+		return uniqueAgents.length === 1 ? uniqueAgents[0] : "mixed agents";
+	}
+	const resultAgents = [
+		...(details?.progress ?? []).map(progress => progress.agent?.trim() ?? ""),
+		...(details?.results ?? []).map(result => result.agent?.trim() ?? ""),
+	].filter((agent): agent is string => agent.length > 0);
+	if (resultAgents.length === 0) return undefined;
+	const uniqueAgents = [...new Set(resultAgents)];
+	return uniqueAgents.length === 1 ? uniqueAgents[0] : "mixed agents";
 }
 
 const MISSING_YIELD_WARNING_PREFIX = "SYSTEM WARNING: Subagent exited without calling yield tool";
@@ -640,11 +658,12 @@ function createMarkdownSectionRenderer(text: string, theme: Theme): AssignmentSe
  */
 export function renderCall(args: TaskParams, options: TaskRenderOptions, theme: Theme): Component {
 	const showIsolated = "isolated" in args && args.isolated === true;
+	const agentLabel = deriveAgentLabel(args);
 	// Dispatch glyph from the first frame: spawning is non-blocking, so a
 	// pending/hourglass icon would misread the call as something the turn
 	// waits on.
 	const header = renderStatusLine(
-		{ iconOverride: theme.styledSymbol("tool.task", "accent"), title: "Task", description: args.agent },
+		{ iconOverride: theme.styledSymbol("tool.task", "accent"), title: "Task", description: agentLabel },
 		theme,
 	);
 	const assignmentSection = createAssignmentSectionRenderer(args, theme);
@@ -1266,7 +1285,7 @@ export function renderResult(
 ): Component {
 	const fallbackText = result.content.find(c => c.type === "text")?.text ?? "";
 	const details = result.details;
-	const agentLabel = args?.agent?.trim() || undefined;
+	const agentLabel = deriveAgentLabel(args, details);
 	const assignmentSection = createAssignmentSectionRenderer(args, theme);
 	const contextSection = createContextSectionRenderer(args, theme);
 

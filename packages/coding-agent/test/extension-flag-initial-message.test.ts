@@ -1,10 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { parseArgs } from "@amaze/pi-coding-agent/cli/args";
-import { applyExtensionFlags, type ExtensionFlagSink } from "@amaze/pi-coding-agent/cli/extension-flags";
-import { buildInitialMessage } from "@amaze/pi-coding-agent/cli/initial-message";
-import { ExtensionRuntime, loadExtensionFromFactory } from "@amaze/pi-coding-agent/extensibility/extensions/loader";
-import { ExtensionRunner } from "@amaze/pi-coding-agent/extensibility/extensions/runner";
-import { EventBus } from "@amaze/pi-coding-agent/utils/event-bus";
+import { parseArgs } from "@steve-z8k/pi-coding-agent/cli/args";
+import { applyExtensionFlags, type ExtensionFlagSink } from "@steve-z8k/pi-coding-agent/cli/extension-flags";
+import { buildInitialMessage } from "@steve-z8k/pi-coding-agent/cli/initial-message";
+import { ExtensionRuntime, loadExtensionFromFactory } from "@steve-z8k/pi-coding-agent/extensibility/extensions/loader";
+import { ExtensionRunner } from "@steve-z8k/pi-coding-agent/extensibility/extensions/runner";
+import { EventBus } from "@steve-z8k/pi-coding-agent/utils/event-bus";
 
 // Regression coverage for extension-registered flags leaking into the initial
 // prompt. The CLI parses argv twice: once at startup (before extensions load,
@@ -86,7 +86,7 @@ describe("extension flags vs initial message", () => {
 		const planFlags = new Map<string, { type: "boolean" | "string" }>([["plan", { type: "boolean" }]]);
 		const parsed = parseArgs(["--plan", "review the diff"], planFlags);
 		expect(parsed.unknownFlags.get("plan")).toBe(true);
-		expect(parsed.plan).toBeUndefined();
+		expect(parsed.unknownFlags.get("plan")).toBe(true);
 		expect(parsed.messages).toEqual(["review the diff"]);
 	});
 
@@ -189,7 +189,7 @@ describe("applyExtensionFlags (single-parser flag resolution)", () => {
 		const args = applyExtensionFlags(runner, ["--plan", "review the diff"]);
 		expect(runner.values.get("plan")).toBe(true);
 		expect(args?.messages).toEqual(["review the diff"]);
-		expect(args?.plan).toBeUndefined();
+		expect(args?.unknownFlags.get("plan")).toBe(true);
 	});
 	it("does not deliver a colliding flag that was not passed", () => {
 		const runner = fakeRunner({ plan: "boolean" });

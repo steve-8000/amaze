@@ -6,7 +6,7 @@ import {
 	levenshteinDistance,
 	REGEX_EXTRACTION_MAX_INPUT_CHARS,
 	similarity,
-} from "@amaze/pi-rocky-memory/core/entities";
+} from "@steve-z8k/pi-rocky-memory/core/entities";
 
 describe("entity utilities", () => {
 	it("computes edit distance with empty and unicode strings", () => {

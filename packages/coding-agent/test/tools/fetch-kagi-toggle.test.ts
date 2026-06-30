@@ -2,15 +2,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type SettingPath, Settings } from "@amaze/pi-coding-agent/config/settings";
-import type { ToolSession } from "@amaze/pi-coding-agent/tools";
-import { ReadTool } from "@amaze/pi-coding-agent/tools/read";
-import * as imageResize from "@amaze/pi-coding-agent/utils/image-resize";
-import * as toolsManager from "@amaze/pi-coding-agent/utils/tools-manager";
-import * as scrapers from "@amaze/pi-coding-agent/web/scrapers/types";
-import * as scraperUtils from "@amaze/pi-coding-agent/web/scrapers/utils";
-import * as natives from "@amaze/pi-natives";
-import { ptree, Snowflake } from "@amaze/pi-utils";
+import { type SettingPath, Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import type { ToolSession } from "@steve-z8k/pi-coding-agent/tools";
+import { ReadTool } from "@steve-z8k/pi-coding-agent/tools/read";
+import * as imageResize from "@steve-z8k/pi-coding-agent/utils/image-resize";
+import * as toolsManager from "@steve-z8k/pi-coding-agent/utils/tools-manager";
+import * as scrapers from "@steve-z8k/pi-coding-agent/web/scrapers/types";
+import * as scraperUtils from "@steve-z8k/pi-coding-agent/web/scrapers/utils";
+import * as natives from "@steve-z8k/pi-natives";
+import { ptree, Snowflake } from "@steve-z8k/pi-utils";
 import { asGlobalFetch } from "../helpers/fetch-mock";
 
 const withMissingSystemPython = () => {

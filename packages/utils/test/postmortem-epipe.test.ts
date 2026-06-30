@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { postmortem } from "@amaze/pi-utils";
+import { postmortem } from "@steve-z8k/pi-utils";
 
 /**
  * Contract for issue #2997: an EPIPE rejection from an IPC `send()` to a worker

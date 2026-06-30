@@ -1,38 +1,6 @@
-import { THINKING_EFFORTS } from "@amaze/pi-ai";
-import { DEFAULT_SHARE_URL } from "@amaze/pi-wire";
-import { SHAPE_VARIANT_NAMES } from "@amaze/snapcompact";
-import { DEFAULT_RELAY_URL } from "../collab/protocol";
-import { DEFAULT_STT_MODEL_KEY, STT_MODEL_OPTIONS, STT_MODEL_VALUES } from "../stt/models";
+import { THINKING_EFFORTS } from "@steve-z8k/pi-ai";
+import { SHAPE_VARIANT_NAMES } from "@steve-z8k/snapcompact";
 import { AUTO_THINKING, getConfiguredThinkingLevelMetadata, getThinkingLevelMetadata } from "../thinking";
-import {
-	TINY_MODEL_DEVICE_DEFAULT,
-	TINY_MODEL_DEVICE_SETTING_OPTIONS,
-	TINY_MODEL_DEVICE_SETTING_VALUES,
-} from "../tiny/device";
-import {
-	TINY_MODEL_DTYPE_DEFAULT,
-	TINY_MODEL_DTYPE_SETTING_OPTIONS,
-	TINY_MODEL_DTYPE_SETTING_VALUES,
-} from "../tiny/dtype";
-import {
-	AUTO_THINKING_MODEL_OPTIONS,
-	AUTO_THINKING_MODEL_VALUES,
-	ONLINE_AUTO_THINKING_MODEL_KEY,
-	ONLINE_MEMORY_MODEL_KEY,
-	ONLINE_TINY_TITLE_MODEL_KEY,
-	TINY_MEMORY_MODEL_OPTIONS,
-	TINY_MEMORY_MODEL_VALUES,
-	TINY_TITLE_MODEL_OPTIONS,
-	TINY_TITLE_MODEL_VALUES,
-} from "../tiny/models";
-import {
-	DEFAULT_TTS_LOCAL_MODEL_KEY,
-	DEFAULT_TTS_VOICE,
-	TTS_LOCAL_MODEL_OPTIONS,
-	TTS_LOCAL_MODEL_VALUES,
-	TTS_LOCAL_VOICE_OPTIONS,
-	TTS_LOCAL_VOICE_VALUES,
-} from "../tts/models";
 import { EDIT_MODES } from "../utils/edit-mode";
 import { SEARCH_PROVIDER_OPTIONS, SEARCH_PROVIDER_PREFERENCES, type SearchProviderId } from "../web/search/types";
 
@@ -107,20 +75,9 @@ export const TAB_METADATA: Record<SettingTab, { label: string; icon: `tab.${stri
 export const TAB_GROUPS: Record<SettingTab, readonly string[]> = {
 	appearance: ["Theme", "Status Line", "Display", "Images"],
 	model: ["Thinking", "Sampling", "Prompt", "Retry & Fallback", "Advisor", "Vision"],
-	interaction: [
-		"Input",
-		"Approvals",
-		"Notifications",
-		"Speech",
-		"Collab",
-		"Magic Keywords",
-		"Startup & Updates",
-		"Power (macOS)",
-		"Agent",
-		"Git",
-	],
+	interaction: ["Input", "Approvals", "Notifications", "Magic Keywords", "Startup", "Power (macOS)", "Agent", "Git"],
 	context: ["General", "Compaction", "Rules (TTSR)", "Experimental"],
-	memory: ["Rocky", "Auto-Learn"],
+	memory: ["Circle", "Auto-Learn"],
 	files: ["Editing", "Reading", "Read Summaries"],
 	shell: ["Bash", "Eval & Python"],
 	tools: [
@@ -134,7 +91,7 @@ export const TAB_GROUPS: Record<SettingTab, readonly string[]> = {
 		"Developer",
 	],
 	tasks: ["Modes", "Subagents", "Isolation", "Commands & Skills"],
-	providers: ["Services", "Fireworks", "Tiny Model", "Protocol", "Privacy"],
+	providers: ["Services", "Fireworks", "Protocol", "Privacy"],
 };
 
 /** Status line segment identifiers */
@@ -161,8 +118,7 @@ export type StatusLineSegmentId =
 	| "cache_write"
 	| "cache_hit"
 	| "session_name"
-	| "usage"
-	| "collab";
+	| "usage";
 
 /** Submenu choice metadata. */
 export type SubmenuOption<V extends string = string> = {
@@ -272,7 +228,7 @@ export interface ModelTagsSettings {
 // under `as const` while still letting SettingValue infer the correct element type.
 const EMPTY_STRING_ARRAY: string[] = [];
 const EMPTY_STRING_RECORD: Record<string, string> = {};
-const DEFAULT_CYCLE_ORDER: string[] = ["smol", "default", "slow"];
+const DEFAULT_CYCLE_ORDER: string[] = ["flash", "deep", "ultra"];
 const EMPTY_MODEL_TAGS_RECORD: ModelTagsSettings = {};
 export const DEFAULT_BASH_INTERCEPTOR_RULES: BashInterceptorRule[] = [
 	{
@@ -320,7 +276,6 @@ export const SETTINGS_SCHEMA = {
 	// ────────────────────────────────────────────────────────────────────────
 	// General settings (no UI)
 	// ────────────────────────────────────────────────────────────────────────
-	setupVersion: { type: "number", default: 0 },
 
 	// Auth broker — credentials proxied through a remote `amaze auth-broker serve`
 	// host. Hidden from the UI; populate via env vars or hand-edited config.yml.
@@ -334,7 +289,7 @@ export const SETTINGS_SCHEMA = {
 		default: false,
 		ui: {
 			tab: "interaction",
-			group: "Startup & Updates",
+			group: "Startup",
 			label: "Auto Resume",
 			description: "Automatically resume the most recent session in the current directory",
 		},
@@ -1391,49 +1346,9 @@ export const SETTINGS_SCHEMA = {
 		default: false,
 		ui: {
 			tab: "interaction",
-			group: "Startup & Updates",
+			group: "Startup",
 			label: "Quiet Startup",
 			description: "Skip welcome screen and startup status messages",
-		},
-	},
-
-	"startup.showSplash": {
-		type: "boolean",
-		default: false,
-		ui: {
-			tab: "interaction",
-			group: "Startup & Updates",
-			label: "Show Startup Splash",
-			description:
-				"Show the full animated setup splash on normal interactive startup without rerunning setup. Quiet Startup still suppresses it.",
-		},
-	},
-
-	"startup.setupWizard": {
-		type: "boolean",
-		default: true,
-		ui: {
-			tab: "interaction",
-			group: "Startup & Updates",
-			label: "Setup Wizard",
-			description: "Show newly added onboarding steps once per setup version",
-		},
-	},
-
-	"marketplace.autoUpdate": {
-		type: "enum",
-		values: ["off", "notify", "auto"] as const,
-		default: "notify",
-		ui: {
-			tab: "interaction",
-			group: "Startup & Updates",
-			label: "Marketplace Auto-Update",
-			description: "Check for plugin updates on startup",
-			options: [
-				{ value: "off", label: "Off", description: "Don't check for plugin updates" },
-				{ value: "notify", label: "Notify", description: "Check on startup and notify when updates are available" },
-				{ value: "auto", label: "Auto", description: "Check on startup and auto-install updates" },
-			],
 		},
 	},
 
@@ -1521,95 +1436,6 @@ export const SETTINGS_SCHEMA = {
 			group: "Notifications",
 			label: "Ask Notification",
 			description: "Notify when the ask tool is waiting for input",
-		},
-	},
-
-	// Collab
-	"collab.relayUrl": {
-		type: "string",
-		default: DEFAULT_RELAY_URL,
-		ui: {
-			tab: "interaction",
-			group: "Collab",
-			label: "Relay URL",
-			description: "Relay used by /collab (wss://host[:port])",
-		},
-	},
-
-	"collab.webUrl": {
-		type: "string",
-		default: "",
-		ui: {
-			tab: "interaction",
-			group: "Collab",
-			label: "Web UI URL",
-			description:
-				"Browser UI used by /collab links; empty derives from collab.relayUrl; explicit http:// is localhost-only",
-		},
-	},
-
-	"collab.displayName": {
-		type: "string",
-		default: "",
-		ui: {
-			tab: "interaction",
-			group: "Collab",
-			label: "Display Name",
-			description: "Name shown to other collab participants (default: OS username)",
-		},
-	},
-
-	"share.serverUrl": {
-		type: "string",
-		default: DEFAULT_SHARE_URL,
-		ui: {
-			tab: "interaction",
-			group: "Collab",
-			label: "Share Server",
-			description:
-				"Share viewer/upload base used by /share (encrypted blob upload + viewer; links are <base>/<id>#<key>)",
-		},
-	},
-
-	"share.redactSecrets": {
-		type: "boolean",
-		default: true,
-		ui: {
-			tab: "interaction",
-			group: "Collab",
-			label: "Share Secret Redaction",
-			description: "Run the secret obfuscator over /share snapshots before upload (uses the secrets.* config)",
-		},
-	},
-
-	// Speech-to-text
-	"stt.enabled": {
-		type: "boolean",
-		default: false,
-		ui: {
-			tab: "interaction",
-			group: "Speech",
-			label: "Speech-to-Text",
-			description: "Enable speech-to-text input via microphone",
-		},
-	},
-
-	"stt.language": {
-		type: "string",
-		default: "en",
-	},
-
-	"stt.modelName": {
-		type: "enum",
-		values: STT_MODEL_VALUES,
-		default: DEFAULT_STT_MODEL_KEY,
-		ui: {
-			tab: "interaction",
-			group: "Speech",
-			label: "Speech Model",
-			description:
-				"Local on-device speech model. Parakeet TDT v3 (sherpa-onnx) is the SoTA default; Whisper base/small/large-v3-turbo tiers (transformers.js) trade size for multilingual coverage. Downloaded on first use.",
-			options: STT_MODEL_OPTIONS,
 		},
 	},
 
@@ -2033,37 +1859,6 @@ export const SETTINGS_SCHEMA = {
 
 	"branchSummary.reserveTokens": { type: "number", default: 16384 },
 
-	"rocky.apiUrl": {
-		type: "string",
-		default: "http://127.0.0.1:7777",
-		ui: {
-			tab: "memory",
-			group: "Rocky",
-			label: "Rocky API URL",
-			description: "Local Rocky API base URL used for codebase context",
-		},
-	},
-	"rocky.projectPath": {
-		type: "string",
-		default: undefined,
-		ui: {
-			tab: "memory",
-			group: "Rocky",
-			label: "Rocky Project Path",
-			description: "Project path Rocky should use for scoped codebase search. Defaults to the current cwd.",
-		},
-	},
-	"rocky.timeoutMs": {
-		type: "number",
-		default: 30000,
-		ui: {
-			tab: "memory",
-			group: "Rocky",
-			label: "Rocky Timeout",
-			description: "HTTP timeout in milliseconds for Rocky codebase calls",
-		},
-	},
-
 	// Auto-Learn (experimental): post-stop nudge to capture lessons and
 	// mint/enhance isolated managed skills under ~/.amaze/agent/managed-skills.
 	// Master flag is default-off → zero footprint; sub-flags gate behaviour.
@@ -2468,28 +2263,11 @@ export const SETTINGS_SCHEMA = {
 		default: undefined,
 	},
 
-	// Eval (per-backend toggles; add more as new backends ship, e.g. eval.ts)
-	"eval.py": {
-		type: "boolean",
-		default: true,
-		ui: {
-			tab: "shell",
-			group: "Eval & Python",
-			label: "Python Eval Backend",
-			description: "Allow the eval tool to dispatch Python cells to the IPython kernel",
-		},
-	},
+	// Removed eval tool legacy switches. Kept as hidden compatibility keys for
+	// existing config files and extension code that reads them.
+	"eval.py": { type: "boolean", default: false },
 
-	"eval.js": {
-		type: "boolean",
-		default: true,
-		ui: {
-			tab: "shell",
-			group: "Eval & Python",
-			label: "JavaScript Eval Backend",
-			description: "Allow the eval tool to dispatch JavaScript cells to the in-process runtime",
-		},
-	},
+	"eval.js": { type: "boolean", default: false },
 
 	// Python kernel knobs (consumed by the eval py backend and the /python slash command)
 	"python.kernelMode": {
@@ -2712,28 +2490,6 @@ export const SETTINGS_SCHEMA = {
 	},
 
 	// Optional tools
-
-	"debug.enabled": {
-		type: "boolean",
-		default: true,
-		ui: {
-			tab: "tools",
-			group: "Available Tools",
-			label: "Debug",
-			description: "Enable the debug tool for DAP-based debugging",
-		},
-	},
-
-	"speechgen.enabled": {
-		type: "boolean",
-		default: false,
-		ui: {
-			tab: "tools",
-			group: "Available Tools",
-			label: "Speech Generation",
-			description: "Enable the tts tool for on-device (Kokoro) or xAI Grok Voice speech-file synthesis",
-		},
-	},
 
 	"inspect_image.enabled": {
 		type: "boolean",
@@ -3320,7 +3076,7 @@ export const SETTINGS_SCHEMA = {
 			group: "Subagents",
 			label: "Soft Subagent Request Budget",
 			description:
-				"Soft per-subagent request budget (assistant requests per run). Crossing it injects one steering notice asking the subagent to wrap up; at 1.5x the budget the run is aborted gracefully, salvaging partial output. 0 disables the guard. Bundled finder/fixer/helper agents use a lower built-in budget.",
+				"Soft per-subagent request budget (assistant requests per run). Crossing it injects one steering notice asking the subagent to wrap up; at 1.5x the budget is aborted gracefully, salvaging partial output. 0 disables the guard. Bundled local/flash/spark agents use a lower built-in budget.",
 			options: [
 				{ value: "0", label: "Disabled" },
 				{ value: "40", label: "40 requests" },
@@ -3404,6 +3160,8 @@ export const SETTINGS_SCHEMA = {
 	"skills.ignoredSkills": { type: "array", default: [] as string[] },
 
 	"skills.includeSkills": { type: "array", default: [] as string[] },
+
+	"skills.searchOnly": { type: "boolean", default: false },
 
 	// Commands
 	"commands.enableClaudeUser": {
@@ -3517,37 +3275,6 @@ export const SETTINGS_SCHEMA = {
 			],
 		},
 	},
-	"providers.image": {
-		type: "enum",
-		values: ["auto", "openai", "antigravity", "xai", "gemini", "openrouter"] as const,
-		default: "auto",
-		ui: {
-			tab: "providers",
-			group: "Services",
-			label: "Image Provider",
-			description: "Preferred provider for image generation",
-			options: [
-				{
-					value: "auto",
-					label: "Auto",
-					description: "Priority: GPT model image tool > Antigravity > xAI > OpenRouter > Gemini",
-				},
-				{ value: "openai", label: "OpenAI", description: "Uses the active GPT Responses/Codex model" },
-				{
-					value: "antigravity",
-					label: "Antigravity",
-					description: "Requires google-antigravity OAuth",
-				},
-				{
-					value: "xai",
-					label: "xAI Grok Imagine",
-					description: "Requires xAI Grok OAuth or XAI_API_KEY",
-				},
-				{ value: "gemini", label: "Gemini", description: "Requires GEMINI_API_KEY" },
-				{ value: "openrouter", label: "OpenRouter", description: "Requires OPENROUTER_API_KEY" },
-			],
-		},
-	},
 	"providers.fireworksTier": {
 		type: "enum",
 		values: ["standard", "priority"] as const,
@@ -3568,144 +3295,24 @@ export const SETTINGS_SCHEMA = {
 			],
 		},
 	},
-	"providers.tts": {
-		type: "enum",
-		values: ["auto", "local", "xai"] as const,
-		default: "auto",
-		ui: {
-			tab: "providers",
-			group: "Services",
-			label: "Text-to-Speech Provider",
-			description: "Backend for the tts tool: local on-device neural TTS (Kokoro-82M) or xAI Grok Voice",
-			options: [
-				{
-					value: "auto",
-					label: "Auto",
-					description: "Prefer local on-device TTS; route .mp3 output to xAI when credentials exist",
-				},
-				{ value: "local", label: "Local", description: "On-device neural TTS (Kokoro-82M); output is WAV/PCM16" },
-				{
-					value: "xai",
-					label: "xAI Grok Voice",
-					description: "Requires xAI Grok OAuth or XAI_API_KEY; MP3 or WAV",
-				},
-			],
-		},
-	},
-	"tts.localModel": {
-		type: "enum",
-		values: TTS_LOCAL_MODEL_VALUES,
-		default: DEFAULT_TTS_LOCAL_MODEL_KEY,
-		ui: {
-			tab: "providers",
-			group: "Services",
-			label: "Local TTS Model",
-			description: "On-device neural TTS model (Kokoro-82M) used by the local TTS backend",
-			options: TTS_LOCAL_MODEL_OPTIONS,
-		},
-	},
-	"tts.localVoice": {
-		type: "enum",
-		values: TTS_LOCAL_VOICE_VALUES,
-		default: DEFAULT_TTS_VOICE,
-		ui: {
-			tab: "providers",
-			group: "Services",
-			label: "Local TTS Voice",
-			description: "Kokoro voice used by the local TTS backend (American/British, female/male)",
-			options: TTS_LOCAL_VOICE_OPTIONS,
-		},
-	},
-	"speech.enabled": {
-		type: "boolean",
-		default: false,
-		ui: {
-			tab: "providers",
-			group: "Services",
-			label: "Speech Vocalization",
-			description: "Speak the assistant's output aloud through the speakers as it streams",
-		},
-	},
-	"speech.mode": {
-		type: "enum",
-		values: ["all", "assistant", "yield"] as const,
-		default: "assistant",
-		ui: {
-			tab: "providers",
-			group: "Services",
-			label: "Speech Vocalization Mode",
-			description:
-				"What to speak: all = assistant messages + thinking; assistant = messages only; yield = only the final message at turn end",
-			options: [
-				{ value: "all", label: "All (messages + thinking)" },
-				{ value: "assistant", label: "Assistant messages" },
-				{ value: "yield", label: "Final message only" },
-			],
-		},
-	},
-	"speech.voice": {
-		type: "enum",
-		values: TTS_LOCAL_VOICE_VALUES,
-		default: DEFAULT_TTS_VOICE,
-		ui: {
-			tab: "providers",
-			group: "Services",
-			label: "Speech Vocalization Voice",
-			description: "Kokoro voice used when speaking the assistant's output aloud",
-			options: TTS_LOCAL_VOICE_OPTIONS,
-		},
-	},
-	"providers.tinyModel": {
-		type: "enum",
-		values: TINY_TITLE_MODEL_VALUES,
-		default: ONLINE_TINY_TITLE_MODEL_KEY,
-		ui: {
-			tab: "providers",
-			group: "Tiny Model",
-			label: "Tiny Model",
-			description: "Session-title model: online pi/smol by default, or a local on-device model",
-			options: TINY_TITLE_MODEL_OPTIONS,
-		},
-	},
-	"providers.tinyModelDevice": {
-		type: "enum",
-		values: TINY_MODEL_DEVICE_SETTING_VALUES,
-		default: TINY_MODEL_DEVICE_DEFAULT,
-		ui: {
-			tab: "providers",
-			group: "Tiny Model",
-			label: "Tiny Model Device",
-			description:
-				"ONNX execution provider for local tiny models (titles + memory). Default uses CPU-only inference. The PI_TINY_DEVICE env var overrides this.",
-			options: TINY_MODEL_DEVICE_SETTING_OPTIONS,
-		},
-	},
-	"providers.tinyModelDtype": {
-		type: "enum",
-		values: TINY_MODEL_DTYPE_SETTING_VALUES,
-		default: TINY_MODEL_DTYPE_DEFAULT,
-		ui: {
-			tab: "providers",
-			group: "Tiny Model",
-			label: "Tiny Model Precision",
-			description:
-				"ONNX quantization/precision for local tiny models. Default uses each model's shipped dtype (q4); lower precision is faster, higher is more faithful. The PI_TINY_DTYPE env var overrides this.",
-			options: TINY_MODEL_DTYPE_SETTING_OPTIONS,
-		},
-	},
 
 	"providers.autoThinkingModel": {
 		type: "enum",
-		values: AUTO_THINKING_MODEL_VALUES,
-		default: ONLINE_AUTO_THINKING_MODEL_KEY,
+		values: ["online"] as const,
+		default: "online",
 		ui: {
 			tab: "model",
 			group: "Thinking",
 			label: "Auto Thinking Model",
-			description:
-				"Difficulty classifier for the `auto` thinking level: online smol by default, or a local on-device model",
+			description: "Difficulty classifier for the `auto` thinking level using the online flash lane.",
 			condition: "autoThinkingActive",
-			options: AUTO_THINKING_MODEL_OPTIONS,
+			options: [
+				{
+					value: "online",
+					label: "Online (flash)",
+					description: "Classify prompt difficulty with the configured online flash lane.",
+				},
+			],
 		},
 	},
 	"features.unexpectedStopDetection": {
@@ -3721,15 +3328,17 @@ export const SETTINGS_SCHEMA = {
 	},
 	"providers.unexpectedStopModel": {
 		type: "enum",
-		values: TINY_MEMORY_MODEL_VALUES,
-		default: ONLINE_MEMORY_MODEL_KEY,
+		values: ["online"] as const,
+		default: "online",
 		ui: {
 			tab: "providers",
-			group: "Tiny Model",
+			group: "Services",
 			label: "Unexpected Stop Model",
-			description: "Classifier for unexpected-stop detection: online smol by default, or a local on-device model.",
+			description: "Classifier for unexpected-stop detection using the online flash lane.",
 			condition: "unexpectedStopDetection",
-			options: TINY_MEMORY_MODEL_OPTIONS,
+			options: [
+				{ value: "online", label: "Online (flash/remote)", description: "Use the configured online flash lane" },
+			],
 		},
 	},
 
@@ -4256,6 +3865,14 @@ export interface SkillsSettings {
 	ignoredSkills?: string[];
 	includeSkills?: string[];
 	disabledExtensions?: string[];
+	/**
+	 * Search-only mode: render no authored skill catalog into the system prompt.
+	 * Circle-managed skills are discovered via skill_search / skill_get (and
+	 * skill:// for explicit fetches); the manage-skill bootstrap survives to point
+	 * the model at those tools. Circle's flat registry and legacy managed-skills
+	 * are not preloaded regardless of this flag.
+	 */
+	searchOnly?: boolean;
 }
 
 export interface CommitSettings {
@@ -4303,13 +3920,6 @@ export interface ThinkingBudgetsSettings {
 	xhigh: number;
 }
 
-export interface SttSettings {
-	enabled: boolean;
-	language: string | undefined;
-	modelName: string;
-	streaming: boolean;
-}
-
 export interface BashInterceptorRule {
 	pattern: string;
 	flags?: string;
@@ -4348,7 +3958,6 @@ export interface GroupTypeMap {
 	exa: ExaSettings;
 	statusLine: StatusLineSettings;
 	thinkingBudgets: ThinkingBudgetsSettings;
-	stt: SttSettings;
 	modelRoles: Record<string, string>;
 	modelTags: ModelTagsSettings;
 	cycleOrder: string[];

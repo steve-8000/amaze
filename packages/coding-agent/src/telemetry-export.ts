@@ -1,7 +1,7 @@
 /**
  * OTLP trace export bootstrap.
  *
- * amaze-agent's agent core (`@amaze/pi-agent-core`) emits OpenTelemetry GenAI
+ * amaze-agent's agent core (`@steve-z8k/pi-agent-core`) emits OpenTelemetry GenAI
  * spans through the global `@opentelemetry/api` tracer, but only when a
  * TracerProvider is registered in the process — otherwise the API returns a
  * no-op tracer and the spans are silently dropped. The shipped CLI never
@@ -22,8 +22,9 @@
  * after the success path. `exporter-trace-otlp-proto@0.218` paired with
  * `sdk-trace-base@2.7` exports cleanly on Bun.
  */
-import { logger, postmortem } from "@amaze/pi-utils";
+
 import type * as TraceNode from "@opentelemetry/sdk-trace-node";
+import { logger, postmortem } from "@steve-z8k/pi-utils";
 
 /**
  * Periodic flush interval. A long-lived `amaze` process (the ACP server is

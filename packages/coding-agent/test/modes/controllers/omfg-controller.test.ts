@@ -2,13 +2,13 @@ import { afterEach, beforeAll, describe, expect, it, type Mock, vi } from "bun:t
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentMessage } from "@amaze/pi-agent-core";
-import type { AssistantMessage, Usage } from "@amaze/pi-ai";
-import type { Rule } from "@amaze/pi-coding-agent/capability/rule";
-import { OmfgController } from "@amaze/pi-coding-agent/modes/controllers/omfg-controller";
-import { initTheme } from "@amaze/pi-coding-agent/modes/theme/theme";
-import type { InteractiveModeContext } from "@amaze/pi-coding-agent/modes/types";
-import { Container, type TUI } from "@amaze/pi-tui";
+import type { AgentMessage } from "@steve-z8k/pi-agent-core";
+import type { AssistantMessage, Usage } from "@steve-z8k/pi-ai";
+import type { Rule } from "@steve-z8k/pi-coding-agent/capability/rule";
+import { OmfgController } from "@steve-z8k/pi-coding-agent/modes/controllers/omfg-controller";
+import { initTheme } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
+import type { InteractiveModeContext } from "@steve-z8k/pi-coding-agent/modes/types";
+import { Container, type TUI } from "@steve-z8k/pi-tui";
 
 const PROJECT_OPTION = "This project (.amaze/rules)";
 const GLOBAL_OPTION = "Global — all projects (~/.amaze/agent/rules)";
@@ -70,7 +70,7 @@ function createAssistantMessage(content: AssistantMessage["content"]): Assistant
 		content,
 		api: "anthropic-messages",
 		provider: "anthropic",
-		model: "claude-sonnet-4-5",
+		model: "claude-sonnet-4-6",
 		usage,
 		stopReason: "stop",
 		timestamp: Date.now(),
@@ -127,7 +127,7 @@ async function createHarness(options: HarnessOptions): Promise<Harness> {
 	const showHookConfirm = vi.fn<ShowHookConfirm>(async () => options.confirmResult ?? true);
 	const showHookInput = vi.fn<ShowHookInput>(async () => options.inputChoice);
 	const session = {
-		model: options.hasModel === false ? undefined : { provider: "anthropic", id: "claude-sonnet-4-5" },
+		model: options.hasModel === false ? undefined : { provider: "anthropic", id: "claude-sonnet-4-6" },
 		runEphemeralTurn: options.runEphemeralTurn,
 		messages: options.messages ?? [],
 		ttsrManager: { addRule: ttsrAddRule },

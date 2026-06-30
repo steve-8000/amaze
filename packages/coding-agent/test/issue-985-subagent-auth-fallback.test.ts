@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import type { Api, Model } from "@amaze/pi-ai";
-import { buildModel } from "@amaze/pi-catalog/build";
-import { kNoAuth } from "@amaze/pi-coding-agent/config/model-registry";
+import type { Api, Model } from "@steve-z8k/pi-ai";
+import { buildModel } from "@steve-z8k/pi-catalog/build";
+import { kNoAuth } from "@steve-z8k/pi-coding-agent/config/model-registry";
 import {
 	type ModelLookupRegistry,
 	resolveModelOverrideWithAuthFallback,
-} from "@amaze/pi-coding-agent/config/model-resolver";
+} from "@steve-z8k/pi-coding-agent/config/model-resolver";
 
 /**
  * Regression test for #985.
@@ -22,7 +22,7 @@ import {
  */
 
 const parentModel: Model<Api> = buildModel({
-	id: "deepseek-v4-pro",
+	id: "gpt-5.4",
 	name: "DeepSeek V4 Pro",
 	api: "openai-completions",
 	provider: "deepseek",
@@ -82,15 +82,11 @@ describe("issue #985: subagent dispatch auth fallback", () => {
 			authedProviders: new Set(["deepseek"]), // user has DeepSeek; opencode-zen unauthed
 		});
 
-		const result = await resolveModelOverrideWithAuthFallback(
-			["qwen3.6-plus-free"],
-			"deepseek/deepseek-v4-pro",
-			registry,
-		);
+		const result = await resolveModelOverrideWithAuthFallback(["qwen3.6-plus-free"], "deepseek/gpt-5.4", registry);
 
 		expect(result.authFallbackUsed).toBe(true);
 		expect(result.model?.provider).toBe("deepseek");
-		expect(result.model?.id).toBe("deepseek-v4-pro");
+		expect(result.model?.id).toBe("gpt-5.4");
 	});
 
 	test("does not fall back when resolved subagent model has working auth", async () => {
@@ -99,11 +95,7 @@ describe("issue #985: subagent dispatch auth fallback", () => {
 			authedProviders: new Set(["deepseek", "opencode-zen"]),
 		});
 
-		const result = await resolveModelOverrideWithAuthFallback(
-			["qwen3.6-plus-free"],
-			"deepseek/deepseek-v4-pro",
-			registry,
-		);
+		const result = await resolveModelOverrideWithAuthFallback(["qwen3.6-plus-free"], "deepseek/gpt-5.4", registry);
 
 		expect(result.authFallbackUsed).toBe(false);
 		expect(result.model?.provider).toBe("opencode-zen");
@@ -116,11 +108,7 @@ describe("issue #985: subagent dispatch auth fallback", () => {
 			authedProviders: new Set(), // nothing authed
 		});
 
-		const result = await resolveModelOverrideWithAuthFallback(
-			["qwen3.6-plus-free"],
-			"deepseek/deepseek-v4-pro",
-			registry,
-		);
+		const result = await resolveModelOverrideWithAuthFallback(["qwen3.6-plus-free"], "deepseek/gpt-5.4", registry);
 
 		expect(result.authFallbackUsed).toBe(false);
 		expect(result.model?.provider).toBe("opencode-zen");
@@ -166,11 +154,7 @@ describe("issue #985: subagent dispatch auth fallback", () => {
 			},
 		} as never;
 
-		const result = await resolveModelOverrideWithAuthFallback(
-			["qwen3.6-plus-free"],
-			"deepseek/deepseek-v4-pro",
-			registry,
-		);
+		const result = await resolveModelOverrideWithAuthFallback(["qwen3.6-plus-free"], "deepseek/gpt-5.4", registry);
 
 		expect(result.authFallbackUsed).toBe(false);
 		expect(result.model?.provider).toBe("opencode-zen");

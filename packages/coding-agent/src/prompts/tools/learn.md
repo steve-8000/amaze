@@ -4,6 +4,6 @@ Use after solving something whose insight will pay off again: a non-obvious fix,
 
 `skill` is required. Use it to create or update the managed skill that should preserve the lesson. If `skill.body` is omitted, the lesson text becomes the generated `SKILL.md` body (with optional context added).
 
-Managed skills are written through Rocky MCP into Rocky's canonical skill store (`ROCKY_SKILLS_DIR` or `~/.rocky/skills`). They do not write Amaze's legacy `~/.amaze/agent/managed-skills` store.
+Managed skills are written through the Circle skill backend into Circle's canonical skill store. They do not write Amaze's legacy `~/.amaze/agent/managed-skills` store.
 
 Capture sparingly and specifically. One strong, reusable lesson beats several vague ones.

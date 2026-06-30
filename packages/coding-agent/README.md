@@ -1,10 +1,10 @@
-# @amaze/pi-coding-agent
+# @steve-z8k/pi-coding-agent
 
 Core implementation package for the `amaze` coding agent in the `amaze-agent` monorepo.
 
 For installation, setup, provider configuration, model roles, slash commands, and full CLI reference, see:
 - [Monorepo README (local)](../../README.md)
-- [Monorepo README (GitHub)](https://github.com/can1357/amaze-agent#readme)
+- [Monorepo README (GitHub)](https://github.com/steve-8000/amaze#readme)
 
 Package-specific references:
 - [CHANGELOG](./CHANGELOG.md)

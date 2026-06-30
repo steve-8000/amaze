@@ -8,18 +8,18 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Agent, type AgentTool } from "@amaze/pi-agent-core";
-import { type Api, Effort, type Model } from "@amaze/pi-ai";
-import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
-import type { PromptTemplate } from "@amaze/pi-coding-agent/config/prompt-templates";
-import { resetSettingsForTest, Settings } from "@amaze/pi-coding-agent/config/settings";
-import { InteractiveMode } from "@amaze/pi-coding-agent/modes/interactive-mode";
-import { initTheme } from "@amaze/pi-coding-agent/modes/theme/theme";
-import { AgentSession } from "@amaze/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import type { AutocompleteProvider } from "@amaze/pi-tui";
-import { TempDir } from "@amaze/pi-utils";
+import { Agent, type AgentTool } from "@steve-z8k/pi-agent-core";
+import { type Api, Effort, type Model } from "@steve-z8k/pi-ai";
+import { ModelRegistry } from "@steve-z8k/pi-coding-agent/config/model-registry";
+import type { PromptTemplate } from "@steve-z8k/pi-coding-agent/config/prompt-templates";
+import { resetSettingsForTest, Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { InteractiveMode } from "@steve-z8k/pi-coding-agent/modes/interactive-mode";
+import { initTheme } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
+import { AgentSession } from "@steve-z8k/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@steve-z8k/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import type { AutocompleteProvider } from "@steve-z8k/pi-tui";
+import { TempDir } from "@steve-z8k/pi-utils";
 import { type } from "arktype";
 
 function makeTool(name: string): AgentTool {
@@ -62,7 +62,7 @@ describe("InteractiveMode prompt-template autocomplete (#2462)", () => {
 		// ModelRegistry (bundled-model load) and the resolved model are immutable across
 		// these tests, so build them once rather than per test.
 		registry = new ModelRegistry(authStorage, path.join(tempDir.path(), "models.yml"));
-		model = modelOrThrow(registry, "claude-sonnet-4-5");
+		model = modelOrThrow(registry, "claude-sonnet-4-6");
 		tools = [makeTool("read")];
 	});
 

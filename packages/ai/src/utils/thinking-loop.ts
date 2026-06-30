@@ -32,7 +32,7 @@
  * it instead of committing the runaway transcript. Disable with
  * `PI_NO_THINKING_LOOP_GUARD=1`.
  */
-import { logger } from "@amaze/pi-utils";
+import { logger } from "@steve-z8k/pi-utils";
 import type { Api, AssistantMessage, Model, StreamOptions } from "../types";
 import { AssistantMessageEventStream } from "./event-stream";
 

@@ -1,6 +1,6 @@
 {
 	"type": "module",
-	"name": "@amaze/swarm-extension",
+	"name": "@steve-z8k/swarm-extension",
 	"version": "3.1.0",
 	"description": "Swarm orchestration extension for amaze",
 	"homepage": "https://amaze",
@@ -8,11 +8,11 @@
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/can1357/amaze-agent.git",
+		"url": "git+https://github.com/steve-8000/amaze.git",
 		"directory": "packages/swarm-extension"
 	},
 	"bugs": {
-		"url": "https://github.com/can1357/amaze-agent/issues"
+		"url": "https://github.com/steve-8000/amaze/issues"
 	},
 	"keywords": [
 		"swarm",
@@ -31,13 +31,13 @@
 		"fmt": "biome format --write ."
 	},
 	"dependencies": {
-		"@amaze/pi-utils": "workspace:*"
+		"@steve-z8k/pi-utils": "workspace:*"
 	},
 	"devDependencies": {
 		"@types/bun": "^1.3.14"
 	},
 	"peerDependencies": {
-		"@amaze/pi-coding-agent": "^3.1.0"
+		"@steve-z8k/pi-coding-agent": "^3.1.0"
 	},
 	"engines": {
 		"bun": ">=1.3.14"

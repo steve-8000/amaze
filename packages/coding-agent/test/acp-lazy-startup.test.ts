@@ -10,14 +10,14 @@ import {
 	type RequestPermissionResponse,
 	type SessionNotification,
 } from "@agentclientprotocol/sdk";
-import type { Model } from "@amaze/pi-ai";
-import { buildModel } from "@amaze/pi-catalog/build";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import { createAcpConnection } from "@amaze/pi-coding-agent/modes/acp/acp-mode";
-import type { AgentSession } from "@amaze/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import { TempDir } from "@amaze/pi-utils";
+import type { Model } from "@steve-z8k/pi-ai";
+import { buildModel } from "@steve-z8k/pi-catalog/build";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { createAcpConnection } from "@steve-z8k/pi-coding-agent/modes/acp/acp-mode";
+import type { AgentSession } from "@steve-z8k/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@steve-z8k/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import { TempDir } from "@steve-z8k/pi-utils";
 
 const TEST_MODEL: Model = buildModel({
 	id: "claude-sonnet-4-20250514",
@@ -157,7 +157,7 @@ async function closeTransport(writable: WritableStream<unknown>): Promise<void> 
 
 describe("ACP lazy startup", () => {
 	it("applies schema defaults for ACP background jobs and preserves explicit overrides", async () => {
-		const { runRootCommand } = await import("@amaze/pi-coding-agent/main");
+		const { runRootCommand } = await import("@steve-z8k/pi-coding-agent/main");
 
 		type ObservedBackgroundSettings = {
 			asyncEnabled: boolean;
@@ -242,7 +242,7 @@ describe("ACP lazy startup", () => {
 	});
 
 	it("default-disables advisor for protocol hosts", async () => {
-		const { runRootCommand } = await import("@amaze/pi-coding-agent/main");
+		const { runRootCommand } = await import("@steve-z8k/pi-coding-agent/main");
 
 		type ObservedAdvisorSettings = {
 			enabled: boolean;
@@ -327,7 +327,7 @@ describe("ACP lazy startup", () => {
 	});
 
 	it("honors explicit todo settings for protocol hosts", async () => {
-		const { runRootCommand } = await import("@amaze/pi-coding-agent/main");
+		const { runRootCommand } = await import("@steve-z8k/pi-coding-agent/main");
 
 		type ObservedTodoSettings = {
 			enabled: boolean;
@@ -477,9 +477,9 @@ describe("ACP lazy startup", () => {
 
 		const authStorage = await AuthStorage.create(path.join(cwd, "auth.db"));
 		try {
-			const settings = Settings.isolated({ "marketplace.autoUpdate": "off" });
-			const { runRootCommand } = await import("@amaze/pi-coding-agent/main");
-			const { createAgentSession } = await import("@amaze/pi-coding-agent/sdk");
+			const settings = Settings.isolated();
+			const { runRootCommand } = await import("@steve-z8k/pi-coding-agent/main");
+			const { createAgentSession } = await import("@steve-z8k/pi-coding-agent/sdk");
 			let session: AgentSession | undefined;
 
 			const stopped = runRootCommand(

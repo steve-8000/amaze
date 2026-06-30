@@ -13,12 +13,12 @@
  *      generator regenerates.
  */
 import { describe, expect, it } from "bun:test";
-import { getBundledModel } from "@amaze/pi-catalog/models";
+import { getBundledModel } from "@steve-z8k/pi-catalog/models";
 import {
 	clampFireworksKimiMaxTokens,
 	FIREWORKS_KIMI_MAX_TOKENS,
 	isFireworksKimiK2ModelId,
-} from "@amaze/pi-catalog/provider-models/openai-compat";
+} from "@steve-z8k/pi-catalog/provider-models/openai-compat";
 
 describe("Fireworks Kimi K2 maxTokens cap (#1849)", () => {
 	it("recognizes Kimi K2.x public and wire ids", () => {

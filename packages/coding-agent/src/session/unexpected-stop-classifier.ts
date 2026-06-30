@@ -1,12 +1,12 @@
-import { type AssistantMessage, completeSimple } from "@amaze/pi-ai";
-import { logger, prompt } from "@amaze/pi-utils";
+import { type AssistantMessage, completeSimple } from "@steve-z8k/pi-ai";
+import { logger, prompt } from "@steve-z8k/pi-utils";
 
 import type { ModelRegistry } from "../config/model-registry";
 import { resolveRoleSelection } from "../config/model-resolver";
 import type { Settings } from "../config/settings";
 import unexpectedStopClassifierPrompt from "../prompts/system/unexpected-stop-classifier.md" with { type: "text" };
-import { isTinyMemoryLocalModelKey, ONLINE_MEMORY_MODEL_KEY } from "../tiny/models";
-import { tinyModelClient } from "../tiny/title-client";
+
+const ONLINE_MEMORY_MODEL_KEY = "online";
 
 const CLASSIFIER_SYSTEM_PROMPT = prompt.render(unexpectedStopClassifierPrompt);
 
@@ -47,13 +47,10 @@ export async function classifyUnexpectedStop(
 ): Promise<boolean | undefined> {
 	const backend = deps.settings.get("providers.unexpectedStopModel");
 	try {
-		if (backend === ONLINE_MEMORY_MODEL_KEY) {
-			return await classifyOnline(text, deps);
+		if (backend !== ONLINE_MEMORY_MODEL_KEY) {
+			return undefined;
 		}
-		if (isTinyMemoryLocalModelKey(backend)) {
-			return await classifyLocal(text, backend, deps);
-		}
-		return undefined;
+		return await classifyOnline(text, deps);
 	} catch (error) {
 		logger.debug("unexpected-stop: classification failed", {
 			error: error instanceof Error ? error.message : String(error),
@@ -64,10 +61,10 @@ export async function classifyUnexpectedStop(
 }
 
 async function classifyOnline(text: string, deps: ClassifyUnexpectedStopDeps): Promise<boolean | undefined> {
-	const resolved = resolveRoleSelection(["smol"], deps.settings, deps.registry.getAvailable(), deps.registry);
+	const resolved = resolveRoleSelection(["flash"], deps.settings, deps.registry.getAvailable(), deps.registry);
 	const model = resolved?.model;
 	if (!model) {
-		throw new Error("unexpected-stop: no smol model available for classification");
+		throw new Error("unexpected-stop: no flash model available for classification");
 	}
 	const apiKey = await deps.registry.getApiKey(model, deps.sessionId);
 	if (!apiKey) {
@@ -100,25 +97,6 @@ async function classifyOnline(text: string, deps: ClassifyUnexpectedStopDeps): P
 		.map(part => part.text)
 		.join("\n");
 	return parseUnexpectedStopClassification(outputText);
-}
-
-async function classifyLocal(
-	text: string,
-	modelKey: string,
-	deps: ClassifyUnexpectedStopDeps,
-): Promise<boolean | undefined> {
-	if (!isTinyMemoryLocalModelKey(modelKey)) {
-		throw new Error(`unexpected-stop: unsupported local classifier model: ${modelKey}`);
-	}
-	const builtPrompt = prompt.render(unexpectedStopClassifierPrompt, { message: text });
-	const output = await tinyModelClient.complete(modelKey, builtPrompt, {
-		maxTokens: ANSWER_MAX_TOKENS,
-		signal: deps.signal,
-	});
-	if (!output) {
-		return undefined;
-	}
-	return parseUnexpectedStopClassification(output);
 }
 
 export function parseUnexpectedStopClassification(text: string): boolean | undefined {

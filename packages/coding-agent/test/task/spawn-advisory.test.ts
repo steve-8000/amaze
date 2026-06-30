@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { buildSpecializationAdvisory } from "@amaze/pi-coding-agent/task";
-import type { TaskItem } from "@amaze/pi-coding-agent/task/types";
+import { buildSpecializationAdvisory } from "@steve-z8k/pi-coding-agent/task";
+import type { TaskItem } from "@steve-z8k/pi-coding-agent/task/types";
 
 const item = (role?: string): TaskItem => ({ assignment: "do the thing", role });
 

@@ -1,6 +1,6 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { hostMatchesUrl } from "@amaze/pi-catalog/hosts";
+import { hostMatchesUrl } from "@steve-z8k/pi-catalog/hosts";
 import {
 	type Env,
 	envBool,

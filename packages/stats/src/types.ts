@@ -1,4 +1,4 @@
-import type { AssistantMessage, ServiceTier, StopReason, Usage } from "@amaze/pi-ai";
+import type { AssistantMessage, ServiceTier, StopReason, Usage } from "@steve-z8k/pi-ai";
 
 export * from "./shared-types";
 

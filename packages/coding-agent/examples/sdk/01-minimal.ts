@@ -4,7 +4,7 @@
  * Uses all defaults: discovers skills, hooks, tools, context files
  * from cwd and ~/.amaze/agent. Model chosen from settings or first available.
  */
-import { createAgentSession } from "@amaze/pi-coding-agent";
+import { createAgentSession } from "@steve-z8k/pi-coding-agent";
 
 const { session } = await createAgentSession();
 

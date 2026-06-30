@@ -1,14 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@amaze/pi-agent-core";
-import * as compactionModule from "@amaze/pi-agent-core/compaction";
-import { getBundledModel } from "@amaze/pi-catalog/models";
-import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import { AgentSession } from "@amaze/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import { TempDir } from "@amaze/pi-utils";
+import { Agent } from "@steve-z8k/pi-agent-core";
+import * as compactionModule from "@steve-z8k/pi-agent-core/compaction";
+import { getBundledModel } from "@steve-z8k/pi-catalog/models";
+import { ModelRegistry } from "@steve-z8k/pi-coding-agent/config/model-registry";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { AgentSession } from "@steve-z8k/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@steve-z8k/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import { TempDir } from "@steve-z8k/pi-utils";
 import { assistantMsg, userMsg } from "./utilities";
 
 describe("issue #986 compaction auth fallback", () => {
@@ -32,7 +32,7 @@ describe("issue #986 compaction auth fallback", () => {
 
 	async function createSession(options?: { fallbackModelRole?: string; configureFallbackAuth?: boolean }) {
 		const currentModel = getBundledModel("openai-codex", "gpt-5.4-mini");
-		const fallbackModel = getBundledModel("anthropic", "claude-sonnet-4-5");
+		const fallbackModel = getBundledModel("anthropic", "claude-sonnet-4-6");
 		if (!currentModel || !fallbackModel) {
 			throw new Error("Expected bundled test models to exist");
 		}
@@ -82,7 +82,7 @@ describe("issue #986 compaction auth fallback", () => {
 	}
 
 	it("falls back to an authenticated role model when the current provider returns auth_unavailable", async () => {
-		const { currentModel, fallbackModel } = await createSession({ fallbackModelRole: "smol" });
+		const { currentModel, fallbackModel } = await createSession({ fallbackModelRole: "deep" });
 		const compactSpy = vi.spyOn(compactionModule, "compact").mockImplementation(async (preparation, model) => {
 			if (model.provider === currentModel.provider && model.id === currentModel.id) {
 				throw new Error(
@@ -147,7 +147,7 @@ describe("issue #986 compaction auth fallback", () => {
 		// status-aware detector landed, only the synthetic was caught — a real
 		// 401 from the provider bypassed the fallback and dumped the raw HTTP
 		// body into the UI as "Compaction failed: 401 {...}".
-		const { currentModel, fallbackModel } = await createSession({ fallbackModelRole: "smol" });
+		const { currentModel, fallbackModel } = await createSession({ fallbackModelRole: "deep" });
 		const compactSpy = vi.spyOn(compactionModule, "compact").mockImplementation(async (preparation, model) => {
 			if (model.provider === currentModel.provider && model.id === currentModel.id) {
 				throw Object.assign(

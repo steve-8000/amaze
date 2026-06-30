@@ -1,10 +1,10 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import { KeybindingsManager } from "@amaze/pi-coding-agent/config/keybindings";
-import { CopySelectorComponent } from "@amaze/pi-coding-agent/modes/components/copy-selector";
-import { getThemeByName, setThemeInstance, theme } from "@amaze/pi-coding-agent/modes/theme/theme";
-import type { CopyTarget } from "@amaze/pi-coding-agent/modes/utils/copy-targets";
-import { setKeybindings } from "@amaze/pi-tui";
+import { KeybindingsManager } from "@steve-z8k/pi-coding-agent/config/keybindings";
+import { CopySelectorComponent } from "@steve-z8k/pi-coding-agent/modes/components/copy-selector";
+import { getThemeByName, setThemeInstance, theme } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
+import type { CopyTarget } from "@steve-z8k/pi-coding-agent/modes/utils/copy-targets";
+import { setKeybindings } from "@steve-z8k/pi-tui";
 
 const UP = "\x1b[A";
 const DOWN = "\x1b[B";

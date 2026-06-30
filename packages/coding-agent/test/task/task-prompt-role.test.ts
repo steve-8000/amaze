@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { prompt } from "@amaze/pi-utils";
+import { prompt } from "@steve-z8k/pi-utils";
 import taskDescriptionTemplate from "../../src/prompts/tools/task.md" with { type: "text" };
 
 // Contract: the task tool description the model sees advertises the optional
@@ -29,13 +29,28 @@ describe("task tool description: contract agents", () => {
 		expect(out).toContain("`role`:");
 	});
 
-	it("makes the simple contract roster the routing default", () => {
-		const out = render(true);
-		expect(out).toContain("`thinker`: hard judgment");
-		expect(out).toContain("`coder`: complex implementation");
-		expect(out).toContain("`finder`: read-only investigation");
-		expect(out).toContain("`fixer`: small, clear");
-		expect(out).toContain("`checker`: review");
-		expect(out).toContain("`helper`: cheap summarization");
+	it("makes the four contract-agent roster the routing default", () => {
+		const out = prompt.render(taskDescriptionTemplate, {
+			agents: [
+				{ name: "ultra", description: "highest-capability user-invoked agent", readOnly: false },
+				{ name: "deep", description: "planner and validator", readOnly: false },
+				{ name: "flash", description: "fast sandbox coding worker", readOnly: false },
+				{ name: "spark", description: "github commit and web search specialist", readOnly: false },
+			],
+			spawningDisabled: false,
+			MAX_CONCURRENCY: 32,
+			isolationEnabled: true,
+			batchEnabled: true,
+			asyncEnabled: true,
+			ircEnabled: true,
+		});
+		expect(out).toContain("# ultra");
+		expect(out).toContain("highest-capability user-invoked agent");
+		expect(out).toContain("# deep");
+		expect(out).toContain("# flash");
+		expect(out).toContain("# spark");
+		expect(out).toContain(
+			"complex/risky comparisons SHOULD use `flash` for isolated implementation candidates and `deep` for review, audit, validation, or merge synthesis",
+		);
 	});
 });

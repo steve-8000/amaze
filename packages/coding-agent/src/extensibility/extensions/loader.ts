@@ -4,10 +4,10 @@
 import type * as fs1 from "node:fs";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { ThinkingLevel } from "@amaze/pi-agent-core";
-import type { ImageContent, Model, TextContent, TSchema } from "@amaze/pi-ai";
-import type { KeyId } from "@amaze/pi-tui";
-import { hasFsCode, isEacces, isEnoent, logger } from "@amaze/pi-utils";
+import type { ThinkingLevel } from "@steve-z8k/pi-agent-core";
+import type { ImageContent, Model, TextContent, TSchema } from "@steve-z8k/pi-ai";
+import type { KeyId } from "@steve-z8k/pi-tui";
+import { hasFsCode, isEacces, isEnoent, logger } from "@steve-z8k/pi-utils";
 import { Type } from "arktype";
 import * as zodModule from "zod/v4";
 import { type ExtensionModule, extensionModuleCapability } from "../../capability/extension-module";

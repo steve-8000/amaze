@@ -1,4 +1,4 @@
-import { prompt } from "@amaze/pi-utils";
+import { prompt } from "@steve-z8k/pi-utils";
 import { type } from "arktype";
 import analyzeFilePrompt from "../../../commit/agentic/prompts/analyze-file.md" with { type: "text" };
 import type { CommitAgentState } from "../../../commit/agentic/state";
@@ -63,7 +63,7 @@ export function createAnalyzeFileTool(options: {
 	return {
 		name: "analyze_files",
 		label: "Analyze Files",
-		description: "Spawn finder agents to analyze files.",
+		description: "Spawn spark agents to analyze files for commit-relevant changes.",
 		parameters: analyzeFileSchema,
 		async execute(toolCallId, params, _onUpdate, ctx, signal) {
 			const toolSession = buildToolSession(ctx, options);
@@ -83,7 +83,7 @@ export function createAnalyzeFileTool(options: {
 						related_files: relatedFiles,
 					});
 					const taskParams: TaskParams = {
-						agent: "finder",
+						agent: "spark",
 						id: `AnalyzeFile${index + 1}`,
 						description: `Analyze ${file}`,
 						assignment,

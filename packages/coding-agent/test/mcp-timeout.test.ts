@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, spyOn, test } from "bun:test";
-import { isMCPTimeoutEnabled, resolveMCPTimeoutMs } from "@amaze/pi-coding-agent/mcp/timeout";
-import { logger } from "@amaze/pi-utils";
+import { isMCPTimeoutEnabled, resolveMCPTimeoutMs } from "@steve-z8k/pi-coding-agent/mcp/timeout";
+import { logger } from "@steve-z8k/pi-utils";
 
 const ORIGINAL_TIMEOUT = process.env.OMP_MCP_TIMEOUT_MS;
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { complete } from "@amaze/pi-ai/stream";
-import type { Api, Context, Model, OptionsForApi, Tool } from "@amaze/pi-ai/types";
-import { getBundledModel } from "@amaze/pi-catalog/models";
+import { complete } from "@steve-z8k/pi-ai/stream";
+import type { Api, Context, Model, OptionsForApi, Tool } from "@steve-z8k/pi-ai/types";
+import { getBundledModel } from "@steve-z8k/pi-catalog/models";
 import { type } from "arktype";
 import { e2eApiKey, resolveApiKey } from "./oauth";
 

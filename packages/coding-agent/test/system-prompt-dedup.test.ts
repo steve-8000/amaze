@@ -7,7 +7,7 @@ import {
 	loadProjectContextFiles,
 	loadSystemPromptFiles,
 	type SystemPromptToolMetadata,
-} from "@amaze/pi-coding-agent/system-prompt";
+} from "@steve-z8k/pi-coding-agent/system-prompt";
 import { cleanupTempHome } from "./helpers/temp-home-cleanup";
 
 function escapeRegExp(text: string): string {
@@ -21,6 +21,26 @@ const READ_TOOL = new Map<string, SystemPromptToolMetadata>([
 			label: "Read",
 			description: "Reads files from disk.",
 			parameters: { type: "object", properties: { path: { type: "string" } } },
+		},
+	],
+]);
+
+const READ_AND_CIRCLE_MCP_TOOLS = new Map<string, SystemPromptToolMetadata>([
+	...READ_TOOL,
+	[
+		"mcp__circle_graph",
+		{
+			label: "Circle Graph",
+			description: "Search the Circle code knowledge graph.",
+			parameters: { type: "object", properties: { query: { type: "string" } } },
+		},
+	],
+	[
+		"mcp__circle_search",
+		{
+			label: "Circle Search",
+			description: "Graph-augmented code search.",
+			parameters: { type: "object", properties: { pattern: { type: "string" } } },
 		},
 	],
 ]);
@@ -75,6 +95,35 @@ describe("SYSTEM.md prompt assembly", () => {
 		const matches = promptText.match(new RegExp(escapeRegExp(systemPrompt), "g")) ?? [];
 		expect(matches).toHaveLength(1);
 		expect(promptText).toContain('<skill name="focused-work">');
+	});
+
+	it("keeps Circle-first tool policy even when a custom base prompt is provided", async () => {
+		const projectDir = path.join(tempDir, "project");
+		fs.mkdirSync(projectDir, { recursive: true });
+
+		const { systemPrompt } = await buildSystemPrompt({
+			cwd: projectDir,
+			customPrompt: "Project-specific role instructions.",
+			contextFiles: [],
+			skills: [],
+			rules: [],
+			toolNames: ["read", "mcp__circle_graph", "mcp__circle_search"],
+			tools: READ_AND_CIRCLE_MCP_TOOLS,
+			workspaceTree: {
+				rootPath: projectDir,
+				rendered: "",
+				truncated: false,
+				totalLines: 0,
+				agentsMdFiles: [],
+			},
+		});
+
+		const promptText = systemPrompt.join("\n\n");
+		expect(promptText).toContain("Project-specific role instructions.");
+		expect(promptText).toContain("# Circle MCP");
+		expect(promptText).toContain(
+			"When Circle MCP tools are available, use them directly for code intelligence before regex or broad reads",
+		);
 	});
 
 	it("does not resolve already-loaded prompt text as a path", async () => {

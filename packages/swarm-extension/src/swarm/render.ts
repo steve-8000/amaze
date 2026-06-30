@@ -1,7 +1,7 @@
 /**
  * TUI progress rendering for swarm pipeline status.
  */
-import { formatDuration, truncate } from "@amaze/pi-utils";
+import { formatDuration, truncate } from "@steve-z8k/pi-utils";
 import type { AgentState, SwarmState } from "./state";
 
 const STATUS_LABELS: Record<string, string> = {

@@ -1,9 +1,9 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { stripVTControlCharacters } from "node:util";
-import { ThinkingLevel } from "@amaze/pi-agent-core";
-import { type Component, padding, truncateToWidth, visibleWidth } from "@amaze/pi-tui";
-import { formatNumber, getProjectDir } from "@amaze/pi-utils";
+import { ThinkingLevel } from "@steve-z8k/pi-agent-core";
+import { type Component, padding, truncateToWidth, visibleWidth } from "@steve-z8k/pi-tui";
+import { formatNumber, getProjectDir } from "@steve-z8k/pi-utils";
 import { settings } from "../../config/settings";
 import { theme } from "../../modes/theme/theme";
 import type { AgentSession } from "../../session/agent-session";

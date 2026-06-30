@@ -2,10 +2,10 @@ import { Database } from "bun:sqlite";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
-import { formatHashlineHeader, stripHashlinePrefixes } from "@amaze/hashline";
-import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@amaze/pi-agent-core";
-import type { Component } from "@amaze/pi-tui";
-import { isEnoent, isRecord, prompt, untilAborted } from "@amaze/pi-utils";
+import { formatHashlineHeader, stripHashlinePrefixes } from "@steve-z8k/hashline";
+import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@steve-z8k/pi-agent-core";
+import type { Component } from "@steve-z8k/pi-tui";
+import { isEnoent, isRecord, prompt, untilAborted } from "@steve-z8k/pi-utils";
 import { type } from "arktype";
 
 import { canonicalSnapshotKey, getFileSnapshotStore } from "../edit/file-snapshot-store";

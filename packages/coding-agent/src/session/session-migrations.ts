@@ -1,4 +1,4 @@
-import { Snowflake } from "@amaze/pi-utils";
+import { Snowflake } from "@steve-z8k/pi-utils";
 import { type CompactionEntry, CURRENT_SESSION_VERSION, type FileEntry, type SessionHeader } from "./session-entries";
 
 /** Generate a unique short ID (8 hex chars, collision-checked) */

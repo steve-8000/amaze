@@ -18,17 +18,17 @@
  *     follow-up stays queued for the next explicit resume rather than auto-running.
  */
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { Agent, type AgentMessage } from "@amaze/pi-agent-core";
-import { createMockModel, type MockModel, type MockResponse } from "@amaze/pi-ai/providers/mock";
-import { getBundledModel } from "@amaze/pi-catalog/models";
-import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import type { IrcMessage } from "@amaze/pi-coding-agent/irc/bus";
-import { AgentSession } from "@amaze/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
-import { USER_INTERRUPT_LABEL } from "@amaze/pi-coding-agent/session/messages";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import { Snowflake, TempDir } from "@amaze/pi-utils";
+import { Agent, type AgentMessage } from "@steve-z8k/pi-agent-core";
+import { createMockModel, type MockModel, type MockResponse } from "@steve-z8k/pi-ai/providers/mock";
+import { getBundledModel } from "@steve-z8k/pi-catalog/models";
+import { ModelRegistry } from "@steve-z8k/pi-coding-agent/config/model-registry";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import type { IrcMessage } from "@steve-z8k/pi-coding-agent/irc/bus";
+import { AgentSession } from "@steve-z8k/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@steve-z8k/pi-coding-agent/session/auth-storage";
+import { USER_INTERRUPT_LABEL } from "@steve-z8k/pi-coding-agent/session/messages";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import { Snowflake, TempDir } from "@steve-z8k/pi-utils";
 
 const ADVISOR_TYPE = "advisor";
 
@@ -69,7 +69,7 @@ describe("AgentSession advisor auto-resume suppression", () => {
 	 */
 	async function createParkedSession(tailResponses: MockResponse[] = []): Promise<ParkedHarness> {
 		const started = Promise.withResolvers<void>();
-		const model = getBundledModel("anthropic", "claude-sonnet-4-5")!;
+		const model = getBundledModel("anthropic", "claude-sonnet-4-6")!;
 		const mock = createMockModel({
 			responses: [
 				() => {

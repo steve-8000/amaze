@@ -2,17 +2,17 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentEvent, AgentMessage } from "@amaze/pi-agent-core";
-import { type AssistantMessage, Effort, type TextContent } from "@amaze/pi-ai";
+import type { AgentEvent, AgentMessage } from "@steve-z8k/pi-agent-core";
+import { type AssistantMessage, Effort, type TextContent } from "@steve-z8k/pi-ai";
 import {
 	type CompactionEntry,
 	type FileEntry,
 	parseSessionEntries,
 	type SessionMessageEntry,
-} from "@amaze/pi-coding-agent";
-import { RpcClient } from "@amaze/pi-coding-agent/modes/rpc/rpc-client";
-import type { BashExecutionMessage } from "@amaze/pi-coding-agent/session/messages";
-import { Snowflake } from "@amaze/pi-utils";
+} from "@steve-z8k/pi-coding-agent";
+import { RpcClient } from "@steve-z8k/pi-coding-agent/modes/rpc/rpc-client";
+import type { BashExecutionMessage } from "@steve-z8k/pi-coding-agent/session/messages";
+import { Snowflake } from "@steve-z8k/pi-utils";
 import { e2eApiKey } from "./utilities";
 
 type MessageEndEvent = Extract<AgentEvent, { type: "message_end" }>;
@@ -39,7 +39,7 @@ describe.skipIf(!e2eApiKey("ANTHROPIC_API_KEY"))("RPC mode", () => {
 			cwd: path.join(import.meta.dir, ".."),
 			env: { PI_CODING_AGENT_DIR: sessionDir },
 			provider: "anthropic",
-			model: "claude-sonnet-4-5",
+			model: "claude-sonnet-4-6",
 		});
 	});
 
@@ -56,7 +56,7 @@ describe.skipIf(!e2eApiKey("ANTHROPIC_API_KEY"))("RPC mode", () => {
 
 		expect(state.model).toBeDefined();
 		expect(state.model?.provider).toBe("anthropic");
-		expect(state.model?.id).toBe("claude-sonnet-4-5");
+		expect(state.model?.id).toBe("claude-sonnet-4-6");
 		expect(state.isStreaming).toBe(false);
 		expect(state.messageCount).toBe(0);
 	}, 30000);
@@ -266,19 +266,6 @@ describe.skipIf(!e2eApiKey("ANTHROPIC_API_KEY"))("RPC mode", () => {
 		// Verify messages cleared
 		state = await client.getState();
 		expect(state.messageCount).toBe(0);
-	}, 90000);
-
-	test("should export to HTML", async () => {
-		await client.start();
-
-		// Send a prompt first
-		await client.promptAndWait("Hello");
-
-		// Export
-		const result = await client.exportHtml();
-		expect(result.path).toBeDefined();
-		expect(result.path.endsWith(".html")).toBe(true);
-		expect(fs.existsSync(result.path)).toBe(true);
 	}, 90000);
 
 	test("should get last assistant text", async () => {

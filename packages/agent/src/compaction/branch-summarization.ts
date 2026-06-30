@@ -5,9 +5,9 @@
  * a summary of the branch being left so context isn't lost.
  */
 
-import type { ApiKey, Model } from "@amaze/pi-ai";
-import { preferredDialect } from "@amaze/pi-catalog/identity";
-import { prompt } from "@amaze/pi-utils";
+import type { ApiKey, Model } from "@steve-z8k/pi-ai";
+import { preferredDialect } from "@steve-z8k/pi-catalog/identity";
+import { prompt } from "@steve-z8k/pi-utils";
 import { type AgentTelemetry, instrumentedCompleteSimple } from "../telemetry";
 import type { AgentMessage } from "../types";
 import { estimateTokens } from "./compaction";

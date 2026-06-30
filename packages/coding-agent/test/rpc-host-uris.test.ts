@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { InternalUrlRouter } from "@amaze/pi-coding-agent/internal-urls";
-import { parseInternalUrl } from "@amaze/pi-coding-agent/internal-urls/parse";
-import { RpcHostUriBridge } from "@amaze/pi-coding-agent/modes/rpc/host-uris";
-import type { RpcHostUriCancelRequest, RpcHostUriRequest } from "@amaze/pi-coding-agent/modes/rpc/rpc-types";
+import { InternalUrlRouter } from "@steve-z8k/pi-coding-agent/internal-urls";
+import { parseInternalUrl } from "@steve-z8k/pi-coding-agent/internal-urls/parse";
+import { RpcHostUriBridge } from "@steve-z8k/pi-coding-agent/modes/rpc/host-uris";
+import type { RpcHostUriCancelRequest, RpcHostUriRequest } from "@steve-z8k/pi-coding-agent/modes/rpc/rpc-types";
 
 const router = InternalUrlRouter.instance();
 

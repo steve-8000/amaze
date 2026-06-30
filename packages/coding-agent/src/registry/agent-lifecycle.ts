@@ -10,15 +10,15 @@
  * `parked` ↔ `idle`.
  */
 
-import { logger } from "@amaze/pi-utils";
+import { logger } from "@steve-z8k/pi-utils";
 import type { AgentSession } from "../session/agent-session";
 import { type AgentRef, AgentRegistry, MAIN_AGENT_ID, type RegistryEvent } from "./agent-registry";
 
 export type AgentReviver = () => Promise<AgentSession>;
 
 /**
- * Builds a reviver for a `parked` ref restored from disk (Agent Hub scan,
- * collab mirror, resumed process) that carries a sessionFile but no in-memory
+ * Builds a reviver for a `parked` ref restored from disk (Agent Hub scan or
+ * resumed process) that carries a sessionFile but no in-memory
  * adoption. Returns undefined when the ref cannot be faithfully rebuilt (no
  * persisted session contract, or its workspace is gone). Injected from the
  * top-level session so this manager stays free of sdk/SessionManager imports.
@@ -87,7 +87,7 @@ export class AgentLifecycleManager {
 
 	/**
 	 * Install the factory used to cold-revive `parked` refs restored from disk
-	 * (Agent Hub scan, collab mirror, resumed process) — they carry a sessionFile
+	 * (Agent Hub scan or resumed process) — they carry a sessionFile
 	 * but no adoption. Set by the top-level session, which owns the ambient deps
 	 * (auth, models, MCP, artifacts) the factory needs at revive time.
 	 */

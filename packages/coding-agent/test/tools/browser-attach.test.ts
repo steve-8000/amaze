@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { pickElectronTarget } from "@amaze/pi-coding-agent/tools/browser/attach";
-import { normalizeConnectedCdpUrl } from "@amaze/pi-coding-agent/tools/browser/registry";
+import { pickElectronTarget } from "@steve-z8k/pi-coding-agent/tools/browser/attach";
+import { normalizeConnectedCdpUrl } from "@steve-z8k/pi-coding-agent/tools/browser/registry";
 import type { Browser, Page, Target } from "puppeteer-core";
 
 interface FakePageOptions {

@@ -18,18 +18,18 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
-import { discoverAndLoadExtensions } from "@amaze/pi-coding-agent/extensibility/extensions/loader";
+import { ModelRegistry } from "@steve-z8k/pi-coding-agent/config/model-registry";
+import { discoverAndLoadExtensions } from "@steve-z8k/pi-coding-agent/extensibility/extensions/loader";
 import {
 	EXTENSION_HANDLER_TIMEOUT_MS,
 	ExtensionRunner,
 	SESSION_SHUTDOWN_HANDLER_TIMEOUT_MS,
 	testSetExtensionHandlerTimeoutMs,
 	testSetSessionShutdownHandlerTimeoutMs,
-} from "@amaze/pi-coding-agent/extensibility/extensions/runner";
-import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import { getProjectAgentDir, logger, TempDir } from "@amaze/pi-utils";
+} from "@steve-z8k/pi-coding-agent/extensibility/extensions/runner";
+import { AuthStorage } from "@steve-z8k/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import { getProjectAgentDir, logger, TempDir } from "@steve-z8k/pi-utils";
 
 const HANG_EXTENSION_SRC = `
 	export default function(pi) {

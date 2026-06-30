@@ -8,8 +8,8 @@ import {
 	setKeybindings,
 	TUI_KEYBINDINGS,
 	KeybindingsManager as TuiKeybindingsManager,
-} from "@amaze/pi-tui";
-import { getAgentDir, isEnoent, logger } from "@amaze/pi-utils";
+} from "@steve-z8k/pi-tui";
+import { getAgentDir, isEnoent, logger } from "@steve-z8k/pi-utils";
 import { JSONC, YAML } from "bun";
 
 /**
@@ -52,12 +52,11 @@ interface AppKeybindings {
 	"app.tree.unfoldOrDown": true;
 	"app.plan.toggle": true;
 	"app.history.search": true;
-	"app.stt.toggle": true;
 }
 
 export type AppKeybinding = keyof AppKeybindings;
 
-declare module "@amaze/pi-tui" {
+declare module "@steve-z8k/pi-tui" {
 	interface Keybindings extends AppKeybindings {}
 }
 
@@ -216,10 +215,6 @@ export const KEYBINDINGS = {
 		defaultKeys: "ctrl+r",
 		description: "Search history",
 	},
-	"app.stt.toggle": {
-		defaultKeys: [],
-		description: "Toggle speech-to-text (default gesture: hold Space)",
-	},
 } as const satisfies KeybindingDefinitions;
 
 /**
@@ -254,7 +249,6 @@ const KEYBINDING_NAME_MIGRATIONS = {
 	fork: "app.session.fork",
 	resume: "app.session.resume",
 	observeSessions: "app.session.observe",
-	toggleSTT: "app.stt.toggle",
 	// TUI editor (old names for backward compatibility)
 	cursorUp: "tui.editor.cursorUp",
 	cursorDown: "tui.editor.cursorDown",

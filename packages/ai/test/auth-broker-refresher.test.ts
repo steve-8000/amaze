@@ -2,9 +2,9 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { AuthStorage, SqliteAuthCredentialStore } from "@amaze/pi-ai";
-import { AuthBrokerRefresher } from "@amaze/pi-ai/auth-broker";
-import * as oauthUtils from "@amaze/pi-ai/registry/oauth";
+import { AuthStorage, SqliteAuthCredentialStore } from "@steve-z8k/pi-ai";
+import { AuthBrokerRefresher } from "@steve-z8k/pi-ai/auth-broker";
+import * as oauthUtils from "@steve-z8k/pi-ai/registry/oauth";
 
 const ANTHROPIC_ENV = ["ANTHROPIC_API_KEY", "ANTHROPIC_OAUTH_TOKEN"] as const;
 const savedEnv: Partial<Record<(typeof ANTHROPIC_ENV)[number], string | undefined>> = {};

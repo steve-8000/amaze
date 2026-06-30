@@ -17,7 +17,7 @@ import type {
 	ToolResultMessage,
 	WireModel,
 	WireUsage,
-} from "@amaze/pi-wire";
+} from "@steve-z8k/pi-wire";
 
 export const HOST_DISPLAY_NAME = "kai";
 

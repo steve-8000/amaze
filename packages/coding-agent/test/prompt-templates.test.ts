@@ -9,9 +9,9 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { expandPromptTemplate, type PromptTemplate } from "@amaze/pi-coding-agent/config/prompt-templates";
-import { expandSlashCommand, type FileSlashCommand } from "@amaze/pi-coding-agent/extensibility/slash-commands";
-import { parseCommandArgs, substituteArgs } from "@amaze/pi-coding-agent/utils/command-args";
+import { expandPromptTemplate, type PromptTemplate } from "@steve-z8k/pi-coding-agent/config/prompt-templates";
+import { expandSlashCommand, type FileSlashCommand } from "@steve-z8k/pi-coding-agent/extensibility/slash-commands";
+import { parseCommandArgs, substituteArgs } from "@steve-z8k/pi-coding-agent/utils/command-args";
 
 // ============================================================================
 // substituteArgs

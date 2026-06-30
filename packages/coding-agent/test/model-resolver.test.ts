@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { type Api, Effort, type Model } from "@amaze/pi-ai";
-import { buildModel } from "@amaze/pi-catalog/build";
-import { DEFAULT_MODEL_PER_PROVIDER } from "@amaze/pi-catalog/provider-models";
-import type { CanonicalModelVariant } from "@amaze/pi-coding-agent/config/model-registry";
+import { type Api, Effort, type Model } from "@steve-z8k/pi-ai";
+import { buildModel } from "@steve-z8k/pi-catalog/build";
+import { DEFAULT_MODEL_PER_PROVIDER } from "@steve-z8k/pi-catalog/provider-models";
+import type { CanonicalModelVariant } from "@steve-z8k/pi-coding-agent/config/model-registry";
 import {
 	type CanonicalModelRegistry,
 	expandRoleAlias,
@@ -18,13 +18,13 @@ import {
 	resolveModelOverride,
 	resolveModelRoleValue,
 	resolveModelScope,
-} from "@amaze/pi-coding-agent/config/model-resolver";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
+} from "@steve-z8k/pi-coding-agent/config/model-resolver";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
 
 // Mock models for testing
 const mockModels: Model<"anthropic-messages">[] = [
 	buildModel({
-		id: "claude-sonnet-4-5",
+		id: "claude-sonnet-4-6",
 		name: "Claude Sonnet 4.5",
 		api: "anthropic-messages",
 		provider: "anthropic",
@@ -40,7 +40,7 @@ const mockModels: Model<"anthropic-messages">[] = [
 		maxTokens: 8192,
 	}),
 	buildModel({
-		id: "gpt-4o",
+		id: "gpt-5.4",
 		name: "GPT-4o",
 		api: "anthropic-messages", // Using same type for simplicity
 		provider: "openai",
@@ -100,7 +100,7 @@ const mockOpenRouterModels: Model<Api>[] = [
 		maxTokens: 8192,
 	}),
 	buildModel({
-		id: "deepseek/deepseek-v4-pro",
+		id: "deepseek/gpt-5.4",
 		name: "DeepSeek V4 Pro",
 		api: "openai-completions",
 		provider: "openrouter",
@@ -285,7 +285,7 @@ function createOpusModel(provider: string, id: string, name: string): Model<"ant
 
 const canonicalVariantModels: Model<"anthropic-messages">[] = [
 	buildModel({
-		id: "claude-sonnet-4-5",
+		id: "claude-sonnet-4-6",
 		name: "Claude Sonnet 4.5",
 		api: "anthropic-messages",
 		provider: "anthropic",
@@ -320,7 +320,7 @@ const canonicalVariantModels: Model<"anthropic-messages">[] = [
 
 const canonicalRegistry = {
 	resolveCanonicalModel: (canonicalId: string, options?: { candidates?: Model<"anthropic-messages">[] }) => {
-		if (canonicalId !== "claude-sonnet-4-5") return undefined;
+		if (canonicalId !== "claude-sonnet-4-6") return undefined;
 		const candidates = options?.candidates ?? canonicalVariantModels;
 		return (
 			candidates.find(model => model.provider === "github-copilot") ??
@@ -328,7 +328,7 @@ const canonicalRegistry = {
 		);
 	},
 	getCanonicalVariants: (canonicalId: string, options?: { candidates?: Model<"anthropic-messages">[] }) => {
-		if (canonicalId !== "claude-sonnet-4-5") return [];
+		if (canonicalId !== "claude-sonnet-4-6") return [];
 		const candidates = options?.candidates ?? canonicalVariantModels;
 		return candidates.map(model => ({
 			canonicalId,
@@ -337,7 +337,7 @@ const canonicalRegistry = {
 			source: model.id === canonicalId ? "bundled" : "heuristic",
 		}));
 	},
-	getCanonicalId: () => "claude-sonnet-4-5",
+	getCanonicalId: () => "claude-sonnet-4-6",
 	getAvailable: () => canonicalVariantModels,
 } as unknown as Parameters<typeof resolveCliModel>[0]["modelRegistry"];
 
@@ -403,8 +403,8 @@ describe("resolveModelRoleValue", () => {
 describe("parseModelPattern", () => {
 	describe("simple patterns without colons", () => {
 		test("exact match returns model with undefined thinking level", () => {
-			const result = parseModelPattern("claude-sonnet-4-5", allModels);
-			expect(result.model?.id).toBe("claude-sonnet-4-5");
+			const result = parseModelPattern("claude-sonnet-4-6", allModels);
+			expect(result.model?.id).toBe("claude-sonnet-4-6");
 			expect(result.thinkingLevel).toBeUndefined();
 			expect(result.explicitThinkingLevel).toBe(false);
 			expect(result.warning).toBeUndefined();
@@ -412,7 +412,7 @@ describe("parseModelPattern", () => {
 
 		test("partial match returns best model with undefined thinking level", () => {
 			const result = parseModelPattern("sonnet", allModels);
-			expect(result.model?.id).toBe("claude-sonnet-4-5");
+			expect(result.model?.id).toBe("claude-sonnet-4-6");
 			expect(result.thinkingLevel).toBeUndefined();
 			expect(result.explicitThinkingLevel).toBe(false);
 			expect(result.warning).toBeUndefined();
@@ -430,14 +430,14 @@ describe("parseModelPattern", () => {
 	describe("patterns with valid thinking levels", () => {
 		test("sonnet:high returns sonnet with high thinking level", () => {
 			const result = parseModelPattern("sonnet:high", allModels);
-			expect(result.model?.id).toBe("claude-sonnet-4-5");
+			expect(result.model?.id).toBe("claude-sonnet-4-6");
 			expect(result.thinkingLevel).toBe(Effort.High);
 			expect(result.warning).toBeUndefined();
 		});
 
 		test("gpt-4o:medium returns gpt-4o with medium thinking level", () => {
 			const result = parseModelPattern("gpt-4o:medium", allModels);
-			expect(result.model?.id).toBe("gpt-4o");
+			expect(result.model?.id).toBe("gpt-5.4");
 			expect(result.thinkingLevel).toBe(Effort.Medium);
 			expect(result.warning).toBeUndefined();
 		});
@@ -446,7 +446,7 @@ describe("parseModelPattern", () => {
 			const levels = ["off", Effort.Minimal, Effort.Low, Effort.Medium, Effort.High, Effort.XHigh] as const;
 			for (const level of levels) {
 				const result = parseModelPattern(`sonnet:${level}`, allModels);
-				expect(result.model?.id).toBe("claude-sonnet-4-5");
+				expect(result.model?.id).toBe("claude-sonnet-4-6");
 				expect(result.thinkingLevel).toBe(level);
 				expect(result.warning).toBeUndefined();
 			}
@@ -471,7 +471,7 @@ describe("parseModelPattern", () => {
 	describe("patterns with invalid thinking levels", () => {
 		test("sonnet:random returns sonnet with undefined thinking level and warning", () => {
 			const result = parseModelPattern("sonnet:random", allModels);
-			expect(result.model?.id).toBe("claude-sonnet-4-5");
+			expect(result.model?.id).toBe("claude-sonnet-4-6");
 			expect(result.thinkingLevel).toBeUndefined();
 			expect(result.explicitThinkingLevel).toBe(false);
 			expect(result.warning).toContain("Invalid thinking level");
@@ -480,7 +480,7 @@ describe("parseModelPattern", () => {
 
 		test("gpt-4o:invalid returns gpt-4o with undefined thinking level and warning", () => {
 			const result = parseModelPattern("gpt-4o:invalid", allModels);
-			expect(result.model?.id).toBe("gpt-4o");
+			expect(result.model?.id).toBe("gpt-5.4");
 			expect(result.thinkingLevel).toBeUndefined();
 			expect(result.explicitThinkingLevel).toBe(false);
 			expect(result.warning).toContain("Invalid thinking level");
@@ -592,7 +592,7 @@ describe("parseModelPattern", () => {
 			const result = parseModelPattern("sonnet:", allModels);
 			// Empty string after colon is not a valid thinking level
 			// So it tries to match "sonnet:" which won't match, then tries "sonnet"
-			expect(result.model?.id).toBe("claude-sonnet-4-5");
+			expect(result.model?.id).toBe("claude-sonnet-4-6");
 			expect(result.warning).toContain("Invalid thinking level");
 		});
 	});
@@ -621,7 +621,7 @@ describe("parseModelPattern", () => {
 
 	describe("canonical ids", () => {
 		test("resolves an exact canonical id through the registry before bare-id matching", () => {
-			const result = parseModelPattern("claude-sonnet-4-5", canonicalVariantModels, undefined, {
+			const result = parseModelPattern("claude-sonnet-4-6", canonicalVariantModels, undefined, {
 				modelRegistry: canonicalRegistry,
 			});
 			expect(result.model?.provider).toBe("github-copilot");
@@ -633,10 +633,10 @@ describe("parseModelPattern", () => {
 describe("resolveModelRoleValue", () => {
 	test("resolves pi/<role>:<thinking> by expanding role alias before parsing thinking", () => {
 		const settings = {
-			getModelRole: (role: string) => (role === "smol" ? "openrouter/qwen/qwen3-coder:exacto" : undefined),
+			getModelRole: (role: string) => (role === "vision" ? "openrouter/qwen/qwen3-coder:exacto" : undefined),
 		} as NonNullable<Parameters<typeof resolveModelRoleValue>[2]>["settings"];
 
-		const result = resolveModelRoleValue("pi/smol:high", allModels, { settings });
+		const result = resolveModelRoleValue("pi/vision:high", allModels, { settings });
 
 		expect(result.model?.provider).toBe("openrouter");
 		expect(result.model?.id).toBe("qwen/qwen3-coder:exacto");
@@ -646,10 +646,10 @@ describe("resolveModelRoleValue", () => {
 
 	test("resolves pi/<role>:max by expanding role alias before parsing thinking", () => {
 		const settings = {
-			getModelRole: (role: string) => (role === "smol" ? "openai-codex/gpt-5.3-codex" : undefined),
+			getModelRole: (role: string) => (role === "flash" ? "openai-codex/gpt-5.3-codex" : undefined),
 		} as NonNullable<Parameters<typeof resolveModelRoleValue>[2]>["settings"];
 
-		const result = resolveModelRoleValue("pi/smol:max", allModels, { settings });
+		const result = resolveModelRoleValue("pi/flash:max", allModels, { settings });
 
 		expect(result.model?.provider).toBe("openai-codex");
 		expect(result.model?.id).toBe("gpt-5.3-codex");
@@ -657,12 +657,12 @@ describe("resolveModelRoleValue", () => {
 		expect(result.explicitThinkingLevel).toBe(true);
 	});
 
-	test("resolves pi/default through configured default role alias", () => {
+	test("resolves pi/flash through configured primary role alias", () => {
 		const settings = {
-			getModelRole: (role: string) => (role === "default" ? "openrouter/qwen/qwen3-coder:exacto" : undefined),
+			getModelRole: (role: string) => (role === "flash" ? "openrouter/qwen/qwen3-coder:exacto" : undefined),
 		} as NonNullable<Parameters<typeof resolveModelRoleValue>[2]>["settings"];
 
-		const result = resolveModelRoleValue("pi/default", allModels, { settings });
+		const result = resolveModelRoleValue("pi/flash", allModels, { settings });
 
 		expect(result.model?.provider).toBe("openrouter");
 		expect(result.model?.id).toBe("qwen/qwen3-coder:exacto");
@@ -672,10 +672,10 @@ describe("resolveModelRoleValue", () => {
 	});
 
 	test("splits direct comma fallback chains before parsing thinking selectors", () => {
-		const result = resolveModelRoleValue("anthropic/claude-sonnet-4-5:off,openai/gpt-4o:off", allModels);
+		const result = resolveModelRoleValue("anthropic/claude-sonnet-4-6:off,openai/gpt-4o:off", allModels);
 
 		expect(result.model?.provider).toBe("anthropic");
-		expect(result.model?.id).toBe("claude-sonnet-4-5");
+		expect(result.model?.id).toBe("claude-sonnet-4-6");
 		expect(result.thinkingLevel).toBe("off");
 		expect(result.explicitThinkingLevel).toBe(true);
 		expect(result.warning).toBeUndefined();
@@ -685,7 +685,7 @@ describe("resolveModelRoleValue", () => {
 		const result = resolveModelRoleValue("anthropic/missing:off,openai/gpt-4o:off", allModels);
 
 		expect(result.model?.provider).toBe("openai");
-		expect(result.model?.id).toBe("gpt-4o");
+		expect(result.model?.id).toBe("gpt-5.4");
 		expect(result.thinkingLevel).toBe("off");
 		expect(result.explicitThinkingLevel).toBe(true);
 		expect(result.warning).toBeUndefined();
@@ -706,39 +706,39 @@ describe("resolveModelRoleValue", () => {
 	});
 
 	test("clamps explicit thinking selectors from model metadata", () => {
-		const result = resolveModelRoleValue("anthropic/claude-sonnet-4-5:xhigh", allModels);
+		const result = resolveModelRoleValue("anthropic/claude-sonnet-4-6:xhigh", allModels);
 
 		expect(result.model?.provider).toBe("anthropic");
-		expect(result.model?.id).toBe("claude-sonnet-4-5");
+		expect(result.model?.id).toBe("claude-sonnet-4-6");
 		expect(result.thinkingLevel).toBe(Effort.High);
 		expect(result.explicitThinkingLevel).toBe(true);
 	});
 });
 describe("resolveAgentModelPatterns", () => {
-	test("falls back to the active session model when agent model inherits the session default", () => {
+	test("falls back to the active session model when agent model inherits the flash lane", () => {
 		const settings = Settings.isolated({
 			modelRoles: {
-				default: "anthropic/claude-sonnet-4-5",
+				flash: "anthropic/claude-sonnet-4-6",
 			},
 		});
 
 		const result = resolveAgentModelPatterns({
-			agentModel: "pi/default",
+			agentModel: "pi/flash",
 			settings,
-			activeModelPattern: "openai/gpt-4o",
+			activeModelPattern: "openai/gpt-5.4",
 		});
 
-		expect(result).toEqual(["openai/gpt-4o"]);
+		expect(result).toEqual(["openai/gpt-5.4"]);
 	});
 
 	test("uses contract subagent priority chains when no dedicated role overrides are configured", () => {
 		const settings = Settings.isolated({
 			modelRoles: {
-				default: "openai/gpt-4o",
+				flash: "openai/gpt-5.4",
 			},
 		});
 
-		expect(resolveAgentModelPatterns({ agentModel: "pi/thinker", settings })).toEqual([
+		expect(resolveAgentModelPatterns({ agentModel: "pi/ultra", settings })).toEqual([
 			"anthropic/claude-opus-4.8:xhigh",
 			"anthropic/claude-opus-4-8:xhigh",
 			"claude-opus-4.8:xhigh",
@@ -746,85 +746,127 @@ describe("resolveAgentModelPatterns", () => {
 			"opus-4.8:xhigh",
 			"opus-4-8:xhigh",
 		]);
-		expect(resolveAgentModelPatterns({ agentModel: "pi/coder", settings })).toEqual([
+		expect(resolveAgentModelPatterns({ agentModel: "pi/deep", settings })).toEqual([
 			"openai/gpt-5.5:high",
 			"gpt-5.5:high",
 			"openai/gpt-5.3-codex:xhigh",
 			"gpt-5.3-codex:xhigh",
 		]);
-		expect(resolveAgentModelPatterns({ agentModel: "pi/finder", settings })).toEqual([
-			"anthropic/claude-sonnet-4.6:medium",
-			"anthropic/claude-sonnet-4-6:medium",
-			"claude-sonnet-4.6:medium",
-			"claude-sonnet-4-6:medium",
-			"sonnet-4.6:medium",
-			"sonnet-4-6:medium",
+		expect(resolveAgentModelPatterns({ agentModel: "pi/flash", settings })).toEqual(["openai/gpt-5.4"]);
+		expect(resolveAgentModelPatterns({ agentModel: "pi/spark", settings })).toEqual([
+			"openai/gpt-5.3-codex-spark:medium",
+			"gpt-5.3-codex-spark:medium",
 		]);
 	});
 
-	test("uses default for unconfigured smol, slow, and designer agent roles before priority defaults", () => {
-		const settings = Settings.isolated({
-			modelRoles: { default: "local/llama" },
-		});
-
-		expect(resolveAgentModelPatterns({ agentModel: "pi/smol", settings })).toEqual(["local/llama"]);
-		expect(resolveAgentModelPatterns({ agentModel: "pi/slow", settings })).toEqual(["local/llama"]);
-		expect(resolveAgentModelPatterns({ agentModel: "pi/designer", settings })).toEqual(["local/llama"]);
-	});
-
-	test("expands cross-role default aliases when inheriting for an unset role", () => {
-		const settings = Settings.isolated({
-			modelRoles: { default: "pi/slow", slow: "anthropic/claude-sonnet-4-5" },
-		});
-
-		expect(resolveAgentModelPatterns({ agentModel: "pi/smol", settings })).toEqual(["anthropic/claude-sonnet-4-5"]);
-	});
-
-	test("prefers configured designer role override over priority defaults", () => {
+	test("ignores legacy contract role names when dedicated roles are unset", () => {
 		const settings = Settings.isolated({
 			modelRoles: {
-				default: "anthropic/claude-sonnet-4-5",
-				designer: "openai/gpt-4o",
+				flash: "openai/gpt-5.4",
+				thinker: "anthropic/claude-opus-4-8",
+				checker: "openai/gpt-5.5",
+				coder: "local-gemma/gemma4-coder-fable5-q4km",
+				fixer: "openai/gpt-5.4-mini",
+				commit: "openai/gpt-5.3-codex-spark",
+			},
+		});
+
+		expect(resolveAgentModelPatterns({ agentModel: "pi/ultra:high", settings })).toEqual([
+			"anthropic/claude-opus-4.8:xhigh:high",
+			"anthropic/claude-opus-4-8:xhigh:high",
+			"claude-opus-4.8:xhigh:high",
+			"claude-opus-4-8:xhigh:high",
+			"opus-4.8:xhigh:high",
+			"opus-4-8:xhigh:high",
+		]);
+		expect(resolveAgentModelPatterns({ agentModel: "pi/deep", settings })).toEqual([
+			"openai/gpt-5.5:high",
+			"gpt-5.5:high",
+			"openai/gpt-5.3-codex:xhigh",
+			"gpt-5.3-codex:xhigh",
+		]);
+		expect(resolveAgentModelPatterns({ agentModel: "pi/flash", settings })).toEqual(["openai/gpt-5.4"]);
+		expect(resolveAgentModelPatterns({ agentModel: "pi/spark:medium", settings })).toEqual([
+			"openai/gpt-5.3-codex-spark:medium:medium",
+			"gpt-5.3-codex-spark:medium:medium",
+		]);
+	});
+
+	test("prefers dedicated contract role overrides over native priority defaults", () => {
+		const settings = Settings.isolated({
+			modelRoles: {
+				thinker: "anthropic/claude-opus-4-8",
+				ultra: "openai/gpt-5.4",
+			},
+		});
+
+		expect(resolveAgentModelPatterns({ agentModel: "pi/ultra:high", settings })).toEqual(["openai/gpt-5.4:high"]);
+	});
+
+	test("keeps native priority defaults for primary lanes when only flash is configured", () => {
+		const settings = Settings.isolated({
+			modelRoles: { flash: "local/llama" },
+		});
+
+		expect(resolveAgentModelPatterns({ agentModel: "pi/deep", settings })).toEqual([
+			"openai/gpt-5.5:high",
+			"gpt-5.5:high",
+			"openai/gpt-5.3-codex:xhigh",
+			"gpt-5.3-codex:xhigh",
+		]);
+		expect(resolveAgentModelPatterns({ agentModel: "pi/spark", settings })).toEqual([
+			"openai/gpt-5.3-codex-spark:medium",
+			"gpt-5.3-codex-spark:medium",
+		]);
+	});
+
+	test("expands cross-role flash aliases when the primary lane inherits another lane", () => {
+		const settings = Settings.isolated({
+			modelRoles: { flash: "pi/deep", deep: "anthropic/claude-sonnet-4-6" },
+		});
+
+		expect(resolveAgentModelPatterns({ agentModel: "pi/flash", settings })).toEqual(["anthropic/claude-sonnet-4-6"]);
+	});
+
+	test("prefers configured custom role overrides over leaving the alias unresolved", () => {
+		const settings = Settings.isolated({
+			modelRoles: {
+				flash: "anthropic/claude-sonnet-4-6",
+				vision: "openai/gpt-5.4",
 			},
 		});
 
 		const result = resolveAgentModelPatterns({
-			agentModel: "pi/designer",
+			agentModel: "pi/vision",
 			settings,
 		});
 
-		expect(result).toEqual(["openai/gpt-4o"]);
+		expect(result).toEqual(["openai/gpt-5.4"]);
 	});
 
 	test("resolves contract subagent roles from modelRoles", () => {
 		const settings = Settings.isolated({
 			modelRoles: {
-				thinker: "anthropic/claude-opus-4-8:xhigh",
-				coder: "openai/gpt-5.5:high",
-				finder: "anthropic/claude-sonnet-4-6:medium",
-				fixer: "openai/gpt-5.3-codex-spark-preview:low",
-				checker: "xai/grok-4.3:high",
-				helper: "local/gemma-3-12b-it:low",
+				ultra: "anthropic/claude-opus-4-8:xhigh",
+				deep: "openai/gpt-5.5:high",
+				flash: "openai/gpt-5.4-mini:medium",
+				spark: "openai/gpt-5.3-codex-spark:medium",
 			},
 		});
 
-		expect(resolveAgentModelPatterns({ agentModel: "pi/thinker", settings })).toEqual([
+		expect(resolveAgentModelPatterns({ agentModel: "pi/ultra", settings })).toEqual([
 			"anthropic/claude-opus-4-8:xhigh",
 		]);
-		expect(resolveAgentModelPatterns({ agentModel: "pi/coder", settings })).toEqual(["openai/gpt-5.5:high"]);
-		expect(resolveAgentModelPatterns({ agentModel: "pi/finder", settings })).toEqual([
-			"anthropic/claude-sonnet-4-6:medium",
+		expect(resolveAgentModelPatterns({ agentModel: "pi/deep", settings })).toEqual(["openai/gpt-5.5:high"]);
+		expect(resolveAgentModelPatterns({ agentModel: "pi/flash", settings })).toEqual(["openai/gpt-5.4-mini:medium"]);
+		expect(resolveAgentModelPatterns({ agentModel: "pi/spark", settings })).toEqual([
+			"openai/gpt-5.3-codex-spark:medium",
 		]);
-		expect(resolveAgentModelPatterns({ agentModel: "pi/fixer", settings })).toEqual([
-			"openai/gpt-5.3-codex-spark-preview:low",
-		]);
-		expect(resolveAgentModelPatterns({ agentModel: "pi/checker", settings })).toEqual(["xai/grok-4.3:high"]);
-		expect(resolveAgentModelPatterns({ agentModel: "pi/helper", settings })).toEqual(["local/gemma-3-12b-it:low"]);
 	});
 
-	test("slow priority falls forward to Opus 4.8 before older Opus aliases", () => {
+	test("ultra priority falls forward to Opus 4.8 before older Opus aliases", () => {
 		const settings = Settings.isolated();
-		const patterns = resolveAgentModelPatterns({ agentModel: "pi/slow", settings });
+		const patterns = resolveAgentModelPatterns({ agentModel: "pi/ultra", settings });
 
 		const dottedRegistry = {
 			getAvailable: () => [
@@ -870,7 +912,7 @@ describe("resolveModelOverride", () => {
 
 		const result = resolveModelOverride(["sonnet:off"], registry);
 
-		expect(result.model?.id).toBe("claude-sonnet-4-5");
+		expect(result.model?.id).toBe("claude-sonnet-4-6");
 		expect(result.thinkingLevel).toBe("off");
 		expect(result.explicitThinkingLevel).toBe(true);
 	});
@@ -891,7 +933,7 @@ describe("resolveModelOverride", () => {
 describe("resolveCliModel", () => {
 	test("resolves exact canonical ids to the preferred concrete provider", () => {
 		const result = resolveCliModel({
-			cliModel: "claude-sonnet-4-5",
+			cliModel: "claude-sonnet-4-6",
 			modelRegistry: {
 				...canonicalRegistry,
 				getAll: () => canonicalVariantModels,
@@ -899,7 +941,7 @@ describe("resolveCliModel", () => {
 		});
 
 		expect(result.error).toBeUndefined();
-		expect(result.selector).toBe("claude-sonnet-4-5");
+		expect(result.selector).toBe("claude-sonnet-4-6");
 		expect(result.model?.provider).toBe("github-copilot");
 		expect(result.model?.id).toBe("anthropic/claude-sonnet-4.5");
 	});
@@ -910,13 +952,13 @@ describe("resolveCliModel", () => {
 		} as unknown as Parameters<typeof resolveCliModel>[0]["modelRegistry"];
 
 		const result = resolveCliModel({
-			cliModel: "openai/gpt-4o",
+			cliModel: "openai/gpt-5.4",
 			modelRegistry: registry,
 		});
 
 		expect(result.error).toBeUndefined();
 		expect(result.model?.provider).toBe("openai");
-		expect(result.model?.id).toBe("gpt-4o");
+		expect(result.model?.id).toBe("gpt-5.4");
 	});
 
 	test("resolves fuzzy patterns within an explicit provider", () => {
@@ -932,7 +974,7 @@ describe("resolveCliModel", () => {
 
 		expect(result.error).toBeUndefined();
 		expect(result.model?.provider).toBe("openai");
-		expect(result.model?.id).toBe("gpt-4o");
+		expect(result.model?.id).toBe("gpt-5.4");
 	});
 
 	test("supports --model <pattern>:<thinking> (without explicit --thinking)", () => {
@@ -946,7 +988,7 @@ describe("resolveCliModel", () => {
 		});
 
 		expect(result.error).toBeUndefined();
-		expect(result.model?.id).toBe("claude-sonnet-4-5");
+		expect(result.model?.id).toBe("claude-sonnet-4-6");
 		expect(result.thinkingLevel).toBe(Effort.High);
 	});
 
@@ -1052,7 +1094,7 @@ describe("resolveCliModel", () => {
 
 		const result = resolveCliModel({
 			cliProvider: "openai",
-			cliModel: "gpt-4o",
+			cliModel: "gpt-5.4",
 			modelRegistry: registry,
 		});
 
@@ -1121,7 +1163,7 @@ describe("resolveCliModel", () => {
 
 describe("resolveModelScope", () => {
 	test("expands exact canonical ids into all concrete variants", async () => {
-		const scoped = await resolveModelScope(["claude-sonnet-4-5"], {
+		const scoped = await resolveModelScope(["claude-sonnet-4-6"], {
 			getAvailable: () => canonicalVariantModels,
 			getCanonicalVariants: (canonicalId: string, options?: { candidates?: Model<"anthropic-messages">[] }) =>
 				canonicalRegistry.getCanonicalVariants!(canonicalId, options),
@@ -1129,7 +1171,7 @@ describe("resolveModelScope", () => {
 
 		expect(scoped).toHaveLength(2);
 		expect(scoped.map(entry => `${entry.model.provider}/${entry.model.id}`).sort()).toEqual([
-			"anthropic/claude-sonnet-4-5",
+			"anthropic/claude-sonnet-4-6",
 			"github-copilot/anthropic/claude-sonnet-4.5",
 		]);
 	});
@@ -1145,7 +1187,7 @@ describe("resolveModelScope", () => {
 	});
 
 	test("expands exact canonical ids with max thinking aliases", async () => {
-		const scoped = await resolveModelScope(["claude-sonnet-4-5:max"], {
+		const scoped = await resolveModelScope(["claude-sonnet-4-6:max"], {
 			getAvailable: () => canonicalVariantModels,
 			getCanonicalVariants: (canonicalId: string, options?: { candidates?: Model<"anthropic-messages">[] }) =>
 				canonicalRegistry.getCanonicalVariants!(canonicalId, options),
@@ -1153,7 +1195,7 @@ describe("resolveModelScope", () => {
 
 		expect(scoped).toHaveLength(2);
 		expect(scoped.map(entry => `${entry.model.provider}/${entry.model.id}`).sort()).toEqual([
-			"anthropic/claude-sonnet-4-5",
+			"anthropic/claude-sonnet-4-6",
 			"github-copilot/anthropic/claude-sonnet-4.5",
 		]);
 		expect(scoped.map(entry => entry.thinkingLevel)).toEqual([Effort.High, Effort.High]);
@@ -1190,31 +1232,31 @@ describe("resolveModelScope", () => {
 
 describe("parseModelString", () => {
 	test("parses standard provider/id format", () => {
-		const result = parseModelString("anthropic/claude-sonnet-4-5");
-		expect(result).toEqual({ provider: "anthropic", id: "claude-sonnet-4-5" });
+		const result = parseModelString("anthropic/claude-sonnet-4-6");
+		expect(result).toEqual({ provider: "anthropic", id: "claude-sonnet-4-6" });
 	});
 
 	test("returns undefined for strings without a slash", () => {
-		expect(parseModelString("claude-sonnet-4-5")).toBeUndefined();
+		expect(parseModelString("claude-sonnet-4-6")).toBeUndefined();
 		expect(parseModelString("")).toBeUndefined();
 		expect(parseModelString("sonnet:high")).toBeUndefined();
 	});
 
 	test("returns undefined for strings starting with slash", () => {
-		expect(parseModelString("/claude-sonnet-4-5")).toBeUndefined();
+		expect(parseModelString("/claude-sonnet-4-6")).toBeUndefined();
 	});
 
 	describe("thinking level suffix extraction", () => {
 		test("extracts valid thinking level from provider/id:level", () => {
-			const result = parseModelString("anthropic/claude-sonnet-4-5:high");
-			expect(result).toEqual({ provider: "anthropic", id: "claude-sonnet-4-5", thinkingLevel: Effort.High });
+			const result = parseModelString("anthropic/claude-sonnet-4-6:high");
+			expect(result).toEqual({ provider: "anthropic", id: "claude-sonnet-4-6", thinkingLevel: Effort.High });
 		});
 
 		test("extracts all valid thinking levels", () => {
 			const levels = ["off", Effort.Minimal, Effort.Low, Effort.Medium, Effort.High, Effort.XHigh] as const;
 			for (const level of levels) {
-				const result = parseModelString(`anthropic/claude-sonnet-4-5:${level}`);
-				expect(result?.id).toBe("claude-sonnet-4-5");
+				const result = parseModelString(`anthropic/claude-sonnet-4-6:${level}`);
+				expect(result?.id).toBe("claude-sonnet-4-6");
 				expect(result?.thinkingLevel).toBe(level);
 			}
 		});
@@ -1235,8 +1277,8 @@ describe("parseModelString", () => {
 		});
 
 		test("extracts max when explicitly enabled for provider id selectors", () => {
-			const result = parseModelString("deepseek/deepseek-v4-pro:max", { allowMaxAlias: true });
-			expect(result).toEqual({ provider: "deepseek", id: "deepseek-v4-pro", thinkingLevel: Effort.XHigh });
+			const result = parseModelString("deepseek/gpt-5.4:max", { allowMaxAlias: true });
+			expect(result).toEqual({ provider: "deepseek", id: "gpt-5.4", thinkingLevel: Effort.XHigh });
 		});
 
 		test("preserves literal max model ids when the caller can prove they exist", () => {
@@ -1248,8 +1290,8 @@ describe("parseModelString", () => {
 		});
 
 		test("does not strip inherited object keys as thinking suffixes", () => {
-			const result = parseModelString("anthropic/claude-sonnet-4-5:constructor");
-			expect(result).toEqual({ provider: "anthropic", id: "claude-sonnet-4-5:constructor" });
+			const result = parseModelString("anthropic/claude-sonnet-4-6:constructor");
+			expect(result).toEqual({ provider: "anthropic", id: "claude-sonnet-4-6:constructor" });
 		});
 		test("does not extract thinking level from model ID with invalid suffix", () => {
 			const result = parseModelString("openrouter/openai/gpt-4o:extended");
@@ -1258,9 +1300,9 @@ describe("parseModelString", () => {
 		});
 
 		test("handles empty suffix after colon", () => {
-			const result = parseModelString("anthropic/claude-sonnet-4-5:");
+			const result = parseModelString("anthropic/claude-sonnet-4-6:");
 			// Empty string is not a valid thinking level, so colon stays as part of ID
-			expect(result).toEqual({ provider: "anthropic", id: "claude-sonnet-4-5:" });
+			expect(result).toEqual({ provider: "anthropic", id: "claude-sonnet-4-6:" });
 		});
 	});
 });
@@ -1282,14 +1324,14 @@ describe("resolveModelFromString", () => {
 describe("expandRoleAlias", () => {
 	test("expands pi/vision to configured vision role", () => {
 		const settings = Settings.isolated();
-		settings.setModelRole("vision", "openai/gpt-4o");
+		settings.setModelRole("vision", "openai/gpt-5.4");
 
-		expect(expandRoleAlias("pi/vision", settings)).toBe("openai/gpt-4o");
+		expect(expandRoleAlias("pi/vision", settings)).toBe("openai/gpt-5.4");
 	});
 
 	test("keeps pi/vision alias when vision role is unset", () => {
 		const settings = Settings.isolated();
-		settings.setModelRole("default", "anthropic/claude-sonnet-4-5");
+		settings.setModelRole("flash", "anthropic/claude-sonnet-4-6");
 
 		expect(expandRoleAlias("pi/vision", settings)).toBe("pi/vision");
 	});
@@ -1312,8 +1354,8 @@ describe("extractExplicitThinkingSelector", () => {
 
 	test("treats max on pi role aliases as an explicit selector before expansion", () => {
 		const settings = Settings.isolated();
-		settings.setModelRole("smol", "nanogpt/coding-router:max");
-		const result = extractExplicitThinkingSelector("pi/smol:max", settings, {
+		settings.setModelRole("flash", "nanogpt/coding-router:max");
+		const result = extractExplicitThinkingSelector("pi/flash:max", settings, {
 			isLiteralModelId: (provider, id) => provider === "nanogpt" && id === "coding-router:max",
 		});
 		expect(result).toBe(Effort.XHigh);
@@ -1346,8 +1388,8 @@ describe("provider routing selector (@upstream)", () => {
 	});
 
 	test("preserves @upstream when the slug also matches model tokens", () => {
-		const result = parseModelPattern("openrouter/deepseek/deepseek-v4-pro@deepseek:high", allModels);
-		expect(result.model?.id).toBe("deepseek/deepseek-v4-pro");
+		const result = parseModelPattern("openrouter/deepseek/gpt-5.4@deepseek:high", allModels);
+		expect(result.model?.id).toBe("deepseek/gpt-5.4");
 		expect(result.thinkingLevel).toBe(Effort.High);
 		expect(result.upstream).toBe("deepseek");
 		expect(openRouterOnly(result.model)).toEqual(["deepseek"]);
@@ -1441,13 +1483,13 @@ describe("filterAvailableModelsByEnabledPatterns", () => {
 	});
 
 	test("filters by exact provider/modelId", () => {
-		const result = filterAvailableModelsByEnabledPatterns(models, ["anthropic/claude-sonnet-4-5"], registry);
+		const result = filterAvailableModelsByEnabledPatterns(models, ["anthropic/claude-sonnet-4-6"], registry);
 		expect(result).toHaveLength(1);
-		expect(result[0].id).toBe("claude-sonnet-4-5");
+		expect(result[0].id).toBe("claude-sonnet-4-6");
 	});
 
 	test("filters by bare model id matching across providers", () => {
-		const result = filterAvailableModelsByEnabledPatterns(models, ["claude-sonnet-4-5"], registry);
+		const result = filterAvailableModelsByEnabledPatterns(models, ["claude-sonnet-4-6"], registry);
 		expect(result).toHaveLength(1);
 		expect(result[0].provider).toBe("anthropic");
 	});
@@ -1455,20 +1497,20 @@ describe("filterAvailableModelsByEnabledPatterns", () => {
 	test("expands canonical id via registry", () => {
 		const canonicalRegistry = {
 			getCanonicalVariants: (id: string, _opts?: unknown): CanonicalModelVariant[] =>
-				id === "claude-sonnet-4-5"
+				id === "claude-sonnet-4-6"
 					? [
 							{
-								canonicalId: "claude-sonnet-4-5",
-								selector: "anthropic/claude-sonnet-4-5",
+								canonicalId: "claude-sonnet-4-6",
+								selector: "anthropic/claude-sonnet-4-6",
 								model: models[0],
 								source: "bundled",
 							},
 						]
 					: [],
 		};
-		const result = filterAvailableModelsByEnabledPatterns(models, ["claude-sonnet-4-5"], canonicalRegistry);
+		const result = filterAvailableModelsByEnabledPatterns(models, ["claude-sonnet-4-6"], canonicalRegistry);
 		expect(result).toHaveLength(1);
-		expect(result[0].id).toBe("claude-sonnet-4-5");
+		expect(result[0].id).toBe("claude-sonnet-4-6");
 	});
 
 	test("expands canonical enabledModels entries with max thinking aliases", () => {
@@ -1478,19 +1520,19 @@ describe("filterAvailableModelsByEnabledPatterns", () => {
 		};
 		const result = filterAvailableModelsByEnabledPatterns(
 			canonicalVariantModels,
-			["claude-sonnet-4-5:max"],
+			["claude-sonnet-4-6:max"],
 			registry,
 		);
 		expect(result.map(model => `${model.provider}/${model.id}`).sort()).toEqual([
-			"anthropic/claude-sonnet-4-5",
+			"anthropic/claude-sonnet-4-6",
 			"github-copilot/anthropic/claude-sonnet-4.5",
 		]);
 	});
 
 	test("strips :thinkingLevel suffix before matching", () => {
-		const result = filterAvailableModelsByEnabledPatterns(models, ["anthropic/claude-sonnet-4-5:high"], registry);
+		const result = filterAvailableModelsByEnabledPatterns(models, ["anthropic/claude-sonnet-4-6:high"], registry);
 		expect(result).toHaveLength(1);
-		expect(result[0].id).toBe("claude-sonnet-4-5");
+		expect(result[0].id).toBe("claude-sonnet-4-6");
 	});
 
 	test("preserves colon-bearing OpenRouter ids (suffix is not a thinking level)", () => {
@@ -1526,11 +1568,11 @@ describe("filterAvailableModelsByEnabledPatterns", () => {
 	test("evaluates glob patterns against bare model id", () => {
 		const result = filterAvailableModelsByEnabledPatterns(models, ["claude-*"], registry);
 		expect(result).toHaveLength(1);
-		expect(result[0].id).toBe("claude-sonnet-4-5");
+		expect(result[0].id).toBe("claude-sonnet-4-6");
 	});
 
 	test("applies glob and exact patterns together", () => {
-		const result = filterAvailableModelsByEnabledPatterns(models, ["anthropic/*", "openai/gpt-4o"], registry);
+		const result = filterAvailableModelsByEnabledPatterns(models, ["anthropic/*", "openai/gpt-5.4"], registry);
 		expect(result).toHaveLength(2);
 	});
 
@@ -1542,7 +1584,7 @@ describe("filterAvailableModelsByEnabledPatterns", () => {
 	test("includes multiple patterns from different providers", () => {
 		const result = filterAvailableModelsByEnabledPatterns(
 			models,
-			["anthropic/claude-sonnet-4-5", "openai/gpt-4o"],
+			["anthropic/claude-sonnet-4-6", "openai/gpt-5.4"],
 			registry,
 		);
 		expect(result).toHaveLength(2);

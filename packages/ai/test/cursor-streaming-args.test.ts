@@ -5,9 +5,9 @@ import {
 	processInteractionUpdate,
 	type ToolCallState,
 	type UsageState,
-} from "@amaze/pi-ai/providers/cursor";
-import type { AssistantMessage, AssistantMessageEvent, TextContent, ThinkingContent } from "@amaze/pi-ai/types";
-import { AssistantMessageEventStream } from "@amaze/pi-ai/utils/event-stream";
+} from "@steve-z8k/pi-ai/providers/cursor";
+import type { AssistantMessage, AssistantMessageEvent, TextContent, ThinkingContent } from "@steve-z8k/pi-ai/types";
+import { AssistantMessageEventStream } from "@steve-z8k/pi-ai/utils/event-stream";
 
 interface Harness {
 	output: AssistantMessage;

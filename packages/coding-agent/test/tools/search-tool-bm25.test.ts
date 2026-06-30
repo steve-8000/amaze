@@ -1,12 +1,12 @@
 import { describe, expect, it } from "bun:test";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
 import {
 	buildDiscoverableToolSearchIndex,
 	type DiscoverableTool,
 	type DiscoverableToolSearchIndex,
-} from "@amaze/pi-coding-agent/tool-discovery/tool-index";
-import type { ToolSession } from "@amaze/pi-coding-agent/tools";
-import { renderSearchToolBm25Description, SearchToolBm25Tool } from "@amaze/pi-coding-agent/tools/search-tool-bm25";
+} from "@steve-z8k/pi-coding-agent/tool-discovery/tool-index";
+import type { ToolSession } from "@steve-z8k/pi-coding-agent/tools";
+import { renderSearchToolBm25Description, SearchToolBm25Tool } from "@steve-z8k/pi-coding-agent/tools/search-tool-bm25";
 
 type DiscoveryToolSession = ToolSession & {
 	isMCPDiscoveryEnabled: () => boolean;

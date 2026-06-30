@@ -3,9 +3,9 @@ import { afterEach, describe, expect, it } from "bun:test";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { hasPendingMigration, migrate } from "@amaze/pi-rocky-memory/core/migrations/e6-triplestore-split";
-import { initTriples, TripleStore } from "@amaze/pi-rocky-memory/core/triples";
-import { closeQuietly, openDatabase } from "@amaze/pi-rocky-memory/db";
+import { hasPendingMigration, migrate } from "@steve-z8k/pi-rocky-memory/core/migrations/e6-triplestore-split";
+import { initTriples, TripleStore } from "@steve-z8k/pi-rocky-memory/core/triples";
+import { closeQuietly, openDatabase } from "@steve-z8k/pi-rocky-memory/db";
 
 const roots: string[] = [];
 

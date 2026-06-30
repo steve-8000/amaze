@@ -1,8 +1,8 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { ThinkingLevel } from "@amaze/pi-agent-core";
-import { FileType, glob } from "@amaze/pi-natives";
+import type { ThinkingLevel } from "@steve-z8k/pi-agent-core";
+import { FileType, glob } from "@steve-z8k/pi-natives";
 import {
 	CONFIG_DIR_NAME,
 	getAgentDir,
@@ -11,7 +11,7 @@ import {
 	getProjectDir,
 	parseFrontmatter,
 	tryParseJson,
-} from "@amaze/pi-utils";
+} from "@steve-z8k/pi-utils";
 import type { ExtensionModule } from "../capability/extension-module";
 import { invalidate as invalidateFsCache, readDirEntries, readFile } from "../capability/fs";
 import { parseRuleConditionAndScope, type Rule, type RuleFrontmatter } from "../capability/rule";
@@ -322,7 +322,7 @@ export function compareSkillOrder(aName: string, aPath: string, bName: string, b
 	return cmp(aPath, bPath);
 }
 
-const DISABLED_EXTERNAL_SKILL_NAMES = new Set(["rocky-codebase"]);
+const DISABLED_EXTERNAL_SKILL_NAMES = new Set<string>();
 
 function isDisabledExternalSkill(skillPath: string, name: string): boolean {
 	const normalizedName = name.toLowerCase().replace(/_/g, "-");

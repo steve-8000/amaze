@@ -1,4 +1,4 @@
-import { matchesKittySequence as nativeMatchesKittySequence } from "@amaze/pi-natives";
+import { matchesKittySequence as nativeMatchesKittySequence } from "@steve-z8k/pi-natives";
 import { parseKittySequence } from "../src/keys";
 
 const ITERATIONS = 2000;

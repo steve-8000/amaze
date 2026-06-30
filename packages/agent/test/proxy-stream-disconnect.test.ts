@@ -7,10 +7,10 @@
  * event — it must NOT silently complete with default stopReason='stop'.
  */
 import { describe, expect, it } from "bun:test";
-import type { ProxyAssistantMessageEvent } from "@amaze/pi-agent-core/proxy";
-import { type ProxyMessageEventStream, streamProxy } from "@amaze/pi-agent-core/proxy";
-import type { AssistantMessageEvent, Context, FetchImpl, Model } from "@amaze/pi-ai";
-import { buildModel } from "@amaze/pi-catalog/build";
+import type { ProxyAssistantMessageEvent } from "@steve-z8k/pi-agent-core/proxy";
+import { type ProxyMessageEventStream, streamProxy } from "@steve-z8k/pi-agent-core/proxy";
+import type { AssistantMessageEvent, Context, FetchImpl, Model } from "@steve-z8k/pi-ai";
+import { buildModel } from "@steve-z8k/pi-catalog/build";
 
 const mockModel: Model = buildModel({
 	id: "test-model",

@@ -10,9 +10,9 @@ import type {
 	AgentToolExecFn,
 	AgentToolResult,
 	AgentToolUpdateCallback,
-} from "@amaze/pi-agent-core";
-import type { ImageContent, TextContent } from "@amaze/pi-ai";
-import { logger } from "@amaze/pi-utils";
+} from "@steve-z8k/pi-agent-core";
+import type { ImageContent, TextContent } from "@steve-z8k/pi-ai";
+import { logger } from "@steve-z8k/pi-utils";
 import { getDefault, type Settings } from "../config/settings";
 import type { Theme } from "../modes/theme/theme";
 import { type OutputSummary, type TruncationResult, truncateMiddle, truncateTail } from "../session/streaming-output";

@@ -6,16 +6,16 @@ import {
 	type InMemorySnapshotStore as FileReadCache,
 	formatHashlineHeader,
 	MismatchError as HashlineMismatchError,
-} from "@amaze/hashline";
-import { resetSettingsForTest, Settings } from "@amaze/pi-coding-agent/config/settings";
+} from "@steve-z8k/hashline";
+import { resetSettingsForTest, Settings } from "@steve-z8k/pi-coding-agent/config/settings";
 import {
 	canonicalSnapshotKey,
 	type ExecuteHashlineSingleOptions,
 	executeHashlineSingle,
 	getFileSnapshotStore as getFileReadCache,
 	hashlineEditParamsSchema,
-} from "@amaze/pi-coding-agent/edit";
-import type { ToolSession } from "@amaze/pi-coding-agent/tools";
+} from "@steve-z8k/pi-coding-agent/edit";
+import type { ToolSession } from "@steve-z8k/pi-coding-agent/tools";
 import { type Type, type } from "arktype";
 
 beforeAll(async () => {

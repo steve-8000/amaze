@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import type { SessionMessageEntry } from "@amaze/pi-agent-core/compaction/entries";
-import { DEFAULT_PRUNE_CONFIG, pruneToolOutputs } from "@amaze/pi-agent-core/compaction/pruning";
-import { AGGRESSIVE_SHAKE_CONFIG, collectShakeRegions } from "@amaze/pi-agent-core/compaction/shake";
-import type { AssistantMessage, TextContent, ToolResultMessage, Usage } from "@amaze/pi-ai";
+import type { SessionMessageEntry } from "@steve-z8k/pi-agent-core/compaction/entries";
+import { DEFAULT_PRUNE_CONFIG, pruneToolOutputs } from "@steve-z8k/pi-agent-core/compaction/pruning";
+import { AGGRESSIVE_SHAKE_CONFIG, collectShakeRegions } from "@steve-z8k/pi-agent-core/compaction/shake";
+import type { AssistantMessage, TextContent, ToolResultMessage, Usage } from "@steve-z8k/pi-ai";
 
 function usage(): Usage {
 	return {

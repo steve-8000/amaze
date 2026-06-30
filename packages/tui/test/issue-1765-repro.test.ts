@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { type Component, CURSOR_MARKER, type Focusable, TUI } from "@amaze/pi-tui";
+import { type Component, CURSOR_MARKER, type Focusable, TUI } from "@steve-z8k/pi-tui";
 import { VirtualTerminal } from "./virtual-terminal";
 
-// Regression test for https://github.com/can1357/amaze-agent/issues/1765
+// Regression test for https://github.com/steve-8000/amaze/issues/1765
 //
 // Some terminals either do not implement DEC 2026 synchronized output or have
 // implementations that make redraws visually worse. VTE 0.68, for example,

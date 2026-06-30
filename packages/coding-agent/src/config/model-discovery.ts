@@ -5,17 +5,17 @@
  * `discoverModelsByProviderType` with a `DiscoveryContext`; built-in provider
  * discovery lives in pi-catalog's provider-models.
  */
-import { type ApiKey, type FetchImpl, withAuth } from "@amaze/pi-ai";
-import type { Api, Model } from "@amaze/pi-ai/types";
-import { buildModel } from "@amaze/pi-catalog/build";
+import { type ApiKey, type FetchImpl, withAuth } from "@steve-z8k/pi-ai";
+import type { Api, Model } from "@steve-z8k/pi-ai/types";
+import { buildModel } from "@steve-z8k/pi-catalog/build";
 import {
 	getBundledModelReferenceIndex,
 	resolveModelReference,
 	stripBracketedModelIdAffixes,
-} from "@amaze/pi-catalog/identity";
-import { fetchLmStudioNativeModelMetadata } from "@amaze/pi-catalog/provider-models/openai-compat";
-import type { ModelSpec } from "@amaze/pi-catalog/types";
-import { isRecord } from "@amaze/pi-utils";
+} from "@steve-z8k/pi-catalog/identity";
+import { fetchLmStudioNativeModelMetadata } from "@steve-z8k/pi-catalog/provider-models/openai-compat";
+import type { ModelSpec } from "@steve-z8k/pi-catalog/types";
+import { isRecord } from "@steve-z8k/pi-utils";
 import type { ProviderDiscovery } from "./models-config-schema";
 
 // Default cap on `max_tokens` for auto-discovered models that do not advertise

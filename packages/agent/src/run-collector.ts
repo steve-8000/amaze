@@ -15,8 +15,8 @@
  * produced a result message).
  */
 
-import type { AssistantMessage, Model, StopReason } from "@amaze/pi-ai";
 import type { Span } from "@opentelemetry/api";
+import type { AssistantMessage, Model, StopReason } from "@steve-z8k/pi-ai";
 
 /** Terminal status reported by an `execute_tool` span. */
 export type ToolStatus = "ok" | "error" | "skipped" | "blocked" | "timeout" | "aborted";

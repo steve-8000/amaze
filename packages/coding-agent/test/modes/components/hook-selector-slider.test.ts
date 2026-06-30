@@ -1,6 +1,9 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { HookSelectorComponent, type HookSelectorSlider } from "@amaze/pi-coding-agent/modes/components/hook-selector";
-import { initTheme } from "@amaze/pi-coding-agent/modes/theme/theme";
+import {
+	HookSelectorComponent,
+	type HookSelectorSlider,
+} from "@steve-z8k/pi-coding-agent/modes/components/hook-selector";
+import { initTheme } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
 
 const LEFT = "\x1b[D";
 const RIGHT = "\x1b[C";
@@ -51,7 +54,7 @@ function modelSlider(index: number): HookSelectorSlider {
 		caption: "continue with",
 		index,
 		segments: [
-			{ label: "smol", detail: "gpt-5-mini" },
+			{ label: "smol", detail: "gpt-5.4-mini" },
 			{ label: "default", detail: "claude-sonnet" },
 			{ label: "slow", detail: "claude-opus" },
 		],
@@ -67,7 +70,7 @@ describe("HookSelectorComponent model slider", () => {
 		expect(text).toContain("slow");
 		// Only the active tier's detail is shown beneath the track.
 		expect(text).toContain("claude-sonnet");
-		expect(text).not.toContain("gpt-5-mini");
+		expect(text).not.toContain("gpt-5.4-mini");
 		expect(text).not.toContain("claude-opus");
 	});
 
@@ -85,7 +88,7 @@ describe("HookSelectorComponent model slider", () => {
 		h.component.handleInput(LEFT); // 2 -> 1
 		h.component.handleInput(LEFT); // 1 -> 0
 		expect(h.changes).toEqual([1, 0]);
-		expect(h.render()).toContain("gpt-5-mini");
+		expect(h.render()).toContain("gpt-5.4-mini");
 		// The slider never triggers option selection or cancellation.
 		expect(h.selected).toEqual([]);
 		expect(h.cancelled).toBe(0);

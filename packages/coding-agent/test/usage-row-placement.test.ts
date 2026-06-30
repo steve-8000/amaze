@@ -7,14 +7,14 @@
  * flushes it after the turn's tools are placed.
  */
 import { beforeAll, describe, expect, it, vi } from "bun:test";
-import type { AgentMessage } from "@amaze/pi-agent-core";
-import { ReadToolGroupComponent } from "@amaze/pi-coding-agent/modes/components/read-tool-group";
-import { initTheme } from "@amaze/pi-coding-agent/modes/theme/theme";
-import type { InteractiveModeContext } from "@amaze/pi-coding-agent/modes/types";
-import { UiHelpers } from "@amaze/pi-coding-agent/modes/utils/ui-helpers";
-import type { SessionContext } from "@amaze/pi-coding-agent/session/session-context";
-import { Container } from "@amaze/pi-tui";
-import { formatNumber } from "@amaze/pi-utils";
+import type { AgentMessage } from "@steve-z8k/pi-agent-core";
+import { ReadToolGroupComponent } from "@steve-z8k/pi-coding-agent/modes/components/read-tool-group";
+import { initTheme } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
+import type { InteractiveModeContext } from "@steve-z8k/pi-coding-agent/modes/types";
+import { UiHelpers } from "@steve-z8k/pi-coding-agent/modes/utils/ui-helpers";
+import type { SessionContext } from "@steve-z8k/pi-coding-agent/session/session-context";
+import { Container } from "@steve-z8k/pi-tui";
+import { formatNumber } from "@steve-z8k/pi-utils";
 
 // 4242 → "4.2K": distinctive enough not to collide with a read group's render.
 const USAGE_INPUT = 4242;
@@ -26,7 +26,7 @@ function readTurn(): AgentMessage[] {
 		content: [{ type: "toolCall", id: "r1", name: "read", arguments: { path: "src/foo.ts" } }],
 		api: "anthropic-messages",
 		provider: "anthropic",
-		model: "claude-sonnet-4-5",
+		model: "claude-sonnet-4-6",
 		stopReason: "stop",
 		usage: {
 			input: USAGE_INPUT,

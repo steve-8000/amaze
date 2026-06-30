@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { handleOpenCorporates } from "@amaze/pi-coding-agent/web/scrapers/opencorporates";
-import { handleSecEdgar } from "@amaze/pi-coding-agent/web/scrapers/sec-edgar";
+import { handleOpenCorporates } from "@steve-z8k/pi-coding-agent/web/scrapers/opencorporates";
+import { handleSecEdgar } from "@steve-z8k/pi-coding-agent/web/scrapers/sec-edgar";
 
 const SKIP = !Bun.env.WEB_FETCH_INTEGRATION;
 

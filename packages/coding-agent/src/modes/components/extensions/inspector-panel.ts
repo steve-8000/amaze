@@ -4,8 +4,8 @@
  * Shows name, description, origin, status, and kind-specific preview.
  */
 import * as os from "node:os";
-import { isZodSchema, zodToWireSchema } from "@amaze/pi-ai/utils/schema";
-import { type Component, truncateToWidth, wrapTextWithAnsi } from "@amaze/pi-tui";
+import { isZodSchema, zodToWireSchema } from "@steve-z8k/pi-ai/utils/schema";
+import { type Component, truncateToWidth, wrapTextWithAnsi } from "@steve-z8k/pi-tui";
 import { theme } from "../../../modes/theme/theme";
 import { shortenPath } from "../../../tools/render-utils";
 import type { Extension, ExtensionState } from "./types";

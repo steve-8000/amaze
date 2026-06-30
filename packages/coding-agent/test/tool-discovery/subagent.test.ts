@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
 import {
 	resolveEffectiveToolDiscoveryMode,
 	TOOL_DISCOVERY_AUTO_THRESHOLD,
-} from "@amaze/pi-coding-agent/tool-discovery/mode";
+} from "@steve-z8k/pi-coding-agent/tool-discovery/mode";
 
 // ─── Subagent discovery mode inheritance tests ────────────────────────────────
 // These are unit-level tests that verify the settings resolution logic

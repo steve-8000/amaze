@@ -13,7 +13,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { isSqliteBusyError, SqliteAuthCredentialStore } from "@amaze/pi-ai/auth-storage";
+import { isSqliteBusyError, SqliteAuthCredentialStore } from "@steve-z8k/pi-ai/auth-storage";
 
 interface SqliteBusyShape extends Error {
 	code: string;

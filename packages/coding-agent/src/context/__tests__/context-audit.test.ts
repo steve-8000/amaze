@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { AgentMessage } from "@amaze/pi-agent-core";
-import type { Message } from "@amaze/pi-ai";
+import type { AgentMessage } from "@steve-z8k/pi-agent-core";
+import type { Message } from "@steve-z8k/pi-ai";
 import { convertToLlm } from "../../session/messages";
 import { auditProviderVisibleMessages } from "../context-audit";
 

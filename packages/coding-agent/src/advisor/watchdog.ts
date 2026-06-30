@@ -1,6 +1,6 @@
 import * as os from "node:os";
 import * as path from "node:path";
-import { getAgentDir, isEnoent, logger } from "@amaze/pi-utils";
+import { getAgentDir, isEnoent, logger } from "@steve-z8k/pi-utils";
 import { expandAtImports } from "../discovery/at-imports";
 import { repo } from "../utils/git";
 

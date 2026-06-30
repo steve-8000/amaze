@@ -5,10 +5,10 @@
  */
 
 import path from "node:path";
-import type { AgentEvent, AgentIdentity, AgentTelemetryConfig, ThinkingLevel } from "@amaze/pi-agent-core";
-import { recordHandoff, resolveTelemetry } from "@amaze/pi-agent-core";
-import type { Api, Model, Usage } from "@amaze/pi-ai";
-import { logger, popLoopPhase, prompt, pushLoopPhase, untilAborted } from "@amaze/pi-utils";
+import type { AgentEvent, AgentIdentity, AgentTelemetryConfig, ThinkingLevel } from "@steve-z8k/pi-agent-core";
+import { recordHandoff, resolveTelemetry } from "@steve-z8k/pi-agent-core";
+import type { Api, Model, Usage } from "@steve-z8k/pi-ai";
+import { logger, popLoopPhase, prompt, pushLoopPhase, untilAborted } from "@steve-z8k/pi-utils";
 import type { Rule } from "../capability/rule";
 import { ModelRegistry } from "../config/model-registry";
 import {
@@ -80,9 +80,9 @@ const MCP_CALL_TIMEOUT_MS = 60_000;
  * overridden via the `task.softRequestBudget` setting (0 disables the guard).
  */
 export const SOFT_REQUEST_BUDGET: Record<string, number> = {
-	finder: 40,
-	fixer: 40,
-	helper: 40,
+	local: 40,
+	flash: 40,
+	spark: 40,
 	default: 90,
 };
 
@@ -1789,10 +1789,7 @@ export async function runSubprocess(options: ExecutorOptions): Promise<SingleRes
 		toolNames = [...toolNames, "irc"];
 	}
 	if (toolNames?.includes("exec")) {
-		const allowEvalPy = settings.get("eval.py") ?? true;
-		const allowEvalJs = settings.get("eval.js") ?? true;
 		const expanded = toolNames.filter(name => name !== "exec");
-		if (allowEvalPy || allowEvalJs) expanded.push("eval");
 		expanded.push("bash");
 		toolNames = Array.from(new Set(expanded));
 	}
@@ -1808,7 +1805,7 @@ export async function runSubprocess(options: ExecutorOptions): Promise<SingleRes
 				: agent.spawns.join(",");
 
 	const ircEnabled = isIrcEnabled(subagentSettings, childDepth);
-	const skipPythonPreflight = Array.isArray(toolNames) && !toolNames.includes("eval");
+	const skipPythonPreflight = true;
 
 	const monitor = createSubagentRunMonitor({
 		index,

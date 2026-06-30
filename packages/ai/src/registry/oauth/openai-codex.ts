@@ -2,7 +2,7 @@
  * OpenAI Codex (ChatGPT OAuth) flow — browser and device-code flows.
  */
 
-import { OPENAI_HEADER_VALUES } from "@amaze/pi-catalog/wire/codex";
+import { OPENAI_HEADER_VALUES } from "@steve-z8k/pi-catalog/wire/codex";
 import type { FetchImpl } from "../../types";
 import { isRecord } from "../../utils";
 import { OAuthCallbackFlow, type OAuthCallbackFlowOptions } from "./callback-server";

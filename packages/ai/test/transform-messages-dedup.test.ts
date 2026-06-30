@@ -5,10 +5,10 @@
 // Regression for the suffix previously landing on the composite as a whole
 // (`call_x|fc_y` → `call_x|fc_y_dup1`, wire call_id `call_x` for both copies).
 import { describe, expect, it } from "bun:test";
-import { transformMessages } from "@amaze/pi-ai/providers/transform-messages";
-import type { AssistantMessage, Message, Model, ToolResultMessage } from "@amaze/pi-ai/types";
-import { normalizeResponsesToolCallId } from "@amaze/pi-ai/utils";
-import { buildModel } from "@amaze/pi-catalog/build";
+import { transformMessages } from "@steve-z8k/pi-ai/providers/transform-messages";
+import type { AssistantMessage, Message, Model, ToolResultMessage } from "@steve-z8k/pi-ai/types";
+import { normalizeResponsesToolCallId } from "@steve-z8k/pi-ai/utils";
+import { buildModel } from "@steve-z8k/pi-catalog/build";
 
 function makeModel(): Model<"openai-responses"> {
 	return buildModel({

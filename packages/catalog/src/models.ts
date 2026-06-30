@@ -27,9 +27,9 @@ function getModelRegistry(): Map<string, Map<string, Model<Api>>> {
 	return modelRegistry;
 }
 
-export type GeneratedProvider = keyof typeof MODELS;
+export type GeneratedProvider = KnownProvider;
 
-export function getBundledModel<TApi extends Api = Api>(provider: GeneratedProvider, modelId: string): Model<TApi> {
+export function getBundledModel<TApi extends Api = Api>(provider: KnownProvider, modelId: string): Model<TApi> {
 	const providerModels = getModelRegistry().get(provider);
 	return providerModels?.get(modelId) as Model<TApi>;
 }
@@ -38,7 +38,7 @@ export function getBundledProviders(): KnownProvider[] {
 	return Object.keys(MODELS) as KnownProvider[];
 }
 
-export function getBundledModels(provider: GeneratedProvider): Model<Api>[] {
+export function getBundledModels(provider: KnownProvider): Model<Api>[] {
 	const models = getModelRegistry().get(provider);
 	return models ? (Array.from(models.values()) as Model<Api>[]) : [];
 }

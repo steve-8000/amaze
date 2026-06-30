@@ -1,7 +1,7 @@
 {
 	"type": "module",
 	"private": true,
-	"name": "@amaze/typescript-edit-benchmark",
+	"name": "@steve-z8k/typescript-edit-benchmark",
 	"version": "0.0.1",
 	"description": "Edit benchmark suite using TypeScript source code mutations",
 	"homepage": "https://amaze",
@@ -9,7 +9,7 @@
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/can1357/amaze-agent.git",
+		"url": "git+https://github.com/steve-8000/amaze.git",
 		"directory": "packages/typescript-edit-benchmark"
 	},
 	"main": "./src/index.ts",
@@ -42,15 +42,15 @@
 		"@babel/parser": "catalog:",
 		"@babel/traverse": "catalog:",
 		"@babel/types": "catalog:",
-		"@amaze/hashline": "catalog:",
-		"@amaze/pi-agent-core": "catalog:",
-		"@amaze/pi-coding-agent": "catalog:",
-		"@amaze/pi-utils": "catalog:",
+		"@steve-z8k/hashline": "catalog:",
+		"@steve-z8k/pi-agent-core": "catalog:",
+		"@steve-z8k/pi-coding-agent": "catalog:",
+		"@steve-z8k/pi-utils": "catalog:",
 		"diff": "catalog:",
 		"prettier": "catalog:",
 		"regexp-tree": "catalog:",
-		"@amaze/pi-ai": "catalog:",
-		"@amaze/pi-tui": "catalog:"
+		"@steve-z8k/pi-ai": "catalog:",
+		"@steve-z8k/pi-tui": "catalog:"
 	},
 	"devDependencies": {
 		"@types/babel__generator": "catalog:",

@@ -1,4 +1,4 @@
-import type { ImageContent } from "@amaze/pi-ai";
+import type { ImageContent } from "@steve-z8k/pi-ai";
 import type { Args } from "./args";
 
 export interface InitialMessageInput {

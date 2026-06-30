@@ -9,7 +9,7 @@
  * (or `options: "runtime"` for runtime-injected lists like themes).
  */
 
-import { TERMINAL } from "@amaze/pi-tui";
+import { TERMINAL } from "@steve-z8k/pi-tui";
 import { Settings } from "../../config/settings";
 import {
 	type AnyUiMetadata,

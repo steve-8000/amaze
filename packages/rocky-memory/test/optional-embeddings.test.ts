@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { getFastembedCacheDir } from "@amaze/pi-utils";
+import { getFastembedCacheDir } from "@steve-z8k/pi-utils";
 import "./setup";
 import {
 	available,
@@ -9,9 +9,9 @@ import {
 	resetEmbeddingProviderForTests,
 	setEmbeddingProviderForTests,
 	setLocalModelInitializerForTests,
-} from "@amaze/pi-rocky-memory/core/embeddings";
-import { RockyMemory } from "@amaze/pi-rocky-memory/core/memory";
-import { withRockyMemoryRuntimeOptions } from "@amaze/pi-rocky-memory/core/runtime-options";
+} from "@steve-z8k/pi-rocky-memory/core/embeddings";
+import { RockyMemory } from "@steve-z8k/pi-rocky-memory/core/memory";
+import { withRockyMemoryRuntimeOptions } from "@steve-z8k/pi-rocky-memory/core/runtime-options";
 import packageJson from "../package.json" with { type: "json" };
 
 const ENV_KEYS = [

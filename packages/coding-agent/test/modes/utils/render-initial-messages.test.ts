@@ -13,16 +13,16 @@
  */
 
 import { afterEach, beforeAll, describe, expect, it, type Mock, vi } from "bun:test";
-import type { AgentMessage } from "@amaze/pi-agent-core";
-import type { AssistantMessage, ImageContent, Usage } from "@amaze/pi-ai";
-import { resetSettingsForTest, Settings } from "@amaze/pi-coding-agent/config/settings";
-import { initTheme } from "@amaze/pi-coding-agent/modes/theme/theme";
-import type { InteractiveModeContext } from "@amaze/pi-coding-agent/modes/types";
-import { UiHelpers } from "@amaze/pi-coding-agent/modes/utils/ui-helpers";
-import type { SessionContext } from "@amaze/pi-coding-agent/session/session-context";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import { type Component, Container, Image, ImageProtocol, setTerminalImageProtocol, TERMINAL } from "@amaze/pi-tui";
-import { TempDir } from "@amaze/pi-utils";
+import type { AgentMessage } from "@steve-z8k/pi-agent-core";
+import type { AssistantMessage, ImageContent, Usage } from "@steve-z8k/pi-ai";
+import { resetSettingsForTest, Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { initTheme } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
+import type { InteractiveModeContext } from "@steve-z8k/pi-coding-agent/modes/types";
+import { UiHelpers } from "@steve-z8k/pi-coding-agent/modes/utils/ui-helpers";
+import type { SessionContext } from "@steve-z8k/pi-coding-agent/session/session-context";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import { type Component, Container, Image, ImageProtocol, setTerminalImageProtocol, TERMINAL } from "@steve-z8k/pi-tui";
+import { TempDir } from "@steve-z8k/pi-utils";
 
 beforeAll(() => {
 	initTheme();

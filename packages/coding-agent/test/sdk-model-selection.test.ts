@@ -2,14 +2,14 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Effort } from "@amaze/pi-ai";
-import { getBundledModel } from "@amaze/pi-catalog/models";
-import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import { createAgentSession, type ExtensionFactory } from "@amaze/pi-coding-agent/sdk";
-import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import { Snowflake } from "@amaze/pi-utils";
+import { Effort } from "@steve-z8k/pi-ai";
+import { getBundledModel } from "@steve-z8k/pi-catalog/models";
+import { ModelRegistry } from "@steve-z8k/pi-coding-agent/config/model-registry";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { createAgentSession, type ExtensionFactory } from "@steve-z8k/pi-coding-agent/sdk";
+import { AuthStorage } from "@steve-z8k/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import { Snowflake } from "@steve-z8k/pi-utils";
 
 describe("createAgentSession deferred model pattern resolution", () => {
 	let tempDir: string;
@@ -104,10 +104,10 @@ describe("createAgentSession deferred model pattern resolution", () => {
 		expect(modelFallbackMessage).toBe('Model "missing-provider/missing-model" not found');
 	});
 
-	test("does not apply default role thinking override when modelPattern is explicit", async () => {
+	test("does not apply flash role thinking override when modelPattern is explicit", async () => {
 		const settings = Settings.isolated({ defaultThinkingLevel: "off" });
-		settings.setModelRole("smol", "runtime-provider/runtime-reasoning-model");
-		settings.setModelRole("default", "pi/smol:high");
+		settings.setModelRole("deep", "runtime-provider/runtime-reasoning-model");
+		settings.setModelRole("flash", "pi/deep:high");
 
 		const { session } = await createAgentSession({
 			...(await buildSessionOptions("runtime-provider/runtime-reasoning-model")),
@@ -132,21 +132,21 @@ describe("createAgentSession deferred model pattern resolution", () => {
 		expect(session.thinkingLevel).toBe(Effort.XHigh);
 	});
 
-	test("selects the settings default model without synchronously validating auth", async () => {
-		const defaultModel = getBundledModel("anthropic", "claude-sonnet-4-5");
-		if (!defaultModel) {
-			throw new Error("Expected bundled anthropic default model");
+	test("selects the settings flash model without synchronously validating auth", async () => {
+		const flashModel = getBundledModel("anthropic", "claude-sonnet-4-6");
+		if (!flashModel) {
+			throw new Error("Expected bundled anthropic flash model");
 		}
 
 		const authStorage = await AuthStorage.create(path.join(tempDir, "testauth.db"));
-		authStorage.setRuntimeApiKey(defaultModel.provider, "test-key");
+		authStorage.setRuntimeApiKey(flashModel.provider, "test-key");
 		const modelRegistry = new ModelRegistry(authStorage, path.join(tempDir, "models.yml"));
 		const settings = Settings.isolated();
-		settings.setModelRole("default", `${defaultModel.provider}/${defaultModel.id}`);
+		settings.setModelRole("flash", `${flashModel.provider}/${flashModel.id}`);
 
 		const getApiKeySpy = vi
 			.spyOn(modelRegistry, "getApiKey")
-			.mockRejectedValue(new Error("settings default model should not validate auth during startup"));
+			.mockRejectedValue(new Error("settings flash model should not validate auth during startup"));
 
 		try {
 			const { session } = await createAgentSession({
@@ -165,8 +165,8 @@ describe("createAgentSession deferred model pattern resolution", () => {
 			});
 
 			try {
-				expect(session.model?.provider).toBe(defaultModel.provider);
-				expect(session.model?.id).toBe(defaultModel.id);
+				expect(session.model?.provider).toBe(flashModel.provider);
+				expect(session.model?.id).toBe(flashModel.id);
 				expect(getApiKeySpy).not.toHaveBeenCalled();
 			} finally {
 				await session.dispose();
@@ -184,7 +184,7 @@ describe("createAgentSession deferred model pattern resolution", () => {
 		// ~10s refresh timeout — the "Still starting … restoreSessionModel" hang.
 		// Selection now uses the synchronous, side-effect-free `hasConfiguredAuth`
 		// probe; the real key is resolved lazily per request via the resolver.
-		const savedModel = getBundledModel("anthropic", "claude-sonnet-4-5");
+		const savedModel = getBundledModel("anthropic", "claude-sonnet-4-6");
 		if (!savedModel) {
 			throw new Error("Expected bundled anthropic default model");
 		}
@@ -202,11 +202,11 @@ describe("createAgentSession deferred model pattern resolution", () => {
 				{ type: "session", version: 3, id: "resume-saved", timestamp, cwd: tempDir },
 				{
 					type: "model_change",
-					id: "default-model",
+					id: "flash-model",
 					parentId: null,
 					timestamp,
 					model: `${savedModel.provider}/${savedModel.id}`,
-					role: "default",
+					role: "flash",
 				},
 			]
 				.map(entry => JSON.stringify(entry))
@@ -250,13 +250,13 @@ describe("createAgentSession deferred model pattern resolution", () => {
 	});
 
 	test("prefers the provider default over catalog order in the startup fallback", async () => {
-		// Regression: with an Anthropic key but no configured `default` role and no
+		// Regression: with an Anthropic key but no configured `flash` role and no
 		// session/CLI model, the step-4 startup fallback used to pick the first
-		// anthropic model in models.json catalog order (claude-3-5-sonnet-20240620)
+		// anthropic model in models.json catalog order (claude-opus-4-7)
 		// instead of the provider's configured default from DEFAULT_MODEL_PER_PROVIDER
 		// (claude-opus-4-8).
 		const providerDefault = getBundledModel("anthropic", "claude-opus-4-8");
-		const catalogFirst = getBundledModel("anthropic", "claude-3-5-sonnet-20240620");
+		const catalogFirst = getBundledModel("anthropic", "claude-opus-4-7");
 		if (!providerDefault || !catalogFirst) {
 			throw new Error("Expected bundled anthropic models for fallback regression");
 		}
@@ -265,7 +265,7 @@ describe("createAgentSession deferred model pattern resolution", () => {
 		authStoragesToClose.push(authStorage);
 		authStorage.setRuntimeApiKey("anthropic", "test-key");
 		const modelRegistry = new ModelRegistry(authStorage, path.join(tempDir, "models.yml"));
-		// No `default` model role configured: forces the step-4 startup fallback.
+		// No `flash` model role configured: forces the step-4 startup fallback.
 		const settings = Settings.isolated();
 
 		const { session } = await createAgentSession({
@@ -332,7 +332,7 @@ describe("createAgentSession deferred model pattern resolution", () => {
 	});
 
 	test("restores role model max selector from extension provider after startup resume", async () => {
-		const defaultModel = getBundledModel("anthropic", "claude-sonnet-4-5");
+		const defaultModel = getBundledModel("anthropic", "claude-sonnet-4-6");
 		if (!defaultModel) {
 			throw new Error("Expected bundled anthropic default model");
 		}
@@ -349,19 +349,19 @@ describe("createAgentSession deferred model pattern resolution", () => {
 				{ type: "session", version: 3, id: "resume-ext", timestamp, cwd: tempDir },
 				{
 					type: "model_change",
-					id: "default-model",
+					id: "flash-model",
 					parentId: null,
 					timestamp,
 					model: `${defaultModel.provider}/${defaultModel.id}`,
-					role: "default",
+					role: "flash",
 				},
 				{
 					type: "model_change",
-					id: "smol-model",
-					parentId: "default-model",
+					id: "review-model",
+					parentId: "flash-model",
 					timestamp,
 					model: "runtime-provider/runtime-reasoning-model:max",
-					role: "smol",
+					role: "review",
 				},
 			]
 				.map(entry => JSON.stringify(entry))
@@ -397,7 +397,7 @@ describe("createAgentSession deferred model pattern resolution", () => {
 	});
 
 	test("restores extension role model when saved default cannot be restored before extensions load", async () => {
-		const settingsDefaultModel = getBundledModel("anthropic", "claude-sonnet-4-5");
+		const settingsDefaultModel = getBundledModel("anthropic", "claude-sonnet-4-6");
 		if (!settingsDefaultModel) {
 			throw new Error("Expected bundled anthropic default model");
 		}
@@ -406,8 +406,8 @@ describe("createAgentSession deferred model pattern resolution", () => {
 		authStorage.setRuntimeApiKey(settingsDefaultModel.provider, "test-key");
 		const modelRegistry = new ModelRegistry(authStorage, path.join(tempDir, "models.yml"));
 
-		// Saved default points at a provider that has no usable credentials. The
-		// last active role (`smol`) is supplied by the inline extension and is
+		// Saved flash points at a provider that has no usable credentials. The
+		// last active role (`review`) is supplied by the inline extension and is
 		// only resolvable once provider registrations are processed.
 		const targetSessionFile = path.join(tempDir, "resume-extension-default-missing.jsonl");
 		const timestamp = "2026-06-01T00:00:00.000Z";
@@ -417,19 +417,19 @@ describe("createAgentSession deferred model pattern resolution", () => {
 				{ type: "session", version: 3, id: "resume-ext-no-default", timestamp, cwd: tempDir },
 				{
 					type: "model_change",
-					id: "default-model",
+					id: "flash-model",
 					parentId: null,
 					timestamp,
 					model: "anthropic/not-available",
-					role: "default",
+					role: "flash",
 				},
 				{
 					type: "model_change",
-					id: "smol-model",
-					parentId: "default-model",
+					id: "review-model",
+					parentId: "flash-model",
 					timestamp,
 					model: "runtime-provider/runtime-model",
-					role: "smol",
+					role: "review",
 				},
 			]
 				.map(entry => JSON.stringify(entry))
@@ -438,8 +438,7 @@ describe("createAgentSession deferred model pattern resolution", () => {
 		const sessionManager = await SessionManager.open(targetSessionFile, path.join(tempDir, "sessions-no-default"));
 
 		const settings = Settings.isolated();
-		settings.setModelRole("default", `${settingsDefaultModel.provider}/${settingsDefaultModel.id}`);
-
+		settings.setModelRole("flash", `${settingsDefaultModel.provider}/${settingsDefaultModel.id}`);
 		const { session } = await createAgentSession({
 			cwd: tempDir,
 			agentDir: tempDir,

@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, it, spyOn } from "bun:test";
-import { logger } from "@amaze/pi-utils";
+import { logger } from "@steve-z8k/pi-utils";
 import "./setup";
 import {
 	embed,
 	resetEmbeddingProviderForTests,
 	setLocalModelInitializerForTests,
-} from "@amaze/pi-rocky-memory/core/embeddings";
-import { withRockyMemoryRuntimeOptions } from "@amaze/pi-rocky-memory/core/runtime-options";
+} from "@steve-z8k/pi-rocky-memory/core/embeddings";
+import { withRockyMemoryRuntimeOptions } from "@steve-z8k/pi-rocky-memory/core/runtime-options";
 
 const ENV_KEYS = [
 	"NODE_ENV",

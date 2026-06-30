@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { QrCode, type QrEcLevel, renderQrHalfBlocks } from "@amaze/pi-coding-agent/utils/qrcode";
+import { QrCode, type QrEcLevel, renderQrHalfBlocks } from "@steve-z8k/pi-coding-agent/utils/qrcode";
 
 function matrixFingerprint(qr: QrCode): string {
 	let bits = "";
@@ -29,7 +29,7 @@ describe("QR encoder", () => {
 			hash: "c0b4f3c7a883e314",
 		},
 		{
-			text: "https://web.example/collab/#relay.example.com:8443/r/AbCdEfGhIjKlMnOp.0123456789abcdef",
+			text: "https://web.example/share/#relay.example.com:8443/r/AbCdEfGhIjKlMnOp.0123456789abcdef",
 			ecl: "Q",
 			mask: 6,
 			version: 7,

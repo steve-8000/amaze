@@ -1,4 +1,4 @@
-import { getLastChangelogVersionPath, isEnoent, logger } from "@amaze/pi-utils";
+import { getLastChangelogVersionPath, isEnoent, logger } from "@steve-z8k/pi-utils";
 
 export interface ChangelogEntry {
 	major: number;

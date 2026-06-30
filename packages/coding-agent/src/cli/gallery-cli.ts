@@ -7,9 +7,9 @@
  * rendered output to stdout. It exists for visual QA of tool renderers without
  * having to provoke each state through a live agent session.
  */
-import type { AgentTool } from "@amaze/pi-agent-core";
-import type { TUI } from "@amaze/pi-tui";
-import { getProjectDir } from "@amaze/pi-utils";
+import type { AgentTool } from "@steve-z8k/pi-agent-core";
+import type { TUI } from "@steve-z8k/pi-tui";
+import { getProjectDir } from "@steve-z8k/pi-utils";
 import { Settings } from "../config/settings";
 import { ToolExecutionComponent } from "../modes/components/tool-execution";
 import { initTheme, theme } from "../modes/theme/theme";

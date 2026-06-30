@@ -1,10 +1,10 @@
 import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { AssistantMessage, ImageContent } from "@amaze/pi-ai";
-import type { SessionMessageEntry } from "@amaze/pi-coding-agent/session/session-entries";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import { getBlobsDir, TempDir } from "@amaze/pi-utils";
+import type { AssistantMessage, ImageContent } from "@steve-z8k/pi-ai";
+import type { SessionMessageEntry } from "@steve-z8k/pi-coding-agent/session/session-entries";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import { getBlobsDir, TempDir } from "@steve-z8k/pi-utils";
 
 function isAssistantSessionEntry(entry: unknown): entry is SessionMessageEntry & { message: AssistantMessage } {
 	return (
@@ -41,7 +41,7 @@ describe("SessionManager signature persistence", () => {
 			],
 			api: "openai-responses",
 			provider: "openai",
-			model: "gpt-5-mini",
+			model: "gpt-5.4-mini",
 			usage: {
 				input: 1,
 				output: 1,
@@ -226,7 +226,7 @@ describe("SessionManager signature persistence", () => {
 			],
 			api: "openai-responses",
 			provider: "openai",
-			model: "gpt-5-mini",
+			model: "gpt-5.4-mini",
 			usage: {
 				input: 1,
 				output: 1,

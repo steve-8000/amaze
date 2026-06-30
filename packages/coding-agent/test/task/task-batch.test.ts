@@ -15,21 +15,33 @@
  *    runtime for internal callers.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { toolWireSchema } from "@amaze/pi-ai/utils/schema";
-import { AsyncJobManager } from "@amaze/pi-coding-agent/async/job-manager";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import { AgentLifecycleManager } from "@amaze/pi-coding-agent/registry/agent-lifecycle";
-import { AgentRegistry } from "@amaze/pi-coding-agent/registry/agent-registry";
-import { TaskTool } from "@amaze/pi-coding-agent/task";
-import * as discoveryModule from "@amaze/pi-coding-agent/task/discovery";
-import * as executorModule from "@amaze/pi-coding-agent/task/executor";
-import type { AgentDefinition, SingleResult, TaskParams } from "@amaze/pi-coding-agent/task/types";
-import type { ToolSession } from "@amaze/pi-coding-agent/tools";
+import { toolWireSchema } from "@steve-z8k/pi-ai/utils/schema";
+import { AsyncJobManager } from "@steve-z8k/pi-coding-agent/async/job-manager";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { AgentLifecycleManager } from "@steve-z8k/pi-coding-agent/registry/agent-lifecycle";
+import { AgentRegistry } from "@steve-z8k/pi-coding-agent/registry/agent-registry";
+import { TaskTool } from "@steve-z8k/pi-coding-agent/task";
+import * as discoveryModule from "@steve-z8k/pi-coding-agent/task/discovery";
+import * as executorModule from "@steve-z8k/pi-coding-agent/task/executor";
+import type { AgentDefinition, SingleResult, TaskParams } from "@steve-z8k/pi-coding-agent/task/types";
+import type { ToolSession } from "@steve-z8k/pi-coding-agent/tools";
 
 const taskAgent: AgentDefinition = {
 	name: "task",
 	description: "General-purpose task agent",
 	systemPrompt: "You are a task agent.",
+	source: "bundled",
+};
+const deepAgent: AgentDefinition = {
+	name: "deep",
+	description: "Deep review agent",
+	systemPrompt: "You are a deep agent.",
+	source: "bundled",
+};
+const flashAgent: AgentDefinition = {
+	name: "flash",
+	description: "Flash sandbox agent",
+	systemPrompt: "You are a flash agent.",
 	source: "bundled",
 };
 
@@ -78,7 +90,7 @@ function makeResult(id: string, overrides: Partial<SingleResult> = {}): SingleRe
 
 function mockDiscovery(): void {
 	vi.spyOn(discoveryModule, "discoverAgents").mockResolvedValue({
-		agents: [taskAgent],
+		agents: [taskAgent, deepAgent, flashAgent],
 		projectAgentsDir: null,
 	});
 }
@@ -121,6 +133,19 @@ describe("task.batch schema gating", () => {
 		const properties = getSchemaProperties(tool);
 		expect(properties.isolated).toBeUndefined();
 		const items = (properties.tasks as { items?: { properties?: Record<string, unknown> } }).items;
+		expect(items?.properties?.isolated).toBeDefined();
+	});
+
+	it("allows batch items to choose different agents", async () => {
+		mockDiscovery();
+
+		const tool = await TaskTool.create(
+			createSession({ settings: { "task.batch": true, "task.isolation.mode": "auto" } }),
+		);
+		const properties = getSchemaProperties(tool);
+		const items = (properties.tasks as { items?: { properties?: Record<string, unknown> } }).items;
+		expect(properties.agent).toBeDefined();
+		expect(items?.properties?.agent).toBeDefined();
 		expect(items?.properties?.isolated).toBeDefined();
 	});
 
@@ -268,6 +293,8 @@ describe("task.batch spawning", () => {
 		const betaJob = manager.getJob("Beta");
 		expect(alphaJob).toBeDefined();
 		expect(betaJob).toBeDefined();
+		expect(alphaJob?.agentName).toBe("task");
+		expect(betaJob?.agentName).toBe("task");
 		await alphaJob!.promise;
 		await betaJob!.promise;
 
@@ -284,6 +311,57 @@ describe("task.batch spawning", () => {
 		// Every spawn is parented to the spawning agent (not to itself): the
 		// registry "of <parent>" link must be the caller, never the child's id.
 		for (const spawn of seen) expect(spawn.parentAgentId).toBe("ParentA");
+	});
+
+	it("spawns mixed deep and flash agents from one batch call", async () => {
+		mockDiscovery();
+		const seen: Array<{ agent: string; id?: string; context?: string; assignment?: string }> = [];
+		vi.spyOn(executorModule, "runSubprocess").mockImplementation(async options => {
+			seen.push({
+				agent: options.agent.name,
+				id: options.id,
+				context: options.context,
+				assignment: options.assignment,
+			});
+			return makeResult(options.id ?? "?");
+		});
+
+		const manager = createManager();
+		const tool = await TaskTool.create(
+			createSession({
+				manager,
+				settings: { "async.enabled": true, "task.batch": true },
+			}),
+		);
+
+		const result = await tool.execute("tc-mixed-agents", {
+			context: "# Goal\nSame implementation contract.",
+			tasks: [
+				{ agent: "deep", id: "DeepImpl", assignment: "Implement." },
+				{ agent: "flash", id: "FlashImpl", assignment: "Implement." },
+			],
+		} as TaskParams);
+
+		expect(getFirstText(result)).toContain("Spawned 2 background agents using mixed agents");
+		expect(manager.getJob("DeepImpl")?.agentName).toBe("deep");
+		expect(manager.getJob("FlashImpl")?.agentName).toBe("flash");
+		await manager.getJob("DeepImpl")!.promise;
+		await manager.getJob("FlashImpl")!.promise;
+
+		expect(seen).toEqual([
+			{
+				agent: "deep",
+				id: "DeepImpl",
+				context: "# Goal\nSame implementation contract.",
+				assignment: "Implement.",
+			},
+			{
+				agent: "flash",
+				id: "FlashImpl",
+				context: "# Goal\nSame implementation contract.",
+				assignment: "Implement.",
+			},
+		]);
 	});
 
 	it("treats a one-item batch as a single spawn and forwards context", async () => {

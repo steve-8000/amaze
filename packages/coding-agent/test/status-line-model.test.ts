@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import type { SegmentContext } from "@amaze/pi-coding-agent/modes/components/status-line/segments";
-import { renderSegment } from "@amaze/pi-coding-agent/modes/components/status-line/segments";
-import { initTheme, theme } from "@amaze/pi-coding-agent/modes/theme/theme";
+import type { SegmentContext } from "@steve-z8k/pi-coding-agent/modes/components/status-line/segments";
+import { renderSegment } from "@steve-z8k/pi-coding-agent/modes/components/status-line/segments";
+import { initTheme, theme } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
 
 beforeAll(async () => {
 	await initTheme();
@@ -21,7 +21,6 @@ function createModelContext(advisorActive: boolean): SegmentContext {
 		planMode: null,
 		loopMode: null,
 		goalMode: null,
-		collab: null,
 		usageStats: {
 			input: 0,
 			output: 0,

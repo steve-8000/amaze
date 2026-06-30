@@ -2,11 +2,11 @@ import * as nodeCrypto from "node:crypto";
 import * as fs from "node:fs";
 import { scheduler } from "node:timers/promises";
 import * as tls from "node:tls";
-import { isOfficialAnthropicApiUrl } from "@amaze/pi-catalog/compat/anthropic";
-import { mapEffortToAnthropicAdaptiveEffort } from "@amaze/pi-catalog/model-thinking";
-import { calculateCost } from "@amaze/pi-catalog/models";
-import { isAnthropicOAuthToken } from "@amaze/pi-catalog/utils";
-import { parseGitHubCopilotApiKey } from "@amaze/pi-catalog/wire/github-copilot";
+import { isOfficialAnthropicApiUrl } from "@steve-z8k/pi-catalog/compat/anthropic";
+import { mapEffortToAnthropicAdaptiveEffort } from "@steve-z8k/pi-catalog/model-thinking";
+import { calculateCost } from "@steve-z8k/pi-catalog/models";
+import { isAnthropicOAuthToken } from "@steve-z8k/pi-catalog/utils";
+import { parseGitHubCopilotApiKey } from "@steve-z8k/pi-catalog/wire/github-copilot";
 import {
 	$env,
 	extractHttpStatusFromError,
@@ -16,7 +16,7 @@ import {
 	isUnexpectedSocketCloseMessage,
 	logger,
 	readSseEvents,
-} from "@amaze/pi-utils";
+} from "@steve-z8k/pi-utils";
 import { isUsageLimitError } from "../rate-limit-utils";
 import { getEnvApiKey, OUTPUT_FALLBACK_BUFFER } from "../stream";
 import type {

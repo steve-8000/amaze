@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { computeFileHash, formatHashlineHeader, InMemorySnapshotStore } from "@amaze/hashline";
-import { dropIncompleteLastEdit, EDIT_MODE_STRATEGIES } from "@amaze/pi-coding-agent/edit";
+import { computeFileHash, formatHashlineHeader, InMemorySnapshotStore } from "@steve-z8k/hashline";
+import { dropIncompleteLastEdit, EDIT_MODE_STRATEGIES } from "@steve-z8k/pi-coding-agent/edit";
 
 describe("dropIncompleteLastEdit", () => {
 	test("keeps all entries when partialJson is undefined", () => {

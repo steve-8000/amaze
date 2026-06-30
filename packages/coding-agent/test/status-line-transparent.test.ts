@@ -1,8 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { resetSettingsForTest, Settings } from "@amaze/pi-coding-agent/config/settings";
-import { StatusLineComponent } from "@amaze/pi-coding-agent/modes/components/status-line";
-import { initTheme, theme } from "@amaze/pi-coding-agent/modes/theme/theme";
-import { getProjectDir, setProjectDir } from "@amaze/pi-utils";
+import { resetSettingsForTest, Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { StatusLineComponent } from "@steve-z8k/pi-coding-agent/modes/components/status-line";
+import { initTheme, theme } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
+import { getProjectDir, setProjectDir } from "@steve-z8k/pi-utils";
 
 const originalProjectDir = getProjectDir();
 

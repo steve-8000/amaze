@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { UserMessageSelectorComponent } from "@amaze/pi-coding-agent/modes/components/user-message-selector";
-import { initTheme } from "@amaze/pi-coding-agent/modes/theme/theme";
+import { UserMessageSelectorComponent } from "@steve-z8k/pi-coding-agent/modes/components/user-message-selector";
+import { initTheme } from "@steve-z8k/pi-coding-agent/modes/theme/theme";
 
 beforeAll(async () => {
 	await initTheme();

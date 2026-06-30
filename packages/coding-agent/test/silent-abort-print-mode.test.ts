@@ -6,10 +6,10 @@
  * (and exit with code 1). This test verifies the guard skips silent-abort.
  */
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "bun:test";
-import type { AssistantMessage } from "@amaze/pi-ai";
-import { runPrintMode } from "@amaze/pi-coding-agent/modes/print-mode";
-import type { AgentSession } from "@amaze/pi-coding-agent/session/agent-session";
-import { SILENT_ABORT_MARKER } from "@amaze/pi-coding-agent/session/messages";
+import type { AssistantMessage } from "@steve-z8k/pi-ai";
+import { runPrintMode } from "@steve-z8k/pi-coding-agent/modes/print-mode";
+import type { AgentSession } from "@steve-z8k/pi-coding-agent/session/agent-session";
+import { SILENT_ABORT_MARKER } from "@steve-z8k/pi-coding-agent/session/messages";
 
 function makeAssistantMessage(overrides: Partial<AssistantMessage> = {}): AssistantMessage {
 	return {
@@ -17,7 +17,7 @@ function makeAssistantMessage(overrides: Partial<AssistantMessage> = {}): Assist
 		content: [{ type: "text", text: "draft" }],
 		api: "anthropic-messages",
 		provider: "anthropic",
-		model: "claude-sonnet-4-5",
+		model: "claude-sonnet-4-6",
 		stopReason: "stop",
 		usage: {
 			input: 0,

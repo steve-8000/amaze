@@ -89,13 +89,13 @@ export const shellFixtures: Record<string, GalleryFixture> = {
 			content: [
 				{
 					type: "text",
-					text: ["@amaze/coding-agent v0.42.0", "37 dependencies"].join("\n"),
+					text: ["@steve-z8k/coding-agent v0.42.0", "37 dependencies"].join("\n"),
 				},
 			],
 			details: {
 				language: "python",
 				languages: ["python"],
-				jsonOutputs: [["@ai-sdk/anthropic", "@amaze/pi-ai", "@amaze/pi-tui"]],
+				jsonOutputs: [["@ai-sdk/anthropic", "@steve-z8k/pi-ai", "@steve-z8k/pi-tui"]],
 				cells: [
 					{
 						index: 0,
@@ -111,7 +111,7 @@ export const shellFixtures: Record<string, GalleryFixture> = {
 							'print(f"{len(deps)} dependencies")',
 							"display(sorted(deps)[:3])",
 						].join("\n"),
-						output: ["@amaze/coding-agent v0.42.0", "37 dependencies"].join("\n"),
+						output: ["@steve-z8k/coding-agent v0.42.0", "37 dependencies"].join("\n"),
 						status: "complete",
 						durationMs: 64,
 						exitCode: 0,

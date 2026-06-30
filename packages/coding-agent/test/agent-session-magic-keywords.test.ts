@@ -2,23 +2,23 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Agent } from "@amaze/pi-agent-core";
-import { Effort } from "@amaze/pi-ai";
-import { getBundledModel } from "@amaze/pi-catalog/models";
-import * as autoThinkingClassifier from "@amaze/pi-coding-agent/auto-thinking/classifier";
-import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import { AgentSession } from "@amaze/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import { AUTO_THINKING } from "@amaze/pi-coding-agent/thinking";
+import { Agent } from "@steve-z8k/pi-agent-core";
+import { Effort } from "@steve-z8k/pi-ai";
+import { getBundledModel } from "@steve-z8k/pi-catalog/models";
+import * as autoThinkingClassifier from "@steve-z8k/pi-coding-agent/auto-thinking/classifier";
+import { ModelRegistry } from "@steve-z8k/pi-coding-agent/config/model-registry";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { AgentSession } from "@steve-z8k/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@steve-z8k/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import { AUTO_THINKING } from "@steve-z8k/pi-coding-agent/thinking";
 
 async function createMagicKeywordSession(root: string): Promise<{
 	session: AgentSession;
 	settings: Settings;
 	authStorage: AuthStorage;
 }> {
-	const model = getBundledModel("anthropic", "claude-sonnet-4-5");
+	const model = getBundledModel("anthropic", "claude-sonnet-4-6");
 	if (!model) throw new Error("Expected bundled Claude Sonnet model");
 	const agent = new Agent({
 		initialState: {

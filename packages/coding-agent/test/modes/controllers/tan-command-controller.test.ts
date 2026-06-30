@@ -1,15 +1,15 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import type { AssistantMessage, Model } from "@amaze/pi-ai";
-import type { AsyncJobRegisterOptions } from "@amaze/pi-coding-agent/async/job-manager";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import { TanCommandController } from "@amaze/pi-coding-agent/modes/controllers/tan-command-controller";
-import type { InteractiveModeContext } from "@amaze/pi-coding-agent/modes/types";
-import { AgentRegistry, MAIN_AGENT_ID } from "@amaze/pi-coding-agent/registry/agent-registry";
-import type { CreateAgentSessionResult } from "@amaze/pi-coding-agent/sdk";
-import * as sdkModule from "@amaze/pi-coding-agent/sdk";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import { TempDir } from "@amaze/pi-utils";
+import type { AssistantMessage, Model } from "@steve-z8k/pi-ai";
+import type { AsyncJobRegisterOptions } from "@steve-z8k/pi-coding-agent/async/job-manager";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { TanCommandController } from "@steve-z8k/pi-coding-agent/modes/controllers/tan-command-controller";
+import type { InteractiveModeContext } from "@steve-z8k/pi-coding-agent/modes/types";
+import { AgentRegistry, MAIN_AGENT_ID } from "@steve-z8k/pi-coding-agent/registry/agent-registry";
+import type { CreateAgentSessionResult } from "@steve-z8k/pi-coding-agent/sdk";
+import * as sdkModule from "@steve-z8k/pi-coding-agent/sdk";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import { TempDir } from "@steve-z8k/pi-utils";
 
 interface CapturedJobRunContext {
 	jobId: string;
@@ -19,7 +19,7 @@ interface CapturedJobRunContext {
 
 type CapturedJobRun = (ctx: CapturedJobRunContext) => Promise<string>;
 
-const model = { provider: "anthropic", id: "claude-sonnet-4-5" } as Model;
+const model = { provider: "anthropic", id: "claude-sonnet-4-6" } as Model;
 
 function assistantText(text: string): AssistantMessage {
 	return {

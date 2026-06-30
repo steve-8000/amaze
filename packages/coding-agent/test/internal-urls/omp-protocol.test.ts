@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { InternalUrlRouter } from "@amaze/pi-coding-agent/internal-urls";
+import { InternalUrlRouter } from "@steve-z8k/pi-coding-agent/internal-urls";
 
 describe("AmazeProtocolHandler", () => {
 	it("treats amaze://docs as the documentation root", async () => {

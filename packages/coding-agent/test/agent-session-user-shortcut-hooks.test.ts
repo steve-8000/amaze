@@ -1,16 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@amaze/pi-agent-core";
-import { getBundledModel } from "@amaze/pi-catalog/models";
-import { ModelRegistry } from "@amaze/pi-coding-agent/config/model-registry";
-import { Settings } from "@amaze/pi-coding-agent/config/settings";
-import * as pythonExecutor from "@amaze/pi-coding-agent/eval/py/executor";
-import * as bashExecutor from "@amaze/pi-coding-agent/exec/bash-executor";
-import type { ExtensionRunner } from "@amaze/pi-coding-agent/extensibility/extensions";
-import { AgentSession } from "@amaze/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@amaze/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@amaze/pi-coding-agent/session/session-manager";
-import { TempDir } from "@amaze/pi-utils";
+import { Agent } from "@steve-z8k/pi-agent-core";
+import { getBundledModel } from "@steve-z8k/pi-catalog/models";
+import { ModelRegistry } from "@steve-z8k/pi-coding-agent/config/model-registry";
+import { Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import * as pythonExecutor from "@steve-z8k/pi-coding-agent/eval/py/executor";
+import * as bashExecutor from "@steve-z8k/pi-coding-agent/exec/bash-executor";
+import type { ExtensionRunner } from "@steve-z8k/pi-coding-agent/extensibility/extensions";
+import { AgentSession } from "@steve-z8k/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@steve-z8k/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@steve-z8k/pi-coding-agent/session/session-manager";
+import { TempDir } from "@steve-z8k/pi-utils";
 
 describe("AgentSession user shortcut hooks", () => {
 	let tempDir: TempDir;
@@ -36,8 +36,8 @@ describe("AgentSession user shortcut hooks", () => {
 	});
 
 	function createSession(extensionRunner?: ExtensionRunner): AgentSession {
-		const model = getBundledModel("anthropic", "claude-sonnet-4-5");
-		if (!model) throw new Error("Expected claude-sonnet-4-5 model to exist");
+		const model = getBundledModel("anthropic", "claude-sonnet-4-6");
+		if (!model) throw new Error("Expected claude-sonnet-4-6 model to exist");
 
 		const agent = new Agent({
 			initialState: {

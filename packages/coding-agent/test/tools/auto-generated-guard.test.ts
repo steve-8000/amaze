@@ -2,9 +2,9 @@ import { beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { resetSettingsForTest, Settings } from "@amaze/pi-coding-agent/config/settings";
-import { assertEditableFile, assertEditableFileContent } from "@amaze/pi-coding-agent/tools/auto-generated-guard";
-import { ToolError } from "@amaze/pi-coding-agent/tools/tool-errors";
+import { resetSettingsForTest, Settings } from "@steve-z8k/pi-coding-agent/config/settings";
+import { assertEditableFile, assertEditableFileContent } from "@steve-z8k/pi-coding-agent/tools/auto-generated-guard";
+import { ToolError } from "@steve-z8k/pi-coding-agent/tools/tool-errors";
 
 let tempDir: string;
 

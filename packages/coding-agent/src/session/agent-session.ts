@@ -19,7 +19,7 @@ import * as path from "node:path";
 import { scheduler } from "node:timers/promises";
 import { isPromise } from "node:util/types";
 
-import type { InMemorySnapshotStore } from "@amaze/hashline";
+import type { InMemorySnapshotStore } from "@steve-z8k/hashline";
 import {
 	type AfterToolCallContext,
 	type AfterToolCallResult,
@@ -36,7 +36,7 @@ import {
 	resolveTelemetry,
 	ThinkingLevel,
 	type ToolChoiceDirective,
-} from "@amaze/pi-agent-core";
+} from "@steve-z8k/pi-agent-core";
 import {
 	AGGRESSIVE_SHAKE_CONFIG,
 	AUTO_HANDOFF_THRESHOLD_FOCUS,
@@ -65,14 +65,14 @@ import {
 	type SummaryOptions,
 	shouldCompact,
 	shouldUseOpenAiRemoteCompaction,
-} from "@amaze/pi-agent-core/compaction";
+} from "@steve-z8k/pi-agent-core/compaction";
 import {
 	DEFAULT_PRUNE_CONFIG,
 	pruneSupersededToolResults,
 	pruneToolOutputs,
 	readToolSupersedeKey,
-} from "@amaze/pi-agent-core/compaction/pruning";
-import type { ProtectedToolMatcher } from "@amaze/pi-agent-core/compaction/tool-protection";
+} from "@steve-z8k/pi-agent-core/compaction/pruning";
+import type { ProtectedToolMatcher } from "@steve-z8k/pi-agent-core/compaction/tool-protection";
 import type {
 	AssistantMessage,
 	ImageContent,
@@ -91,7 +91,7 @@ import type {
 	ToolChoice,
 	Usage,
 	UsageReport,
-} from "@amaze/pi-ai";
+} from "@steve-z8k/pi-ai";
 import {
 	calculateRateLimitBackoffMs,
 	clearAnthropicFastModeFallback,
@@ -102,13 +102,13 @@ import {
 	parseRateLimitReason,
 	resolveServiceTier,
 	streamSimple,
-} from "@amaze/pi-ai";
-import { stripToolDescriptions, toolWireSchema } from "@amaze/pi-ai/utils/schema";
-import { THINKING_LOOP_ERROR_MARKER } from "@amaze/pi-ai/utils/thinking-loop";
-import { isFireworksFastModelId, toFireworksBaseModelId } from "@amaze/pi-catalog/fireworks-model-id";
-import { getSupportedEfforts } from "@amaze/pi-catalog/model-thinking";
-import { modelsAreEqual } from "@amaze/pi-catalog/models";
-import { MacOSPowerAssertion } from "@amaze/pi-natives";
+} from "@steve-z8k/pi-ai";
+import { stripToolDescriptions, toolWireSchema } from "@steve-z8k/pi-ai/utils/schema";
+import { THINKING_LOOP_ERROR_MARKER } from "@steve-z8k/pi-ai/utils/thinking-loop";
+import { isFireworksFastModelId, toFireworksBaseModelId } from "@steve-z8k/pi-catalog/fireworks-model-id";
+import { getSupportedEfforts } from "@steve-z8k/pi-catalog/model-thinking";
+import { modelsAreEqual } from "@steve-z8k/pi-catalog/models";
+import { MacOSPowerAssertion } from "@steve-z8k/pi-natives";
 import {
 	extractRetryHint,
 	formatDuration,
@@ -122,8 +122,8 @@ import {
 	relativePathWithinRoot,
 	Snowflake,
 	withTimeout,
-} from "@amaze/pi-utils";
-import * as snapcompact from "@amaze/snapcompact";
+} from "@steve-z8k/pi-utils";
+import * as snapcompact from "@steve-z8k/snapcompact";
 import {
 	AdviseTool,
 	type AdvisorAgent,
@@ -161,7 +161,6 @@ import { expandPromptTemplate, type PromptTemplate } from "../config/prompt-temp
 import type { Settings, SkillsSettings } from "../config/settings";
 import { getDefault, onAppendOnlyModeChanged } from "../config/settings";
 import { auditProviderVisibleMessages } from "../context";
-import { RawSseDebugBuffer } from "../debug/raw-sse-buffer";
 import { loadCapability } from "../discovery";
 import { expandApplyPatchToEntries, normalizeDiff, normalizeToLF, ParseError, previewPatch, stripBom } from "../edit";
 import { getFileSnapshotStore } from "../edit/file-snapshot-store";
@@ -206,7 +205,7 @@ import { GoalRuntime } from "../goals/runtime";
 import type { Goal, GoalModeState } from "../goals/state";
 import { type LocalProtocolOptions, resolveLocalUrlToPath } from "../internal-urls";
 import { IrcBus, type IrcMessage } from "../irc/bus";
-import { filterAmazeCodebaseMcpTools } from "../mcp/rocky-codebase-service";
+import { filterAmazeCodebaseMcpTools } from "../mcp/clab-codebase-service";
 import { containsOrchestrate, ORCHESTRATE_NOTICE } from "../modes/orchestrate";
 import { theme } from "../modes/theme/theme";
 import { parseTurnBudget } from "../modes/turn-budget";
@@ -231,6 +230,7 @@ import sideChannelNoToolsReminder from "../prompts/system/side-channel-no-tools.
 import ttsrInterruptTemplate from "../prompts/system/ttsr-interrupt.md" with { type: "text" };
 import ttsrToolReminderTemplate from "../prompts/system/ttsr-tool-reminder.md" with { type: "text" };
 import unexpectedStopRetryTemplate from "../prompts/system/unexpected-stop-retry.md" with { type: "text" };
+import { AgentRegistry } from "../registry/agent-registry";
 import {
 	deobfuscateSessionContext,
 	obfuscateProviderContext,
@@ -248,7 +248,6 @@ import {
 	shouldDisableReasoning,
 	toReasoningEffort,
 } from "../thinking";
-import { shutdownTinyTitleClient } from "../tiny/title-client";
 import { countToolsForAutoDiscovery, resolveEffectiveToolDiscoveryMode } from "../tool-discovery/mode";
 import {
 	buildDiscoverableToolSearchIndex,
@@ -413,7 +412,7 @@ const PRUNE_CACHE_WARM_SUFFIX_TOKENS = 8_000;
  */
 const PRUNE_IDLE_FLUSH_MS = 90 * 60_000;
 export type CommandMetadataChangedListener = () => void | Promise<void>;
-export type AsyncJobSnapshotItem = Pick<AsyncJob, "id" | "type" | "status" | "label" | "startTime">;
+export type AsyncJobSnapshotItem = Pick<AsyncJob, "id" | "type" | "status" | "label" | "agentName" | "startTime">;
 
 const RETRY_BACKOFF_JITTER_RATIO = 0.25;
 /**
@@ -440,13 +439,15 @@ const SIBLING_UNBLOCK_BUFFER_MS = 1_000;
 const NON_WHITESPACE_RE = /\S/;
 const COMPLETED_ANALYTICAL_STOP_RE =
 	/\b(?:i(?:'|’)ve|i have|we(?:'|’)ve|we have)\s+(?:completed|finished|wrapped up)\b|\b(?:the )?(?:task|fix|change|analysis|review|investigation|summary|work|implementation)\s+(?:is\s+)?(?:complete|completed|done)\b|\btests?\s+pass(?:ed)?\b|\bnothing left to do\b|\bno further action(?: is)? required\b|\bis there anything else\b/i;
+const KOREAN_COMPLETED_WITH_VERIFICATION_RE =
+	/(?:완료|완료된 상태|끝났|마무리)[\s\S]{0,400}(?:검증|테스트|체크|check)[^\n]{0,120}통과|(?:검증|테스트|체크|check)[^\n]{0,120}통과[\s\S]{0,400}(?:완료|완료된 상태|끝났|보고(?:되었|됐))/i;
 
 function hasNonWhitespace(value: string): boolean {
 	return NON_WHITESPACE_RE.test(value);
 }
 
 function looksLikeCompletedAnalyticalStop(text: string): boolean {
-	return COMPLETED_ANALYTICAL_STOP_RE.test(text);
+	return COMPLETED_ANALYTICAL_STOP_RE.test(text) || KOREAN_COMPLETED_WITH_VERIFICATION_RE.test(text);
 }
 
 export interface AsyncJobSnapshot {
@@ -498,8 +499,6 @@ export interface AgentSessionConfig {
 	onResponse?: SimpleStreamOptions["onResponse"];
 	/** Raw SSE hook used by the active session request path */
 	onSseEvent?: SimpleStreamOptions["onSseEvent"];
-	/** Per-session raw SSE diagnostic buffer */
-	rawSseDebugBuffer?: RawSseDebugBuffer;
 	/** Current session message-to-LLM conversion pipeline */
 	convertToLlm?: (messages: AgentMessage[]) => Message[] | Promise<Message[]>;
 	/** System prompt builder that can consider tool availability. Returns ordered provider-facing blocks. */
@@ -1372,7 +1371,6 @@ export class AgentSession {
 	#rewoundToolResultIds = new Set<string>();
 	#lastSuccessfulYieldToolCallId: string | undefined = undefined;
 	#providerSessionState = new Map<string, ProviderSessionState>();
-	readonly rawSseDebugBuffer: RawSseDebugBuffer;
 
 	#acquirePowerAssertion(): void {
 		if (process.platform !== "darwin") return;
@@ -1609,7 +1607,6 @@ export class AgentSession {
 		this.#requestedToolNames = config.requestedToolNames;
 		this.#transformContext = config.transformContext ?? (messages => messages);
 		this.#onPayload = config.onPayload;
-		this.rawSseDebugBuffer = config.rawSseDebugBuffer ?? new RawSseDebugBuffer();
 		// Avoid wrapping in an `async` closure when no user callback is configured: the
 		// outer await on `#onResponse` (provider-response.ts) tolerates a sync void return,
 		// and skipping the wrapper drops a per-event `newPromiseCapability` allocation that
@@ -1617,23 +1614,13 @@ export class AgentSession {
 		const configuredOnResponse = config.onResponse;
 		this.#onResponse = configuredOnResponse
 			? async (response, model) => {
-					this.rawSseDebugBuffer.recordResponse(response, model);
 					this.#ingestProviderUsageHeaders(response, model);
 					await configuredOnResponse(response, model);
 				}
 			: (response, model) => {
-					this.rawSseDebugBuffer.recordResponse(response, model);
 					this.#ingestProviderUsageHeaders(response, model);
 				};
-		const configuredOnSseEvent = config.onSseEvent;
-		this.#onSseEvent = configuredOnSseEvent
-			? (event, model) => {
-					this.rawSseDebugBuffer.recordEvent(event, model);
-					configuredOnSseEvent(event, model);
-				}
-			: (event, model) => {
-					this.rawSseDebugBuffer.recordEvent(event, model);
-				};
+		this.#onSseEvent = config.onSseEvent;
 		this.agent.setProviderResponseInterceptor(this.#onResponse);
 		this.agent.setRawSseEventInterceptor(this.#onSseEvent);
 		this.agent.setOnTurnEnd(async (messages, signal) => {
@@ -1847,13 +1834,13 @@ export class AgentSession {
 		if (this.#agentKind !== "main" && !this.settings.get("advisor.subagents")) return false;
 
 		const advisorSel = resolveRoleSelection(
-			["advisor"],
+			["deep"],
 			this.settings,
 			this.#modelRegistry.getAvailable(),
 			this.#modelRegistry,
 		);
 		if (!advisorSel) {
-			logger.debug("advisor enabled but no model assigned to the 'advisor' role; advisor inactive");
+			logger.debug("advisor enabled but no model assigned to the 'deep' lane; advisor inactive");
 			return false;
 		}
 
@@ -1930,7 +1917,7 @@ export class AgentSession {
 					...this.agent.telemetry,
 					agent: {
 						id: advisorSessionId,
-						name: MODEL_ROLES.advisor.name,
+						name: MODEL_ROLES.deep.name,
 						description: formatModelString(advisorSel.model),
 					},
 					conversationId: undefined,
@@ -2047,7 +2034,7 @@ export class AgentSession {
 		if (!targetModel) return false;
 
 		const advisorSel = resolveRoleSelection(
-			["advisor"],
+			["deep"],
 			this.settings,
 			this.#modelRegistry.getAvailable(),
 			this.#modelRegistry,
@@ -2359,11 +2346,14 @@ export class AgentSession {
 		const manager = this.#asyncJobManager;
 		if (!manager) return null;
 		const ownerFilter = this.#agentId ? { ownerId: this.#agentId } : undefined;
+		const jobAgentName = (job: AsyncJob): string | undefined =>
+			job.agentName ?? (job.type === "task" ? AgentRegistry.global().get(job.id)?.agentName : undefined);
 		const running = manager.getRunningJobs(ownerFilter).map(job => ({
 			id: job.id,
 			type: job.type,
 			status: job.status,
 			label: job.label,
+			agentName: jobAgentName(job),
 			startTime: job.startTime,
 		}));
 		const recent = manager.getRecentJobs(options?.recentLimit ?? 5, ownerFilter).map(job => ({
@@ -2371,6 +2361,7 @@ export class AgentSession {
 			type: job.type,
 			status: job.status,
 			label: job.label,
+			agentName: jobAgentName(job),
 			startTime: job.startTime,
 		}));
 		const delivery = manager.getDeliveryState(ownerFilter);
@@ -4313,7 +4304,6 @@ export class AgentSession {
 			);
 		}
 		await disposeKernelSessionsByOwner(this.#evalKernelOwnerId);
-		await shutdownTinyTitleClient();
 		this.#releasePowerAssertion();
 		await this.sessionManager.close();
 		// beginDispose() stopped the advisor and captured its recorder close; await
@@ -5835,12 +5825,15 @@ export class AgentSession {
 			return true;
 		}
 
-		// Skip eager preludes when the user has already queued a directive
+		// Skip eager preludes when the user has already queued a directive.
 		const hasPendingUserDirective = this.#toolChoiceQueue.inspect().includes("user-force");
+		const hasOrchestrateKeywordNotice = keywordNotices.some(notice => notice.customType === "orchestrate-notice");
 		const eagerTodoPrelude =
 			!options?.synthetic && !hasPendingUserDirective ? this.#createEagerTodoPrelude(expandedText) : undefined;
 		const eagerTaskPrelude =
-			!options?.synthetic && !hasPendingUserDirective ? this.#createEagerTaskPrelude(expandedText) : undefined;
+			!options?.synthetic && !hasPendingUserDirective
+				? this.#createEagerTaskPrelude(expandedText, !hasOrchestrateKeywordNotice)
+				: undefined;
 		const normalizedImages = await this.#normalizeImagesForModel(options?.images);
 
 		const userContent: (TextContent | ImageContent)[] = [{ type: "text", text: expandedText }];
@@ -6293,7 +6286,7 @@ export class AgentSession {
 		images: ImageContent[] | undefined,
 		mode: "steer" | "followUp",
 	): Promise<void> {
-		// A queued user message (RPC/SDK/collab steer or follow-up, or a typed message
+		// A queued user message (RPC/SDK steer or follow-up, or a typed message
 		// while streaming) is a deliberate resume; re-enable advisor auto-resume that
 		// a user interrupt suppressed.
 		this.#advisorAutoResumeSuppressed = false;
@@ -6990,7 +6983,7 @@ export class AgentSession {
 	 */
 	async setModel(
 		model: Model,
-		role: string = "default",
+		role: string = "flash",
 		options?: { selector?: string; thinkingLevel?: ThinkingLevel; persist?: boolean },
 	): Promise<void> {
 		const previousEditMode = this.#resolveActiveEditMode();
@@ -7066,8 +7059,8 @@ export class AgentSession {
 	/**
 	 * Resolve the configured role models in the given order plus the index of
 	 * the currently active one. Roles that have no configured model, or whose
-	 * configured model is not currently available, are skipped. The `default`
-	 * role falls back to the active model when no explicit assignment exists.
+	 * configured model is not currently available, are skipped. The `flash`
+	 * lane falls back to the active model when no explicit assignment exists.
 	 *
 	 * Returns `undefined` only when there is no current model or no available
 	 * models at all; an empty `models` array is never returned (callers should
@@ -7084,8 +7077,8 @@ export class AgentSession {
 
 		for (const role of roleOrder) {
 			const roleModelStr =
-				role === "default"
-					? (this.settings.getModelRole("default") ?? `${currentModel.provider}/${currentModel.id}`)
+				role === "flash"
+					? (this.settings.getModelRole("flash") ?? `${currentModel.provider}/${currentModel.id}`)
 					: this.settings.getModelRole(role);
 			if (!roleModelStr) continue;
 
@@ -7130,7 +7123,7 @@ export class AgentSession {
 	/**
 	 * Cycle through configured role models in a fixed order.
 	 * Skips missing roles and changes only the active session model.
-	 * @param roleOrder - Order of roles to cycle through (e.g., ["slow", "default", "smol"])
+	 * @param roleOrder - Order of roles to cycle through (e.g., ["deep", "flash", "local"])
 	 * @param direction - "forward" (default) or "backward"
 	 */
 	async cycleRoleModels(
@@ -8861,7 +8854,10 @@ export class AgentSession {
 		return { message, toolChoice: todoToolChoice };
 	}
 
-	#createEagerTaskPrelude(promptText: string | undefined): AgentMessage | undefined {
+	#createEagerTaskPrelude(
+		promptText: string | undefined,
+		includeOrchestrationNotice = true,
+	): AgentMessage | undefined {
 		if (this.settings.get("task.eager") !== "always") return undefined;
 		// Main agent only: subagents keep `task` active (the parent only filters `todo`),
 		// so a salient delegate-reminder there would amplify nested fan-out. Gate on the
@@ -8875,10 +8871,11 @@ export class AgentSession {
 			if (this.agent.state.messages.some(m => m.role === "user")) return undefined;
 		}
 		if (!this.getActiveToolNames().includes("task")) return undefined;
+		const taskPrelude = prompt.render(eagerTaskPrompt, this.#buildEagerPreludeContext());
 		return {
 			role: "custom",
 			customType: "eager-task-prelude",
-			content: prompt.render(eagerTaskPrompt, this.#buildEagerPreludeContext()),
+			content: includeOrchestrationNotice ? `${ORCHESTRATE_NOTICE}\n\n${taskPrelude}` : taskPrelude,
 			display: false,
 			attribution: "agent",
 			timestamp: Date.now(),
@@ -9358,8 +9355,8 @@ export class AgentSession {
 		currentModel: Model | undefined,
 	): ResolvedModelRoleValue {
 		const roleModelStr =
-			role === "default"
-				? (this.settings.getModelRole("default") ??
+			role === "flash"
+				? (this.settings.getModelRole("flash") ??
 					(currentModel ? `${currentModel.provider}/${currentModel.id}` : undefined))
 				: this.settings.getModelRole(role);
 
@@ -9427,7 +9424,7 @@ export class AgentSession {
 		}
 		return new Error(
 			`Compaction requires usable credentials for ${currentModel.provider}/${currentModel.id}. ` +
-				`Configure ${currentModel.provider} credentials or assign an authenticated fallback role such as modelRoles.smol.`,
+				`Configure ${currentModel.provider} credentials or assign an authenticated fallback lane such as modelRoles.deep.`,
 		);
 	}
 
@@ -11193,7 +11190,7 @@ export class AgentSession {
 
 	/**
 	 * Execute Python code in the shared kernel.
-	 * Uses the same kernel session as eval's Python backend, allowing collaborative editing.
+	 * Uses the same kernel session as eval's Python backend, preserving state across snippets.
 	 * @param code The Python code to execute
 	 * @param onChunk Optional streaming callback for output
 	 * @param options.excludeFromContext If true, execution won't be sent to LLM ($$ prefix)
@@ -12684,20 +12681,6 @@ export class AgentSession {
 		return run;
 	}
 
-	/**
-	 * Export session to HTML.
-	 * @param outputPath Optional output path (defaults to session directory)
-	 * @returns Path to exported file
-	 */
-	async exportToHtml(outputPath?: string): Promise<string> {
-		// Public HTML export ships in the amaze brand palette (collab-web
-		// pink/purple), matching my.amaze — not the host's terminal theme.
-		// Callers who want a themed export can pass `palette: "theme"` with
-		// `themeName` directly to `exportSessionToHtml`.
-		const { exportSessionToHtml } = await import("../export/html");
-		return exportSessionToHtml(this.sessionManager, this.state, { outputPath, palette: "web" });
-	}
-
 	// =========================================================================
 	// Utilities
 	// =========================================================================
@@ -12855,7 +12838,7 @@ export class AgentSession {
 
 	/**
 	 * Whether a live advisor agent is attached to this session. True only when
-	 * `advisor.enabled` is set AND a model resolved for the `advisor` role AND
+	 * `advisor.enabled` is set AND a model resolved for the `deep` lane AND
 	 * the advisor applies to this agent kind — i.e. the actual runtime exists,
 	 * not merely the setting. Drives the status-line badge and `/dump advisor`.
 	 */
@@ -12927,7 +12910,7 @@ export class AgentSession {
 		const stats = this.getAdvisorStats();
 		if (!stats.active) {
 			return stats.configured
-				? "Advisor setting is enabled, but no model is assigned to the 'advisor' role."
+				? "Advisor setting is enabled, but no model is assigned to the 'deep' lane."
 				: "Advisor is disabled.";
 		}
 		const model = stats.model!;

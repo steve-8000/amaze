@@ -3,15 +3,15 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as url from "node:url";
-import { getBundledModel, getBundledModels } from "@amaze/pi-catalog/models";
+import { getBundledModel, getBundledModels } from "@steve-z8k/pi-catalog/models";
 import {
 	__resetLegacyPiResolutionCache,
 	installLegacyPiSpecifierShim,
 	loadLegacyPiModule,
-} from "@amaze/pi-coding-agent/extensibility/plugins/legacy-pi-compat";
-import { Type as TypeBoxShimType } from "@amaze/pi-coding-agent/extensibility/typebox";
+} from "@steve-z8k/pi-coding-agent/extensibility/plugins/legacy-pi-compat";
+import { Type as TypeBoxShimType } from "@steve-z8k/pi-coding-agent/extensibility/typebox";
 
-// pi-ai 15.1.0 removed the runtime `Type` export from `@amaze/pi-ai`'s
+// pi-ai 15.1.0 removed the runtime `Type` export from `@steve-z8k/pi-ai`'s
 // package root. Legacy extensions (and their aliased-scope variants such as
 // `@earendil-works/pi-ai`) still author parameter schemas as
 // `import { Type } from "@earendil-works/pi-ai"` and then `Type.Object(...)`.
@@ -62,9 +62,9 @@ describe("legacy-pi @(scope)/pi-ai root `Type` remap (issue #1437)", () => {
 		expect(loaded.schema.safeParse({ name: "ok", extra: 1 }).success).toBe(false);
 	});
 
-	it('redirects `import { Type } from "@amaze/pi-ai"` for plugins published against the canonical scope', async () => {
+	it('redirects `import { Type } from "@steve-z8k/pi-ai"` for plugins published against the canonical scope', async () => {
 		const entry = await writeFixtureExtension(
-			['import { Type } from "@amaze/pi-ai";', "export const probe = Type;"].join("\n"),
+			['import { Type } from "@steve-z8k/pi-ai";', "export const probe = Type;"].join("\n"),
 		);
 
 		const loaded = (await loadLegacyPiModule(entry)) as { probe: typeof TypeBoxShimType };
@@ -90,13 +90,13 @@ describe("legacy-pi @(scope)/pi-ai root `Type` remap (issue #1437)", () => {
 		expect(loaded.zodObj.safeParse({}).success).toBe(false);
 	});
 
-	it("does not redirect subpath imports such as @amaze/pi-ai/utils/schema", async () => {
+	it("does not redirect subpath imports such as @steve-z8k/pi-ai/utils/schema", async () => {
 		const entry = await writeFixtureExtension(
 			[
 				// `zodToWireSchema` is only exported from the subpath, not the root,
 				// so a successful import proves the subpath still resolves directly
 				// against the bundled pi-ai package rather than the shim.
-				'import { zodToWireSchema } from "@amaze/pi-ai/utils/schema";',
+				'import { zodToWireSchema } from "@steve-z8k/pi-ai/utils/schema";',
 				"export const fn = zodToWireSchema;",
 			].join("\n"),
 		);
@@ -107,7 +107,9 @@ describe("legacy-pi @(scope)/pi-ai root `Type` remap (issue #1437)", () => {
 
 	it("exports getModel as getBundledModel", async () => {
 		const loaded = (await loadLegacyPiModule(
-			await writeFixtureExtension('import { getModel } from "@amaze/pi-ai"; export const testGetModel = getModel;'),
+			await writeFixtureExtension(
+				'import { getModel } from "@steve-z8k/pi-ai"; export const testGetModel = getModel;',
+			),
 		)) as { testGetModel: unknown };
 		expect(loaded.testGetModel).toBe(getBundledModel);
 	});
@@ -115,7 +117,7 @@ describe("legacy-pi @(scope)/pi-ai root `Type` remap (issue #1437)", () => {
 	it("exports getModels as getBundledModels", async () => {
 		const loaded = (await loadLegacyPiModule(
 			await writeFixtureExtension(
-				'import { getModels } from "@amaze/pi-ai"; export const testGetModels = getModels;',
+				'import { getModels } from "@steve-z8k/pi-ai"; export const testGetModels = getModels;',
 			),
 		)) as { testGetModels: unknown };
 		expect(loaded.testGetModels).toBe(getBundledModels);
@@ -125,7 +127,7 @@ describe("legacy-pi @(scope)/pi-ai root `Type` remap (issue #1437)", () => {
 		const loaded = (await loadLegacyPiModule(
 			await writeFixtureExtension(
 				[
-					'import { StringEnum } from "@amaze/pi-ai";',
+					'import { StringEnum } from "@steve-z8k/pi-ai";',
 					'export const schema = StringEnum(["red", "green"] as const, { description: "primary colors" });',
 				].join("\n"),
 			),
@@ -141,7 +143,10 @@ describe("legacy pi package root remaps (issue #1474)", () => {
 	it("loads @earendil-works/pi-coding-agent root imports when host package resolution is unavailable", async () => {
 		const realResolveSync = Bun.resolveSync.bind(Bun);
 		vi.spyOn(Bun, "resolveSync").mockImplementation((specifier: string, from: string) => {
-			if (specifier === "@amaze/pi-coding-agent" && from.endsWith(path.join("src", "extensibility", "plugins"))) {
+			if (
+				specifier === "@steve-z8k/pi-coding-agent" &&
+				from.endsWith(path.join("src", "extensibility", "plugins"))
+			) {
 				throw new Error("compiled binary host package resolution unavailable");
 			}
 			return realResolveSync(specifier, from);
@@ -221,7 +226,7 @@ describe("legacy pi package root remaps (issue #1474)", () => {
 	it("falls back to legacy-scoped subpath peers for direct plugin imports", async () => {
 		const realResolveSync = Bun.resolveSync.bind(Bun);
 		vi.spyOn(Bun, "resolveSync").mockImplementation((specifier: string, from: string) => {
-			if (specifier === "@amaze/pi-ai/oauth") {
+			if (specifier === "@steve-z8k/pi-ai/oauth") {
 				throw new Error(`canonical peer unavailable from ${from}`);
 			}
 			return realResolveSync(specifier, from);
@@ -253,7 +258,7 @@ describe("legacy pi package root remaps (issue #1474)", () => {
 	it("routes @earendil-works/pi-utils through canonical Bun.resolveSync in non-compiled mode", async () => {
 		// Regression: when amaze runs from a node_modules install (not the monorepo
 		// and not a compiled binary), the bundled packages live at
-		// `node_modules/@amaze/pi-*`, not next to the source tree. Hardcoding
+		// `node_modules/@steve-z8k/pi-*`, not next to the source tree. Hardcoding
 		// a sibling `packages/<pkg>/src/index.ts` path would miss them, so the
 		// non-compiled branch must delegate to `Bun.resolveSync` against the
 		// canonical specifier.
@@ -264,7 +269,7 @@ describe("legacy pi package root remaps (issue #1474)", () => {
 		const realResolveSync = Bun.resolveSync.bind(Bun);
 		let canonicalLookupSeen = false;
 		vi.spyOn(Bun, "resolveSync").mockImplementation((specifier: string, from: string) => {
-			if (specifier === "@amaze/pi-utils") {
+			if (specifier === "@steve-z8k/pi-utils") {
 				canonicalLookupSeen = true;
 			}
 			return realResolveSync(specifier, from);
