@@ -61,10 +61,10 @@ describe("update-cli install target detection", () => {
 
 	it("uses mise update when prioritized amaze is in an active mise bin path", () => {
 		const method = resolveUpdateMethodForTest(
-			"/Users/test/.local/share/mise/installs/github-can1357-amaze-agent/latest/bin/amaze",
+			"/Users/test/.local/share/mise/installs/github-steve-8000-amaze/latest/bin/amaze",
 			undefined,
 			{
-				miseBinDirs: ["/Users/test/.local/share/mise/installs/github-can1357-amaze-agent/latest/bin"],
+				miseBinDirs: ["/Users/test/.local/share/mise/installs/github-steve-8000-amaze/latest/bin"],
 			},
 		);
 

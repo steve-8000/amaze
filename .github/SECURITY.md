@@ -8,7 +8,7 @@ Only the latest release is supported with security updates.
 
 To report a security issue, either:
 
-- Email can1357 directly, or
+- Contact the repository owner directly, or
 - Open a [private security advisory](https://github.com/steve-8000/amaze/security/advisories/new) on GitHub
 
 Include steps to reproduce and any relevant details. Do not open a public issue for security vulnerabilities.

@@ -23,7 +23,7 @@ Webhook → durable queue → async dispatcher → per-issue git worktree → am
 - `src/prompts/` — Mustache-style `{{var}}` templates loaded by `persona.py` via `@cache` and `importlib.resources`. Shipped as package data (`pyproject.toml` `package-data`).
 - `tests/` — pytest suite. `test_worker_smoke.py` is gated on `ROBOMP_INTEGRATION=1`.
 - `data/` — runtime state (sqlite + WAL, `workspaces/`, `logs/`). Never committed.
-- `/Dockerfile` (pi root) — produces `amaze-agent/pi:dev` (pi runtime image: python + bun + rustup + pi-natives + omp_rpc + `/usr/local/bin/amaze` shim + the full pi source under `/pi`). Stages: `natives-builder` → `wheel-builder` → `pi-base` → `pi-runtime` (default). Built via `bun run pi:image`. Robomp's image extends `pi-base` via `FROM ${PI_BASE}` in `/Dockerfile.robomp`.
+- `/Dockerfile` (pi root) — produces `steve-8000/amaze/pi:dev` (pi runtime image: python + bun + rustup + pi-natives + omp_rpc + `/usr/local/bin/amaze` shim + the full pi source under `/pi`). Stages: `natives-builder` → `wheel-builder` → `pi-base` → `pi-runtime` (default). Built via `bun run pi:image`. Robomp's image extends `pi-base` via `FROM ${PI_BASE}` in `/Dockerfile.robomp`.
 
 ## Development Commands
 
@@ -38,8 +38,8 @@ bun run robomp:serve              # python -m robomp serve on the host
 Docker inner loop:
 
 ```
-bun run pi:image                  # build amaze-agent/pi:dev (one-time / on pi change)
-bun run pi:run                    # docker run -it amaze-agent/pi:dev (smoke-test the shim)
+bun run pi:image                  # build steve-8000/amaze/pi:dev (one-time / on pi change)
+bun run pi:run                    # docker run -it steve-8000/amaze/pi:dev (smoke-test the shim)
 bun run robomp:build              # pi:image (if pi changed) + docker compose build
 bun run robomp:dev                # build + up -d + follow logs
 bun run robomp:up / robomp:down / robomp:restart / robomp:logs
@@ -97,7 +97,7 @@ Lint + format: TypeScript via Biome (config in `biome.json`), Python via Ruff (c
 - `src/cli.py` — Click CLI (`serve`, `triage`, `replay`, `status`, `cleanup`).
 - `src/dashboard.py` — single-page HTML dashboard served from `/`.
 - `pyproject.toml` — packaging + pytest config (`asyncio_mode = "auto"`, `testpaths = ["tests"]`).
-- `/Dockerfile.robomp` (pi root) — robomp's image. `FROM ${PI_BASE}` (default `amaze-agent/pi:dev`), adds the SolidJS dashboard bundle, the robomp Python package, and the `robomp-entrypoint` shim. Tini entrypoint, exposes `8080`, `VOLUME /data`. The toolchain (python + bun + rustup + pi-natives + omp_rpc + `amaze` shim) comes from `pi-base` — no duplication in this file.
+- `/Dockerfile.robomp` (pi root) — robomp's image. `FROM ${PI_BASE}` (default `steve-8000/amaze/pi:dev`), adds the SolidJS dashboard bundle, the robomp Python package, and the `robomp-entrypoint` shim. Tini entrypoint, exposes `8080`, `VOLUME /data`. The toolchain (python + bun + rustup + pi-natives + omp_rpc + `amaze` shim) comes from `pi-base` — no duplication in this file.
 - `docker-compose.yml` — `build.args.PI_BASE`, mounts `$PI_ROOT:/work/pi:ro`, `./data:/data`, `~/.amaze/agent/models.container.yml:ro` (mapped to `models.yml` inside the container — kept separate from the host's `~/.amaze/agent/models.yml` so the host amaze doesn't pick up gateway routing intended only for the container), `extra_hosts: llm-gateway.internal:host-gateway`.
 - `entrypoint.sh` — validates `PI_ROOT`, creates `/data/{workspaces,logs}` + build caches.
 - `.env.example` — authoritative list of required runtime env vars.
@@ -110,7 +110,7 @@ Lint + format: TypeScript via Biome (config in `biome.json`), Python via Ruff (c
 - **Task runner**: `bun` (root `package.json` `scripts`). Always reach for an existing `bun run` recipe before invoking `docker compose` or `pytest` directly.
 - **Container runtime**: Docker Compose v2. The image embeds Bun 1.3.14 + a rustup launcher and exposes `amaze` via a `/usr/local/bin/amaze` shim; `ROBOMP_OMP_COMMAND=amaze` should not need changing.
 - **Required env** (set in `.env`, see `.env.example`): `GITHUB_WEBHOOK_SECRET`, `ROBOMP_BOT_LOGIN`, `ROBOMP_GIT_AUTHOR_NAME`, `ROBOMP_GIT_AUTHOR_EMAIL`, `ROBOMP_REPO_ALLOWLIST`, plus model knobs (`ROBOMP_MODEL`, `ROBOMP_THINKING`, optional `ROBOMP_PROVIDER`) and rate-limit / concurrency / timeout overrides. Set `ROBOMP_BOT_LOGIN` to the lowercase mention handle (`roboomp` in production, no leading `@` or `[bot]`; config normalizes common variants). `ROBOMP_MAINTAINER_LOGINS` is optional comma-separated bare logins (`@`/`[bot]` optional, case-insensitive) for non-owner implementation authorizers. **GitHub auth is mode-exclusive**: either set `ROBOMP_GH_PROXY_URL` + `ROBOMP_GH_PROXY_HMAC_KEY` (gh-proxy mode; PAT lives only in the sidecar container — the bundled compose default), or set `GITHUB_TOKEN` directly (single-process PAT mode). `Settings._validate_proxy_or_pat` rejects a `.env` that sets both.
-- **PI_ROOT resolution**: roboomp lives inside the amaze-agent monorepo at `python/robomp/`. `bun run pi:image` builds the parent monorepo (`../..`) as its docker build context to produce `amaze-agent/pi:dev`; `docker-compose.yml` extends that image via `PI_BASE` and mounts the same parent path read-only at `/work/pi` for the orchestrator to see live source. Override `PI_ROOT` only when pointing the build/mount at a different amaze-agent checkout. Inside the container the path is always `/work/pi`. Build invalidation stays bounded: Python-only edits in roboomp never trigger a natives recompile.
+- **PI_ROOT resolution**: roboomp lives inside the amaze monorepo at `python/robomp/`. `bun run pi:image` builds the parent monorepo (`../..`) as its docker build context to produce `steve-8000/amaze/pi:dev`; `docker-compose.yml` extends that image via `PI_BASE` and mounts the same parent path read-only at `/work/pi` for the orchestrator to see live source. Override `PI_ROOT` only when pointing the build/mount at a different amaze checkout. Inside the container the path is always `/work/pi`. BuildKit caches are mounted under `/data/build-cache` to avoid rebuild churn.
 - **Forbidden**: no docker-in-docker, no extra service containers, no new background workers outside `WorkerPool`. The container itself is the isolation boundary; per-issue isolation is the git worktree.
 
 ## Testing & QA
